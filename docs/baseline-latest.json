@@ -1,0 +1,122 @@
+{
+  "packageVersion": "0.2.3",
+  "controllerVersion": "0.2.1",
+  "backendVersion": "0.1.2",
+  "sourceDate": "2026-10-07",
+  "binariesIncluded": false,
+  "deployedBinaryReferenceHashes": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 40960,
+      "SHA256": "317396047D28D7A26F6A04502B1676451E65C0495450CDCFA73266E33EBAE33F"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1576448,
+      "SHA256": "A7C4353AED1D2DEE949EFABEE13D34E56809D2A3681CFFE7765CF2C6483D1FF6"
+    }
+  ],
+  "historicalValidation": {
+    "runtimeChecks": 39,
+    "gridInvariants": 105780,
+    "cornerCoreChecks": 48,
+    "cornerHostedChecks": 27,
+    "ordinaryClientControlChecks": 18,
+    "actualTrayCounts": [
+      5,
+      6,
+      7,
+      6,
+      5
+    ],
+    "actualRectanglesChecked": 29,
+    "latestCenteredLayoutUserVisualAcceptance": "pending",
+    "priorUserAccepted": [
+      "Dock appearance, clicks and smart hiding",
+      "corners with elevated foreground windows",
+      "IME hidden and battery click working"
+    ]
+  },
+  "preservedSourceHashes": [
+    {
+      "file": "src/controller-latest.cpp",
+      "sha256": "f3cb05291d6309dee7d2268eedb2eedfdf4161479663458fe81c02ce22755e58"
+    },
+    {
+      "file": "src/hide-latest.cpp",
+      "sha256": "183d21420fff959e78b44a8aa383078aaca6c6a90d0440403d2c52585dce28c1"
+    },
+    {
+      "file": "src/hotcorners-latest.cpp",
+      "sha256": "71341087973921c98a4d80712cf1187d919e7005931ad7303fc94f117e18152a"
+    },
+    {
+      "file": "src/runtime-latest.cpp",
+      "sha256": "2cae11793ecb2ce1e04b61dbcfa78821675fd92dd9917081801bb2ac07a6224e"
+    },
+    {
+      "file": "src/show-latest.cpp",
+      "sha256": "339f262a25edadebf81f75c2e9657ca9df9695ece8a0ffa18917eb363804f7aa"
+    },
+    {
+      "file": "src/size-latest.cpp",
+      "sha256": "439d6b83c8e27b9b31af414c5f9ff5c8b3fdcad092122b5b58979b9e150ea7e5"
+    },
+    {
+      "file": "src/styler-latest.cpp",
+      "sha256": "005e56bda0dfe424960caa499430546d01cc2724280ed587ee7acea69a93c6c0"
+    },
+    {
+      "file": "src/tray-latest.cpp",
+      "sha256": "2c8cbd0ccd34ec0bcd05000a0e90f05e5fc84fb25f49e4e7fca0e9d861669fe3"
+    },
+    {
+      "file": "include/config-latest.h",
+      "sha256": "c6ce766a2fc7ec6e85fc23a655a87643071666412675373f97c86ea35f0ec068"
+    },
+    {
+      "file": "include/hotcorners-latest.h",
+      "sha256": "3df286051769cfcc7dcf4e4385497fe5db9799da9a7b3c4efe35a5cbad56d335"
+    },
+    {
+      "file": "include/native-api-latest.h",
+      "sha256": "80feec179f904ace6e16771f3161b9f329439fbe4a65af8d93ca98aa5882b37c"
+    },
+    {
+      "file": "include/protocol-latest.h",
+      "sha256": "d738e39614eb9b0b008003acdec954fd563e07dfb7f05e92d090fee281e247e2"
+    },
+    {
+      "file": "include/settings-generated.h",
+      "sha256": "161d29086fafbfa59be448396789392032f447278f5b831c934225ccf92f7d93"
+    },
+    {
+      "file": "include/symbols-generated.h",
+      "sha256": "055bff49ac02afb6a53c7628962b97996cc67abdd061c7d0c25f2061bf95ae0e"
+    },
+    {
+      "file": "include/verify-latest.h",
+      "sha256": "e280ccd6f44e08865ba65b24989fa387255718d64f488e00ace15f82b295b848"
+    },
+    {
+      "file": "include/windhawk_api.h",
+      "sha256": "30e9e9e963baf9f0cb8f3744301accb8fc3c2fcc954db61f7e457e4fd297a22a"
+    },
+    {
+      "file": "include/windhawk_api_internal.h",
+      "sha256": "bcf6d0a8bca614942e8a1ba1f13fc5c67389c26275a411c4307ea374fc1f1917"
+    },
+    {
+      "file": "include/windhawk_utils.h",
+      "sha256": "37761200fd6c45735101ac98d3395e97013ded1337b6b5462a943acba793315f"
+    },
+    {
+      "file": "hotcorners/core/latest.h",
+      "sha256": "f64fd0e5b2456ff3b014f1a0d0d0f78b7bccb41da66cc7dcf6452df14e30c9b8"
+    },
+    {
+      "file": "hotcorners/actions/latest.h",
+      "sha256": "3de462cba40d43724b27be804d68829c27cd7d1efbb102324f3ad4bd43e2fef0"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+* text=auto eol=lf
+upstream/** -text
+vendor/** -text
+*.png binary
+*.ico binary

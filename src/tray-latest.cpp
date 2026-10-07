@@ -1,0 +1,1793 @@
+// Derived from the preserved GPL-3.0 upstream; see NOTICE.md.
+#define ND_COMPONENT 2
+#define WindhawkUtils NDTrayUtils
+#include "native-api-latest.h"
+#include <windhawk_utils.h>
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <functional>
+#include <list>
+#include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.UI.Xaml.Controls.h>
+#include <winrt/Windows.UI.Xaml.Media.h>
+#include <winrt/Windows.UI.Xaml.h>
+#include <winrt/base.h>
+#include <memory>
+#include <vector>
+#include <string>
+#include <winrt/Windows.UI.Xaml.Data.h>
+namespace NDTray {
+
+
+#undef GetCurrentTime
+
+
+using namespace winrt::Windows::UI::Xaml;
+
+enum class GridArrangement {
+    rowFirstLeftToRight,
+    columnFirstTopToBottom,
+    rowFirstBottomRowFirst,
+    columnFirstBottomToTop,
+    columnFirstBottomToTopRightToLeft,
+};
+
+struct {
+    int notificationIconWidth;
+    int notificationIconRows;
+    GridArrangement gridArrangement;
+    int overflowIconWidth;
+    int overflowIconsPerRow;
+    bool mergeSystemIcons;
+    bool debugLayout;
+} g_settings;
+
+std::atomic<bool> g_systemTrayModuleHooked;
+std::atomic<bool> g_unloading;
+
+using FrameworkElementLoadedEventRevoker = winrt::impl::event_revoker<
+    IFrameworkElement,
+    &winrt::impl::abi<IFrameworkElement>::type::remove_Loaded>;
+
+std::list<FrameworkElementLoadedEventRevoker> g_autoRevokerList;
+
+winrt::weak_ref<FrameworkElement> g_notificationAreaIconsStackPanel;
+winrt::weak_ref<FrameworkElement> g_overflowRootGrid;
+
+HWND FindCurrentProcessTaskbarWnd() {
+    HWND hTaskbarWnd = nullptr;
+
+    EnumWindows(
+        [](HWND hWnd, LPARAM lParam) -> BOOL {
+            DWORD dwProcessId;
+            WCHAR className[32];
+            if (GetWindowThreadProcessId(hWnd, &dwProcessId) &&
+                dwProcessId == GetCurrentProcessId() &&
+                GetClassName(hWnd, className, ARRAYSIZE(className)) &&
+                _wcsicmp(className, L"Shell_TrayWnd") == 0) {
+                *reinterpret_cast<HWND*>(lParam) = hWnd;
+                return FALSE;
+            }
+            return TRUE;
+        },
+        reinterpret_cast<LPARAM>(&hTaskbarWnd));
+
+    return hTaskbarWnd;
+}
+
+FrameworkElement FindParentByName(FrameworkElement element, PCWSTR name) {
+    auto parent = element;
+    while (true) {
+        parent = Media::VisualTreeHelper::GetParent(parent)
+                     .try_as<FrameworkElement>();
+        if (!parent) {
+            return nullptr;
+        }
+
+        if (parent.Name() == name) {
+            return parent;
+        }
+    }
+}
+
+bool IsChildOfElementByName(FrameworkElement element, PCWSTR name) {
+    return !!FindParentByName(element, name);
+}
+
+FrameworkElement FindParentByClassName(FrameworkElement element,
+                                       PCWSTR className) {
+    auto parent = element;
+    while (true) {
+        parent = Media::VisualTreeHelper::GetParent(parent)
+                     .try_as<FrameworkElement>();
+        if (!parent) {
+            return nullptr;
+        }
+
+        if (winrt::get_class_name(parent) == className) {
+            return parent;
+        }
+    }
+}
+
+bool IsChildOfElementByClassName(FrameworkElement element, PCWSTR className) {
+    return !!FindParentByClassName(element, className);
+}
+
+FrameworkElement EnumChildElements(
+    FrameworkElement element,
+    std::function<bool(FrameworkElement)> enumCallback) {
+    int childrenCount = Media::VisualTreeHelper::GetChildrenCount(element);
+
+    for (int i = 0; i < childrenCount; i++) {
+        auto child = Media::VisualTreeHelper::GetChild(element, i)
+                         .try_as<FrameworkElement>();
+        if (!child) {
+            Wh_Log(L"Failed to get child %d of %d", i + 1, childrenCount);
+            continue;
+        }
+
+        if (enumCallback(child)) {
+            return child;
+        }
+    }
+
+    return nullptr;
+}
+
+FrameworkElement FindChildByName(FrameworkElement element, PCWSTR name) {
+    return EnumChildElements(element, [name](FrameworkElement child) {
+        return child.Name() == name;
+    });
+}
+
+FrameworkElement FindChildByClassName(FrameworkElement element,
+                                      PCWSTR className) {
+    return EnumChildElements(element, [className](FrameworkElement child) {
+        return winrt::get_class_name(child) == className;
+    });
+}
+
+template <typename T>
+T FindDescendant(DependencyObject element) {
+    int childrenCount = Media::VisualTreeHelper::GetChildrenCount(element);
+    for (int i = 0; i < childrenCount; i++) {
+        auto child = Media::VisualTreeHelper::GetChild(element, i);
+        if (auto result = child.try_as<T>()) {
+            return result;
+        }
+
+        if (auto result = FindDescendant<T>(child)) {
+            return result;
+        }
+    }
+
+    return nullptr;
+}
+
+FrameworkElement FindDescendantByName(DependencyObject element, PCWSTR name) {
+    int childrenCount = Media::VisualTreeHelper::GetChildrenCount(element);
+    for (int i = 0; i < childrenCount; i++) {
+        auto child = Media::VisualTreeHelper::GetChild(element, i);
+        auto childElement = child.try_as<FrameworkElement>();
+        if (childElement && childElement.Name() == name) {
+            return childElement;
+        }
+
+        if (auto result = FindDescendantByName(child, name)) {
+            return result;
+        }
+    }
+
+    return nullptr;
+}
+
+// The native vertical taskbar switches the tray to a vertical layout with a
+// visual state. A tray which is rotated as a whole keeps the horizontal layout.
+bool IsVerticalSystemTray(FrameworkElement systemTrayFrameGrid) {
+    for (const auto& group :
+         VisualStateManager::GetVisualStateGroups(systemTrayFrameGrid)) {
+        if (group.Name() == L"OrientationStates") {
+            auto currentState = group.CurrentState();
+            return currentState &&
+                   currentState.Name() == L"VerticalOrientation";
+        }
+    }
+
+    return false;
+}
+
+void ApplyNotifyIconViewOverflowStyle(FrameworkElement notifyIconViewElement,
+                                      int width) {
+    Wh_Log(L"Setting MinWidth=%d for NotifyIconView (overflow)", width);
+    notifyIconViewElement.MinWidth(width);
+
+    Wh_Log(L"Setting Height=%d for NotifyIconView (overflow)", width);
+    notifyIconViewElement.Height(width);
+
+    FrameworkElement child = notifyIconViewElement;
+    if ((child = FindChildByName(child, L"ContainerGrid")) &&
+        (child = FindChildByName(child, L"ContentPresenter")) &&
+        (child = FindChildByName(child, L"ContentGrid"))) {
+        EnumChildElements(child, [](FrameworkElement child) {
+            auto className = winrt::get_class_name(child);
+            if (className == L"SystemTray.ImageIconContent") {
+                auto containerGrid = FindChildByName(child, L"ContainerGrid")
+                                         .try_as<Controls::Grid>();
+                if (containerGrid) {
+                    Wh_Log(L"Setting Padding=0 for ContainerGrid");
+                    containerGrid.Padding(Thickness{});
+                }
+            } else {
+                Wh_Log(L"Unsupported class name %s of child",
+                       className.c_str());
+            }
+
+            return false;
+        });
+    }
+}
+
+// With a vertical tray, the width is the extent of the icon along the taskbar,
+// its height.
+void ApplyNotifyIconViewStyle(FrameworkElement notifyIconViewElement,
+                              int width,
+                              bool vertical = false) {
+    if (vertical) {
+        Wh_Log(L"Setting MinHeight=%d for NotifyIconView", width);
+        notifyIconViewElement.MinHeight(width);
+
+        // The icon fills its column, which can be narrower than the minimum
+        // width of the icon style.
+        if (g_unloading) {
+            notifyIconViewElement.as<DependencyObject>().ClearValue(
+                FrameworkElement::MinWidthProperty());
+        } else {
+            notifyIconViewElement.MinWidth(0);
+        }
+    } else {
+        Wh_Log(L"Setting MinWidth=%d for NotifyIconView", width);
+        notifyIconViewElement.MinWidth(width);
+    }
+
+    FrameworkElement child = notifyIconViewElement;
+    if ((child = FindChildByName(child, L"ContainerGrid")) &&
+        (child = FindChildByName(child, L"ContentPresenter")) &&
+        (child = FindChildByName(child, L"ContentGrid"))) {
+        EnumChildElements(child, [width](FrameworkElement child) {
+            auto className = winrt::get_class_name(child);
+            if (className == L"SystemTray.TextIconContent" ||
+                className == L"SystemTray.ImageIconContent") {
+                auto containerGrid = FindChildByName(child, L"ContainerGrid")
+                                         .try_as<Controls::Grid>();
+                if (containerGrid) {
+                    Wh_Log(L"Setting Padding=0 for ContainerGrid");
+                    containerGrid.Padding(Thickness{});
+                }
+            } else if (className == L"SystemTray.LanguageTextIconContent") {
+                child.Width(std::numeric_limits<double>::quiet_NaN());
+
+                // Every language has a different width. ENG is 24. Default
+                // width is 44.
+                double minWidth = width + 12;
+                Wh_Log(L"Setting MinWidth=%f for LanguageTextIconContent",
+                       minWidth);
+                child.MinWidth(minWidth);
+            } else {
+                Wh_Log(L"Unsupported class name %s of child",
+                       className.c_str());
+            }
+
+            return false;
+        });
+    }
+}
+
+
+// Column-first ordering, shared by application icons, battery and input method.
+// This is a layout policy, not a second notification host.
+namespace DockGrid {
+struct Group { int columns; int overlapColumns; };
+constexpr Group PlaceGroup(int before, int count) {
+    return count <= 0 ? Group{0, 0} : Group{(before % 2 + count + 1) / 2, before % 2};
+}
+constexpr int Column(int before, int index) { return (before % 2 + index) / 2; }
+constexpr int Row(int before, int index) { return (before + index) % 2; }
+constexpr int TotalColumns(int count) { return (count + 1) / 2; }
+}
+
+// Local extension to the upstream tray grid. No reparenting, proxy icons,
+// additional hooks, timers or input injection. Move the native hit targets.
+
+struct DockSavedProperty {
+    winrt::weak_ref<FrameworkElement> element;
+    DependencyProperty property{nullptr};
+    winrt::Windows::Foundation::IInspectable value{nullptr};
+    Data::Binding binding{nullptr};
+};
+struct DockUnifiedContext {
+    winrt::weak_ref<FrameworkElement> root;
+    winrt::event_token layoutToken{};
+    DWORD threadId{};
+    bool updating{};
+    std::vector<DockSavedProperty> saved;
+    std::wstring lastState;
+};
+// The Windows notification area is on the primary taskbar. Other XAML roots
+// retain upstream behavior; do not access a root from another UI thread.
+std::unique_ptr<DockUnifiedContext> g_dockUnified;
+
+bool DockEqual(double a, double b) {
+    return (std::isnan(a) && std::isnan(b)) || std::abs(a - b) < 0.001;
+}
+bool DockEqual(Thickness a, Thickness b) {
+    return DockEqual(a.Left,b.Left) && DockEqual(a.Top,b.Top) &&
+           DockEqual(a.Right,b.Right) && DockEqual(a.Bottom,b.Bottom);
+}
+template<class T> bool DockEqual(T a, T b) { return a == b; }
+void DockRemember(FrameworkElement element, DependencyProperty property) {
+    auto& saved = g_dockUnified->saved;
+    for (auto& entry : saved)
+        if (entry.property == property && entry.element.get() == element) return;
+    Data::Binding binding{nullptr};
+    if (auto expression = element.GetBindingExpression(property))
+        binding = expression.ParentBinding();
+    saved.push_back({element, property, element.ReadLocalValue(property), binding});
+}
+template<class T> void DockSet(FrameworkElement element, DependencyProperty property, T value) {
+    if (DockEqual(winrt::unbox_value<T>(element.GetValue(property)),value)) return;
+    DockRemember(element,property);
+    element.SetValue(property,winrt::box_value(value));
+}
+void DockTranslate(FrameworkElement element, double x, double y) {
+    auto old = element.RenderTransform().try_as<Media::TranslateTransform>();
+    if (old && DockEqual(old.X(),x) && DockEqual(old.Y(),y)) return;
+    DockRemember(element,UIElement::RenderTransformProperty());
+    Media::TranslateTransform transform;
+    transform.X(x); transform.Y(y);
+    element.RenderTransform(transform);
+}
+void StopUnifiedDockGrid() {
+    if (!g_dockUnified) return;
+    if (g_dockUnified->threadId != GetCurrentThreadId()) return;
+    auto context = std::move(g_dockUnified);
+    if (auto root = context->root.get()) root.LayoutUpdated(context->layoutToken);
+    for (auto it=context->saved.rbegin();it!=context->saved.rend();++it) {
+        try {
+            if (auto element=it->element.get()) {
+                if (it->binding) Data::BindingOperations::SetBinding(element,it->property,it->binding);
+                else if (it->value==DependencyProperty::UnsetValue()) element.ClearValue(it->property);
+                else element.SetValue(it->property,it->value);
+            }
+        } catch (...) { Wh_Log(L"Unified grid restore error %08X",winrt::to_hresult()); }
+    }
+    Wh_SetStringValue(L"mergedGridState",L"{\"active\":false,\"restored\":true}");
+}
+void DockBox(FrameworkElement element,double width,double height,
+             HorizontalAlignment alignment=HorizontalAlignment::Center,bool resetMargin=true) {
+    DockSet(element,FrameworkElement::MinWidthProperty(),0.0);
+    DockSet(element,FrameworkElement::MinHeightProperty(),0.0);
+    DockSet(element,FrameworkElement::WidthProperty(),width);
+    DockSet(element,FrameworkElement::HeightProperty(),height);
+    if (resetMargin) DockSet(element,FrameworkElement::MarginProperty(),Thickness{});
+    DockSet(element,FrameworkElement::HorizontalAlignmentProperty(),alignment);
+    DockSet(element,FrameworkElement::VerticalAlignmentProperty(),VerticalAlignment::Center);
+    if (auto grid=element.try_as<Controls::Grid>())
+        DockSet(element,Controls::Grid::PaddingProperty(),Thickness{});
+    if (auto stack=element.try_as<Controls::StackPanel>()) {
+        DockSet(element,Controls::StackPanel::PaddingProperty(),Thickness{});
+        DockSet(element,Controls::StackPanel::SpacingProperty(),0.0);
+    }
+}
+FrameworkElement DockItemsPanel(FrameworkElement items) {
+    if (!items) return nullptr;
+    auto presenter=FindChildByClassName(items,L"Windows.UI.Xaml.Controls.ItemsPresenter");
+    return presenter ? FindChildByClassName(presenter,L"Windows.UI.Xaml.Controls.StackPanel") : nullptr;
+}
+struct DockGroup {
+    FrameworkElement container{nullptr};
+    FrameworkElement panel{nullptr};
+    std::vector<FrameworkElement> presenters;
+    std::vector<FrameworkElement> icons;
+};
+DockGroup DockCollect(FrameworkElement root,bool apps) {
+    DockGroup result;
+    result.container=FindChildByName(root,apps?L"NotificationAreaIcons":L"NonActivatableStack");
+    if (!result.container || result.container.Visibility()!=Visibility::Visible) return result;
+    auto items=result.container;
+    if (!apps) {
+        items=FindChildByName(items,L"Content");
+        if (items) items=FindChildByName(items,L"IconStack");
+    }
+    result.panel=DockItemsPanel(items);
+    if (!result.panel) return result;
+    if (!apps) {
+        // Hide only the native IME content; its outer wrapper still supplies
+        // the battery's required layout width on 26H2. Count no IME slots.
+        // Preserve parents/visibility and restore both properties on Stop.
+        DockSet(result.panel,UIElement::OpacityProperty(),0.0);
+        DockSet(result.panel,UIElement::IsHitTestVisibleProperty(),false);
+        return result;
+    }
+    EnumChildElements(result.panel,[&](FrameworkElement child) {
+        if (child.Visibility()!=Visibility::Visible) return false;
+        auto icon=FindChildByName(child,apps?L"NotifyItemIcon":L"SystemTrayIcon");
+        if (icon && icon.Visibility()==Visibility::Visible) {
+            result.presenters.push_back(child); result.icons.push_back(icon);
+        }
+        return false;
+    });
+    return result;
+}
+void DockNormalizeIcon(FrameworkElement icon,double cell,double row) {
+    DockBox(icon,cell,row);
+    auto grid=FindChildByName(icon,L"ContainerGrid");
+    if (!grid) return;
+    DockBox(grid,cell,row);
+    auto presenter=FindChildByName(grid,L"ContentPresenter");
+    auto content=presenter?FindChildByName(presenter,L"ContentGrid"):FindChildByName(grid,L"ContentGrid");
+    if (presenter) DockBox(presenter,cell,row);
+    if (!content) return;
+    DockBox(content,cell,row);
+    EnumChildElements(content,[&](FrameworkElement child) {
+        const auto type=winrt::get_class_name(child);
+        if (type==L"SystemTray.ImageIconContent" || type==L"SystemTray.TextIconContent" ||
+            type==L"SystemTray.LanguageTextIconContent" || type==L"SystemTray.BatteryIconContent") {
+            DockBox(child,cell,row);
+            if (auto inner=FindChildByName(child,L"ContainerGrid")) DockBox(inner,cell,row);
+        }
+        return false;
+    });
+}
+void DockArrangeGroup(DockGroup& group,int before,int column,double cell,double pitch,double row,
+                      int allocatedColumns=-1,bool noOverlap=false) {
+    if (!group.container) return;
+    auto geometry=DockGrid::PlaceGroup(before,int(group.icons.size()));
+    const int columns=allocatedColumns<0?geometry.columns:allocatedColumns;
+    DockBox(group.container,columns*pitch,row*2,HorizontalAlignment::Left,false);
+    DockSet(group.container,Controls::Grid::ColumnProperty(),column);
+    DockSet(group.container,FrameworkElement::MarginProperty(),Thickness{-(noOverlap?0:geometry.overlapColumns)*pitch,0,0,0});
+    if (!group.panel) return;
+    DockBox(group.panel,columns*pitch,row*2,HorizontalAlignment::Left);
+    for (size_t i=0;i<group.icons.size();++i) {
+        DockBox(group.presenters[i],cell,row);
+        DockNormalizeIcon(group.icons[i],cell,row);
+        DockTranslate(group.presenters[i],pitch*DockGrid::Column(before,int(i))-cell*i+(pitch-cell)/2,
+                      row*(DockGrid::Row(before,int(i))-0.5));
+    }
+}
+std::wstring DockRect(FrameworkElement item,FrameworkElement root) {
+    const auto p=item.TransformToVisual(root).TransformPoint({0,0});
+    wchar_t text[160];
+    swprintf_s(text,L"[%.2f,%.2f,%.2f,%.2f]",p.X,p.Y,item.ActualWidth(),item.ActualHeight());
+    return text;
+}
+std::wstring DockTree(FrameworkElement item,FrameworkElement root,int depth=0) {
+    if (!item || depth>12) return L"";
+    std::wstring value(depth,L' ');
+    value+=std::wstring(winrt::get_class_name(item))+L"#"+std::wstring(item.Name())+L" "+DockRect(item,root);
+    const auto m=item.Margin();
+    wchar_t info[240];
+    swprintf_s(info,L" min=%.1f,%.1f margin=%.1f,%.1f,%.1f,%.1f visible=%d",
+               item.MinWidth(),item.MinHeight(),m.Left,m.Top,m.Right,m.Bottom,int(item.Visibility()));
+    value+=info;
+    auto states=VisualStateManager::GetVisualStateGroups(item);
+    for(auto state:states) {
+        value+=L" stateGroup='"+std::wstring(state.Name())+L"'(";
+        for(auto v:state.States()) value+=std::wstring(v.Name())+L",";
+        value+=L")";
+    }
+    value+=L"\n";
+    EnumChildElements(item,[&](FrameworkElement child){value+=DockTree(child,root,depth+1);return false;});
+    return value;
+}
+void UpdateUnifiedDockGrid() {
+    if (!g_dockUnified || g_dockUnified->updating || g_unloading ||
+        g_dockUnified->threadId!=GetCurrentThreadId()) return;
+    auto root=g_dockUnified->root.get();
+    if (!root || !root.IsLoaded() || IsVerticalSystemTray(root)) return;
+    if (root.ActualHeight()<48 || root.ActualHeight()>120) return;
+    struct Guard {bool& flag;Guard(bool& f):flag(f){flag=true;}~Guard(){flag=false;}} guard(g_dockUnified->updating);
+    try {
+        auto apps=DockCollect(root,true);
+        auto input=DockCollect(root,false);
+        auto battery=FindChildByName(root,L"ControlCenterButton");
+        if (!apps.panel || !battery || battery.Visibility()!=Visibility::Visible) return;
+        // Only compact the battery-only Quick Settings button. If another
+        // visible native control is present, retain upstream layout safely.
+        auto batteryGrid=FindChildByClassName(battery,L"Windows.UI.Xaml.Controls.Grid");
+        auto batteryContent=batteryGrid?FindChildByName(batteryGrid,L"ContentPresenter"):nullptr;
+        auto batteryPanel=DockItemsPanel(batteryContent);
+        if (!batteryPanel) return;
+        FrameworkElement batteryPresenter{nullptr},batteryIcon{nullptr};
+        int visible=0;
+        EnumChildElements(batteryPanel,[&](FrameworkElement child) {
+            if (child.Visibility()!=Visibility::Visible) return false;
+            auto icon=FindChildByName(child,L"SystemTrayIcon");
+            if (icon && icon.Visibility()==Visibility::Visible) {
+                ++visible;batteryPresenter=child;batteryIcon=icon;
+            }
+            return false;
+        });
+        if (visible!=1) return;
+        const double cell=g_settings.notificationIconWidth; // 24 in this profile
+        const double pitch=cell+4;
+        const double row=24;
+        const int appCount=int(apps.icons.size());
+        const int count=appCount+1+int(input.icons.size());
+        const int totalColumns=DockGrid::TotalColumns(count);
+        const bool stackRoot=!!root.try_as<Controls::StackPanel>();
+        DockArrangeGroup(apps,0,1,cell,pitch,row);
+        auto batteryGeometry=DockGrid::PlaceGroup(appCount,1);
+        DockBox(battery,pitch,row,HorizontalAlignment::Left,false);
+        DockSet(battery,Controls::Grid::ColumnProperty(),2);
+        DockSet(battery,FrameworkElement::MarginProperty(),Thickness{-(stackRoot?1:batteryGeometry.overlapColumns)*pitch,0,0,0});
+        const double batteryX=stackRoot?(appCount/2-(totalColumns-1))*pitch:0;
+        // Center a lone final item in the full two-row height. Move the
+        // entire native button, so glyph, hover and click bounds stay aligned.
+        const double batteryY=(count%2 && appCount==count-1)
+            ? 0.0 : row*(DockGrid::Row(appCount,0)-0.5);
+        DockTranslate(battery,batteryX,batteryY);
+        for (auto element:{batteryGrid,batteryContent,batteryPanel,batteryPresenter}) DockBox(element,cell,row);
+        DockNormalizeIcon(batteryIcon,cell,row);
+        if (stackRoot) {
+            // On Windows 26H2 the native order is apps, IME, Quick Settings.
+            // Reserve the remaining columns in the IME wrapper, then move
+            // the entire Quick Settings hit target back to its flow slot.
+            // This preserves native parents and works on both odd/even counts.
+            const int remaining=totalColumns-DockGrid::TotalColumns(appCount);
+            DockArrangeGroup(input,appCount+1,3,cell,pitch,row,remaining,true);
+        } else DockArrangeGroup(input,appCount+1,3,cell,pitch,row);
+        std::wstring state=L"{\"active\":true,\"apps\":"+std::to_wstring(appCount)+
+            L",\"battery\":1,\"input\":"+std::to_wstring(input.icons.size())+
+            L",\"total\":"+std::to_wstring(count)+L",\"columns\":"+std::to_wstring(DockGrid::TotalColumns(count))+
+            L",\"cellWidth\":"+std::to_wstring(int(cell))+L",\"rowHeight\":24,\"cells\":[";
+        bool first=true;
+        for (auto& item:apps.icons) {if(!first)state+=L",";first=false;state+=DockRect(item,root);}
+        if(!first)state+=L",";
+        state+=DockRect(batteryGrid,root);
+        for (auto& item:input.icons) state+=L","+DockRect(item,root);
+        state+=L"]}";
+        if (state!=g_dockUnified->lastState) {
+            Wh_SetStringValue(L"mergedGridState",state.c_str());
+            g_dockUnified->lastState=std::move(state);
+            auto& saved=g_dockUnified->saved;
+            saved.erase(std::remove_if(saved.begin(),saved.end(),[](auto& x){return !x.element.get();}),saved.end());
+        }
+        if (g_settings.debugLayout) {
+            Wh_SetStringValue(L"batteryGeometry",DockTree(battery,root).c_str());
+            if(!apps.icons.empty()) Wh_SetStringValue(L"trayGeometry",DockTree(apps.icons[0],root).c_str());
+        }
+    } catch (...) {Wh_Log(L"Unified grid update error %08X",winrt::to_hresult());}
+}
+bool TryUnifiedDockGrid(FrameworkElement element) try {
+    if (!g_settings.mergeSystemIcons || g_settings.notificationIconRows!=2 || g_unloading) return false;
+    auto root=element.Name()==L"SystemTrayFrameGrid"?element:FindParentByName(element,L"SystemTrayFrameGrid");
+    if (!root || IsVerticalSystemTray(root)) return false;
+    const auto grid=root.try_as<Controls::Grid>();
+    const auto stack=root.try_as<Controls::StackPanel>();
+    if ((!grid && !stack) || (grid && grid.ColumnDefinitions().Size()<7) ||
+        !FindChildByName(root,L"NotificationAreaIcons") || !FindChildByName(root,L"NonActivatableStack")) return false;
+    if (g_dockUnified && g_dockUnified->threadId!=GetCurrentThreadId()) return false;
+    if (g_dockUnified && g_dockUnified->root.get()!=root) {
+        if (g_dockUnified->root.get()) return false;
+        StopUnifiedDockGrid();
+    }
+    if (!g_dockUnified) {
+        g_dockUnified=std::make_unique<DockUnifiedContext>();
+        g_dockUnified->root=root;g_dockUnified->threadId=GetCurrentThreadId();
+        Wh_SetStringValue(L"mergedGridState",L"{\"active\":false,\"waitingForLayout\":true}");
+        g_dockUnified->layoutToken=root.LayoutUpdated([](auto const&,auto const&) {UpdateUnifiedDockGrid();});
+    }
+    UpdateUnifiedDockGrid();
+    return true;
+} catch (...) {Wh_Log(L"Unified grid init error %08X",winrt::to_hresult());return false;}
+
+void ApplyNotifyIconsStackPanelGridStyle(FrameworkElement stackPanel,
+                                         int rows,
+                                         int width) {
+    if (TryUnifiedDockGrid(stackPanel)) {
+        g_notificationAreaIconsStackPanel = stackPanel;
+        return;
+    }
+    double itemHeight = 0;
+    if (rows > 1) {
+        double stackPanelHeight = stackPanel.ActualHeight();
+        double gap = stackPanelHeight - 16 * rows;
+        double gapPerItem = std::fmax(gap, 0.0) / (rows + 1);
+        // Force the gap to be an even number to prevent blurry icons.
+        int gapPerItemEven = static_cast<int>(gapPerItem) / 2 * 2;
+        itemHeight = 16 + gapPerItemEven;
+    }
+
+    // Count children first for row-first arrangements.
+    int childCount = Media::VisualTreeHelper::GetChildrenCount(stackPanel);
+    int cols = (childCount + rows - 1) / rows;
+
+    GridArrangement arrangement = g_settings.gridArrangement;
+
+    int indexIter = 0;
+    EnumChildElements(stackPanel, [width, rows, itemHeight, cols, arrangement,
+                                   &indexIter](FrameworkElement child) {
+        int index = indexIter++;
+
+        auto childClassName = winrt::get_class_name(child);
+        if (childClassName != L"Windows.UI.Xaml.Controls.ContentPresenter") {
+            Wh_Log(L"Unsupported class name %s of child",
+                   childClassName.c_str());
+            return false;
+        }
+
+        if (rows > 1) {
+            child.Height(itemHeight);
+
+            int col, row;
+            switch (arrangement) {
+                case GridArrangement::rowFirstLeftToRight:
+                    col = index % cols;
+                    row = index / cols;
+                    break;
+                case GridArrangement::columnFirstTopToBottom:
+                    col = index / rows;
+                    row = index % rows;
+                    break;
+                case GridArrangement::rowFirstBottomRowFirst:
+                    col = index % cols;
+                    row = (rows - 1) - (index / cols);
+                    break;
+                case GridArrangement::columnFirstBottomToTop:
+                    col = index / rows;
+                    row = (rows - 1) - (index % rows);
+                    break;
+                case GridArrangement::columnFirstBottomToTopRightToLeft:
+                    col = (cols - 1) - (index / rows);
+                    row = (rows - 1) - (index % rows);
+                    break;
+            }
+
+            Media::TranslateTransform transform;
+
+            int xOffset = width * (col - index);
+            transform.X(xOffset);
+
+            double yOffset = itemHeight * row - itemHeight * (rows - 1) / 2;
+            transform.Y(yOffset);
+
+            child.RenderTransform(transform);
+        } else {
+            auto childDp = child.as<DependencyObject>();
+            childDp.ClearValue(FrameworkElement::HeightProperty());
+            childDp.ClearValue(UIElement::RenderTransformProperty());
+        }
+
+        return false;
+    });
+
+    if (rows > 1) {
+        int desiredWidth = width * ((indexIter + rows - 1) / rows);
+        stackPanel.Width(desiredWidth);
+    } else {
+        stackPanel.as<DependencyObject>().ClearValue(
+            FrameworkElement::WidthProperty());
+    }
+
+    g_notificationAreaIconsStackPanel = stackPanel;
+}
+
+void ApplyNotifyIconsStackPanelGridStyleOfIcon(
+    FrameworkElement notifyIconViewElement,
+    int rows,
+    int width) {
+    auto contentPresenter =
+        Media::VisualTreeHelper::GetParent(notifyIconViewElement)
+            .try_as<FrameworkElement>();
+    if (!contentPresenter || winrt::get_class_name(contentPresenter) !=
+                                 L"Windows.UI.Xaml.Controls.ContentPresenter") {
+        return;
+    }
+
+    auto stackPanel = Media::VisualTreeHelper::GetParent(contentPresenter)
+                          .try_as<FrameworkElement>();
+    if (!stackPanel || winrt::get_class_name(stackPanel) !=
+                           L"Windows.UI.Xaml.Controls.StackPanel") {
+        return;
+    }
+
+    ApplyNotifyIconsStackPanelGridStyle(stackPanel, rows, width);
+}
+
+// A vertical tray which is wide enough arranges the icons in a wrap grid, with
+// rows of a fixed height, 44 by default.
+void ApplyNotifyIconsWrapGridStyle(Controls::WrapGrid wrapGrid, int width) {
+    int itemHeight = g_unloading ? 44 : width;
+    Wh_Log(L"Setting ItemHeight=%d for WrapGrid", itemHeight);
+    wrapGrid.ItemHeight(itemHeight);
+}
+
+void ApplyNotifyIconsWrapGridStyleOfIcon(FrameworkElement notifyIconViewElement,
+                                         int width) {
+    auto contentPresenter =
+        Media::VisualTreeHelper::GetParent(notifyIconViewElement)
+            .try_as<FrameworkElement>();
+    if (!contentPresenter) {
+        return;
+    }
+
+    auto wrapGrid = Media::VisualTreeHelper::GetParent(contentPresenter)
+                        .try_as<Controls::WrapGrid>();
+    if (!wrapGrid) {
+        return;
+    }
+
+    ApplyNotifyIconsWrapGridStyle(wrapGrid, width);
+}
+
+// The rows of a horizontal tray are the columns of a vertical one, as with a
+// tray which is rotated as a whole. The columns split the frame width. With a
+// single row, as many columns are used as fit an icon with 8 pixels of padding
+// on each side. That's 48 for the default icon width of 32, the width of the
+// vertical taskbar without labels.
+bool ApplyNotifyIconsWrapGridColumns(
+    Controls::ItemsControl notificationAreaIcons,
+    int rows,
+    int width) {
+    auto wrapGrid =
+        notificationAreaIcons.ItemsPanelRoot().try_as<Controls::WrapGrid>();
+    auto systemTrayFrame = FindParentByClassName(notificationAreaIcons,
+                                                 L"SystemTray.SystemTrayFrame");
+    if (!wrapGrid || !systemTrayFrame) {
+        return false;
+    }
+
+    double frameWidth = systemTrayFrame.Width();
+    if (!(frameWidth > 0)) {
+        return false;
+    }
+
+    int maxColumns;
+    if (rows > 1) {
+        // Columns narrower than a 16 pixel icon with the edge inset of the
+        // first and last columns would overlap.
+        maxColumns = std::min(rows, (int)(frameWidth / 20));
+    } else {
+        maxColumns = (int)(frameWidth / (width + 16));
+    }
+
+    int itemCount = notificationAreaIcons.Items().Size();
+    int columns = std::clamp(itemCount, 1, std::max(1, maxColumns));
+
+    double scale = 1;
+    if (auto xamlRoot = wrapGrid.XamlRoot()) {
+        scale = xamlRoot.RasterizationScale();
+    }
+
+    double itemWidth =
+        std::max(1.0, std::floor(frameWidth / columns * scale) / scale);
+
+    Wh_Log(L"Setting MaximumRowsOrColumns=%d, ItemWidth=%f for WrapGrid",
+           columns, itemWidth);
+    wrapGrid.MaximumRowsOrColumns(columns);
+    wrapGrid.ItemWidth(itemWidth);
+
+    return true;
+}
+
+// Like the taskbar, insets the first and last icons of each row from the frame
+// edges, but for the columns of the grid instead of the default ones.
+bool ApplyNotifyIconsWrapGridEdgePadding(Controls::ItemsControl itemsControl,
+                                         unsigned int itemCount) {
+    auto wrapGrid = itemsControl.ItemsPanelRoot().try_as<Controls::WrapGrid>();
+    auto systemTrayFrame =
+        FindParentByClassName(itemsControl, L"SystemTray.SystemTrayFrame");
+    if (!wrapGrid || !systemTrayFrame) {
+        return false;
+    }
+
+    double frameWidth = systemTrayFrame.Width();
+    double itemWidth = wrapGrid.ItemWidth();
+    int maximumColumns = wrapGrid.MaximumRowsOrColumns();
+    if (!(frameWidth > 0) || !(itemWidth > 0) || maximumColumns < 1) {
+        return false;
+    }
+
+    constexpr double kInset = 4;
+    unsigned int columns = maximumColumns;
+    unsigned int rows = (itemCount + columns - 1) / columns;
+    double leftover = std::max(frameWidth - itemWidth * columns, 0.0);
+
+    for (unsigned int i = 0; i < itemCount; i++) {
+        auto container = itemsControl.ContainerFromIndex(static_cast<int>(i));
+        if (!container) {
+            continue;
+        }
+
+        auto control = FindDescendant<Controls::Control>(container);
+        if (!control) {
+            continue;
+        }
+
+        unsigned int row = i / columns;
+        unsigned int column = i % columns;
+        unsigned int rowItemCount =
+            row == rows - 1 ? itemCount - row * columns : columns;
+
+        Thickness padding{};
+        if (column == 0) {
+            padding.Left = kInset;
+        }
+
+        if (column == rowItemCount - 1) {
+            double rowLeftover = rowItemCount == columns ? leftover : 0;
+            padding.Right = std::max(kInset - rowLeftover, 0.0);
+        }
+
+        control.Padding(padding);
+
+        // The content of icons with a background is inset with the background.
+        auto contentGrid = FindDescendantByName(control, L"ContentGrid");
+        if (!contentGrid) {
+            continue;
+        }
+
+        if (FindDescendantByName(control, L"BackgroundBorder")) {
+            contentGrid.Margin(padding);
+        } else {
+            contentGrid.as<DependencyObject>().ClearValue(
+                FrameworkElement::MarginProperty());
+        }
+    }
+
+    return true;
+}
+
+bool ApplyNotifyIconsStyle(FrameworkElement notificationAreaIcons,
+                           int rows,
+                           int width,
+                           bool vertical) {
+    FrameworkElement itemsPanel = nullptr;
+
+    FrameworkElement child = notificationAreaIcons;
+    if ((child = FindChildByClassName(
+             child, L"Windows.UI.Xaml.Controls.ItemsPresenter")) &&
+        (child = EnumChildElements(child, [](FrameworkElement child) {
+             return !!child.try_as<Controls::Panel>();
+         }))) {
+        itemsPanel = child;
+    }
+
+    if (!itemsPanel) {
+        return false;
+    }
+
+    EnumChildElements(itemsPanel, [width, vertical](FrameworkElement child) {
+        auto childClassName = winrt::get_class_name(child);
+        if (childClassName != L"Windows.UI.Xaml.Controls.ContentPresenter") {
+            Wh_Log(L"Unsupported class name %s of child",
+                   childClassName.c_str());
+            return false;
+        }
+
+        FrameworkElement notifyIconViewElement =
+            FindChildByName(child, L"NotifyItemIcon");
+        if (!notifyIconViewElement) {
+            Wh_Log(L"Failed to get notifyIconViewElement of child");
+            return false;
+        }
+
+        ApplyNotifyIconViewStyle(notifyIconViewElement, width, vertical);
+        return false;
+    });
+
+    if (!vertical) {
+        ApplyNotifyIconsStackPanelGridStyle(itemsPanel, rows, width);
+    } else if (auto wrapGrid = itemsPanel.try_as<Controls::WrapGrid>()) {
+        ApplyNotifyIconsWrapGridStyle(wrapGrid, width);
+
+        auto itemsControl =
+            notificationAreaIcons.try_as<Controls::ItemsControl>();
+        if (itemsControl &&
+            ApplyNotifyIconsWrapGridColumns(itemsControl, rows, width)) {
+            ApplyNotifyIconsWrapGridEdgePadding(itemsControl,
+                                                itemsControl.Items().Size());
+        }
+    }
+
+    return true;
+}
+
+void ApplySystemTrayIconStyle(FrameworkElement systemTrayIconElement,
+                              int width) {
+    Wh_Log(L"Setting width %d for SystemTrayIcon", width);
+
+    FrameworkElement child = systemTrayIconElement;
+    if ((child = FindChildByName(child, L"ContainerGrid")) &&
+        (child = FindChildByName(child, L"ContentGrid")) &&
+        (child = FindChildByClassName(child, L"SystemTray.TextIconContent")) &&
+        (child = FindChildByName(child, L"ContainerGrid"))) {
+        auto childControl = child.try_as<Controls::Grid>();
+        if (childControl) {
+            int newPadding = 4;
+
+            if (width > 32) {
+                newPadding = (8 + width - 32) / 2;
+            } else if (width < 24) {
+                newPadding = (8 + width - 24) / 2;
+                if (newPadding < 0) {
+                    newPadding = 0;
+                }
+            }
+
+            Wh_Log(L"Setting Padding=%d for ContainerGrid", newPadding);
+            childControl.Padding(Thickness{
+                .Left = static_cast<double>(newPadding),
+                .Right = static_cast<double>(newPadding),
+            });
+        }
+    }
+}
+
+bool ApplyControlCenterButtonStyle(FrameworkElement controlCenterButton,
+                                   int width) {
+    FrameworkElement stackPanel = nullptr;
+
+    FrameworkElement child = controlCenterButton;
+    if ((child =
+             FindChildByClassName(child, L"Windows.UI.Xaml.Controls.Grid")) &&
+        (child = FindChildByName(child, L"ContentPresenter")) &&
+        (child = FindChildByClassName(
+             child, L"Windows.UI.Xaml.Controls.ItemsPresenter")) &&
+        (child = FindChildByClassName(
+             child, L"Windows.UI.Xaml.Controls.StackPanel"))) {
+        stackPanel = child;
+    }
+
+    if (!stackPanel) {
+        return false;
+    }
+
+    EnumChildElements(stackPanel, [width](FrameworkElement child) {
+        auto childClassName = winrt::get_class_name(child);
+        if (childClassName != L"Windows.UI.Xaml.Controls.ContentPresenter") {
+            Wh_Log(L"Unsupported class name %s of child",
+                   childClassName.c_str());
+            return false;
+        }
+
+        FrameworkElement systemTrayIconElement =
+            FindChildByName(child, L"SystemTrayIcon");
+        if (!systemTrayIconElement) {
+            Wh_Log(L"Failed to get SystemTrayIcon of child");
+            return false;
+        }
+
+        ApplySystemTrayIconStyle(systemTrayIconElement, width);
+        return false;
+    });
+
+    return true;
+}
+
+bool ApplyIconStackStyle(PCWSTR containerName,
+                         FrameworkElement container,
+                         int width) {
+    FrameworkElement stackPanel = nullptr;
+
+    FrameworkElement child = container;
+    if ((child = FindChildByName(child, L"Content")) &&
+        (child = FindChildByName(child, L"IconStack")) &&
+        (child = FindChildByClassName(
+             child, L"Windows.UI.Xaml.Controls.ItemsPresenter")) &&
+        (child = FindChildByClassName(
+             child, L"Windows.UI.Xaml.Controls.StackPanel"))) {
+        stackPanel = child;
+    }
+
+    if (!stackPanel) {
+        return false;
+    }
+
+    EnumChildElements(stackPanel, [containerName,
+                                   width](FrameworkElement child) {
+        auto childClassName = winrt::get_class_name(child);
+        if (childClassName != L"Windows.UI.Xaml.Controls.ContentPresenter") {
+            Wh_Log(L"Unsupported class name %s of child",
+                   childClassName.c_str());
+            return false;
+        }
+
+        if (wcscmp(containerName, L"NotifyIconStack") == 0) {
+            FrameworkElement systemTrayChevronIconViewElement =
+                FindChildByClassName(child, L"SystemTray.ChevronIconView");
+            if (!systemTrayChevronIconViewElement) {
+                Wh_Log(L"Failed to get SystemTray.ChevronIconView of child");
+                return false;
+            }
+
+            ApplyNotifyIconViewStyle(systemTrayChevronIconViewElement, width);
+        } else {
+            FrameworkElement systemTrayIconElement =
+                FindChildByName(child, L"SystemTrayIcon");
+            if (!systemTrayIconElement) {
+                Wh_Log(L"Failed to get SystemTrayIcon of child");
+                return false;
+            }
+
+            ApplyNotifyIconViewStyle(systemTrayIconElement, width);
+        }
+
+        return false;
+    });
+
+    return true;
+}
+
+bool ApplyStyle(XamlRoot xamlRoot, int rows, int width) {
+    StopUnifiedDockGrid();
+    FrameworkElement systemTrayFrameGrid = nullptr;
+
+    FrameworkElement child = xamlRoot.Content().try_as<FrameworkElement>();
+    if (child &&
+        (child = FindChildByClassName(child, L"SystemTray.SystemTrayFrame")) &&
+        (child = FindChildByName(child, L"SystemTrayFrameGrid"))) {
+        systemTrayFrameGrid = child;
+    }
+
+    if (!systemTrayFrameGrid) {
+        return false;
+    }
+
+    bool vertical = IsVerticalSystemTray(systemTrayFrameGrid);
+
+    bool somethingSucceeded = false;
+
+    FrameworkElement notificationAreaIcons =
+        FindChildByName(systemTrayFrameGrid, L"NotificationAreaIcons");
+    if (notificationAreaIcons) {
+        somethingSucceeded |=
+            ApplyNotifyIconsStyle(notificationAreaIcons, rows, width, vertical);
+    }
+
+    // The heights of the other icons in a vertical tray are set by the taskbar
+    // for each layout.
+    if (vertical) {
+        return somethingSucceeded;
+    }
+
+    FrameworkElement controlCenterButton =
+        FindChildByName(systemTrayFrameGrid, L"ControlCenterButton");
+    if (controlCenterButton) {
+        somethingSucceeded |=
+            ApplyControlCenterButtonStyle(controlCenterButton, width);
+    }
+
+    for (PCWSTR containerName : {
+             L"NotifyIconStack",
+             L"MainStack",
+             L"NonActivatableStack",
+         }) {
+        FrameworkElement container =
+            FindChildByName(systemTrayFrameGrid, containerName);
+        if (container) {
+            somethingSucceeded |=
+                ApplyIconStackStyle(containerName, container, width);
+        }
+    }
+
+    if (!g_unloading) TryUnifiedDockGrid(systemTrayFrameGrid);
+    return somethingSucceeded;
+}
+
+using IconView_IconView_t = void*(WINAPI*)(void* pThis);
+IconView_IconView_t IconView_IconView_Original;
+void* WINAPI IconView_IconView_Hook(void* pThis) {
+    Wh_Log(L">");
+
+    void* ret = IconView_IconView_Original(pThis);
+
+    FrameworkElement iconView = nullptr;
+    ((IUnknown**)pThis)[1]->QueryInterface(winrt::guid_of<FrameworkElement>(),
+                                           winrt::put_abi(iconView));
+    if (!iconView) {
+        return ret;
+    }
+
+    g_autoRevokerList.emplace_back();
+    auto autoRevokerIt = g_autoRevokerList.end();
+    --autoRevokerIt;
+
+    *autoRevokerIt = iconView.Loaded(
+        winrt::auto_revoke_t{},
+        [autoRevokerIt](winrt::Windows::Foundation::IInspectable const& sender,
+                        RoutedEventArgs const& e) {
+            Wh_Log(L">");
+
+            g_autoRevokerList.erase(autoRevokerIt);
+
+            auto iconView = sender.try_as<FrameworkElement>();
+            if (!iconView) {
+                return;
+            }
+
+            auto className = winrt::get_class_name(iconView);
+            Wh_Log(L"className: %s", className.c_str());
+
+            auto systemTrayFrameGrid =
+                FindParentByName(iconView, L"SystemTrayFrameGrid");
+            bool vertical = systemTrayFrameGrid &&
+                            IsVerticalSystemTray(systemTrayFrameGrid);
+
+            if (className == L"SystemTray.NotifyIconView") {
+                if (IsChildOfElementByClassName(
+                        iconView, L"SystemTray.NotificationAreaOverflow")) {
+                    ApplyNotifyIconViewOverflowStyle(
+                        iconView, g_settings.overflowIconWidth);
+                } else if (vertical) {
+                    ApplyNotifyIconViewStyle(
+                        iconView, g_settings.notificationIconWidth, true);
+                    ApplyNotifyIconsWrapGridStyleOfIcon(
+                        iconView, g_settings.notificationIconWidth);
+                } else {
+                    ApplyNotifyIconViewStyle(iconView,
+                                             g_settings.notificationIconWidth);
+
+                    int rows =
+                        g_unloading ? 1 : g_settings.notificationIconRows;
+                    if (rows > 1) {
+                        ApplyNotifyIconsStackPanelGridStyleOfIcon(
+                            iconView, rows, g_settings.notificationIconWidth);
+                    }
+                }
+            } else if (vertical) {
+                // Other icons of a vertical tray keep their size.
+            } else if (className == L"SystemTray.IconView") {
+                if (iconView.Name() == L"SystemTrayIcon") {
+                    if (IsChildOfElementByName(iconView,
+                                               L"ControlCenterButton")) {
+                        ApplySystemTrayIconStyle(
+                            iconView, g_settings.notificationIconWidth);
+                    } else if (IsChildOfElementByName(iconView, L"MainStack") ||
+                               IsChildOfElementByName(iconView,
+                                                      L"NonActivatableStack")) {
+                        ApplyNotifyIconViewStyle(
+                            iconView, g_settings.notificationIconWidth);
+                    }
+                }
+            } else if (className == L"SystemTray.ChevronIconView") {
+                if (IsChildOfElementByName(iconView, L"NotifyIconStack")) {
+                    ApplyNotifyIconViewStyle(iconView,
+                                             g_settings.notificationIconWidth);
+                }
+            }
+            TryUnifiedDockGrid(iconView);
+        });
+
+    return ret;
+}
+
+// The layout in which a vertical tray has a single column of icons, each given
+// a minimum height whenever the layout is applied.
+constexpr int kSystemTrayLayoutModeVerticalCompact = 1;
+
+using NotifyIconView_ApplyLayoutMode_t = void(WINAPI*)(void* pThis,
+                                                       int layoutMode);
+NotifyIconView_ApplyLayoutMode_t NotifyIconView_ApplyLayoutMode_Original;
+void WINAPI NotifyIconView_ApplyLayoutMode_Hook(void* pThis, int layoutMode) {
+    Wh_Log(L"> %d", layoutMode);
+
+    NotifyIconView_ApplyLayoutMode_Original(pThis, layoutMode);
+
+    if (g_unloading || layoutMode != kSystemTrayLayoutModeVerticalCompact) {
+        return;
+    }
+
+    FrameworkElement notifyIconView = nullptr;
+    ((IUnknown**)pThis)[1]->QueryInterface(winrt::guid_of<FrameworkElement>(),
+                                           winrt::put_abi(notifyIconView));
+    if (!notifyIconView ||
+        IsChildOfElementByClassName(notifyIconView,
+                                    L"SystemTray.NotificationAreaOverflow")) {
+        return;
+    }
+
+    Wh_Log(L"Setting MinHeight=%d for NotifyIconView",
+           g_settings.notificationIconWidth);
+    notifyIconView.MinHeight(g_settings.notificationIconWidth);
+}
+
+// Sets the columns of the tray grids, and schedules the edge padding of the
+// icons, which is applied after the columns are set here.
+using SystemTrayFrame_UpdateNotificationAreaIconsLayout_t =
+    void(WINAPI*)(void* pThis);
+SystemTrayFrame_UpdateNotificationAreaIconsLayout_t
+    SystemTrayFrame_UpdateNotificationAreaIconsLayout_Original;
+void WINAPI
+SystemTrayFrame_UpdateNotificationAreaIconsLayout_Hook(void* pThis) {
+    Wh_Log(L">");
+
+    SystemTrayFrame_UpdateNotificationAreaIconsLayout_Original(pThis);
+
+    if (g_unloading) {
+        return;
+    }
+
+    try {
+        FrameworkElement systemTrayFrame = nullptr;
+        ((IUnknown**)pThis)[1]->QueryInterface(
+            winrt::guid_of<FrameworkElement>(),
+            winrt::put_abi(systemTrayFrame));
+        if (!systemTrayFrame) {
+            return;
+        }
+
+        FrameworkElement child = systemTrayFrame;
+        if ((child = FindChildByName(child, L"SystemTrayFrameGrid")) &&
+            (child = FindChildByName(child, L"NotificationAreaIcons"))) {
+            if (auto notificationAreaIcons =
+                    child.try_as<Controls::ItemsControl>()) {
+                ApplyNotifyIconsWrapGridColumns(
+                    notificationAreaIcons, g_settings.notificationIconRows,
+                    g_settings.notificationIconWidth);
+            }
+        }
+    } catch (...) {
+        HRESULT hr = winrt::to_hresult();
+        Wh_Log(L"Error %08X", hr);
+    }
+}
+
+using SystemTrayFrame_ApplyPositionAwareHorizontalPadding_t =
+    void(WINAPI*)(void* itemsControl, unsigned int itemCount);
+SystemTrayFrame_ApplyPositionAwareHorizontalPadding_t
+    SystemTrayFrame_ApplyPositionAwareHorizontalPadding_Original;
+void WINAPI SystemTrayFrame_ApplyPositionAwareHorizontalPadding_Hook(
+    void* itemsControl,
+    unsigned int itemCount) {
+    Wh_Log(L"> %u", itemCount);
+
+    if (!g_unloading) {
+        try {
+            Controls::ItemsControl itemsControlObject = nullptr;
+            winrt::copy_from_abi(itemsControlObject, *(void**)itemsControl);
+            if (itemsControlObject &&
+                itemsControlObject.Name() == L"NotificationAreaIcons" &&
+                ApplyNotifyIconsWrapGridEdgePadding(itemsControlObject,
+                                                    itemCount)) {
+                return;
+            }
+        } catch (...) {
+            HRESULT hr = winrt::to_hresult();
+            Wh_Log(L"Error %08X", hr);
+        }
+    }
+
+    SystemTrayFrame_ApplyPositionAwareHorizontalPadding_Original(itemsControl,
+                                                                 itemCount);
+}
+
+void ApplyOverflowStyle(FrameworkElement overflowRootGrid) {
+    Controls::WrapGrid wrapGrid = nullptr;
+
+    FrameworkElement child = overflowRootGrid;
+    if ((child = FindChildByClassName(
+             child, L"Windows.UI.Xaml.Controls.ItemsControl")) &&
+        (child = FindChildByClassName(
+             child, L"Windows.UI.Xaml.Controls.ItemsPresenter")) &&
+        (child = FindChildByClassName(child,
+                                      L"Windows.UI.Xaml.Controls.WrapGrid"))) {
+        wrapGrid = child.try_as<Controls::WrapGrid>();
+    }
+
+    if (!wrapGrid) {
+        return;
+    }
+
+    int width = g_unloading ? 40 : g_settings.overflowIconWidth;
+    int maxRows = g_unloading ? 5 : g_settings.overflowIconsPerRow;
+    Wh_Log(
+        L"Setting ItemWidth/ItemHeight=%d, MaximumRowsOrColumns=%d for "
+        L"WrapGrid",
+        width, maxRows);
+
+    wrapGrid.ItemWidth(width);
+    wrapGrid.ItemHeight(width);
+    wrapGrid.MaximumRowsOrColumns(maxRows);
+
+    EnumChildElements(wrapGrid, [width](FrameworkElement child) {
+        auto className = winrt::get_class_name(child);
+        if (className != L"Windows.UI.Xaml.Controls.ContentPresenter") {
+            Wh_Log(L"Unsupported class name %s of child", className.c_str());
+            return false;
+        }
+
+        auto notifyIconView =
+            FindChildByClassName(child, L"SystemTray.NotifyIconView");
+        if (notifyIconView) {
+            ApplyNotifyIconViewOverflowStyle(notifyIconView, width);
+        }
+
+        return false;
+    });
+}
+
+using OverflowXamlIslandManager_InitializeIfNeeded_t =
+    void(WINAPI*)(void* pThis);
+OverflowXamlIslandManager_InitializeIfNeeded_t
+    OverflowXamlIslandManager_InitializeIfNeeded_Original;
+void WINAPI OverflowXamlIslandManager_InitializeIfNeeded_Hook(void* pThis) {
+    Wh_Log(L">");
+
+    OverflowXamlIslandManager_InitializeIfNeeded_Original(pThis);
+
+    if (g_overflowRootGrid.get()) {
+        return;
+    }
+
+    FrameworkElement overflowRootGrid = nullptr;
+    ((IUnknown**)pThis)[5]->QueryInterface(winrt::guid_of<Controls::Grid>(),
+                                           winrt::put_abi(overflowRootGrid));
+    if (!overflowRootGrid) {
+        Wh_Log(L"No OverflowRootGrid");
+        return;
+    }
+
+    if (!overflowRootGrid.IsLoaded()) {
+        Wh_Log(L"OverflowRootGrid not loaded");
+        return;
+    }
+
+    g_overflowRootGrid = overflowRootGrid;
+    ApplyOverflowStyle(overflowRootGrid);
+}
+
+using StackViewModel_UpdateIconIndexes_t = void(WINAPI*)(void* pThis);
+StackViewModel_UpdateIconIndexes_t StackViewModel_UpdateIconIndexes_Original;
+void WINAPI StackViewModel_UpdateIconIndexes_Hook(void* pThis) {
+    Wh_Log(L">");
+
+    StackViewModel_UpdateIconIndexes_Original(pThis);
+
+    int rows = g_unloading ? 1 : g_settings.notificationIconRows;
+    if (rows > 1) {
+        if (auto stackPanel = g_notificationAreaIconsStackPanel.get()) {
+            ApplyNotifyIconsStackPanelGridStyle(
+                stackPanel, rows, g_settings.notificationIconWidth);
+        }
+    }
+}
+
+void* CTaskBand_ITaskListWndSite_vftable;
+
+using CTaskBand_GetTaskbarHost_t = void*(WINAPI*)(void* pThis, void** result);
+CTaskBand_GetTaskbarHost_t CTaskBand_GetTaskbarHost_Original;
+
+void* TaskbarHost_FrameHeight_Original;
+
+using std__Ref_count_base__Decref_t = void(WINAPI*)(void* pThis);
+std__Ref_count_base__Decref_t std__Ref_count_base__Decref_Original;
+
+XamlRoot GetTaskbarXamlRoot(HWND hTaskbarWnd) {
+    HWND hTaskSwWnd = (HWND)GetProp(hTaskbarWnd, L"TaskbandHWND");
+    if (!hTaskSwWnd) {
+        return nullptr;
+    }
+
+    void* taskBand = (void*)GetWindowLongPtr(hTaskSwWnd, 0);
+    void* taskBandForTaskListWndSite = taskBand;
+    for (int i = 0; *(void**)taskBandForTaskListWndSite !=
+                    CTaskBand_ITaskListWndSite_vftable;
+         i++) {
+        if (i == 20) {
+            return nullptr;
+        }
+
+        taskBandForTaskListWndSite = (void**)taskBandForTaskListWndSite + 1;
+    }
+
+    void* taskbarHostSharedPtr[2]{};
+    CTaskBand_GetTaskbarHost_Original(taskBandForTaskListWndSite,
+                                      taskbarHostSharedPtr);
+    if (!taskbarHostSharedPtr[0] && !taskbarHostSharedPtr[1]) {
+        return nullptr;
+    }
+
+    size_t taskbarElementIUnknownOffset = 0x10;
+
+#if defined(_M_X64)
+    {
+        // 48:83EC 28 | sub rsp,28
+        // 48:83C1 48 | add rcx,48
+        const BYTE* b = (const BYTE*)TaskbarHost_FrameHeight_Original;
+        if (b[0] == 0x48 && b[1] == 0x83 && b[2] == 0xEC && b[4] == 0x48 &&
+            b[5] == 0x83 && b[6] == 0xC1 && b[7] <= 0x7F) {
+            taskbarElementIUnknownOffset = b[7];
+        } else {
+            Wh_Log(L"Unsupported TaskbarHost::FrameHeight");
+        }
+    }
+#elif defined(_M_ARM64)
+    {
+        // 7f2303d5 pacibsp
+        // fd7bbfa9 stp     fp, lr, [sp, #-0x10]!
+        // fd030091 mov     fp, sp
+        // 080c41f8 ldr     x8, [x0, #0x10]!
+        const DWORD* p = (const DWORD*)TaskbarHost_FrameHeight_Original;
+        if (p[0] == 0xD503237F && (p[1] & 0xFFC07FFF) == 0xA9807BFD &&
+            p[2] == 0x910003FD && (p[3] & 0xFFF00FE0) == 0xF8400C00) {
+            taskbarElementIUnknownOffset = (p[3] >> 12) & 0xFF;
+        } else {
+            Wh_Log(L"Unsupported TaskbarHost::FrameHeight");
+        }
+    }
+#else
+#error "Unsupported architecture"
+#endif
+
+    auto* taskbarElementIUnknown =
+        *(IUnknown**)((BYTE*)taskbarHostSharedPtr[0] +
+                      taskbarElementIUnknownOffset);
+
+    FrameworkElement taskbarElement = nullptr;
+    taskbarElementIUnknown->QueryInterface(winrt::guid_of<FrameworkElement>(),
+                                           winrt::put_abi(taskbarElement));
+
+    auto result = taskbarElement ? taskbarElement.XamlRoot() : nullptr;
+
+    std__Ref_count_base__Decref_Original(taskbarHostSharedPtr[1]);
+
+    return result;
+}
+
+using RunFromWindowThreadProc_t = void(WINAPI*)(void* parameter);
+
+bool RunFromWindowThread(HWND hWnd,
+                         RunFromWindowThreadProc_t proc,
+                         void* procParam) {
+    static const UINT runFromWindowThreadRegisteredMsg =
+        RegisterWindowMessage(L"Windhawk_RunFromWindowThread_" WH_MOD_ID);
+
+    struct RUN_FROM_WINDOW_THREAD_PARAM {
+        RunFromWindowThreadProc_t proc;
+        void* procParam;
+    };
+
+    DWORD dwThreadId = GetWindowThreadProcessId(hWnd, nullptr);
+    if (dwThreadId == 0) {
+        return false;
+    }
+
+    if (dwThreadId == GetCurrentThreadId()) {
+        proc(procParam);
+        return true;
+    }
+
+    HHOOK hook = SetWindowsHookEx(
+        WH_CALLWNDPROC,
+        [](int nCode, WPARAM wParam, LPARAM lParam) -> LRESULT {
+            if (nCode == HC_ACTION) {
+                const CWPSTRUCT* cwp = (const CWPSTRUCT*)lParam;
+                if (cwp->message == runFromWindowThreadRegisteredMsg) {
+                    RUN_FROM_WINDOW_THREAD_PARAM* param =
+                        (RUN_FROM_WINDOW_THREAD_PARAM*)cwp->lParam;
+                    param->proc(param->procParam);
+                }
+            }
+
+            return CallNextHookEx(nullptr, nCode, wParam, lParam);
+        },
+        nullptr, dwThreadId);
+    if (!hook) {
+        return false;
+    }
+
+    RUN_FROM_WINDOW_THREAD_PARAM param;
+    param.proc = proc;
+    param.procParam = procParam;
+    SendMessage(hWnd, runFromWindowThreadRegisteredMsg, 0, (LPARAM)&param);
+
+    UnhookWindowsHookEx(hook);
+
+    return true;
+}
+
+void LoadSettings() {
+    g_settings.mergeSystemIcons = Wh_GetIntSetting(L"mergeSystemIcons") != 0;
+    g_settings.debugLayout = Wh_GetIntSetting(L"debugLayout") != 0;
+    g_settings.notificationIconWidth =
+        std::max(Wh_GetIntSetting(L"notificationIconWidth"), 1);
+    g_settings.notificationIconRows =
+        std::max(Wh_GetIntSetting(L"notificationIconRows"), 1);
+
+    PCWSTR gridArrangement = Wh_GetStringSetting(L"gridArrangement");
+    g_settings.gridArrangement = GridArrangement::rowFirstLeftToRight;
+    if (wcscmp(gridArrangement, L"columnFirstTopToBottom") == 0) {
+        g_settings.gridArrangement = GridArrangement::columnFirstTopToBottom;
+    } else if (wcscmp(gridArrangement, L"rowFirstBottomRowFirst") == 0) {
+        g_settings.gridArrangement = GridArrangement::rowFirstBottomRowFirst;
+    } else if (wcscmp(gridArrangement, L"columnFirstBottomToTop") == 0) {
+        g_settings.gridArrangement = GridArrangement::columnFirstBottomToTop;
+    } else if (wcscmp(gridArrangement, L"columnFirstBottomToTopRightToLeft") ==
+               0) {
+        g_settings.gridArrangement =
+            GridArrangement::columnFirstBottomToTopRightToLeft;
+    }
+    Wh_FreeStringSetting(gridArrangement);
+
+    g_settings.overflowIconWidth =
+        std::max(Wh_GetIntSetting(L"overflowIconWidth"), 1);
+    g_settings.overflowIconsPerRow =
+        std::max(Wh_GetIntSetting(L"overflowIconsPerRow"), 1);
+}
+
+void ApplySettings() {
+    struct ApplySettingsParam {
+        HWND hTaskbarWnd;
+        int rows;
+        int width;
+    };
+
+    Wh_Log(L"Applying settings");
+
+    HWND hTaskbarWnd = FindCurrentProcessTaskbarWnd();
+    if (!hTaskbarWnd) {
+        Wh_Log(L"No taskbar found");
+        return;
+    }
+
+    ApplySettingsParam param{
+        .hTaskbarWnd = hTaskbarWnd,
+        .rows = g_unloading ? 1 : g_settings.notificationIconRows,
+        .width = g_unloading ? 32 : g_settings.notificationIconWidth,
+    };
+
+    RunFromWindowThread(
+        hTaskbarWnd,
+        [](void* pParam) {
+            ApplySettingsParam& param = *(ApplySettingsParam*)pParam;
+
+            g_autoRevokerList.clear();
+
+            auto xamlRoot = GetTaskbarXamlRoot(param.hTaskbarWnd);
+            if (!xamlRoot) {
+                Wh_Log(L"Getting XamlRoot failed");
+                return;
+            }
+
+            if (!ApplyStyle(xamlRoot, param.rows, param.width)) {
+                Wh_Log(L"ApplyStyle failed");
+            }
+
+            if (auto overflowRootGrid = g_overflowRootGrid.get()) {
+                ApplyOverflowStyle(overflowRootGrid);
+            }
+        },
+        &param);
+}
+
+bool HookSystemTraySymbols(HMODULE module) {
+    // SystemTray.dll, Taskbar.View.dll
+    WindhawkUtils::SYMBOL_HOOK symbolHooks[] = {
+        {
+            {LR"(public: __cdecl winrt::SystemTray::implementation::IconView::IconView(void))"},
+            &IconView_IconView_Original,
+            IconView_IconView_Hook,
+        },
+        {
+            {LR"(private: void __cdecl winrt::SystemTray::OverflowXamlIslandManager::InitializeIfNeeded(void))"},
+            &OverflowXamlIslandManager_InitializeIfNeeded_Original,
+            OverflowXamlIslandManager_InitializeIfNeeded_Hook,
+        },
+        {
+            {LR"(private: void __cdecl winrt::SystemTray::implementation::StackViewModel::UpdateIconIndexes(void))"},
+            &StackViewModel_UpdateIconIndexes_Original,
+            StackViewModel_UpdateIconIndexes_Hook,
+        },
+        {
+            {LR"(private: void __cdecl winrt::SystemTray::implementation::NotifyIconView::ApplyLayoutMode(enum winrt::SystemTray::SystemTrayLayoutMode))"},
+            &NotifyIconView_ApplyLayoutMode_Original,
+            NotifyIconView_ApplyLayoutMode_Hook,
+            true,  // Only used with the native vertical taskbar.
+        },
+        {
+            {LR"(private: void __cdecl winrt::SystemTray::implementation::SystemTrayFrame::UpdateNotificationAreaIconsLayout(void))"},
+            &SystemTrayFrame_UpdateNotificationAreaIconsLayout_Original,
+            SystemTrayFrame_UpdateNotificationAreaIconsLayout_Hook,
+            true,  // Only used with the native vertical taskbar.
+        },
+        {
+            {LR"(private: static void __cdecl winrt::SystemTray::implementation::SystemTrayFrame::ApplyPositionAwareHorizontalPadding(struct winrt::Windows::UI::Xaml::Controls::ItemsControl const &,unsigned int))"},
+            &SystemTrayFrame_ApplyPositionAwareHorizontalPadding_Original,
+            SystemTrayFrame_ApplyPositionAwareHorizontalPadding_Hook,
+            true,  // Only used with the native vertical taskbar.
+        },
+    };
+
+    if (!HookSymbols(module, symbolHooks, ARRAYSIZE(symbolHooks))) {
+        Wh_Log(L"HookSymbols failed");
+        return false;
+    }
+
+    return true;
+}
+
+VS_FIXEDFILEINFO* GetModuleVersionInfo(HMODULE hModule, UINT* puPtrLen) {
+    void* pFixedFileInfo = nullptr;
+    UINT uPtrLen = 0;
+
+    HRSRC hResource =
+        FindResource(hModule, MAKEINTRESOURCE(VS_VERSION_INFO), RT_VERSION);
+    if (hResource) {
+        HGLOBAL hGlobal = LoadResource(hModule, hResource);
+        if (hGlobal) {
+            void* pData = LockResource(hGlobal);
+            if (pData) {
+                if (!VerQueryValue(pData, L"\\", &pFixedFileInfo, &uPtrLen) ||
+                    uPtrLen == 0) {
+                    pFixedFileInfo = nullptr;
+                    uPtrLen = 0;
+                }
+            }
+        }
+    }
+
+    if (puPtrLen) {
+        *puPtrLen = uPtrLen;
+    }
+
+    return (VS_FIXEDFILEINFO*)pFixedFileInfo;
+}
+
+HMODULE GetSystemTrayModuleHandle() {
+    HMODULE module = GetModuleHandle(L"SystemTray.dll");
+    if (!module) {
+        module = GetModuleHandle(L"Taskbar.View.dll");
+        if (module) {
+            // Starting with Taskbar.View.dll 2604.8002.200.6000, the SystemTray
+            // types moved out of Taskbar.View.dll into SystemTray.dll, so don't
+            // hook Taskbar.View.dll at this version and above.
+            VS_FIXEDFILEINFO* fixedFileInfo =
+                GetModuleVersionInfo(module, nullptr);
+            WORD moduleMajor =
+                fixedFileInfo ? HIWORD(fixedFileInfo->dwFileVersionMS) : 0;
+            if (!moduleMajor || moduleMajor >= 2604) {
+                Wh_Log(L"Skipping Taskbar.View.dll version %d", moduleMajor);
+                module = nullptr;
+            }
+        }
+    }
+    if (!module) {
+        module = GetModuleHandle(L"ExplorerExtensions.dll");
+    }
+
+    return module;
+}
+
+void HandleLoadedModuleIfSystemTray(HMODULE module, LPCWSTR lpLibFileName) {
+    if (!g_systemTrayModuleHooked && GetSystemTrayModuleHandle() == module &&
+        !g_systemTrayModuleHooked.exchange(true)) {
+        Wh_Log(L"Loaded %s", lpLibFileName);
+
+        if (HookSystemTraySymbols(module)) {
+            Wh_ApplyHookOperations();
+        }
+    }
+}
+
+using LoadLibraryExW_t = decltype(&LoadLibraryExW);
+LoadLibraryExW_t LoadLibraryExW_Original;
+HMODULE WINAPI LoadLibraryExW_Hook(LPCWSTR lpLibFileName,
+                                   HANDLE hFile,
+                                   DWORD dwFlags) {
+    HMODULE module = LoadLibraryExW_Original(lpLibFileName, hFile, dwFlags);
+    if (module) {
+        HandleLoadedModuleIfSystemTray(module, lpLibFileName);
+    }
+
+    return module;
+}
+
+bool HookTaskbarDllSymbols() {
+    HMODULE module =
+        LoadLibraryEx(L"taskbar.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (!module) {
+        Wh_Log(L"Failed to load taskbar.dll");
+        return false;
+    }
+
+    WindhawkUtils::SYMBOL_HOOK taskbarDllHooks[] = {
+        {
+            {LR"(const CTaskBand::`vftable'{for `ITaskListWndSite'})"},
+            &CTaskBand_ITaskListWndSite_vftable,
+        },
+        {
+            {LR"(public: virtual class std::shared_ptr<class TaskbarHost> __cdecl CTaskBand::GetTaskbarHost(void)const )"},
+            &CTaskBand_GetTaskbarHost_Original,
+        },
+        {
+            {LR"(public: int __cdecl TaskbarHost::FrameHeight(void)const )"},
+            &TaskbarHost_FrameHeight_Original,
+        },
+        {
+            {LR"(public: void __cdecl std::_Ref_count_base::_Decref(void))"},
+            &std__Ref_count_base__Decref_Original,
+        },
+    };
+
+    return HookSymbols(module, taskbarDllHooks, ARRAYSIZE(taskbarDllHooks));
+}
+
+BOOL TrayComponentInit() {
+    Wh_Log(L">");
+
+    LoadSettings();
+
+    if (HMODULE systemTrayModule = GetSystemTrayModuleHandle()) {
+        g_systemTrayModuleHooked = true;
+        if (!HookSystemTraySymbols(systemTrayModule)) {
+            return FALSE;
+        }
+    } else {
+        Wh_Log(L"System tray module not loaded yet");
+
+        HMODULE kernelBaseModule = GetModuleHandle(L"kernelbase.dll");
+        auto pKernelBaseLoadLibraryExW =
+            (decltype(&LoadLibraryExW))GetProcAddress(kernelBaseModule,
+                                                      "LoadLibraryExW");
+        WindhawkUtils::SetFunctionHook(pKernelBaseLoadLibraryExW,
+                                       LoadLibraryExW_Hook,
+                                       &LoadLibraryExW_Original);
+    }
+
+    if (!HookTaskbarDllSymbols()) {
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+void TrayComponentAfterInit() {
+    Wh_Log(L">");
+
+    if (!g_systemTrayModuleHooked) {
+        if (HMODULE systemTrayModule = GetSystemTrayModuleHandle()) {
+            if (!g_systemTrayModuleHooked.exchange(true)) {
+                Wh_Log(L"Got system tray module");
+
+                if (HookSystemTraySymbols(systemTrayModule)) {
+                    Wh_ApplyHookOperations();
+                }
+            }
+        }
+    }
+
+    ApplySettings();
+}
+
+void TrayComponentBeforeUninit() {
+    Wh_Log(L">");
+
+    g_unloading = true;
+
+    ApplySettings();
+}
+
+void TrayComponentUninit() {
+    Wh_Log(L">");
+}
+
+void TrayComponentSettingsChanged() {
+    Wh_Log(L">");
+
+    LoadSettings();
+
+    ApplySettings();
+}
+
+
+}
+
+extern "C" BOOL Native_tray_init() { return NDTray::TrayComponentInit(); }
+extern "C" void Native_tray_after() { NDTray::TrayComponentAfterInit(); }
+extern "C" void Native_tray_stop() { NDTray::TrayComponentUninit(); }
+extern "C" void Native_tray_before() { NDTray::TrayComponentBeforeUninit(); }
+extern "C" void Native_tray_resume() { NDTray::g_unloading=false; NDTray::TrayComponentAfterInit(); }
