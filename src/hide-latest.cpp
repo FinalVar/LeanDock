@@ -2,6 +2,7 @@
 #define ND_COMPONENT 4
 #define WindhawkUtils NDHideUtils
 #include "native-api-latest.h"
+#include "dock-geometry-latest.h"
 #include <windhawk_utils.h>
 #include <dwmapi.h>
 #include <psapi.h>
@@ -761,6 +762,9 @@ LRESULT WINAPI TrayUI_WndProc_Hook(void* pThis,
                                    WPARAM wParam,
                                    LPARAM lParam,
                                    bool* flag) {
+    if(Msg==WM_TIMER && wParam==kTrayUITimerUnhide && LeanDockGeometry::RejectPointerReveal(hWnd)) {
+        KillTimer(hWnd,kTrayUITimerUnhide);return 0;
+    }
     if (Msg == WM_NCCREATE) {
         Wh_Log(L"WM_NCCREATE: %08X", (DWORD)(ULONG_PTR)hWnd);
         AdjustTaskbar(hWnd);
@@ -848,6 +852,9 @@ LRESULT WINAPI CSecondaryTray_v_WndProc_Hook(void* pThis,
                                              UINT Msg,
                                              WPARAM wParam,
                                              LPARAM lParam) {
+    if(Msg==WM_TIMER && wParam==kTrayUITimerUnhide && LeanDockGeometry::RejectPointerReveal(hWnd)) {
+        KillTimer(hWnd,kTrayUITimerUnhide);return 0;
+    }
     if (Msg == WM_NCCREATE) {
         Wh_Log(L"WM_NCCREATE: %08X", (DWORD)(ULONG_PTR)hWnd);
         AdjustTaskbar(hWnd);

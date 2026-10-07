@@ -9,6 +9,7 @@
 #include "verify-latest.h"
 #include "config-latest.h"
 #include "hotcorners-latest.h"
+#include "shell-panels-latest.h"
 
 static HINSTANCE g_instance;
 static HWND g_window;
@@ -22,6 +23,7 @@ static ULONGLONG g_lastAttach;
 static int g_exitCode;
 static bool g_stopping,g_dockSupported=true;
 static bool g_elevated;
+static bool g_panelsReady;
 
 static void Path(wchar_t* output,size_t capacity,const wchar_t* name) {
     _snwprintf_s(output,capacity,_TRUNCATE,L"%s\\%s",g_directory,name);
@@ -39,8 +41,8 @@ static void SaveStatus() {
     char json[1600],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
     // Error messages are fixed internal labels, never window titles or application text.
     int size=snprintf(json,sizeof(json),
-        "{\"version\":\"0.2.1\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"error\":\"%s\"}\n",
-        GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",error);
+        "{\"version\":\"0.3.0\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"error\":\"%s\"}\n",
+        GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",LeanDockPanels::moves[0],LeanDockPanels::moves[1],LeanDockPanels::failures,error);
     HANDLE file=CreateFileW(path,GENERIC_WRITE,FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,json,size,&written,nullptr);CloseHandle(file);}
 }
@@ -149,6 +151,7 @@ static void CancelHelper() {
     CloseHandle(g_helper);g_helper=nullptr;
 }
 static void StopDock() {
+    LeanDockPanels::Stop();
     g_stopping=true;KillTimer(g_window,1);CancelHelper();
     if(HWND backend=Backend(g_explorerPid)) {
         DWORD_PTR result=0;
@@ -193,6 +196,7 @@ static bool TryConnect() {
     g_helper=child.hProcess;CloseHandle(child.hThread);return false;
 }
 static LRESULT CALLBACK ControllerProc(HWND w,UINT message,WPARAM p,LPARAM l) {
+    if(LeanDockPanels::Dispatch(message,p))return 0;
     LRESULT cornerResult=0;
     if(NativeCorners::Dispatch(w,message,p,l,cornerResult))return cornerResult;
     if(message==WM_CREATE){g_window=w;PostMessageW(w,NativeReconnect,0,0);return 0;}
@@ -230,6 +234,13 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     if(count==2 && !wcscmp(args[1],L"--verify-corners")){
         LocalFree(args);return NativeCorners::Validate(g_directory)?0:25;
     }
+    // Read-only validation of a staged build must work while the production
+    // controller remains active. Mutation commands retain the exact-path gate.
+    if(count==2 && !wcscmp(args[1],L"--verify")) {
+        bool logging,diagnostics;wchar_t config[32768];Path(config,std::size(config),L"latest.ini");
+        const bool valid=NativeVerifySystem(g_error,std::size(g_error)) && NativeReadConfiguration(config,logging,diagnostics);g_state=valid?NativeIdle:NativeFailed;
+        LocalFree(args);return valid?0:12;
+    }
     HWND previous=FindWindowW(NativeControllerClass,nullptr);
     DWORD previousPid=0;if(previous)GetWindowThreadProcessId(previous,&previousPid);
     if(previous && !OwnProcessPath(previousPid)){LocalFree(args);return 2;}
@@ -242,11 +253,6 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
         DWORD_PTR result=0;
         if(!SendMessageTimeoutW(previous,NativeCorners::ControlMessage,command,0,SMTO_ABORTIFHUNG|SMTO_BLOCK,3000,&result))return 4;
         return result==1?0:result==2?25:5;
-    }
-    if(count==2 && !wcscmp(args[1],L"--verify")) {
-        bool logging,diagnostics;wchar_t config[32768];Path(config,std::size(config),L"latest.ini");
-        const bool valid=NativeVerifySystem(g_error,std::size(g_error)) && NativeReadConfiguration(config,logging,diagnostics);g_state=valid?NativeIdle:NativeFailed;
-        LocalFree(args);return valid?0:12;
     }
     if(count==2 && !wcscmp(args[1],L"--status")) {
         GetShell(&g_explorerPid);unsigned state=NativeIdle;
@@ -297,6 +303,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     if(!NativeCorners::Initialize(g_window,g_directory)){
         if(!g_dockSupported){SaveStatus();DestroyWindow(g_window);ReleaseMutex(mutex);CloseHandle(mutex);return 25;}
     }
+    g_panelsReady=g_dockSupported && LeanDockPanels::Start(g_window);
+    if(!g_panelsReady)LeanDockPanels::Stop();
     SaveStatus();
     MSG message;
     while(GetMessageW(&message,nullptr,0,0)>0){TranslateMessage(&message);DispatchMessageW(&message);}

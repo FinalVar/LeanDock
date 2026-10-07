@@ -5,6 +5,11 @@ text=(root/'upstream/NativeHotCorners/latest.cpp').read_text(encoding='utf-8-sig
 text=text.replace('#include "core/latest.h"','#include "../hotcorners/core/latest.h"')
 text=text.replace('#include "actions/latest.h"','#include "../hotcorners/actions/latest.h"\n#include "hotcorners-latest.h"')
 text=text.replace('#define UNICODE\n','').replace('#define _UNICODE\n','')
+text=text.replace('action == nhc::TaskView ? "task-view"', 'action == nhc::LockScreen ? "lock-screen" : action == nhc::TaskView ? "task-view"')
+text=text.replace('else if (!_wcsicmp(value, L"start-menu")) next.actions[c] = nhc::StartMenu;',
+                  'else if (!_wcsicmp(value, L"start-menu")) next.actions[c] = nhc::StartMenu;\n        else if (!_wcsicmp(value, L"lock-screen")) next.actions[c] = nhc::LockScreen;')
+text=text.replace('static bool LaunchAction(nhc::Action action) {',
+                  'static bool LaunchAction(nhc::Action action) {\n    if(action == nhc::LockScreen)return LockWorkStation()!=FALSE;')
 # ISO wide printf uses %ls for wide strings.  The original Zig/MSVCRT build
 # accepted %s; this build uses MinGW's standards-conforming formatter.
 text=text.replace('L"%s\\\\%s"', 'L"%ls\\\\%ls"')

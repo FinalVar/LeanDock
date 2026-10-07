@@ -1,6 +1,6 @@
 # Sources and licensing
 
-LeanDock 0.2.3 (legacy NativeTaskbarDock controller 0.2.1 and backend 0.1.2), source baseline dated 2026-10-07. Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release.
+LeanDock 0.3.0 (legacy NativeTaskbarDock controller 0.3.0 and backend 0.2.0). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release.
 
 Preserved GPL-3.0 upstream sources by m417z and their credited contributors:
 
@@ -34,3 +34,16 @@ Repository-specific notes:
 - The preserved NativeHotCorners notice describes its earlier standalone distribution. This combined repository selects GPL-3.0 for its owner-written contributions; no third-party hot-corner source was copied.
 - SDK interface headers come from Windhawk; their GPL-3.0 license is retained in vendor/windhawk-sdk/LICENSE.txt.
 - Personal paths, deployment receipts, backups, binary payloads and original one-machine migration scripts are excluded. Source behavior is retained; the repository manager exposes only routine controls and refuses another deployment's task path.
+
+NextKDE design references reviewed at commit f9154f4c3603204614925e54d329b39de5987374:
+- https://github.com/SuceV587/NextKde/blob/f9154f4c3603204614925e54d329b39de5987374/shell/desktop/modules/common/LiquidGlassSurface.qml
+- https://github.com/SuceV587/NextKde/blob/f9154f4c3603204614925e54d329b39de5987374/shell/desktop/modules/dock/DockDivider.qml
+- https://github.com/SuceV587/NextKde/blob/f9154f4c3603204614925e54d329b39de5987374/shell/desktop/modules/dock/DockRevealGeometry.mjs
+These guided reflection, separator proportions and projected edge geometry. The
+KWin Glass/Snell shader was inspected but not copied or linked; Windows rendering
+retains the existing backdrop brush and XAML composition. This is a glass finish,
+not a claim of physically refractive rendering or full macOS feature parity.
+
+The original NativeHotCorners input is retained unchanged. The current local
+core adds LockScreen and routes it to the Windows LockWorkStation API through
+the generator; it deliberately generates no synthetic Win+L keystrokes.

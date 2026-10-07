@@ -9,11 +9,12 @@ int main(){
     wcscat_s(base,L"\\hotcorners-host-fixture");CreateDirectoryW(base,nullptr);
     std::wstring sub=std::wstring(base)+L"\\hotcorners";CreateDirectoryW(sub.c_str(),nullptr);
     std::wstring cfg=sub+L"\\latest.ini";
-    const wchar_t data[]=L"TopLeft=none\0TopRight=none\0BottomLeft=show-desktop\0BottomRight=task-view\0DelayMs=0\0CooldownMs=0\0CornerPixels=3\0RearmPixels=32\0Monitors=all\0PauseOnFullscreen=1\0\0";
+    const wchar_t data[]=L"TopLeft=lock-screen\0TopRight=none\0BottomLeft=show-desktop\0BottomRight=task-view\0DelayMs=0\0CooldownMs=0\0CornerPixels=3\0RearmPixels=32\0Monitors=all\0PauseOnFullscreen=1\0\0";
     Check(WritePrivateProfileSectionW(L"HotCorners",data,cfg.c_str())!=FALSE,"test configuration created");
     Check(Validate(base),"current config valid");
     Check(!wcscmp(iniPath,cfg.c_str()),"wide-character absolute path preserved");
     Check(config.actions[2]==nhc::ShowDesktop && config.actions[3]==nhc::TaskView,"confirmed mapping preserved");
+    Check(config.actions[0]==nhc::LockScreen && !strcmp(ActionName(config.actions[0]),"lock-screen"),"native lock action parses and reports correctly");
     Check(config.delay==0 && config.cooldown==0 && config.pixels==3 && config.rearm==32,"instant activation and spatial rearm preserved");
     WNDCLASSW wc{};wc.lpfnWndProc=DefWindowProcW;wc.hInstance=GetModuleHandleW(nullptr);wc.lpszClassName=L"NativeDock.CornerFixture";RegisterClassW(&wc);
     HWND test=CreateWindowExW(WS_EX_TOOLWINDOW,wc.lpszClassName,L"",WS_POPUP,0,0,0,0,nullptr,nullptr,wc.hInstance,nullptr);

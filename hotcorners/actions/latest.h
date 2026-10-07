@@ -7,7 +7,8 @@ namespace nhc {
 // not prove the shell recognized an unmarked logo key.
 inline unsigned BuildActionInput(Action action, INPUT (&out)[4]) {
     for (auto& input : out) { input = {}; input.type = INPUT_KEYBOARD; }
-    if (action == None) return 0;
+    // Locking uses LockWorkStation, never a simulated Win+L sequence.
+    if (action != StartMenu && action != TaskView && action != ShowDesktop) return 0;
     out[0].ki.wVk = VK_LWIN;
     out[0].ki.wScan = 0x5b;
     out[0].ki.dwFlags = KEYEVENTF_EXTENDEDKEY;

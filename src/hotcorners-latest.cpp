@@ -46,7 +46,7 @@ static void Log(const char* event, DWORD code = 0) {
     DWORD written; WriteFile(file, line, n, &written, nullptr); CloseHandle(file);
 }
 static const char* ActionName(nhc::Action action) {
-    return action == nhc::TaskView ? "task-view" : action == nhc::ShowDesktop ? "show-desktop" : action == nhc::StartMenu ? "start-menu" : "none";
+    return action == nhc::LockScreen ? "lock-screen" : action == nhc::TaskView ? "task-view" : action == nhc::ShowDesktop ? "show-desktop" : action == nhc::StartMenu ? "start-menu" : "none";
 }
 static bool ReadNumber(const wchar_t* key, int def, int min, int max, int& out) {
     wchar_t fallback[24], value[80], *end;
@@ -76,6 +76,7 @@ static bool LoadConfig() {
         if (!_wcsicmp(value, L"task-view")) next.actions[c] = nhc::TaskView;
         else if (!_wcsicmp(value, L"show-desktop")) next.actions[c] = nhc::ShowDesktop;
         else if (!_wcsicmp(value, L"start-menu")) next.actions[c] = nhc::StartMenu;
+        else if (!_wcsicmp(value, L"lock-screen")) next.actions[c] = nhc::LockScreen;
         else if (!_wcsicmp(value, L"none")) next.actions[c] = nhc::None;
         else return false;
     }
@@ -144,6 +145,7 @@ static void SyncTimer() {
     if (!timerArmed) { lastErrorCode = GetLastError(); engine.Consume(engine.waiting); Log("timer-failed", lastErrorCode); }
 }
 static bool LaunchAction(nhc::Action action) {
+    if(action == nhc::LockScreen)return LockWorkStation()!=FALSE;
     INPUT keys[4]; UINT count = nhc::BuildActionInput(action, keys);
     if (!count) return false;
     if (ModifierOrButton() || (count == 4 && (GetAsyncKeyState(keys[1].ki.wVk) & 0x8000))) {

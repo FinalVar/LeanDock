@@ -29,8 +29,8 @@ int main() {
     auto slash=wcsrchr(g_directory,L'\\');if(slash)*slash=0;
     _snwprintf_s(g_config,_TRUNCATE,L"%s\\test-config.ini",g_directory);
     DeleteFileW(g_config); // Exact test fixture, never the deployed configuration.
-    Check(IntSetting(3,L"IconSize")==32,"native icon size");
-    Check(IntSetting(3,L"TaskbarHeight")==56,"native taskbar height");
+    Check(IntSetting(3,L"IconSize")==40,"native icon size");
+    Check(IntSetting(3,L"TaskbarHeight")==64,"native taskbar height");
     Check(IntSetting(2,L"notificationIconRows")==2,"two tray rows");
     Check(StringSetting(4,L"mode")==L"intersected","intelligent hide profile");
     Check(StringSetting(5,L"mode")==L"showAll","all tray icons profile");
@@ -47,7 +47,7 @@ int main() {
     WritePrivateProfileStringW(L"runtime",L"Diagnostics",L"0",g_config);
     WritePrivateProfileStringW(L"size",L"IconSize",L"99",g_config);
     Check(!NativeReadConfiguration(g_config,logging,diagnostics),"reject unvalidated layout override");
-    Check(IntSetting(3,L"IconSize")==32,"configuration cannot change fixed native icon size");
+    Check(IntSetting(3,L"IconSize")==40,"configuration cannot change fixed native icon size");
     DeleteFileW(g_config);
 
     const unsigned char fieldLoad[]={0xF2,0x0F,0x10,0x81,0x78,0x03,0,0,0xC3,0,0,0,0,0,0,0};

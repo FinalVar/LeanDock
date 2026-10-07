@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "recordedAtUtc": "2026-10-07T16:03:45.7270578Z",
+  "packageVersion": "0.2.3",
+  "fullBuildPassed": true,
+  "runtimeChecks": 39,
+  "gridInvariants": 105780,
+  "cornerCoreChecks": 48,
+  "hostedCornerChecks": "not rerun: production singleton remains active",
+  "runtimeSourcesByteIdenticalToDeployedSource": 20,
+  "peImports": "Windows system DLLs only",
+  "buildArtifactsIncludedInGit": false,
+  "personalProfilePathsOrCredentialPatternsFound": 0,
+  "productionPayloadUnchanged": true,
+  "productionDockAndCornersReady": true,
+  "deployedAcceptance": "See baseline-latest.json; latest centering visual feedback remains pending",
+  "maintenanceScripts": "Repository manager keeps routine controls; one-machine update/rollback scripts stay outside the repository"
+}

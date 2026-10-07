@@ -141,6 +141,41 @@ def main():
             source = source.replace(
                 "{ 0xc85d8cc7, 0x5463, 0x40e8, { 0xa4, 0x32, 0xf5, 0x91, 0x6b, 0x64, 0x27, 0xe5 } }",
                 "{ 0x7e54f66a, 0x1a8e, 0x4b90, { 0x94, 0x2f, 0x37, 0x45, 0x8b, 0x35, 0xe2, 0x01 } }")
+            source = '#include "dock-geometry-latest.h"\n' + source
+            source = replace_once(source, "struct ClickThroughTaskbarState {", """struct ClickThroughTaskbarState {
+    winrt::weak_ref<Shapes::Rectangle> divider;
+    winrt::weak_ref<Controls::Grid> dividerParent;""")
+            source = replace_once(source, "void UpdateClickThroughRegion(ClickThroughTaskbarState& state) {",
+                '#include "surface-latest.inc"\nvoid UpdateClickThroughRegion(ClickThroughTaskbarState& state) {')
+            source = replace_once(source, "    // LayoutUpdated is frequent; only re-apply when the result actually",
+                """    // Share only the projected, fully shown geometry. Both popup placement
+    // and edge reveal track application/tray count and DPI changes automatically.
+    RECT windowRect{}; POINT origin{};
+    if(GetWindowRect(topLevelWnd,&windowRect) && ClientToScreen(state.islandHwnd,&origin)) {
+        auto span=*taskbarFrameRect;
+        if(systemTrayFrameRect) {
+            const float right=std::max(span.X+span.Width,systemTrayFrameRect->X+systemTrayFrameRect->Width);
+            span.X=std::min(span.X,systemTrayFrameRect->X);span.Width=right-span.X;
+        }
+        const int left=origin.x-windowRect.left+std::lround(span.X*scale);
+        LeanDockGeometry::Publish(topLevelWnd,left,left+std::lround(span.Width*scale),std::lround(span.Height*scale));
+        UpdateLeanDockDivider(state);
+    }
+    // LayoutUpdated is frequent; only re-apply when the result actually""")
+            source = replace_once(source,"void ClearClickThroughRegions() {", """void ClearClickThroughRegions() {
+    for(auto& state:g_clickThroughTaskbarState) {
+        ClearLeanDockDivider(state);
+        if(state.islandHwnd)LeanDockGeometry::Clear(GetAncestor(state.islandHwnd,GA_ROOT));
+    }""")
+        if name == "hide":
+            source = '#include "dock-geometry-latest.h"\n' + source
+            # Clip handles normal hit-testing. Filter only the native mouse
+            # hover timer, leaving keyboard, accessibility and menu Unhide
+            # requests untouched even if the pointer is in an outside corner.
+            source = source.replace("    if (Msg == WM_NCCREATE) {", """    if(Msg==WM_TIMER && wParam==kTrayUITimerUnhide && LeanDockGeometry::RejectPointerReveal(hWnd)) {
+        KillTimer(hWnd,kTrayUITimerUnhide);return 0;
+    }
+    if (Msg == WM_NCCREATE) {""")
         if name == "size":
             source = replace_function(source, "HMODULE GetSearchUxUiModuleHandle()",
                                       "    return nullptr; // Search is disabled in the dedicated Dock profile.")
@@ -202,7 +237,7 @@ def main():
     for component, name in enumerate(NAMES, 1):
         values = next(x["Settings"] for x in settings if x["Id"] == IDS[component - 1])
         if name == "styler":
-            values = {"clickThroughTaskbar": 0, "xamlDiagnosticsHandling": "block"}
+            values = {"clickThroughTaskbar": 1, "xamlDiagnosticsHandling": "block"}
         if name == "tray":
             values["debugLayout"] = 0
         for key, value in sorted(values.items()):

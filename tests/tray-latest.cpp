@@ -5,6 +5,8 @@
 #include <cwchar>
 #include <iterator>
 #include "protocol-latest.h"
+#include "dock-geometry-latest.h"
+#include <cstdio>
 static NOTIFYICONDATAW icons[2]{};
 static unsigned step=0;
 static const int counts[]={0,1,2,1,0};
@@ -21,15 +23,22 @@ static LRESULT CALLBACK Proc(HWND w,UINT m,WPARAM p,LPARAM l) {
         DWORD_PTR state=0;
         bool ok=backend && SendMessageTimeoutW(backend,NativeQuery,0,0,SMTO_ABORTIFHUNG|SMTO_BLOCK,3000,&state) && state==NativeActive;
         wchar_t source[32768],target[32768];
-        _snwprintf_s(source,_TRUNCATE,L"%s\\latest-layout.json",root);
-        _snwprintf_s(target,_TRUNCATE,L"%s\\tray-stage-%u.json",out,step);
+        _snwprintf_s(source,_TRUNCATE,L"%ls\\latest-layout.json",root);
+        _snwprintf_s(target,_TRUNCATE,L"%ls\\tray-stage-%u.json",out,step);
         if(!ok || !CopyFileW(source,target,FALSE)){SetCount(0);PostQuitMessage(2);return 0;}
+        HWND bar=FindWindowW(L"Shell_TrayWnd",nullptr);RECT dock{},clip{};
+        bool geometry=LeanDockGeometry::Read(bar,dock);int region=GetWindowRgnBox(bar,&clip);
+        _snwprintf_s(target,_TRUNCATE,L"%ls\\geometry-stage-%u.json",out,step);
+        if(FILE* file=_wfopen(target,L"wb")) {
+            fprintf(file,"{\"valid\":%s,\"region\":%d,\"left\":%ld,\"right\":%ld,\"clipLeft\":%ld,\"clipRight\":%ld}\n",geometry?"true":"false",region,dock.left,dock.right,clip.left,clip.right);fclose(file);
+        }
         if(++step==std::size(counts)){SetCount(0);KillTimer(w,1);PostQuitMessage(0);return 0;}
         SetCount(counts[step]);return 0;
     }
     return DefWindowProcW(w,m,p,l);
 }
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     int n=0;auto args=CommandLineToArgvW(GetCommandLineW(),&n);
     if(n!=3)return 1;wcscpy_s(root,args[1]);wcscpy_s(out,args[2]);LocalFree(args);
     WNDCLASSW c{};c.hInstance=instance;c.lpfnWndProc=Proc;c.lpszClassName=L"NativeDock.TrayFixture";RegisterClassW(&c);

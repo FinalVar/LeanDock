@@ -4,7 +4,7 @@
 namespace nhc {
 struct Point { int x, y; };
 struct Rect { int left, top, right, bottom; };
-enum Action { None, TaskView, ShowDesktop, StartMenu };
+enum Action { None, TaskView, ShowDesktop, StartMenu, LockScreen };
 struct Config {
     unsigned delay = 0;
     unsigned cooldown = 0;

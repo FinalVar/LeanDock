@@ -72,6 +72,13 @@ int main() {
     e.Reset(); e.Observe(displays,3,{0,1079},defaults,8100,true);
     Check(e.Expire(displays,3,{0,1079},defaults,8100,true)==None,"immediate mode retains drag and fullscreen suppression");
     INPUT input[4];
+    Config lockConfig;lockConfig.actions[0]=LockScreen;e.Reset();
+    e.Observe(displays,3,{0,0},lockConfig,9000,false);
+    Check(e.Expire(displays,3,{0,0},lockConfig,9000,false)==LockScreen,"top-left immediate lock action");
+    e.Observe(displays,3,{0,0},lockConfig,9001,false);
+    Check(e.Expire(displays,3,{0,0},lockConfig,9001,false)==None,"lock requires leaving before rearming");
+    Check(BuildActionInput(LockScreen,input)==0,"lock uses native API without synthetic keys");
+    Check(BuildActionInput(static_cast<Action>(999),input)==0,"invalid action never sends Win D");
     Check(BuildActionInput(None,input)==0,"disabled action produces no keyboard input");
     Check(BuildActionInput(StartMenu,input)==2,"Start action is one logo key press");
     Check(input[0].ki.wVk==VK_LWIN && input[0].ki.dwFlags==KEYEVENTF_EXTENDEDKEY,"Windows key down has extended marker");

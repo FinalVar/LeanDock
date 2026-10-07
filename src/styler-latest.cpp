@@ -2,6 +2,7 @@
 #define ND_COMPONENT 1
 #define WindhawkUtils NDStylerUtils
 #include "native-api-latest.h"
+#include "dock-geometry-latest.h"
 #include <commctrl.h>
 #include <xamlom.h>
 
@@ -1470,6 +1471,8 @@ thread_local winrt::event_token g_colorValuesChangedToken;
 // returned by GetClickThroughState stays valid even if a reentrant XAML call
 // adds or reaps entries while the pointer is in use.
 struct ClickThroughTaskbarState {
+    winrt::weak_ref<Shapes::Rectangle> divider;
+    winrt::weak_ref<Controls::Grid> dividerParent;
     winrt::weak_ref<XamlRoot> xamlRoot;
     // The XAML island's native window, from IDesktopWindowXamlSourceNative. Its
     // GA_ROOT ancestor is the top-level taskbar window the region is applied
@@ -6968,6 +6971,7 @@ bool IsTaskbarTopLevelWindow(HWND hWnd) {
 // Click-through taskbar: clip the top-level taskbar window to the union of the
 // TaskbarFrame and SystemTrayFrame rects so the empty areas become both
 // invisible and click-through.
+#include "surface-latest.inc"
 void UpdateClickThroughRegion(ClickThroughTaskbarState& state) {
     auto taskbarFrame = state.taskbarFrame.get();
     if (!taskbarFrame) {
@@ -7049,6 +7053,19 @@ void UpdateClickThroughRegion(ClickThroughTaskbarState& state) {
 
     auto systemTrayFrameRect = frameRect(state.systemTrayFrame.get());
 
+    // Share only the projected, fully shown geometry. Both popup placement
+    // and edge reveal track application/tray count and DPI changes automatically.
+    RECT windowRect{}; POINT origin{};
+    if(GetWindowRect(topLevelWnd,&windowRect) && ClientToScreen(state.islandHwnd,&origin)) {
+        auto span=*taskbarFrameRect;
+        if(systemTrayFrameRect) {
+            const float right=std::max(span.X+span.Width,systemTrayFrameRect->X+systemTrayFrameRect->Width);
+            span.X=std::min(span.X,systemTrayFrameRect->X);span.Width=right-span.X;
+        }
+        const int left=origin.x-windowRect.left+std::lround(span.X*scale);
+        LeanDockGeometry::Publish(topLevelWnd,left,left+std::lround(span.Width*scale),std::lround(span.Height*scale));
+        UpdateLeanDockDivider(state);
+    }
     // LayoutUpdated is frequent; only re-apply when the result actually
     // changes.
     auto appendRect =
@@ -7338,6 +7355,10 @@ void HandleClickThroughIslandRoot(
 // other than the one recorded as applied is Explorer's own clip (see
 // UpdateClickThroughRegion) and is left in place.
 void ClearClickThroughRegions() {
+    for(auto& state:g_clickThroughTaskbarState) {
+        ClearLeanDockDivider(state);
+        if(state.islandHwnd)LeanDockGeometry::Clear(GetAncestor(state.islandHwnd,GA_ROOT));
+    }
     for (const auto& [topLevelWnd, appliedRgnBox] :
          g_clickThroughAppliedRgnBoxes) {
         // Stale if the window was destroyed with no subclass attached to drop
@@ -8834,18 +8855,18 @@ void ProcessAllStylesFromSettings() {
     AddElementCustomizationRules(L"Taskbar.ExperienceToggleButton#LaunchListButton[AutomationProperties.AutomationId=StartButton]", {L"Visibility=Collapsed"});
     AddElementCustomizationRules(L":root > ScrollViewer > ScrollContentPresenter > Border > Grid", {L"ColumnDefinitions:=<ColumnDefinitionCollection><ColumnDefinition Width=\"*\"/><ColumnDefinition Width=\"Auto\"/><ColumnDefinition Width=\"Auto\"/><ColumnDefinition Width=\"*\"/></ColumnDefinitionCollection>", L"ActualWidth=>containerGridWidth"});
     AddElementCustomizationRules(L"Taskbar.TaskbarFrame", {L"Grid.Column=1", L"Width=Auto", L"HorizontalAlignment=Right", L"MaxWidth={{containerGridWidth>0?max(0,containerGridWidth-trayFrameWidth-24):1000}}"});
-    AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid", {L"Margin=0,0,0,4", L"Padding=12,0,2,0", L"CornerRadius=0", L"Background=Transparent", L"BorderBrush=Transparent", L"BorderThickness=1,1,0,1"});
+    AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid", {L"Margin=0,0,0,4", L"Padding=12,0,12,0", L"CornerRadius=0", L"Background=Transparent", L"BorderBrush=Transparent", L"BorderThickness=1,1,0,1"});
     AddElementCustomizationRules(L"SystemTray.SystemTrayFrame", {L"Grid.Column=2", L"Width=Auto", L"HorizontalAlignment=Left", L"Margin=0", L"ActualWidth=>trayFrameWidth"});
-    AddElementCustomizationRules(L"StackPanel#SystemTrayFrameGrid, Grid#SystemTrayFrameGrid", {L"Margin=0,0,0,4", L"Padding=2,0,12,0", L"CornerRadius=0", L"Background=Transparent", L"BorderBrush=Transparent", L"BorderThickness=0,1,1,1"});
-    AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground > Grid > Rectangle#BackgroundStroke", {L"Visibility=Collapsed"});
+    AddElementCustomizationRules(L"StackPanel#SystemTrayFrameGrid, Grid#SystemTrayFrameGrid", {L"Margin=0,0,0,4", L"Padding=8,0,12,0", L"CornerRadius=0", L"Background=Transparent", L"BorderBrush=Transparent", L"BorderThickness=0,1,1,1"});
+    AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground > Grid > Rectangle#BackgroundStroke", {L"Visibility=Visible", L"Height=Auto", L"Width=Auto", L"MinHeight=0", L"VerticalAlignment=Stretch", L"HorizontalAlignment=Stretch", L"Margin=1", L"StrokeThickness=0", L"IsHitTestVisible=False", L"Fill:=<LinearGradientBrush StartPoint=\"0.5,0\" EndPoint=\"0.5,1\"><GradientStop Offset=\"0\" Color=\"#38FFFFFF\"/><GradientStop Offset=\"0.18\" Color=\"#19E0F0FF\"/><GradientStop Offset=\"0.50\" Color=\"#04FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#10000000\"/></LinearGradientBrush>", L"RadiusX={{dockAppSurfaceWidth>0?29*dockAppSurfaceWidth/(dockAppSurfaceWidth+trayFrameWidth):29}}", L"RadiusY=29"});
     AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Microsoft.UI.Xaml.Controls.ItemsRepeater#TaskbarFrameRepeater", {L"Width=Auto", L"HorizontalAlignment=Left"});
     AddElementCustomizationRules(L"SystemTray.Stack#MainStack, SystemTray.OmniButton#NotificationCenterButton, SystemTray.Stack#SecondaryClockStack, SystemTray.Stack#ShowDesktopStack", {L"Width=0", L"MinWidth=0", L"MaxWidth=0", L"Opacity=0", L"IsHitTestVisible=False"});
     AddElementCustomizationRules(L"SystemTray.OmniButton#ControlCenterButton > Grid > ContentPresenter > ItemsPresenter > StackPanel > ContentPresenter[1], SystemTray.OmniButton#ControlCenterButton > Grid > ContentPresenter > ItemsPresenter > StackPanel > ContentPresenter[2]", {L"Visibility=Collapsed"});
     AddElementCustomizationRules(L"TextBlock#BatteryTextBlock", {L"Visibility=Collapsed"});
-    AddElementCustomizationRules(L"Grid#IconPanel@CommonStates > Border#BackgroundElement, Taskbar.TaskListLabeledButtonPanel@CommonStates > Border#BackgroundElement", {L"Width=40", L"Height=40", L"HorizontalAlignment=Center", L"VerticalAlignment=Center", L"CornerRadius=10", L"Margin=0", L"BorderThickness=1", L"BorderBrush=Transparent", L"Background@InactiveNormal=Transparent", L"Background@ActiveNormal:=<LinearGradientBrush StartPoint=\"0.5,0\" EndPoint=\"0.5,1\"><GradientStop Offset=\"0\" Color=\"#32FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#12FFFFFF\"/></LinearGradientBrush>", L"Background@InactivePointerOver=#22FFFFFF", L"Background@ActivePointerOver:=<LinearGradientBrush StartPoint=\"0.5,0\" EndPoint=\"0.5,1\"><GradientStop Offset=\"0\" Color=\"#48FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#24FFFFFF\"/></LinearGradientBrush>", L"Background@InactivePressed=#14FFFFFF", L"Background@ActivePressed=#28FFFFFF", L"Background@MultiWindowNormal=Transparent", L"Background@MultiWindowPointerOver=#22FFFFFF", L"Background@MultiWindowActive:=<LinearGradientBrush StartPoint=\"0.5,0\" EndPoint=\"0.5,1\"><GradientStop Offset=\"0\" Color=\"#32FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#12FFFFFF\"/></LinearGradientBrush>", L"Background@MultiWindowPressed=#28FFFFFF", L"BorderBrush@ActiveNormal=#30FFFFFF", L"BorderBrush@ActivePointerOver=#48FFFFFF", L"BorderBrush@MultiWindowActive=#30FFFFFF"});
+    AddElementCustomizationRules(L"Grid#IconPanel@CommonStates > Border#BackgroundElement, Taskbar.TaskListLabeledButtonPanel@CommonStates > Border#BackgroundElement", {L"Width=48", L"Height=48", L"HorizontalAlignment=Center", L"VerticalAlignment=Center", L"CornerRadius=12", L"Margin=0", L"BorderThickness=1", L"BorderBrush=Transparent", L"Background@InactiveNormal=Transparent", L"Background@ActiveNormal:=<LinearGradientBrush StartPoint=\"0.5,0\" EndPoint=\"0.5,1\"><GradientStop Offset=\"0\" Color=\"#32FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#12FFFFFF\"/></LinearGradientBrush>", L"Background@InactivePointerOver=#22FFFFFF", L"Background@ActivePointerOver:=<LinearGradientBrush StartPoint=\"0.5,0\" EndPoint=\"0.5,1\"><GradientStop Offset=\"0\" Color=\"#48FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#24FFFFFF\"/></LinearGradientBrush>", L"Background@InactivePressed=#14FFFFFF", L"Background@ActivePressed=#28FFFFFF", L"Background@MultiWindowNormal=Transparent", L"Background@MultiWindowPointerOver=#22FFFFFF", L"Background@MultiWindowActive:=<LinearGradientBrush StartPoint=\"0.5,0\" EndPoint=\"0.5,1\"><GradientStop Offset=\"0\" Color=\"#32FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#12FFFFFF\"/></LinearGradientBrush>", L"Background@MultiWindowPressed=#28FFFFFF", L"BorderBrush@ActiveNormal=#30FFFFFF", L"BorderBrush@ActivePointerOver=#48FFFFFF", L"BorderBrush@MultiWindowActive=#30FFFFFF"});
     AddElementCustomizationRules(L"Grid#IconPanel@RunningIndicatorStates > Rectangle#RunningIndicator, Taskbar.TaskListLabeledButtonPanel@RunningIndicatorStates > Rectangle#RunningIndicator", {L"Width=4", L"Height=4", L"RadiusX=2", L"RadiusY=2", L"Width@ActiveRunningIndicator=4", L"Width@InactiveRunningIndicator=4", L"Width@InactiveRunningIndicatorPointerOver=4"});
-    AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground#BackgroundControl", {L"Margin=-13,-1,-2,-1", L"Height=52", L"VerticalAlignment=Top", L"HorizontalAlignment=Stretch", L"ActualWidth=>dockAppSurfaceWidth", L"RenderTransformOrigin=0,0", L"RenderTransform:=<ScaleTransform ScaleX=\"{{dockAppSurfaceWidth>0?(dockAppSurfaceWidth+trayFrameWidth)/dockAppSurfaceWidth:1}}\" />", L"IsHitTestVisible=False"});
-    AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground > Grid > Rectangle#BackgroundFill", {L"Visibility=Visible", L"Fill:=<WindhawkBlur BlurAmount=\"20\" TintColor=\"{ThemeResource SystemChromeAltHighColor}\" TintOpacity=\"0.22\" />", L"Stroke=#50FFFFFF", L"StrokeThickness=1", L"RadiusX={{dockAppSurfaceWidth>0?26*dockAppSurfaceWidth/(dockAppSurfaceWidth+trayFrameWidth):26}}", L"RadiusY=26"});
+    AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground#BackgroundControl", {L"Margin=-13,-1,-12,-1", L"Height=60", L"VerticalAlignment=Top", L"HorizontalAlignment=Stretch", L"ActualWidth=>dockAppSurfaceWidth", L"RenderTransformOrigin=0,0", L"RenderTransform:=<ScaleTransform ScaleX=\"{{dockAppSurfaceWidth>0?(dockAppSurfaceWidth+trayFrameWidth)/dockAppSurfaceWidth:1}}\" />", L"IsHitTestVisible=False"});
+    AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground > Grid > Rectangle#BackgroundFill", {L"Visibility=Visible", L"Fill:=<WindhawkBlur BlurAmount=\"8\" TintColor=\"{ThemeResource SystemChromeAltHighColor}\" TintOpacity=\"0.10\" TintSaturation=\"1.15\" />", L"Stroke:=<LinearGradientBrush StartPoint=\"0.25,0\" EndPoint=\"0.75,1\"><GradientStop Offset=\"0\" Color=\"#90FFFFFF\"/><GradientStop Offset=\"0.5\" Color=\"#22FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#50E0EDFF\"/></LinearGradientBrush>", L"StrokeThickness=1", L"RadiusX={{dockAppSurfaceWidth>0?30*dockAppSurfaceWidth/(dockAppSurfaceWidth+trayFrameWidth):30}}", L"RadiusY=30"});
     AddElementCustomizationRules(L"SystemTray.NotifyIconView > Grid#ContainerGrid@ > Border#BackgroundBorder, SystemTray.Stack#NonActivatableStack > * > SystemTray.IconView > Grid#ContainerGrid@ > Border#BackgroundBorder, SystemTray.OmniButton#ControlCenterButton > Grid@CommonStates > Border#BackgroundBorder", {L"Width=24", L"Height=24", L"HorizontalAlignment=Center", L"VerticalAlignment=Center", L"Margin=0", L"CornerRadius=5", L"BorderThickness=0", L"BorderBrush=Transparent", L"Background=Transparent", L"Background@Normal=Transparent", L"Background@PointerOver:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.08\" />", L"Background@Pressed:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.12\" />", L"Background@Checked:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.06\" />", L"Background@CheckedPointerOver:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.10\" />", L"Background@CheckedPressed:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.12\" />"});
     AddElementCustomizationRules(L"SystemTray.OmniButton#ControlCenterButton > * > SystemTray.IconView > Grid#ContainerGrid > Border#BackgroundBorder", {L"Opacity=0"});
     g_resourceVariables.clear();

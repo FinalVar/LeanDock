@@ -27,7 +27,7 @@ $common=@('-target','x86_64-w64-mingw32','-O2','-DUNICODE','-D_UNICODE',
     '-ffunction-sections','-fdata-sections','-I',(Join-Path $root 'include'))
 $objects=[Collections.Generic.List[string]]::new()
 if(-not $ControllerOnly){
-$headerTime=(Get-ChildItem -LiteralPath (Join-Path $root 'include') -File | Measure-Object LastWriteTimeUtc -Maximum).Maximum
+$headerTime=(@(Get-ChildItem -LiteralPath (Join-Path $root 'include') -File)+@(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Filter '*.inc' -File) | Measure-Object LastWriteTimeUtc -Maximum).Maximum
 foreach($name in @('buffer','hook','trampoline','hde\hde64')) {
     $file=Join-Path $root ('vendor\minhook\src\'+$name+'.c')
     $object=Join-Path $build (($name -replace '\\','-')+'.o')
@@ -62,7 +62,7 @@ if(-not $BackendOnly){
     if($LASTEXITCODE -ne 0){throw 'Controller compilation failed.'}
 }
 [pscustomobject]@{
-    Version='0.2.3';ControllerVersion='0.2.1';BackendVersion='0.1.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true
+    Version='0.3.0';ControllerVersion='0.3.0';BackendVersion='0.2.0';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true
     RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll | ForEach-Object {
         [pscustomobject]@{Name=$_.Name;Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName).Hash}
     })

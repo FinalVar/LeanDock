@@ -4,10 +4,12 @@ $root=$PSScriptRoot
 $exe=Join-Path $root 'latest.exe'
 $taskName='NativeTaskbarDock'
 $session=(Get-Process -Id $PID).SessionId
-if(-not ('NativeDockManagementPathV1' -as [type])){
+if(-not ('NativeDockManagementPathV2' -as [type])){
 Add-Type -TypeDefinition @'
 using System; using System.Text; using System.Runtime.InteropServices;
-public static class NativeDockManagementPathV1 {
+public static class NativeDockManagementPathV2 {
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,string title);
+ [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr window,out uint pid);
  [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access,bool inherit,uint id);
  [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] static extern bool QueryFullProcessImageName(IntPtr process,uint flags,StringBuilder path,ref uint size);
  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
@@ -24,16 +26,20 @@ function Get-ExactProcesses {
     @(Get-CimInstance Win32_Process -Filter "Name='latest.exe'" | Where-Object {$_.SessionId -eq $session} | ForEach-Object {
         # Win32_Process can omit elevated process metadata for normal clients.
         $resolvedPath=$_.ExecutablePath
-        if(-not $resolvedPath){$resolvedPath=[NativeDockManagementPathV1]::Read($_.ProcessId)}
+        if(-not $resolvedPath){$resolvedPath=[NativeDockManagementPathV2]::Read($_.ProcessId)}
         if($resolvedPath -ieq $exe -and $_.CommandLine -notmatch '\s--'){
             [pscustomobject]@{ProcessId=$_.ProcessId;SessionId=$_.SessionId;ExecutablePath=$resolvedPath;CommandLine=$_.CommandLine}
         }
     })
 }
 function Get-ShellProcess {
-    $p=@(Get-CimInstance Win32_Process -Filter "Name='explorer.exe'" | Where-Object {$_.SessionId -eq $session -and $_.ExecutablePath -ieq (Join-Path $env:windir 'explorer.exe')})
-    if($p.Count -ne 1){throw "Expected one current-session Explorer, got $($p.Count)"}
-    $p[0]
+    $window=[NativeDockManagementPathV2]::FindWindow('Shell_TrayWnd',$null)
+    if($window -eq [IntPtr]::Zero){throw 'The native taskbar window is not ready.'}
+    [uint32]$ownerId=0;$null=[NativeDockManagementPathV2]::GetWindowThreadProcessId($window,[ref]$ownerId)
+    $p=Get-CimInstance Win32_Process -Filter "ProcessId=$ownerId"
+    $actual=[NativeDockManagementPathV2]::Read($ownerId)
+    if(-not $p -or $p.SessionId -ne $session -or $actual -ine (Join-Path $env:windir 'explorer.exe')){throw 'Native taskbar owner identity mismatch.'}
+    $p
 }
 function Get-OwnTask {
     $t=Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue

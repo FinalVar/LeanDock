@@ -1,18 +1,66 @@
 {
-  "schema": 1,
-  "recordedAtUtc": "2026-10-07T16:03:45.7270578Z",
-  "packageVersion": "0.2.3",
+  "schema": 2,
+  "recordedAtUtc": "2026-10-07T16:33:10.9694316Z",
+  "packageVersion": "0.3.0",
+  "controllerVersion": "0.3.0",
+  "backendVersion": "0.2.0",
   "fullBuildPassed": true,
   "runtimeChecks": 39,
   "gridInvariants": 105780,
-  "cornerCoreChecks": 48,
-  "hostedCornerChecks": "not rerun: production singleton remains active",
-  "runtimeSourcesByteIdenticalToDeployedSource": 20,
-  "peImports": "Windows system DLLs only",
-  "buildArtifactsIncludedInGit": false,
-  "personalProfilePathsOrCredentialPatternsFound": 0,
-  "productionPayloadUnchanged": true,
+  "geometryChecks": 89,
+  "cornerCoreChecks": 52,
+  "hostedCornerChecks": 28,
+  "realTrayCounts": [
+    5,
+    6,
+    7,
+    6,
+    5
+  ],
+  "realTrayRectangles": 29,
+  "nativeClipTracksDockWidth": true,
+  "fixtureRemoved": true,
+  "runtimeImports": "Windows system DLLs only",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 44544,
+      "SHA256": "57C6EAC4B1465531DF1C9CBB8B9871DC36FC11451E42A8A927894A52C6C28BA1"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1590784,
+      "SHA256": "2C357135F361148EC6FC221C7F7609C210C81385AB704A7C2C57307E29D3EDD2"
+    }
+  ],
   "productionDockAndCornersReady": true,
-  "deployedAcceptance": "See baseline-latest.json; latest centering visual feedback remains pending",
-  "maintenanceScripts": "Repository manager keeps routine controls; one-machine update/rollback scripts stay outside the repository"
+  "windhawkRunning": false,
+  "additionalResidentProcessCount": 1,
+  "taskRunLevel": "Highest",
+  "acceptance": [
+    {
+      "role": "user",
+      "scope": "glass, divider, icon ratio, padding, clarity",
+      "response": "外观和比例合适"
+    },
+    {
+      "role": "user",
+      "scope": "Start and Quick Settings placement, actual Dock edge reveal",
+      "response": "菜单位置和呼出范围都正常"
+    },
+    {
+      "role": "user",
+      "scope": "top-left lock and unlock, bottom-left desktop, bottom-right Task View",
+      "response": "锁屏及其他两个角都正常"
+    }
+  ],
+  "postAcceptanceReview": "Removed the redundant generic Unhide hook so keyboard/accessibility/menu reveal stays native. Window clipping and the mouse hover timer filter remain. Final live region, runtime readiness, binary hashes and runtime tests rechecked; physical pointer replay not repeated after this narrow change.",
+  "renderingBoundary": "Windows backdrop blur, reflection and edge gradients inspired by NextKDE; no KWin Snell refraction shader port.",
+  "untested": [
+    "multiple physical monitors",
+    "sleep/resume matrix",
+    "logoff/logon restart",
+    "all fullscreen games",
+    "long-duration stability"
+  ]
 }
