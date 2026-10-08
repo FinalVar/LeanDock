@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "recordedAtUtc": "2026-10-08T23:26:11.5963702Z",
+  "packageVersion": "0.7.1",
+  "scope": "Standalone build toolchain, project maintenance rules and retired installation cleanup; runtime unchanged",
+  "toolchain": {
+    "version": "Clang 20.1.3",
+    "origin": "Windhawk 1.7.3 bundled toolchain",
+    "copiedFiles": 7448,
+    "bytes": 445929083.0,
+    "allCopiedFileHashesMatchSource": true,
+    "omitted": [
+      "aarch64-w64-mingw32",
+      "i686-w64-mingw32",
+      "bin/clangd.exe"
+    ],
+    "windhawkInstallRequired": false
+  },
+  "verification": {
+    "completeIsolatedBuild": true,
+    "artifactsBuilt": 4,
+    "runtimeChecks": 91,
+    "positionChecks": 72,
+    "shellActionChecks": 67,
+    "total": 230,
+    "failures": 0,
+    "imports": "Windows system DLLs only",
+    "postUninstall": {
+      "OldCompilerAbsent": true,
+      "UserEnvironmentResolution": true,
+      "ExplicitResolution": true,
+      "MissingCompilerRejected": true,
+      "RecompiledPositionChecks": 72,
+      "Failures": 0
+    },
+    "freshlyBuiltBinariesDeployed": false,
+    "binaryReproducibilityClaimed": false
+  },
+  "cleanup": {
+    "nativeUninstallerExitCode": 0,
+    "windhawkServicePresent": false,
+    "windhawkUninstallEntryPresent": false,
+    "removedInstallations": [
+      "NativeClearTaskbar",
+      "NativeHotCorners",
+      "TaskbarDock"
+    ],
+    "windhawkCacheAndSettingsRemoved": true,
+    "protectedRuntimeAndConfigHashesUnchanged": true,
+    "rollbackArchives": 4,
+    "rollbackArchiveBytes": 4386263.0,
+    "pendingEngineBytes": 979544,
+    "pendingEngineReason": "Windhawk engine is loaded in two current Codex processes; no application forcibly closed",
+    "pendingEngineDeleteRegistered": true,
+    "pendingEngineDeleteCompleted": false
+  },
+  "deployment": {
+    "live": true,
+    "singleController": true,
+    "controllerPid": 10920,
+    "explorerPid": 9200,
+    "dockReady": true,
+    "hotCornersReady": true,
+    "startLayoutReady": true,
+    "quickPositionActive": true,
+    "backendFailure": false,
+    "runtimeRestarted": false
+  },
+  "limits": [
+    "No new desktop UI acceptance",
+    "No reboot performed; pending engine cleanup completion not yet verified",
+    "Current pinned Windows components only",
+    "Build verification does not establish byte-for-byte reproducibility"
+  ]
+}

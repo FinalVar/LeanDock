@@ -8,7 +8,7 @@ $out=[IO.Path]::GetFullPath($OutputDirectory)
 if($out -eq $root -or $root.StartsWith($out.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Output must not contain source checkout'}
 if(Test-Path -LiteralPath $out){throw 'Package output already exists. Use a new versioned parent directory with a latest child.'}
 $names=[Collections.Generic.List[string]]::new()
-foreach($f in @('latest.exe','latest.dll','start/latest.dll','panels/latest.dll','latest.ps1','latest.ini','README.md','NOTICE.md','LICENSE.txt','.gitattributes')){$names.Add($f)}
+foreach($f in @('latest.exe','latest.dll','start/latest.dll','panels/latest.dll','latest.ps1','latest.ini','AGENTS.md','README.md','NOTICE.md','LICENSE.txt','.gitattributes')){$names.Add($f)}
 foreach($dir in @('include','src','baseline','build','tests','hotcorners','start','panels','maintenance','docs','upstream','vendor')){
  foreach($f in Get-ChildItem -LiteralPath (Join-Path $root $dir) -File -Recurse){
   $relative=[IO.Path]::GetRelativePath($root,$f.FullName).Replace('\','/')

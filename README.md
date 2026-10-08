@@ -24,7 +24,7 @@
 
 ## 运行结构
 
-只有一个额外的隐藏控制进程，另有组件分别加载到 Explorer、原生开始菜单宿主和快速设置宿主中。通过当前用户交互式登录计划任务启动，没有自己的托盘图标、可见窗口或 Windows 服务。正常运行不需要 Windhawk 引擎、Python、Node 或 .NET；目前构建工具复用 Windhawk 随附的 Clang/MinGW/WinRT 开发环境。
+只有一个额外的隐藏控制进程，另有组件分别加载到 Explorer、原生开始菜单宿主和快速设置宿主中。通过当前用户交互式登录计划任务启动，没有自己的托盘图标、可见窗口或 Windows 服务。正常运行不需要 Windhawk 引擎、Python、Node 或 .NET；构建使用独立保存的 Clang/MinGW/WinRT 工具链，运行和日常调试都不要求安装或启动 Windhawk。
 
 主题切换使用同一个 EXE 的短暂 `--theme dark`／`--theme light` 工作模式，完成后退出，不增加常驻实例。完整主题接口在这个独立进程内调用，并核对 themeui.dll 哈希。真实深浅色设置先写入，短暂线程在有时间上限的范围内通知可见窗口，同时继续应用完整主题，避免逐个等待隐藏窗口。最终成功仍要求系统／应用模式、主题路径和壁纸全部匹配。实现和维护边界见 docs/theme-latest.md。
 
@@ -41,7 +41,7 @@
 ### 要求
 
 - Windows x64、PowerShell 7、Python 3。
-- 带 Win32/WinRT 头文件的 Clang/MinGW 工具链。已核验的工具链是 Windhawk Compiler 的 Clang 20。
+- 带 Win32/WinRT 头文件的独立 Clang/MinGW 工具链。当前核验版本为 Clang 20.1.3；来源是原 Windhawk 编译器包，保留所需 x64 组件与许可证，独立于 Windhawk 安装。
 - 本机系统 DLL 必须匹配 `baseline/modules-latest.json` 的 SHA-256；生成器同时核对 PE 时间戳、映像大小和符号位置。
 
 仓库保存构建所需的原始输入、生成源码、配置与许可证。没有上传编译器、Windows 系统 DLL、EXE/DLL 成品或本机运行数据。
@@ -49,10 +49,12 @@
 ### 命令
 
 ```powershell
-.\build\latest.ps1 -CompilerRoot "$env:ProgramFiles\Windhawk\Compiler" -PythonPath python
+.\build\latest.ps1 -CompilerRoot 'D:\Toolchains\LeanDock\latest' -PythonPath python
 ```
 
-也可通过 `LEANDOCK_COMPILER_ROOT`、`LEANDOCK_PYTHON` 指定工具位置。完整构建产生根目录 `latest.exe`、`latest.dll`、`start/latest.dll`、`panels/latest.dll` 及被 Git 忽略的构建收据，不会安装、启动或注入任何进程。两个菜单组件可单独运行 `build/start-latest.ps1`、`build/panels-latest.ps1` 构建。
+示例路径应替换为本机实际工具链目录。也可通过 `LEANDOCK_COMPILER_ROOT`、`LEANDOCK_PYTHON` 指定工具位置；构建和测试共用 build/toolchain-latest.ps1，支持读取当前进程或用户级工具链环境变量，不回退到 Windhawk 安装目录。完整构建产生根目录 `latest.exe`、`latest.dll`、`start/latest.dll`、`panels/latest.dll` 及被 Git 忽略的构建收据，不会安装、启动或注入任何进程。两个菜单组件可单独运行 `build/start-latest.ps1`、`build/panels-latest.ps1` 构建。
+
+独立工具链、旧安装清理和验证边界见 docs/toolchain-latest.md。构建工具占用磁盘，不会因此增加常驻进程。
 
 `-ControllerOnly` 构建控制程序及其快速设置位置组件；`-BackendOnly` 只构建 Explorer 组件，两者互斥。完整构建会先重跑生成器。维护任务栏适配时改 `build/generate-latest.py`，维护触发角接入时改 `build/adapt-hotcorners-latest.py`，不要只改生成文件。
 
@@ -82,6 +84,8 @@ Stop 会恢复任务栏属性、钩子和快速设置位置，但 DLL 保留在�
 0.7.0 加入统一更新、回退与资源测量入口。完整构建后用 build/package-latest.ps1 生成包含源码与哈希清单的本地包，再用 latest.ps1 的 Update／Rollback 操作维护正式目录；Install 携带 PackagePath 时支持安装到新的空目录。已有配置保留，正常运行没有新增维护常驻进程。资源测量用 Resources，支持显示、隐藏、媒体、电池供电等场景校验和前后基线比较。路径、命令示例和验证边界见 docs/maintenance-latest.md；旧版一次性回退仍使用旧备份自己的脚本。
 
 ## 验证
+
+后续维护必须遵守项目 AGENTS.md：先核对成熟上游实现，准确说明直接复用、适配和设计参考；自写接入层必须覆盖加载、退出、回调与恢复责任。优先最小可回滚修改，验证实际行为，保留未验证边界。upstream、vendor、许可证和当前有效回退属于必要维护材料，不按旧软件残留删除。
 
 完整构建后，可运行不控制生产 Dock 的检查：
 

@@ -10,9 +10,16 @@ watchdog remains running during normal use.
 
 After a successful build, run build/package-latest.ps1 with a new output folder.
 The folder contains the four runtime binaries, source, licenses, build/test and
-maintenance tools, default configurations, and a SHA-256 manifest. The compiler,
+maintenance tools, project AGENTS.md, default configurations, and a SHA-256 manifest. The compiler,
 Windows DLLs, credentials and old runtime status files are not bundled. This
 remains a machine/component-pinned package, not universal Windows support.
+
+Build/test entry points resolve the standalone compiler through
+build/toolchain-latest.ps1. CompilerRoot overrides the process environment, then
+the user-level LEANDOCK_COMPILER_ROOT is used when neither is set. Windhawk is
+not a fallback install location. See toolchain-latest.md for provenance,
+independent-build evidence and the separation of runtime, build and rollback
+materials.
 
 Use `latest.ps1 -Action Update -PackagePath <package> -Destination <installed>`.
 `-ValidateOnly` verifies paths, all payload hashes, task ownership and the native

@@ -16,6 +16,12 @@ The local controller, pinned-symbol resolver, hook-chain adapter and maintenance
 
 MinHook 1.3.4 by Tsuda Kageyu, commit c3fcafdc10146beb5919319d0683e44e3c30d537: https://github.com/TsudaKageyu/minhook . It and bundled HDE source retain all applicable notices in vendor/minhook/LICENSE.txt, AUTHORS.txt and source headers. The import inventory is in tests/imports-latest.json.
 
+The separately installed build toolchain is Clang 20.1.3 with MinGW and WinRT
+headers, retained from the Windhawk 1.7.3 compiler bundle. Its original
+LICENSE.TXT and component notices remain with that local toolchain. It is not
+distributed in this repository or the LeanDock deployment package. This build
+provenance does not imply a dependency on the Windhawk application or engine.
+
 The component uses internal Windows taskbar interfaces. Compatibility is deliberately limited to the verified system binaries. This does not establish compatibility with future Windows updates, third-party shell modifications or untested displays.
 
 The 0.7.1 hook-operation shutdown gate follows the lifetime synchronization

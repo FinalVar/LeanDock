@@ -1,6 +1,7 @@
 param([string]$CompilerRoot=$env:LEANDOCK_COMPILER_ROOT)
 $ErrorActionPreference='Stop'
-if(-not $CompilerRoot){$CompilerRoot=Join-Path $env:ProgramFiles 'Windhawk\Compiler'}
+. (Join-Path (Split-Path $PSScriptRoot -Parent) 'build\toolchain-latest.ps1')
+$CompilerRoot=Resolve-LeanDockCompiler $CompilerRoot
 $root=Split-Path $PSScriptRoot -Parent
 $out=Join-Path $root 'panels'
 New-Item -ItemType Directory -Path $out -Force | Out-Null

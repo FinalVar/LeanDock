@@ -1,6 +1,7 @@
 param([switch]$RunLive,[string]$CompilerRoot=$env:LEANDOCK_COMPILER_ROOT)
 $ErrorActionPreference='Stop'
-if(-not $CompilerRoot){$CompilerRoot=Join-Path $env:ProgramFiles 'Windhawk\Compiler'}
+. (Join-Path (Split-Path $PSScriptRoot -Parent) 'build\toolchain-latest.ps1')
+$CompilerRoot=Resolve-LeanDockCompiler $CompilerRoot
 $out=Join-Path $PSScriptRoot 'occlusion-fixture-latest.exe'
 & (Join-Path $CompilerRoot 'bin/clang++.exe') -target x86_64-w64-mingw32 -std=c++23 -O2 -static -DUNICODE -D_UNICODE -D_WIN32_WINNT=0x0A00 (Join-Path $PSScriptRoot 'occlusion-fixture-latest.cpp') -o $out
 if($LASTEXITCODE){throw 'Occlusion fixture compilation failed'}

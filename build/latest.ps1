@@ -1,6 +1,7 @@
 param([switch]$SkipGenerate,[switch]$ControllerOnly,[switch]$BackendOnly,
       [string]$CompilerRoot=$env:LEANDOCK_COMPILER_ROOT,[string]$PythonPath=$env:LEANDOCK_PYTHON)
-if(-not $CompilerRoot){$CompilerRoot=Join-Path $env:ProgramFiles 'Windhawk\Compiler'}
+. (Join-Path (Split-Path $PSScriptRoot -Parent) 'build\toolchain-latest.ps1')
+$CompilerRoot=Resolve-LeanDockCompiler $CompilerRoot
 if(-not $PythonPath){$PythonPath=(Get-Command python -CommandType Application -ErrorAction Stop).Source}
 $ErrorActionPreference='Stop'
 if($ControllerOnly -and $BackendOnly){throw 'ControllerOnly and BackendOnly are mutually exclusive.'}
