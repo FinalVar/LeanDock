@@ -1,0 +1,242 @@
+{
+  "schema": 13,
+  "recordedAtUtc": "2026-10-08T15:06:37.6059776Z",
+  "packageVersion": "0.5.8",
+  "controllerVersion": "0.3.3",
+  "backendVersion": "0.4.7",
+  "startLayoutVersion": "0.1.3",
+  "quickPositionVersion": "0.1.1",
+  "scope": "One fixed-size middle card, three wheel-selected pages; visible event-driven battery states",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 229888,
+      "SHA256": "AF52D5F80D84609F069607496C91C1AA50BF0F1F5772F373651CB554C2C31FDF"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1821696,
+      "SHA256": "7A58E61E036A30AB802B405E88FE569658F45199C18E84AAE195EF6221931885"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 197120,
+      "SHA256": "5D16A9E16FBB784ACD538F9BFBC775EDF375E06676A03F03182A3A38D5470A5C"
+    }
+  ],
+  "imports": [
+    {
+      "file": "latest.exe",
+      "bytes": 229888,
+      "imports": [
+        "SHELL32.dll",
+        "bcrypt.dll",
+        "dwmapi.dll",
+        "WTSAPI32.dll",
+        "ADVAPI32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": []
+    },
+    {
+      "file": "latest.dll",
+      "bytes": 1821696,
+      "imports": [
+        "ole32.dll",
+        "OLEAUT32.dll",
+        "api-ms-win-core-winrt-error-l1-1-0.dll",
+        "api-ms-win-core-winrt-l1-1-0.dll",
+        "api-ms-win-core-winrt-error-l1-1-1.dll",
+        "VERSION.dll",
+        "SHLWAPI.dll",
+        "COMCTL32.dll",
+        "SHELL32.dll",
+        "dwmapi.dll",
+        "SHCORE.dll",
+        "GDI32.dll",
+        "msvcrt.dll",
+        "ADVAPI32.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "DllCanUnloadNow",
+        "DllGetClassObject",
+        "NativeDock_Start"
+      ]
+    },
+    {
+      "file": "start\\latest.dll",
+      "bytes": 396288,
+      "imports": [
+        "ole32.dll",
+        "OLEAUT32.dll",
+        "api-ms-win-core-winrt-l1-1-0.dll",
+        "api-ms-win-core-winrt-error-l1-1-1.dll",
+        "api-ms-win-core-winrt-error-l1-1-0.dll",
+        "COMCTL32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "LeanDockStartHook"
+      ]
+    },
+    {
+      "file": "panels\\latest.dll",
+      "bytes": 197120,
+      "imports": [
+        "COMCTL32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "LeanDockQuickHook"
+      ]
+    }
+  ],
+  "systemDllImportsOnly": true,
+  "regression": {
+    "cardChecks": 73,
+    "runtimeChecks": 39,
+    "geometryChecks": 98,
+    "failures": 0,
+    "productionInputSent": false,
+    "generatedSourceReproducible": true
+  },
+  "live": {
+    "ready": true,
+    "controllerPid": 23960,
+    "explorerPid": 18292,
+    "backend": {
+      "protocol": 1,
+      "version": "0.4.7",
+      "explorerPid": 18292,
+      "ownerPid": 23960,
+      "state": 2,
+      "hooks": 58,
+      "styledElements": 34,
+      "failed": false
+    },
+    "quick": {
+      "Supported": true,
+      "Active": true,
+      "Blocked": false,
+      "Failures": 0,
+      "Adjustments": 0
+    },
+    "start": {
+      "version": "0.1.3",
+      "pid": 19428,
+      "ownerPid": 23960,
+      "active": true,
+      "lists": 1,
+      "items": 41,
+      "sourceGroups": 30,
+      "lockedSelectors": 1,
+      "columns": 7,
+      "rows": 6,
+      "panelWidth": 738.0,
+      "panelHeight": 670.0,
+      "passes": 2,
+      "failures": 0,
+      "watchMode": "events"
+    },
+    "cards": {
+      "At": "2026-10-08T23:06:37.5550071+08:00",
+      "Hwnd": 5702164,
+      "Ready": 1,
+      "Visible": 0,
+      "Sampling": 0,
+      "Samples": 17,
+      "Cpu": 9,
+      "Memory": 87,
+      "Media": 0,
+      "View": 1,
+      "Errors": 0,
+      "Commands": 0,
+      "Left100": 88633,
+      "Top100": 800,
+      "Right100": 104633,
+      "Bottom100": 5200,
+      "AppRight100": 86533,
+      "RootRight100": 106133,
+      "Fits": 1,
+      "ControlsLeft100": 93100,
+      "ControlsRight100": 100300,
+      "ControlsTop100": 2600,
+      "ControlsBottom100": 5000,
+      "TitleLeft100": 89567,
+      "TitleRight100": 93967,
+      "ButtonWidth100": 2400,
+      "PowerReady": 1,
+      "PowerActive": 0,
+      "VisiblePages": 1,
+      "BatteryMode": 7,
+      "PowerUpdates": 26,
+      "Switches": 44,
+      "BatteryPercent": 100,
+      "Charging": 0,
+      "Plugged": 1,
+      "PowerLeft100": null,
+      "PowerRight100": null,
+      "PowerTop100": null,
+      "PowerBottom100": null,
+      "NativePowerWidth100": null,
+      "NativePowerHeight100": null,
+      "NativePowerHit": false,
+      "NativePowerClicks": 2,
+      "SystemPower": {
+        "Valid": true,
+        "AC": 1,
+        "Flags": 1,
+        "Percent": 100
+      }
+    }
+  },
+  "acceptance": {
+    "status": "user-confirmed",
+    "userQuote": "切换、点击和电源状态变化都正常",
+    "batteryPhysicalStateTransitions": "user confirmed physical unplug/replug updates",
+    "scope": "Single visible page, wheel in both directions including native battery hit target, battery left and right click",
+    "mediaPlaybackCommands": "not newly exercised; no active media session at observation"
+  },
+  "previousFocusAcceptance": {
+    "version": "0.5.7",
+    "userQuote": "没有了",
+    "scope": "First-item initial outline disappeared only; not a new click or keyboard acceptance",
+    "record": "verification-v0.5.7.json"
+  },
+  "computerUse": {
+    "attempted": true,
+    "targetDockReturned": false,
+    "inputSent": false,
+    "result": "Dock absent from targetable windows; request user interaction evidence"
+  },
+  "protected": {
+    "controllerBinaryAndConfig": true,
+    "hotCornerBinaryAndConfig": true,
+    "startAndQuickBinaries": true,
+    "nativeMenuAnchorAndFocus": true,
+    "noNewProcessOrTimer": true
+  },
+  "review": {
+    "maintainability": "One card root, one page enum, battery state separated from presentation, generated tray bridge synchronized",
+    "boundaries": "Fine wheel residual, both directions, no media session, unknown/no battery, AC without charging, page-specific native hit target and measured fallback",
+    "regressionRisk": "Original panel actions preserved; only Explorer backend replaced, true UI interaction acceptance recorded separately"
+  },
+  "boundaries": [
+    "Current pinned Windows binaries only",
+    "Battery transition logic tests do not prove physical unplug/replug delivery",
+    "Multi-monitor, assistive technology, sleep/login and new system builds not exercised"
+  ]
+}

@@ -13,7 +13,21 @@ struct CommandGate {
     void Invalidate(){++serial;busy=false;}
     bool Finish(uint64_t ticket){if(!ticket||!busy||ticket!=serial)return false;busy=false;return true;}
 };
-inline constexpr double CardWidth=160, CardHeight=44, SlotWidth=184;
+inline constexpr double CardWidth=104, CardHeight=44, SlotWidth=CardWidth+24;
+inline constexpr double RingSize=32, RingStroke=2.5, RingRadius=(RingSize-RingStroke)/2;
+struct RingArc {double x=RingSize/2,y=RingStroke/2;bool visible=false,full=false,large=false;};
+inline RingArc GaugeArc(std::optional<unsigned> percent) {
+    RingArc arc;
+    if(!percent||!*percent)return arc;
+    const unsigned value=std::min(*percent,100u);
+    arc.visible=true;arc.full=value==100;arc.large=value>50;
+    // A full circle needs its own ellipse geometry: a single arc whose start
+    // and end coincide would otherwise disappear exactly at 100 percent.
+    const double angle=6.2831853071795864769*value/100;
+    arc.x=RingSize/2+RingRadius*std::sin(angle);
+    arc.y=RingSize/2-RingRadius*std::cos(angle);
+    return arc;
+}
 enum class Page : unsigned { Metrics, Media, Power };
 inline Page Cycle(Page page,int direction) {
     return static_cast<Page>((static_cast<int>(page)+(direction<0?2:direction>0?1:0))%3);

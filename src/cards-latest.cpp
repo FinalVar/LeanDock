@@ -56,6 +56,25 @@ static std::optional<CpuTimes> Times(){
     FILETIME i{},k{},u{};if(!GetSystemTimes(&i,&k,&u))return {};return CpuTimes{Bits(i),Bits(k),Bits(u)};
 }
 static void Put(HWND w,unsigned i,uintptr_t value){if(w){auto v=reinterpret_cast<HANDLE>(value+1);if(GetPropW(w,Props[i])!=v)SetPropW(w,Props[i],v);}}
+static winrt::hstring PercentText(std::optional<unsigned> value){return value?winrt::to_hstring(*value)+L"%":L"—";}
+struct RingDrawing {
+    x::Shapes::Path path{nullptr};x::Media::PathGeometry partial{nullptr};
+    x::Media::ArcSegment segment{nullptr};x::Media::EllipseGeometry full{nullptr};
+    void Init(x::Shapes::Path const& element) {
+        path=element;partial=x::Media::PathGeometry();segment=x::Media::ArcSegment();
+        segment.Size({float(RingRadius),float(RingRadius)});segment.SweepDirection(x::Media::SweepDirection::Clockwise);
+        x::Media::PathFigure figure;figure.StartPoint({float(RingSize/2),float(RingStroke/2)});
+        figure.IsClosed(false);figure.IsFilled(false);figure.Segments().Append(segment);partial.Figures().Append(figure);
+        full=x::Media::EllipseGeometry();full.Center({float(RingSize/2),float(RingSize/2)});
+        full.RadiusX(RingRadius);full.RadiusY(RingRadius);
+    }
+    void Set(std::optional<unsigned> percent) {
+        auto arc=GaugeArc(percent);
+        if(!arc.visible){path.Data(nullptr);return;}
+        if(arc.full){path.Data(full);return;}
+        segment.Point({float(arc.x),float(arc.y)});segment.IsLargeArc(arc.large);path.Data(partial);
+    }
+};
 static x::FrameworkElement NativeQuickSettings(x::DependencyObject const& node,unsigned depth=0) {
     if(!node||depth>24)return nullptr;
     if(auto fe=node.try_as<x::FrameworkElement>();fe&&fe.Name()==L"ControlCenterButton")return fe;
@@ -74,9 +93,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     Power::RemainingChargePercentChanged_revoker chargeChanged;
     Power::BatteryStatusChanged_revoker batteryChanged;
     Power::PowerSupplyStatusChanged_revoker supplyChanged;
-    c::Grid metrics{nullptr},media{nullptr}; c::TextBlock cpu{nullptr},memory{nullptr},title{nullptr};
+    c::Grid metrics{nullptr},media{nullptr}; c::TextBlock title{nullptr};
     c::StackPanel mediaControls{nullptr};winrt::hstring artistName;
-    x::Shapes::Rectangle cpuBar{nullptr},memoryBar{nullptr};
+    RingDrawing cpuRing,memoryRing;std::optional<unsigned> cpuPercent,memoryPercent;
     c::Button previous{nullptr},play{nullptr},next{nullptr};c::TextBlock playGlyph{nullptr};
     x::DispatcherTimer timer{nullptr};winrt::Windows::UI::Core::CoreDispatcher dispatcher{nullptr};
     Manager manager{nullptr};Session session{nullptr};
@@ -112,8 +131,8 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         // desired content width; even a one-application Dock stays compact.
         card=x::Markup::XamlReader::Load(LR"xaml(
 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- x:Name="LeanDockCard" Width="160" Height="44" CornerRadius="10" Background="#0CFFFFFF"
- HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,-160,0">
+ x:Name="LeanDockCard" Height="44" CornerRadius="10" Background="#0CFFFFFF"
+ HorizontalAlignment="Right" VerticalAlignment="Center">
  <Border.RenderTransform><TranslateTransform X="21"/></Border.RenderTransform>
  <Grid>
   <Grid.Resources>
@@ -132,14 +151,20 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
      </Grid></ControlTemplate></Setter.Value></Setter>
    </Style>
   </Grid.Resources>
-  <Grid x:Name="Metrics" Margin="9,3"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-   <StackPanel><TextBlock Text="CPU" FontSize="10" Opacity="0.70"/><TextBlock x:Name="Cpu" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,-2,0,0"/>
-    <Grid Height="2" Margin="0,1,0,0" Background="#18808080"><Rectangle x:Name="CpuBar" Width="0" Fill="#886C9AD8" HorizontalAlignment="Left"/></Grid></StackPanel>
-   <StackPanel Grid.Column="2"><TextBlock Text="内存" FontSize="10" Opacity="0.70"/><TextBlock x:Name="Memory" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,-2,0,0"/>
-    <Grid Height="2" Margin="0,1,0,0" Background="#18808080"><Rectangle x:Name="MemoryBar" Width="0" Fill="#8885ADA6" HorizontalAlignment="Left"/></Grid></StackPanel>
+  <Grid x:Name="Metrics" Width="76" Height="32" HorizontalAlignment="Center" VerticalAlignment="Center"><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="12"/><ColumnDefinition Width="32"/></Grid.ColumnDefinitions>
+   <Grid Width="32" Height="32">
+    <Ellipse Stroke="#26808080" StrokeThickness="2.5"/>
+    <Path x:Name="CpuRing" Stroke="#FF538ABA" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+    <TextBlock Text="CPU" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+   </Grid>
+   <Grid Grid.Column="2" Width="32" Height="32">
+    <Ellipse Stroke="#26808080" StrokeThickness="2.5"/>
+    <Path x:Name="MemoryRing" Stroke="#FF4C9E8B" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+    <TextBlock Text="内存" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+   </Grid>
   </Grid>
-  <Grid x:Name="Media" Visibility="Collapsed" Margin="9,2"><Grid.RowDefinitions><RowDefinition Height="16"/><RowDefinition Height="24"/></Grid.RowDefinitions>
-   <TextBlock x:Name="Title" FontSize="11" TextTrimming="CharacterEllipsis" TextAlignment="Center" VerticalAlignment="Center"/>
+  <Grid x:Name="Media" Visibility="Collapsed" Margin="7,2"><Grid.RowDefinitions><RowDefinition Height="16"/><RowDefinition Height="24"/></Grid.RowDefinitions>
+   <TextBlock x:Name="Title" FontSize="10" TextTrimming="CharacterEllipsis" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"/>
     <StackPanel x:Name="MediaControls" Grid.Row="1" Orientation="Horizontal" Width="72" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center">
      <Button x:Name="Previous" AutomationProperties.Name="上一首"><TextBlock FontFamily="Segoe Fluent Icons" FontSize="12" Text="&#xE892;"/></Button>
      <Button x:Name="Play" AutomationProperties.Name="播放或暂停"><TextBlock x:Name="PlayGlyph" FontFamily="Segoe Fluent Icons" FontSize="14" Text="&#xE768;"/></Button>
@@ -148,15 +173,16 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
   </Grid>
  </Grid>
 </Border>)xaml").as<c::Border>();
+        card.Width(CardWidth);card.Margin({0,0,-CardWidth,0});
         metrics=card.FindName(L"Metrics").as<c::Grid>();media=card.FindName(L"Media").as<c::Grid>();
-        cpu=card.FindName(L"Cpu").as<c::TextBlock>();memory=card.FindName(L"Memory").as<c::TextBlock>();
         title=card.FindName(L"Title").as<c::TextBlock>();mediaControls=card.FindName(L"MediaControls").as<c::StackPanel>();
-        cpuBar=card.FindName(L"CpuBar").as<x::Shapes::Rectangle>();memoryBar=card.FindName(L"MemoryBar").as<x::Shapes::Rectangle>();
+        title.Width(CardWidth-14);
+        cpuRing.Init(card.FindName(L"CpuRing").as<x::Shapes::Path>());memoryRing.Init(card.FindName(L"MemoryRing").as<x::Shapes::Path>());
         previous=card.FindName(L"Previous").as<c::Button>();play=card.FindName(L"Play").as<c::Button>();next=card.FindName(L"Next").as<c::Button>();
         playGlyph=card.FindName(L"PlayGlyph").as<c::TextBlock>();
         powerCard=x::Markup::XamlReader::Load(LR"xaml(
 <Button xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- x:Name="LeanDockPowerCard" Width="160" Height="44" MinWidth="0" MinHeight="0" Padding="0"
+ x:Name="LeanDockPowerCard" Height="44" MinWidth="0" MinHeight="0" Padding="0"
  HorizontalAlignment="Center" VerticalAlignment="Center" AutomationProperties.Name="电池与快速设置">
  <Button.Template><ControlTemplate TargetType="Button">
   <Grid Background="Transparent"><VisualStateManager.VisualStateGroups><VisualStateGroup x:Name="CommonStates">
@@ -167,19 +193,22 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
   <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
   </Grid>
  </ControlTemplate></Button.Template>
- <StackPanel Orientation="Horizontal" Spacing="9" HorizontalAlignment="Center">
+ <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+  <Viewbox Width="24" Height="18" VerticalAlignment="Center">
   <Grid Width="32" Height="20" VerticalAlignment="Center">
    <Border Width="28" Height="16" CornerRadius="3" BorderThickness="1" BorderBrush="{ThemeResource SystemControlForegroundBaseHighBrush}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
    <Rectangle x:Name="PowerFill" Width="0" Height="10" RadiusX="1" RadiusY="1" Fill="{ThemeResource SystemControlForegroundBaseHighBrush}" HorizontalAlignment="Left" Margin="3,0,0,0"/>
    <Border Width="2" Height="6" CornerRadius="1" Background="{ThemeResource SystemControlForegroundBaseHighBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
    <Path x:Name="PowerBolt" Data="M 16,1 L 10,11 L 15,11 L 12,19 L 22,7 L 17,7 Z" Fill="{ThemeResource SystemControlForegroundBaseHighBrush}" Stroke="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}" StrokeThickness="0.8" Visibility="Collapsed"/>
   </Grid>
-  <StackPanel Width="104" VerticalAlignment="Center">
-   <TextBlock x:Name="PowerText" Text="—" FontFamily="Segoe UI Variable" FontSize="16" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
-   <TextBlock x:Name="PowerStatus" Text="电源状态未知" FontFamily="Segoe UI Variable" FontSize="10" Opacity="0.75" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+  </Viewbox>
+  <StackPanel Width="60" VerticalAlignment="Center">
+   <TextBlock x:Name="PowerText" Text="—" FontFamily="Segoe UI Variable" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+   <TextBlock x:Name="PowerStatus" Text="电源状态未知" FontFamily="Segoe UI Variable" FontSize="9" Opacity="0.75" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
   </StackPanel>
  </StackPanel>
 </Button>)xaml").as<c::Button>();
+        powerCard.Width(CardWidth);
         powerText=powerCard.FindName(L"PowerText").as<c::TextBlock>();powerFill=powerCard.FindName(L"PowerFill").as<x::Shapes::Rectangle>();
         powerStatus=powerCard.FindName(L"PowerStatus").as<c::TextBlock>();powerBolt=powerCard.FindName(L"PowerBolt").as<x::Shapes::Path>();
         divider=x::Shapes::Rectangle();divider.Name(L"LeanDockCardDivider");divider.Width(1);divider.Height(40);
@@ -286,21 +315,29 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         const bool want=ShouldSample(shown&&fits,page==Page::Metrics,!stopped);
         if(want==sampling)return;
         sampling=want;Put(hwnd,2,sampling);
-        if(want){baseline=Times();cpu.Text(L"—");cpuBar.Width(0);RemovePropW(hwnd,Props[4]);ReadMemory();timer.Start();}
+        if(want){baseline=Times();cpuPercent.reset();cpuRing.Set({});RemovePropW(hwnd,Props[4]);ReadMemory();timer.Start();}
         else{timer.Stop();baseline.reset();}
     }
     void ReadMemory(){MEMORYSTATUSEX s{sizeof(s)};if(GlobalMemoryStatusEx(&s)){
-        memory.Text(winrt::to_hstring(uint32_t(s.dwMemoryLoad))+L"%");memoryBar.Width(65.0*s.dwMemoryLoad/100);
+        memoryPercent=s.dwMemoryLoad;memoryRing.Set(memoryPercent);
         Put(hwnd,5,s.dwMemoryLoad);
-    }else{memory.Text(L"—");memoryBar.Width(0);RemovePropW(hwnd,Props[5]);}}
+    }else{memoryPercent.reset();memoryRing.Set({});RemovePropW(hwnd,Props[5]);}MetricsDescription();}
+    void MetricsDescription() {
+        auto description=L"CPU "+PercentText(cpuPercent)+L"，内存 "+PercentText(memoryPercent);
+        c::ToolTipService::SetToolTip(metrics,winrt::box_value(description+L"\n滚轮：切换卡片"));
+        x::Automation::AutomationProperties::SetName(metrics,description);
+        if(page==Page::Metrics){
+            x::Automation::AutomationProperties::SetName(card,description);
+            c::ToolTipService::SetToolTip(card,winrt::box_value(description+L"\n滚轮：切换卡片；右键：系统工具菜单"));
+        }
+    }
     void Tick(){
         if(stopped)return;shown=Visible();Put(hwnd,1,shown);Sampling();if(!sampling)return;
         auto current=Times();auto percent=(current&&baseline)?CpuPercent(*baseline,*current):std::nullopt;
         baseline=current;
-        if(percent){cpu.Text(winrt::to_hstring(*percent)+L"%");cpuBar.Width(65.0**percent/100);Put(hwnd,4,*percent);}
-        else{cpu.Text(L"—");cpuBar.Width(0);RemovePropW(hwnd,Props[4]);}
+        cpuPercent=percent;cpuRing.Set(percent);
+        if(percent)Put(hwnd,4,*percent);else RemovePropW(hwnd,Props[4]);
         ReadMemory();++samples;Put(hwnd,3,samples);
-        x::Automation::AutomationProperties::SetName(card,L"CPU "+cpu.Text()+L"，内存 "+memory.Text());
     }
     void Publish(){Put(hwnd,3,samples);Put(hwnd,6,bool(session));Put(hwnd,7,static_cast<unsigned>(page));Put(hwnd,8,errors);Put(hwnd,9,commands);
         if(battery.percent>=0)Put(hwnd,25,battery.percent);else if(hwnd)RemovePropW(hwnd,Props[25]);Put(hwnd,26,battery.charging);Put(hwnd,27,battery.plugged);
@@ -328,7 +365,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         else if(mode==BatteryMode::Critical)powerFill.Fill(x::Media::SolidColorBrush({255,223,78,65}));
         else if(mode==BatteryMode::Low)powerFill.Fill(x::Media::SolidColorBrush({255,213,153,42}));
         else powerFill.Fill(powerText.Foreground());
-        const auto state=BatteryCaption(battery);powerStatus.Text(state);
+        const auto state=BatteryCaption(battery);
+        powerStatus.Text(mode==BatteryMode::Plugged?L"插电未充电":mode==BatteryMode::NoBattery?L"未检测到电池":
+            mode==BatteryMode::Unknown?(battery.plugged?L"已插电 · 未知":L"电源状态未知"):state);
         c::ToolTipService::SetToolTip(powerCard,winrt::box_value(powerText.Text()+L" · "+state+L"\n左键：快速设置；右键：系统工具菜单；滚轮：切换卡片"));
         x::Automation::AutomationProperties::SetName(powerCard,L"电池 "+powerText.Text()+L"，"+state+L"，打开快速设置");
         ++powerUpdates;Publish();
@@ -357,8 +396,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         powerCard.Visibility(page==Page::Power?x::Visibility::Visible:x::Visibility::Collapsed);
         auto tip=winrt::hstring(L"滚轮切换：CPU／内存 · 媒体 · 电池；右键：系统工具菜单");
         if(page==Page::Media)tip=title.Text()+(artistName.empty()?L"":L"\n"+artistName)+L"\n"+tip;
+        if(page==Page::Metrics)tip=L"CPU "+PercentText(cpuPercent)+L"，内存 "+PercentText(memoryPercent)+L"\n"+tip;
         c::ToolTipService::SetToolTip(card,winrt::box_value(tip));
-        x::Automation::AutomationProperties::SetName(card,page==Page::Metrics?L"CPU "+cpu.Text()+L"，内存 "+memory.Text():
+        x::Automation::AutomationProperties::SetName(card,page==Page::Metrics?L"CPU "+PercentText(cpuPercent)+L"，内存 "+PercentText(memoryPercent):
             page==Page::Media?L"媒体 "+title.Text():L"电池 "+powerText.Text()+L"，"+powerStatus.Text());
         Sampling();Publish();PublishSlot();
     }

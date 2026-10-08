@@ -1,4 +1,5 @@
 #include "shell-menu-latest.h"
+#include "cards-core-latest.h"
 #include <winrt/Windows.UI.Xaml.Input.h>
 #include <winrt/Windows.UI.Xaml.Automation.h>
 
@@ -39,7 +40,7 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
     auto grid=FindChildByClassName(battery,L"Windows.UI.Xaml.Controls.Grid");
     if(!card||!grid||!card.IsLoaded()||card.Visibility()!=Visibility::Visible)return false;
     const double width=card.ActualWidth(),height=card.ActualHeight();
-    if(width<24||width>160.5||height<24||height>80)return false;
+    if(width<24||width>LeanDockCards::CardWidth+0.5||height<24||height>80)return false;
     // Preserve the native parent, event handlers and accessibility. A zero
     // flow slot avoids restoring the old tray gap; the full native hit target
     // is translated onto the already-measured custom battery card.
@@ -61,8 +62,6 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
     const double x=(transform?transform.X():0)+desired.X-actual.X;
     const double y=(transform?transform.Y():0)+desired.Y-actual.Y;
     DockTranslate(battery,x,y);
-    LeanDockMenu::Put(taskbar,L"LeanDock.Card.NativePowerWidth100",std::lround(battery.ActualWidth()*100));
-    LeanDockMenu::Put(taskbar,L"LeanDock.Card.NativePowerHeight100",std::lround(battery.ActualHeight()*100));
     card.IsHitTestVisible(false);card.IsTabStop(false);
     bool found=false;
     const auto hits=Media::VisualTreeHelper::FindElementsInHostCoordinates(
@@ -87,6 +86,8 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
         });
         g_powerContext=battery.RightTapped(winrt::auto_revoke,[taskbar](auto&&,Input::RightTappedRoutedEventArgs const& e){if(LeanDockMenu::Request(taskbar))e.Handled(true);});
     }
+    LeanDockMenu::Put(taskbar,L"LeanDock.Card.NativePowerWidth100",std::lround(battery.ActualWidth()*100));
+    LeanDockMenu::Put(taskbar,L"LeanDock.Card.NativePowerHeight100",std::lround(battery.ActualHeight()*100));
     SetPropW(taskbar,L"LeanDock.Card.NativePowerHit",reinterpret_cast<HANDLE>(1));
     return true;
 }
@@ -131,8 +132,8 @@ void UpdateUnifiedDockGrid() {
             DockSet(battery,UIElement::VisibilityProperty(),Visibility::Visible);
             DockSet(battery,UIElement::OpacityProperty(),0.0);
             DockSet(battery,UIElement::IsHitTestVisibleProperty(),false);
-            DockBox(battery,160,44,HorizontalAlignment::Left,false);
-            DockSet(battery,FrameworkElement::MarginProperty(),Thickness{0,0,-160,0});
+            DockBox(battery,LeanDockCards::CardWidth,LeanDockCards::CardHeight,HorizontalAlignment::Left,false);
+            DockSet(battery,FrameworkElement::MarginProperty(),Thickness{0,0,-LeanDockCards::CardWidth,0});
         }
         DockSet(input,UIElement::VisibilityProperty(),Visibility::Collapsed);
         const double cell=g_settings.notificationIconWidth,pitch=cell+4,row=24;

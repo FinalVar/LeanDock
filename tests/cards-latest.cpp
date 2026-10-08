@@ -30,6 +30,22 @@ int main(){using namespace LeanDockCards;int count=0,failed=0;
     check(!Fits(1920,520,-1,false),"invalid tray geometry");
     check(!Fits(std::numeric_limits<double>::quiet_NaN(),520,132,false),"reject nan geometry");
     check(Fits(800,52,76,false),"one app stays compact");
+    const auto close=[](double a,double b){return std::abs(a-b)<0.000001;};
+    check(!GaugeArc({}).visible,"unknown load has no invented ring fill");
+    check(!GaugeArc(0).visible,"zero load has an empty track");
+    auto arc=GaugeArc(25);check(arc.visible&&!arc.full&&!arc.large&&close(arc.x,RingSize/2+RingRadius)&&close(arc.y,RingSize/2),"quarter load ends at three oclock");
+    arc=GaugeArc(50);check(!arc.large&&close(arc.x,RingSize/2)&&close(arc.y,RingSize/2+RingRadius),"half load ends at six oclock");
+    arc=GaugeArc(75);check(arc.large&&close(arc.x,RingSize/2-RingRadius)&&close(arc.y,RingSize/2),"three-quarter load fills the large arc");
+    check(GaugeArc(100).full&&GaugeArc(100).visible,"full load uses a whole circle instead of coincident arc endpoints");
+    check(GaugeArc(300).full,"excess input clamps to full circle");
+    bool ringBounds=true;
+    for(unsigned i=1;i<100;++i){arc=GaugeArc(i);
+        ringBounds=ringBounds&&arc.visible&&!arc.full&&std::isfinite(arc.x)&&std::isfinite(arc.y)&&
+            close(std::hypot(arc.x-RingSize/2,arc.y-RingSize/2),RingRadius)&&
+            arc.x>=RingStroke/2-0.000001&&arc.x<=RingSize-RingStroke/2+0.000001&&
+            arc.y>=RingStroke/2-0.000001&&arc.y<=RingSize-RingStroke/2+0.000001;
+    }
+    check(ringBounds,"all intermediate loads stay on radius without clipping stroke");
     for(int a=0;a<2;++a)for(int b=0;b<2;++b)for(int c=0;c<2;++c)
         check(ShouldSample(a,b,c)==bool(a&&b&&c),"visible metrics active conjunction");
     int wheel=0;check(!WheelStep(30,wheel),"small wheel delta");check(!WheelStep(60,wheel),"accumulate partial wheel");
