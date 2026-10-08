@@ -37,3 +37,35 @@ void ClearLeanDockDivider(ClickThroughTaskbarState& state) {
     if(parent && line){uint32_t index=0;if(parent.Children().IndexOf(line,index))parent.Children().RemoveAt(index);}
     state.divider={};state.dividerParent={};
 }
+
+// Intercept only the taskbar's background context menu. Application jump
+// lists and notification icons retain their native, separate right-clicks.
+bool HandleLeanDockContext(HWND window,LPARAM position) try {
+    if(position==LPARAM(-1))return false; // leave keyboard focus handling native
+    for(auto& state:g_clickThroughTaskbarState){
+        if(state.cardsClosing||!state.islandHwnd||GetAncestor(state.islandHwnd,GA_ROOT)!=window)continue;
+        auto frame=state.taskbarFrame.get();if(!frame)return false;
+        POINT pt{static_cast<short>(LOWORD(position)),static_cast<short>(HIWORD(position))};
+        if(!ScreenToClient(state.islandHwnd,&pt))return false;
+        const double scale=frame.XamlRoot().RasterizationScale();if(scale<=0)return false;
+        auto content=frame.XamlRoot().Content();bool inDock=false;
+        const auto hits=Media::VisualTreeHelper::FindElementsInHostCoordinates(
+            winrt::Windows::Foundation::Point{float(pt.x/scale),float(pt.y/scale)},content,true);
+        for(auto const& hit:hits){
+            bool nativeControl=false;
+            DependencyObject node=hit;
+            for(unsigned depth=0;node&&depth<32;++depth,node=Media::VisualTreeHelper::GetParent(node)){
+                auto fe=node.try_as<FrameworkElement>();if(!fe)continue;
+                if(fe.Name()==L"LeanDockCard"||fe.Name()==L"LeanDockPowerCard")
+                    return LeanDockShell::Request(window,LeanDockShell::Action::PowerUser);
+                const auto type=winrt::get_class_name(fe);
+                if(fe.try_as<Controls::Primitives::ButtonBase>()||
+                   type==L"SystemTray.NotifyIconView"||fe.Name()==L"NotifyItemIcon")nativeControl=true;
+                if(fe==frame||fe==state.systemTrayFrame.get())inDock=true;
+            }
+            if(nativeControl)return false;
+        }
+        if(inDock)return LeanDockShell::Request(window,LeanDockShell::Action::PowerUser);
+    }
+    return false;
+}catch(...){return false;}

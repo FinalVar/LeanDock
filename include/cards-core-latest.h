@@ -5,7 +5,15 @@
 #include <optional>
 
 namespace LeanDockCards {
-inline constexpr double CardWidth=160, CardHeight=44, SlotWidth=184;
+inline constexpr double CardWidth=160, CardHeight=44, PowerWidth=52, PowerSlotWidth=76, SlotWidth=244;
+struct Battery { int percent=-1; bool present=false, charging=false, plugged=false; };
+inline Battery BatteryState(bool valid,unsigned percent,unsigned flags,unsigned ac) {
+    Battery result;
+    if(!valid || flags==255)return result;
+    result.present=(flags&128)==0;result.plugged=ac==1;
+    if(result.present){result.percent=percent<=100?int(percent):-1;result.charging=(flags&8)!=0;}
+    return result;
+}
 struct CpuTimes { uint64_t idle, kernel, user; };
 // GetSystemTimes reports idle time as part of kernel time. Reject counter
 // resets and zero-length intervals instead of presenting an invented sample.
@@ -16,14 +24,14 @@ inline std::optional<unsigned> CpuPercent(CpuTimes a, CpuTimes b) {
     if(total<=0 || double(idle)>total)return {};
     return unsigned(std::clamp(std::lround(100.0*(total-double(idle))/total),0l,100l));
 }
-inline bool Fits(double available,double apps,double tray,bool alreadyShown) {
+inline bool Fits(double available,double apps,double tray,bool alreadyShown,double slot=SlotWidth) {
     if(!std::isfinite(available)||!std::isfinite(apps)||!std::isfinite(tray) ||
-       available<=0||apps<=0||tray<=0)return false;
+       !std::isfinite(slot)||available<=0||apps<=0||tray<0||slot<=0)return false;
     // Space for the original root padding/border and outer 12-DIP margins.
     // DesiredSize can be capped by the parent's measure constraint. Collapse
     // before that cap rather than mistaking clipped app content for a fit.
     // Four additional DIP on entry prevent fractional-DPI oscillation.
-    return available>=apps+tray+25+SlotWidth+24+(alreadyShown?4:8);
+    return available>=apps+tray+25+slot+24+(alreadyShown?4:8);
 }
 inline bool ShouldSample(bool shown,bool metrics,bool sessionActive) {
     return shown && metrics && sessionActive;

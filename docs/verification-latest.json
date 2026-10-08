@@ -1,11 +1,11 @@
 {
-  "schema": 6,
-  "recordedAtUtc": "2026-10-08T07:11:39.4327201Z",
-  "packageVersion": "0.4.0",
+  "schema": 7,
+  "recordedAtUtc": "2026-10-08T08:08:47.8389247Z",
+  "packageVersion": "0.5.0",
   "controllerVersion": "0.3.1",
-  "backendVersion": "0.3.0",
+  "backendVersion": "0.4.0",
   "startLayoutVersion": "0.1.2",
-  "scope": "Native middle information card: CPU/memory and event-driven SMTC controls; fixed slot and crowded-layout collapse",
+  "scope": "Centered media controls, independent battery card, app-only tray, scoped native system-tool context menu",
   "artifacts": [
     {
       "Name": "latest.exe",
@@ -14,8 +14,8 @@
     },
     {
       "Name": "latest.dll",
-      "Bytes": 1678336,
-      "SHA256": "A35111118B010ED39519061B1C2D1A13E0775B2E89C8A502CE003D5B2753EC75"
+      "Bytes": 1736704,
+      "SHA256": "377B2CD272130526B2243DCFB35AF4B8EAF2CDBD36AB8DC5DFAC36CBE96286E0"
     },
     {
       "Name": "start\\latest.dll",
@@ -24,39 +24,98 @@
     }
   ],
   "systemDllImportsOnly": true,
-  "generatorReproducesBuiltStyler": true,
+  "generatorReproducesBuiltSources": true,
   "regression": {
-    "cardCoreChecks": 30,
+    "shellInputChecks": 37,
+    "shellInputTestSendsKeys": false,
     "geometryChecks": 89,
-    "failures": 0,
-    "apiProbeAvailable": true,
-    "apiFixtureCommandSuccess": [
-      "toggle-play-pause",
-      "next",
-      "previous"
-    ],
-    "fixtureCommandsReceived": 3,
-    "fixtureExited": true
+    "cardCoreChecks": 39,
+    "failures": 0
   },
   "native": {
-    "cardReady": true,
-    "cardDip": [
-      160,
-      44
+    "singleController": true,
+    "mediaGeometry": {
+      "Checked": false
+    },
+    "hotCornersReady": true,
+    "live": true,
+    "hardwareBattery": [
+      {
+        "EstimatedChargeRemaining": 100,
+        "BatteryStatus": 2
+      }
     ],
-    "slotDip": 184,
-    "topDip": 8,
-    "bottomDip": 52,
-    "appToCardGapDip": 21,
-    "cardToFrameEndDip": 15,
-    "errorCount": 0,
-    "realCpuSamples": 27,
-    "mediaSessionAppeared": true,
-    "sessionEndedReturnsMetrics": true,
-    "stopRemovedDiagnosticProperties": true,
-    "reloaded": true,
-    "taskbarSingleController": true,
-    "newExplorerOrStartCrashEvents": 0
+    "newShellCrashEvents": 0,
+    "card": {
+      "At": "2026-10-08T16:08:46.3240515+08:00",
+      "Hwnd": 7668614,
+      "Ready": 1,
+      "Visible": 1,
+      "Sampling": 1,
+      "Samples": 105,
+      "Cpu": 4,
+      "Memory": 74,
+      "Media": 1,
+      "View": 0,
+      "Errors": 0,
+      "Commands": 0,
+      "Left100": 81833,
+      "Top100": 800,
+      "Right100": 97833,
+      "Bottom100": 5200,
+      "AppRight100": 79733,
+      "RootRight100": 105333,
+      "Fits": 1,
+      "ControlsLeft100": null,
+      "ControlsRight100": null,
+      "ControlsTop100": null,
+      "ControlsBottom100": null,
+      "TitleLeft100": null,
+      "TitleRight100": null,
+      "ButtonWidth100": null,
+      "PowerReady": 1,
+      "BatteryPercent": 100,
+      "Charging": 0,
+      "Plugged": 1,
+      "PowerLeft100": 98633,
+      "PowerRight100": 103833,
+      "PowerTop100": 800,
+      "PowerBottom100": 5200
+    },
+    "tray": {
+      "active": true,
+      "apps": 4,
+      "battery": 0,
+      "input": 0,
+      "total": 4,
+      "columns": 2,
+      "cells": [
+        [
+          10.0,
+          6.0,
+          24.0,
+          24.0
+        ],
+        [
+          10.0,
+          30.0,
+          24.0,
+          24.0
+        ],
+        [
+          38.0,
+          6.0,
+          24.0,
+          24.0
+        ],
+        [
+          38.0,
+          30.0,
+          24.0,
+          24.0
+        ]
+      ]
+    }
   },
   "preserved": [
     {
@@ -85,19 +144,26 @@
     }
   ],
   "acceptance": {
-    "userSelected": "CPU／内存＋媒体控制（推荐）",
+    "backgroundRightClick": "pending",
+    "cardRightClick": "pending",
+    "appAndTrayMenus": "pending",
+    "powerClick": "pending",
     "visual": "pending",
-    "wheelAndButtons": "pending",
-    "actualPlayer": "pending",
-    "hiddenTimerAndResume": "pending",
-    "startReopenAfterReload": "pending",
-    "notes": "No user reply yet to the two desktop acceptance questions. Fixture API delivery is not proof of card-button input or real-player behavior."
+    "notes": "Await real desktop use. API submission and readiness are not proof of visible menu or player behavior."
+  },
+  "maintenance": {
+    "candidateControllerRejected": true,
+    "finalDeploymentUsesOriginalController": true,
+    "knownControllerRestored": true,
+    "candidateElevatedActionBridgeRemoved": true,
+    "taskDefinitionRestored": true,
+    "defenderProtectionUnchanged": true
   },
   "boundaries": [
-    "Multiple monitors and DPI transitions are not physically tested",
-    "No incremental memory or whole-device power claim from whole-Explorer snapshots",
-    "More than 64 logical processors displays unavailable CPU instead of a misleading group-only value",
-    "Only Windows SMTC-enabled player sessions are controllable",
-    "Start component is unchanged and attaches on next menu opening; reopen acceptance remains pending"
+    "Current geometry observed on one display; multi-display and DPI transitions untested",
+    "Odd tray count and crowded fallback have not been physically exercised this deployment",
+    "Battery plug/unplug events not physically exercised",
+    "Native menu appearance and media controls require user observation",
+    "No claim about exact Defender detection cause or whole-device power savings"
   ]
 }

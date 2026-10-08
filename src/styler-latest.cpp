@@ -4,6 +4,7 @@
 #include "native-api-latest.h"
 #include "dock-geometry-latest.h"
 #include "cards-latest.h"
+#include "shell-actions-latest.h"
 #include <commctrl.h>
 #include <xamlom.h>
 
@@ -7206,6 +7207,7 @@ LRESULT CALLBACK ClickThroughTaskbarSubclassProc(HWND hWnd,
                                                  WPARAM wParam,
                                                  LPARAM lParam,
                                                  DWORD_PTR) {
+    if(uMsg==WM_CONTEXTMENU && HandleLeanDockContext(hWnd,lParam))return 0;
     switch (uMsg) {
         case WM_WINDOWPOSCHANGED: {
             // The taskbar moved or was shown - e.g. an auto-hidden taskbar

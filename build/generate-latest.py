@@ -143,7 +143,7 @@ def main():
             source = source.replace(
                 "{ 0xc85d8cc7, 0x5463, 0x40e8, { 0xa4, 0x32, 0xf5, 0x91, 0x6b, 0x64, 0x27, 0xe5 } }",
                 "{ 0x7e54f66a, 0x1a8e, 0x4b90, { 0x94, 0x2f, 0x37, 0x45, 0x8b, 0x35, 0xe2, 0x01 } }")
-            source = '#include "dock-geometry-latest.h"\n#include "cards-latest.h"\n' + source
+            source = '#include "dock-geometry-latest.h"\n#include "cards-latest.h"\n#include "shell-actions-latest.h"\n' + source
             source = replace_once(source, "struct ClickThroughTaskbarState {", """struct ClickThroughTaskbarState {
     winrt::weak_ref<Shapes::Rectangle> divider;
     winrt::weak_ref<Controls::Grid> dividerParent;
@@ -151,6 +151,10 @@ def main():
     bool cardsClosing=false;""")
             source = replace_once(source, "void UpdateClickThroughRegion(ClickThroughTaskbarState& state) {",
                 '#include "surface-latest.inc"\nvoid UpdateClickThroughRegion(ClickThroughTaskbarState& state) {')
+            signature = "LRESULT CALLBACK ClickThroughTaskbarSubclassProc("
+            start = source.index(signature)
+            body = source.index("    switch (uMsg) {", start)
+            source = source[:body] + "    if(uMsg==WM_CONTEXTMENU && HandleLeanDockContext(hWnd,lParam))return 0;\n" + source[body:]
             source = replace_once(source, "    // LayoutUpdated is frequent; only re-apply when the result actually",
                 """    // Share only the projected, fully shown geometry. Both popup placement
     // and edge reveal track application/tray count and DPI changes automatically.
@@ -205,6 +209,9 @@ def main():
         const double batteryY=(count%2 && appCount==count-1)
             ? 0.0 : row*(DockGrid::Row(appCount,0)-0.5);
         DockTranslate(battery,batteryX,batteryY);""")
+            source = replace_once(source, "void UpdateUnifiedDockGrid() {", "void UpdateLegacyUnifiedDockGrid() {")
+            source = replace_once(source, "bool TryUnifiedDockGrid(FrameworkElement element) try {",
+                read(ROOT / "src" / "tray-cards-latest.inc") + "\nbool TryUnifiedDockGrid(FrameworkElement element) try {")
         # Every functional unit shares one loader, configuration reader and hook manager.
         # Separate namespaces prevent accidental ODR collisions in upstream globals.
         if name != "styler":

@@ -225,7 +225,7 @@ static void SaveState() {
     if(g_state==NativeActive)elements=Native_styler_count();
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.3.0\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s}\n",
+        "{\"protocol\":1,\"version\":\"0.4.0\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s}\n",
         GetCurrentProcessId(),g_ownerPid,g_state.load(),g_hooks.size(),elements,g_fault?"true":"false");
     HANDLE file=CreateFileW(FilePath(L"latest-backend.json").c_str(),GENERIC_WRITE,
         FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);

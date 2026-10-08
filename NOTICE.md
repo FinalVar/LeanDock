@@ -69,3 +69,9 @@ Windows API references:
 - https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getsystemtimes
 - https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-globalmemorystatusex
 - https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager
+
+The 0.5.0 battery card and scoped context actions are original C++/WinRT code.
+Battery readings use GetSystemPowerStatus, with PowerManager change events:
+- https://learn.microsoft.com/en-us/uwp/api/windows.system.power.powermanager
+The package adds no third-party power monitor, elevated message bridge or
+background process. Existing native notification objects and menus remain.
