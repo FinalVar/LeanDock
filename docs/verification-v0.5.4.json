@@ -1,0 +1,223 @@
+{
+  "schema": 9,
+  "recordedAtUtc": "2026-10-08T12:05:09.7533290Z",
+  "packageVersion": "0.5.4",
+  "controllerVersion": "0.3.1",
+  "backendVersion": "0.4.4",
+  "startLayoutVersion": "0.1.2",
+  "scope": "Native XAML anchor for real Dock context gestures; preserve original menu layout, command handling and pointer hit testing",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 228864,
+      "SHA256": "897D2FCFD2931F316C511E113BA9ED4A4EBF702DFA21454D8E5BE280477648D9"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1776640,
+      "SHA256": "9BB872F3091AA7A67E3F8B1827EA0D97F1FB6F9582A5CBEFFB3BEF2AD4FAB223"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 393216,
+      "SHA256": "AB275AB1ABCEF101CAC88790061E3E76680B01A4ECEECACE47AAB6883E072C59"
+    }
+  ],
+  "systemDllImportsOnly": true,
+  "imports": [
+    "ole32.dll",
+    "OLEAUT32.dll",
+    "api-ms-win-core-winrt-error-l1-1-0.dll",
+    "api-ms-win-core-winrt-l1-1-0.dll",
+    "api-ms-win-core-winrt-error-l1-1-1.dll",
+    "VERSION.dll",
+    "SHLWAPI.dll",
+    "COMCTL32.dll",
+    "SHELL32.dll",
+    "dwmapi.dll",
+    "SHCORE.dll",
+    "GDI32.dll",
+    "msvcrt.dll",
+    "ADVAPI32.dll",
+    "USER32.dll",
+    "KERNEL32.dll"
+  ],
+  "generatorReproducesBuiltSources": true,
+  "regression": {
+    "shellInputTestSendsKeys": false,
+    "failures": 0,
+    "shellInputAnchorAndGestureChecks": 67
+  },
+  "native": {
+    "menu": {
+      "At": "2026-10-08T20:05:09.7084323+08:00",
+      "Native": 0,
+      "PowerUser": 14,
+      "QuickSettings": 0,
+      "LastResult": 0,
+      "LastRequest": 112746203,
+      "NativePower": {
+        "NativePowerHit": 1,
+        "NativePowerClicks": 6,
+        "NativePowerWidth100": 5200,
+        "NativePowerHeight100": 4400
+      },
+      "Menu": {
+        "Seen": null,
+        "Placed": null,
+        "Error": 0,
+        "X": null,
+        "Y": null,
+        "Window": null,
+        "Pinned": null,
+        "NativeAnchor": 1,
+        "AnchorX100": 54467,
+        "AnchorY100": -800
+      },
+      "Panels": [
+        {
+          "Class": "ControlCenterWindow",
+          "Hwnd": 0,
+          "Visible": false,
+          "Cloaked": 1,
+          "Rect": {
+            "Left": 0,
+            "Top": 0,
+            "Right": 0,
+            "Bottom": 0
+          }
+        },
+        {
+          "Class": "Xaml_WindowedPopupClass",
+          "Hwnd": 0,
+          "Visible": false,
+          "Cloaked": 1,
+          "Rect": {
+            "Left": 0,
+            "Top": 0,
+            "Right": 0,
+            "Bottom": 0
+          }
+        }
+      ]
+    },
+    "backend": {
+      "protocol": 1,
+      "version": "0.4.4",
+      "explorerPid": 19252,
+      "ownerPid": 11372,
+      "state": 2,
+      "hooks": 57,
+      "styledElements": 33,
+      "failed": false
+    },
+    "hotCornersReady": true,
+    "singleController": true,
+    "live": true,
+    "card": {
+      "At": "2026-10-08T20:05:09.5987655+08:00",
+      "Hwnd": 4589304,
+      "Ready": 1,
+      "Visible": 0,
+      "Sampling": 0,
+      "Samples": 8,
+      "Cpu": null,
+      "Memory": 92,
+      "Media": 0,
+      "View": 0,
+      "Errors": 0,
+      "Commands": 0,
+      "Left100": 85633,
+      "Top100": 800,
+      "Right100": 101633,
+      "Bottom100": 5200,
+      "AppRight100": 83533,
+      "RootRight100": 109133,
+      "Fits": 1,
+      "ControlsLeft100": null,
+      "ControlsRight100": null,
+      "ControlsTop100": null,
+      "ControlsBottom100": null,
+      "TitleLeft100": null,
+      "TitleRight100": null,
+      "ButtonWidth100": null,
+      "PowerReady": 1,
+      "BatteryPercent": 100,
+      "Charging": 0,
+      "Plugged": 1,
+      "PowerLeft100": 102433,
+      "PowerRight100": 107633,
+      "PowerTop100": 800,
+      "PowerBottom100": 5200
+    }
+  },
+  "preserved": [
+    {
+      "file": "latest.exe",
+      "unchangedSinceRecoveryBaseline": true
+    },
+    {
+      "file": "start/latest.dll",
+      "unchangedSinceRecoveryBaseline": true
+    },
+    {
+      "file": "latest.ini",
+      "unchangedSinceRecoveryBaseline": true
+    },
+    {
+      "file": "hotcorners/latest.ini",
+      "unchangedSinceRecoveryBaseline": true
+    },
+    {
+      "file": "include/dock-geometry-latest.h",
+      "unchangedSinceRecoveryBaseline": true
+    },
+    {
+      "file": "include/shell-panels-latest.h",
+      "unchangedSinceRecoveryBaseline": true
+    }
+  ],
+  "acceptance": {
+    "quickSettings": "Prior native-click acceptance retained; not independently repeated for this menu-only change",
+    "appAndTrayMenus": "Not newly exercised",
+    "notes": "NativeAnchor and background readiness do not prove visible placement or command activation.",
+    "menuSettingsCommand": "passed",
+    "userQuote": "位置稳定、不闪跳，设置能打开",
+    "menuPlacementAndNoFlash": "passed"
+  },
+  "correctedHistory": [
+    {
+      "user": "开始菜单右键不行，出现在目标位置后一瞬间又变回去原来的位置",
+      "version": "0.5.1",
+      "result": "Earlier placement-only acceptance superseded"
+    },
+    {
+      "user": "而且我发现根本无法点击选中菜单项",
+      "version": "0.5.2",
+      "result": "Rejected; lifetime HWND constraint still flashes initially and items fail to click"
+    },
+    {
+      "result": "Abandoned before build/deployment after input failure was reported",
+      "version": "unshipped pre-show HWND candidate"
+    },
+    {
+      "user": "能打开设置",
+      "version": "0.5.3",
+      "result": "Recovery baseline removed external HWND placement"
+    }
+  ],
+  "computerUse": {
+    "automaticDesktopClickAcceptance": false,
+    "dockOrSystemPopupTargetReturned": false,
+    "ordinaryWindowsReturned": true,
+    "fallback": "Read-only window/process diagnostics plus explicit user desktop results"
+  },
+  "boundaries": [
+    "Native entry and x64 ownership ABI verified only for the current pinned Taskbar.View.dll",
+    "No physical multi-monitor or DPI-transition test",
+    "No synthetic input in regression tests",
+    "Native command execution requires actual menu-item acceptance",
+    "Existing concurrent hot-corner updates retained without re-testing or overwriting them",
+    "No menu-position polling, extra process, new scheduled task or security-setting changes"
+  ]
+}

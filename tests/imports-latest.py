@@ -31,9 +31,11 @@ def inspect(path):
     assert not any(word in dll.lower() for word in prohibited for dll in imports), imports
     if path==ROOT/'start'/'latest.dll':
         assert 'LeanDockStartHook' in exports
+    elif path==ROOT/'panels'/'latest.dll':
+        assert exports==['LeanDockQuickHook']
     elif path.suffix=='.dll':
         assert 'NativeDock_Start' in exports and 'DllGetClassObject' in exports
     return {'file':str(path.relative_to(ROOT)),'bytes':len(b),'imports':imports,'exports':exports}
-result=[inspect(ROOT/'latest.exe'),inspect(ROOT/'latest.dll'),inspect(ROOT/'start'/'latest.dll')]
+result=[inspect(ROOT/'latest.exe'),inspect(ROOT/'latest.dll'),inspect(ROOT/'start'/'latest.dll'),inspect(ROOT/'panels'/'latest.dll')]
 (ROOT/'tests'/'imports-latest.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
 print(json.dumps(result,indent=2))

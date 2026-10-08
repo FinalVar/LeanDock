@@ -5,9 +5,11 @@
 #include <iterator>
 #include "dock-geometry-latest.h"
 #include "start-host-latest.h"
+#include "quick-host-latest.h"
 
-// Native Start and Quick Settings remain in their own system processes. This
-// module positions their hosts; the separate Start companion adjusts its grid.
+// Native Start and Quick Settings remain in their own system processes.
+// Start retains its established position/layout path. Quick Settings adjusts
+// pending native placement inside its host, never after SHOW/UNCLOAKED.
 namespace LeanDockPanels {
 inline constexpr UINT Message=WM_APP+224, Timer=3;
 struct Panel { HWND window{}; RECT original{},applied{}; bool moved{},pending{}; };
@@ -43,6 +45,7 @@ inline HWND TaskbarFor(HWND panel) {
     return nullptr;
 }
 inline void Position(int kind) {
+    if(kind!=0)return;
     auto& panel=panels[kind];panel.pending=false;
     HWND w=panel.window;
     if(Kind(w)!=kind || !Visible(w))return;
@@ -73,6 +76,11 @@ inline void Restore(Panel& panel) {
 inline void CALLBACK Event(HWINEVENTHOOK,DWORD event,HWND w,LONG object,LONG child,DWORD,DWORD) {
     if(object!=OBJID_WINDOW || child!=CHILDID_SELF)return;
     int kind=Kind(w);if(kind<0)return;
+    if(kind==1){
+        if(event==EVENT_OBJECT_CREATE||event==EVENT_OBJECT_SHOW||event==EVENT_OBJECT_UNCLOAKED)
+            LeanDockQuickHost::Attach(w);
+        return;
+    }
     if(kind==0 && (event==EVENT_OBJECT_SHOW || event==EVENT_OBJECT_UNCLOAKED))LeanDockStart::Attach(w);
     auto& panel=panels[kind];
     if(event==EVENT_OBJECT_HIDE || event==EVENT_OBJECT_CLOAKED){Restore(panel);return;}
@@ -88,8 +96,9 @@ inline bool Start(HWND window) {
     hooks[0]=SetWinEventHook(EVENT_OBJECT_SHOW,EVENT_OBJECT_HIDE,nullptr,Event,0,0,WINEVENT_OUTOFCONTEXT|WINEVENT_SKIPOWNPROCESS);
     hooks[1]=SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE,EVENT_OBJECT_LOCATIONCHANGE,nullptr,Event,0,0,WINEVENT_OUTOFCONTEXT|WINEVENT_SKIPOWNPROCESS);
     hooks[2]=SetWinEventHook(EVENT_OBJECT_CLOAKED,EVENT_OBJECT_UNCLOAKED,nullptr,Event,0,0,WINEVENT_OUTOFCONTEXT|WINEVENT_SKIPOWNPROCESS);
-    for(int i=0;i<3;i++)if(!hooks[i])return false;
-    HWND w=nullptr;while((w=FindWindowExW(nullptr,w,nullptr,nullptr))){int k=Kind(w);if(k>=0){panels[k].window=w;Position(k);}}
+    hooks[3]=SetWinEventHook(EVENT_OBJECT_CREATE,EVENT_OBJECT_CREATE,nullptr,Event,0,0,WINEVENT_OUTOFCONTEXT|WINEVENT_SKIPOWNPROCESS);
+    for(int i=0;i<4;i++)if(!hooks[i])return false;
+    HWND w=nullptr;while((w=FindWindowExW(nullptr,w,nullptr,nullptr))){int k=Kind(w);if(k==0){panels[k].window=w;Position(k);}else if(k==1)LeanDockQuickHost::Attach(w);}
     return true;
 }
 inline bool Dispatch(UINT message,WPARAM p) {

@@ -62,9 +62,10 @@ if(-not $BackendOnly){
     if($LASTEXITCODE -ne 0){throw 'Controller compilation failed.'}
 }
 if(-not $ControllerOnly -and -not $BackendOnly){& (Join-Path $PSScriptRoot 'start-latest.ps1') -CompilerRoot $compiler}
+if(-not $BackendOnly){& (Join-Path $PSScriptRoot 'panels-latest.ps1') -CompilerRoot $compiler | Out-Null}
 [pscustomobject]@{
-    Version='0.5.4';ControllerVersion='0.3.1';BackendVersion='0.4.4';StartLayoutVersion='0.1.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true;CardsIntegrated=$true
-    RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll,(Join-Path $root 'start\latest.dll') | ForEach-Object {
+    Version='0.5.5';ControllerVersion='0.3.2';BackendVersion='0.4.4';StartLayoutVersion='0.1.2';QuickPositionVersion='0.1.0';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true;CardsIntegrated=$true
+    RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll,(Join-Path $root 'start\latest.dll'),(Join-Path $root 'panels\latest.dll') | ForEach-Object {
         [pscustomobject]@{Name=[IO.Path]::GetRelativePath($root,$_.FullName);Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName).Hash}
     })
 } | ConvertTo-Json -Depth 4 | Tee-Object -FilePath (Join-Path $PSScriptRoot 'latest.json')

@@ -2,7 +2,7 @@
 
 面向 Windows 11 的精简原生任务栏定制：悬浮 Dock、连续双排托盘、智能隐藏与触发角。
 
-当前是 **0.5.4 私有开发版本**，从已部署的 NativeTaskbarDock 整理而来。它直接调整 Windows 原生任务栏，保留原生应用按钮、通知图标与快速设置入口。当前构建只支持已核验的一组 Windows 系统组件，尚不是面向所有 Windows 11 版本的通用安装包。菜单位置与原生电池命中更新的实际验收状态见 docs/verification-latest.json，不能仅凭组件就绪判断点击成功。
+当前是 **0.5.5 私有开发版本**，从已部署的 NativeTaskbarDock 整理而来。它直接调整 Windows 原生任务栏，保留原生应用按钮、通知图标与快速设置入口。当前构建只支持已核验的一组 Windows 系统组件，尚不是面向所有 Windows 11 版本的通用安装包。菜单位置与原生电池命中更新的实际验收状态见 docs/verification-latest.json，不能仅凭组件就绪判断点击成功。
 
 ## 功能
 
@@ -22,9 +22,9 @@
 
 ## 运行结构
 
-只有一个额外的隐藏控制进程，另有组件分别加载到 Explorer 和原生开始菜单宿主中。通过当前用户交互式登录计划任务启动，没有自己的托盘图标、可见窗口或 Windows 服务。正常运行不需要 Windhawk 引擎、Python、Node 或 .NET；目前构建工具复用 Windhawk 随附的 Clang/MinGW/WinRT 开发环境。
+只有一个额外的隐藏控制进程，另有组件分别加载到 Explorer、原生开始菜单宿主和快速设置宿主中。通过当前用户交互式登录计划任务启动，没有自己的托盘图标、可见窗口或 Windows 服务。正常运行不需要 Windhawk 引擎、Python、Node 或 .NET；目前构建工具复用 Windhawk 随附的 Clang/MinGW/WinRT 开发环境。
 
-控制进程使用事件处理 Explorer 生命周期、鼠标原始输入及两个原生菜单窗口的位置。菜单通过 WinEvent 事件触发，合并短时布局通知；没有常驻轮询。开始菜单布局使用单独的 `start/latest.dll`，只在已核验的宿主 UI 线程调整原生网格，不改快速设置内容。它保留原生 ICollectionView 集合接口，用窗口与集合事件更新。被修改的开始菜单进程退出后，本次控制进程不再重复加载，以避免崩溃循环；新宿主暂时使用原生布局，明确重启控制程序才会重试。触发角已接入同一消息循环。为了支持已有管理员权限的前台窗口，现有部署的任务使用 HighestAvailable；Explorer 本身不因此提权。
+控制进程使用事件处理 Explorer 生命周期、鼠标原始输入及菜单宿主发现。开始菜单位置仍由 WinEvent 合并短时布局通知；快速设置使用 `panels/latest.dll`，在宿主 UI 线程的 WM_WINDOWPOSCHANGING 中修正待提交坐标，不再通过 SHOW 后的计时器搬动，也不在隐藏时恢复旧位置。没有新增常驻轮询。开始菜单布局使用单独的 `start/latest.dll`，只在已核验的宿主 UI 线程调整原生网格，不改快速设置内容。它保留原生 ICollectionView 集合接口，用窗口与集合事件更新。被修改的开始或快速设置宿主进程退出后，本次控制进程不再重复加载，以避免崩溃循环；新宿主暂时使用原生行为，明确重启控制程序才会重试。触发角已接入同一消息循环。为了支持已有管理员权限的前台窗口，现有部署的任务使用 HighestAvailable；Explorer 和 ShellHost 本身不因此提权。
 
 `NativeTaskbarDock` 任务名、窗口类、互斥锁等内部标识暂时保留，以兼容已有部署。LeanDock 是仓库和项目名称，首次入库没有重命名或重装当前运行的程序。
 
@@ -48,9 +48,9 @@
 .\build\latest.ps1 -CompilerRoot "$env:ProgramFiles\Windhawk\Compiler" -PythonPath python
 ```
 
-也可通过 `LEANDOCK_COMPILER_ROOT`、`LEANDOCK_PYTHON` 指定工具位置。完整构建产生根目录 `latest.exe`、`latest.dll`、`start/latest.dll` 及被 Git 忽略的构建收据，不会安装、启动或注入任何进程。开始菜单组件也可单独运行 `build/start-latest.ps1` 构建。
+也可通过 `LEANDOCK_COMPILER_ROOT`、`LEANDOCK_PYTHON` 指定工具位置。完整构建产生根目录 `latest.exe`、`latest.dll`、`start/latest.dll`、`panels/latest.dll` 及被 Git 忽略的构建收据，不会安装、启动或注入任何进程。两个菜单组件可单独运行 `build/start-latest.ps1`、`build/panels-latest.ps1` 构建。
 
-`-ControllerOnly` 只构建控制程序；`-BackendOnly` 只构建 Explorer 组件，两者互斥。完整构建会先重跑生成器。维护任务栏适配时改 `build/generate-latest.py`，维护触发角接入时改 `build/adapt-hotcorners-latest.py`，不要只改生成文件。
+`-ControllerOnly` 构建控制程序及其快速设置位置组件；`-BackendOnly` 只构建 Explorer 组件，两者互斥。完整构建会先重跑生成器。维护任务栏适配时改 `build/generate-latest.py`，维护触发角接入时改 `build/adapt-hotcorners-latest.py`，不要只改生成文件。
 
 ## 配置与管理
 
@@ -71,7 +71,7 @@
 
 这些动作针对脚本所在的部署目录。若同名计划任务指向其他目录，管理器会拒绝修改；源码克隆目录不能直接接管现有安装。Install 需要管理员维护会话，只注册任务；Uninstall 停止进程并移除任务，保留文件。无效触发角配置会被拒绝，继续使用此前有效配置。
 
-Stop 会恢复任务栏属性和钩子，但 DLL 保留在 Explorer 内直到其退出。更新 DLL 必须先备份、正常停止，再通过有回退保护的维护流程干净重启当前会话的精确 Explorer，清除旧映像后启动。不要按 `latest.exe` 文件名批量结束进程。
+Stop 会恢复任务栏属性、钩子和快速设置位置，但 DLL 保留在各自宿主内直到其退出。更新 Explorer DLL 须通过有回退保护的维护流程干净重启当前会话的精确 Explorer；更新快速设置 DLL 则须先停止控制程序，并核对及退出承载旧组件的精确 ShellHost。未变更的宿主无需重启。只更新控制程序可正常停用后替换、重新启动。不要按 `latest.exe` 文件名批量结束进程。
 
 首次入库没有提供通用迁移／更新安装器。本机专用备份、自动恢复计划和一次性迁移脚本继续留在原部署中，未作为可移植功能发布。
 
@@ -85,6 +85,7 @@ Stop 会恢复任务栏属性和钩子，但 DLL 保留在 Explorer 内直到其
 .\tests\geometry-latest.ps1
 .\tests\cards-latest.ps1
 .\tests\shell-actions-latest.ps1
+.\tests\quick-position-latest.ps1
 .\tests\hotcorners-latest.ps1
 python .\tests\imports-latest.py
 ```

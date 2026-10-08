@@ -38,11 +38,15 @@ static bool OwnProcessPath(DWORD pid) {
 static void SaveStatus() {
     NativeCorners::Snapshot();
     wchar_t path[32768];Path(path,std::size(path),L"latest-status.json");
-    char json[1600],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
+    char json[2400],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
     // Error messages are fixed internal labels, never window titles or application text.
     int size=snprintf(json,sizeof(json),
-        "{\"version\":\"0.3.1\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\"}\n",
+        "{\"version\":\"0.3.2\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
         GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",LeanDockPanels::moves[0],LeanDockPanels::moves[1],LeanDockPanels::failures,LeanDockStart::supported?"true":"false",(LeanDockStart::target && LeanDockStart::Query(LeanDockStart::target))?"true":"false",LeanDockStart::blocked?"true":"false",LeanDockStart::failures,error);
+    size+=snprintf(json+size,sizeof(json)-size,"\"quickPositionSupported\":%s,\"quickPositionActive\":%s,\"quickPositionBlocked\":%s,\"quickPositionFailures\":%u,\"quickPositionAdjustments\":%llu,\"quickPositionWindow\":%llu}\n",
+        LeanDockQuickHost::supported?"true":"false",LeanDockQuickHost::Query()?"true":"false",LeanDockQuickHost::blocked?"true":"false",LeanDockQuickHost::failures,
+        static_cast<unsigned long long>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),
+        static_cast<unsigned long long>(reinterpret_cast<ULONG_PTR>(LeanDockQuickHost::target)));
     HANDLE file=CreateFileW(path,GENERIC_WRITE,FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,json,size,&written,nullptr);CloseHandle(file);}
 }
@@ -152,6 +156,7 @@ static void CancelHelper() {
 }
 static void StopDock() {
     LeanDockStart::Stop();
+    LeanDockQuickHost::Stop();
     LeanDockPanels::Stop();
     g_stopping=true;KillTimer(g_window,1);CancelHelper();
     if(HWND backend=Backend(g_explorerPid)) {
@@ -307,6 +312,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     // Start layout support is independently pinned and never blocks Dock or
     // corners when a Windows update changes the Start components.
     LeanDockStart::Start(g_directory);
+    if(g_dockSupported)LeanDockQuickHost::Start(g_directory);
     g_panelsReady=g_dockSupported && LeanDockPanels::Start(g_window);
     if(!g_panelsReady)LeanDockPanels::Stop();
     SaveStatus();

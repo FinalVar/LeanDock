@@ -88,3 +88,14 @@ public symbols for the already-pinned Taskbar.View.dll. No Microsoft binary or
 PDB is redistributed; menu-native-symbol-latest.json records the verification
 metadata. The original Quick Settings object and working Win+X invocation
 remain. No menu-position polling or additional runtime process was added.
+
+The 0.5.5 Quick Settings companion is original Win32 code. The distinction
+between pre-commit positioning and asynchronous post-show moves was checked
+against m417z's Shell Flyout Positions 1.3 (GPL-3.0), inspected on 2026-10-08:
+https://github.com/ramensoftware/windhawk-mods/blob/main/mods/shell-flyout-positions.wh.cpp
+LeanDock uses a scoped window subclass rather than that mod's SetWindowPos
+detour. It adds no Windhawk runtime and copies no Windows binary or symbol file.
+Documented APIs used for thread ownership and the placement transaction:
+- https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-windowposchanging
+- https://learn.microsoft.com/en-us/windows/win32/api/commctrl/nf-commctrl-setwindowsubclass
+- https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowshookexw

@@ -78,7 +78,8 @@ function Get-LiveStatus {
         }
     }
     $t=Get-OwnTask
-    [pscustomobject]@{Live=$live;Running=$running;DockReady=$dockReady;HotCornersReady=$cornerReady;DockSupported=$runtime.dockSupported;StartLayoutReady=$startReady;StartLayoutSupported=$runtime.startLayoutSupported;StartLayoutBlocked=$runtime.startLayoutBlocked;StartLayout=$startLayout;Elevated=$runtime.elevated;HotCorners=$corners;Controller=@($processes | Select-Object ProcessId,ExecutablePath);ExplorerPid=$shell.ProcessId;Backend=$backend;LoadedComponents=$modules;Task=if($t){[pscustomobject]@{Name=$t.TaskName;State=[string]$t.State;RunLevel=[string]$t.Principal.RunLevel;LogonType=[string]$t.Principal.LogonType}}else{$null};WindhawkService=[string](Get-Service Windhawk -ErrorAction SilentlyContinue).Status}
+    $quick=[pscustomobject]@{Supported=$runtime.quickPositionSupported;Active=($running -and $runtime.quickPositionActive);Blocked=$runtime.quickPositionBlocked;Failures=$runtime.quickPositionFailures;Adjustments=$runtime.quickPositionAdjustments}
+    [pscustomobject]@{Live=$live;Running=$running;DockReady=$dockReady;HotCornersReady=$cornerReady;DockSupported=$runtime.dockSupported;QuickSettingsPosition=$quick;StartLayoutReady=$startReady;StartLayoutSupported=$runtime.startLayoutSupported;StartLayoutBlocked=$runtime.startLayoutBlocked;StartLayout=$startLayout;Elevated=$runtime.elevated;HotCorners=$corners;Controller=@($processes | Select-Object ProcessId,ExecutablePath);ExplorerPid=$shell.ProcessId;Backend=$backend;LoadedComponents=$modules;Task=if($t){[pscustomobject]@{Name=$t.TaskName;State=[string]$t.State;RunLevel=[string]$t.Principal.RunLevel;LogonType=[string]$t.Principal.LogonType}}else{$null};WindhawkService=[string](Get-Service Windhawk -ErrorAction SilentlyContinue).Status}
 }
 function Stop-Native {
     $code=Invoke-Control '--stop'
