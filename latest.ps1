@@ -1,5 +1,19 @@
-param([ValidateSet('Status','Start','Stop','Install','Uninstall','PauseCorners','ResumeCorners','ReloadCorners')][string]$Action='Status')
+param([ValidateSet('Status','Start','Stop','Install','Uninstall','PauseCorners','ResumeCorners','ReloadCorners','Update','Rollback','Resources')][string]$Action='Status',
+ [string]$PackagePath='', [string]$Destination=$PSScriptRoot,[string]$BackupPath='',[switch]$ValidateOnly,
+ [ValidateSet('Observe','Visible','Hidden','Media','Battery','Native')][string]$Scenario='Observe',
+ [ValidateRange(5,300)][int]$DurationSeconds=30,[string]$OutputPath='', [string]$BaselinePath='',
+ [ValidateRange(0,60)][int]$NativeBaselineSeconds=0)
 $ErrorActionPreference='Stop'
+if($Action -in @('Update','Rollback') -or ($Action -eq 'Install' -and $PackagePath)){
+ & (Join-Path $PSScriptRoot 'maintenance/latest.ps1') -Action $Action -PackagePath $PackagePath -Destination $Destination -BackupPath $BackupPath -ValidateOnly:$ValidateOnly -NativeBaselineSeconds $NativeBaselineSeconds
+ return
+}
+if($Action -eq 'Resources'){
+ $options=@{DeploymentPath=$Destination;Scenario=$Scenario;DurationSeconds=$DurationSeconds;BaselinePath=$BaselinePath}
+ if($OutputPath){$options.OutputPath=$OutputPath}
+ & (Join-Path $PSScriptRoot 'maintenance/resources-latest.ps1') @options
+ return
+}
 $root=$PSScriptRoot
 $exe=Join-Path $root 'latest.exe'
 $taskName='NativeTaskbarDock'
@@ -19,7 +33,7 @@ public static class NativeDockManagementPathV2 {
 }
 function Invoke-Control([string]$Argument){
     $p=Start-Process -FilePath $exe -ArgumentList $Argument -WindowStyle Hidden -PassThru
-    if(-not $p.WaitForExit(20000)){throw "Controller command timed out: $Argument"}
+    if(-not $p.WaitForExit(20000)){$p.Kill();[void]$p.WaitForExit(3000);throw "Controller command timed out; exact command helper stopped: $Argument"}
     return $p.ExitCode
 }
 function Get-ExactProcesses {

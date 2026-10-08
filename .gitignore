@@ -26,6 +26,8 @@ latest-cards-layout.json
 hotcorners/*.log.*
 backups/
 verification/
+artifacts/
+maintenance/*.json
 .local/
 .env
 .env.*

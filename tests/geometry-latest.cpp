@@ -17,6 +17,14 @@ int main() {
         check(p.x+576-MulDiv(12,dpi,96)==dock.right);
         p=HostPosition(dock,mon,2560,1400,dpi,false);
         check(p.x==mon.left);
+        RECT side{mon.left, dock.top, dock.left, mon.bottom};
+        check(!Overlaps(side,dock)); // merely touching the left edge
+        ++side.right;check(Overlaps(side,dock)); // one physical pixel inside
+        side={dock.right,dock.top,mon.right,mon.bottom};check(!Overlaps(side,dock));
+        --side.left;check(Overlaps(side,dock));
+        side={dock.left,mon.top,dock.right,dock.top};check(!Overlaps(side,dock));
+        ++side.bottom;check(Overlaps(side,dock));
+        check(Overlaps(mon,dock));check(!Overlaps(RECT{0,0,0,0},dock));
     }
     check(!ValidSpan(0,0,64,2560));check(!ValidSpan(-1,1200,64,2560));
     check(!ValidSpan(600,2561,64,2560));check(!ValidSpan(600,1900,1000,2560));
@@ -29,6 +37,13 @@ int main() {
     if(window){
         RECT value{};Publish(window,100,700,64);check(Read(window,value));
         auto revision=Revision(window);Publish(window,100,700,64);check(Revision(window)==revision);
+        RECT fallback{0,1,1000,100};
+        check(!OcclusionRect(window,reinterpret_cast<HMONITOR>(uintptr_t(1)),fallback));
+        check(fallback.left==0&&fallback.top==1&&fallback.right==1000&&fallback.bottom==100);
+        check(OcclusionRect(window,MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST),fallback));
+        check(fallback.left==100&&fallback.right==700);
+        SetWindowPos(window,nullptr,0,1000,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+        RECT projected{};check(Read(window,projected)&&EqualRect(&fallback,&projected));
         SetPropW(window,Ready,reinterpret_cast<HANDLE>(revision+1));check(!Read(window,value));
         Publish(window,100,700,64);check(Read(window,value)); // recover incomplete publication
         std::atomic<bool> done=false;std::atomic<unsigned> torn=0;

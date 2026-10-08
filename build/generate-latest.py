@@ -186,6 +186,22 @@ def main():
     }""")
         if name == "hide":
             source = '#include "dock-geometry-latest.h"\n#include "event-loop-latest.h"\n#include <stdexcept>\n' + source
+            source = replace_once(source, "    GetTaskbarRectForMonitor(monitor, &taskbarRect);", """    GetTaskbarRectForMonitor(monitor, &taskbarRect);
+    const bool precise=LeanDockGeometry::OcclusionRect(hTaskbarWnd,monitor,taskbarRect);
+    SetPropW(hTaskbarWnd,L"LeanDock.Hide.Precise",reinterpret_cast<HANDLE>(uintptr_t(precise+1)));
+    // Diagnostics are scalar and title-free, written only on a real decision.
+    const LONG coordinates[]={taskbarRect.left,taskbarRect.top,taskbarRect.right,taskbarRect.bottom};
+    const wchar_t* names[]={L"LeanDock.Hide.Left",L"LeanDock.Hide.Top",L"LeanDock.Hide.Right",L"LeanDock.Hide.Bottom"};
+    for(unsigned i=0;i<4;++i)SetPropW(hTaskbarWnd,names[i],reinterpret_cast<HANDLE>(intptr_t(coordinates[i])+1));""")
+            source = replace_once(source, """    DwmGetWindowAttribute(hWnd, DWMWA_EXTENDED_FRAME_BOUNDS, &windowRect,
+                          sizeof(windowRect));""", """    if(FAILED(DwmGetWindowAttribute(hWnd,DWMWA_EXTENDED_FRAME_BOUNDS,&windowRect,sizeof(windowRect))) &&
+       !GetWindowRect(hWnd,&windowRect))return false;""")
+            source = replace_once(source, "        if (IntersectRect(&intersectRect, &windowRect, taskbarRect)) {",
+                                  "        if (LeanDockGeometry::Overlaps(windowRect, *taskbarRect)) {")
+            source = source.replace("        bool keepShown = ShouldKeepTaskbarShown(hWnd, monitor);", """        bool keepShown = ShouldKeepTaskbarShown(hWnd, monitor);
+        SetPropW(hWnd,L"LeanDock.Hide.KeepShown",reinterpret_cast<HANDLE>(uintptr_t(keepShown+1)));
+        auto decisions=reinterpret_cast<uintptr_t>(GetPropW(hWnd,L"LeanDock.Hide.Decisions"));
+        SetPropW(hWnd,L"LeanDock.Hide.Decisions",reinterpret_cast<HANDLE>(decisions+1));""")
             source = replace_once(source, "std::atomic<HANDLE> g_winEventHookThread;", """std::atomic<HANDLE> g_winEventHookThread;
 HANDLE g_eventStop;
 std::atomic<bool> g_eventStopping{true};
@@ -227,6 +243,7 @@ void StopEventThread() {
                 source=source[:opening]+f"""
     if(g_eventStopping)return {original}({args});
     if(Msg==g_updateTaskbarStateRegisteredMsg && lParam!=g_eventGeneration.load())return 0;
+    if(Msg==LeanDockGeometry::ChangedMessage())AdjustTaskbar(hWnd);
 """+source[opening:]
             opening=source.index("{",source.index("void CALLBACK WinEventProc("))+1
             source=source[:opening]+"\n    if(g_eventStopping)return;\n"+source[opening:]
@@ -241,6 +258,12 @@ void StopEventThread() {
     ++g_eventGeneration;g_eventStopping=false;""")
             source = replace_function(source,"void Wh_ModUninit()", """    g_eventStopping=true;++g_eventGeneration;
     StopEventThread();
+    EnumWindows([](HWND window,LPARAM)->BOOL {
+        DWORD owner=0;GetWindowThreadProcessId(window,&owner);
+        if(owner==GetCurrentProcessId() && IsTaskbarWindow(window))
+            for(auto key:{L"LeanDock.Hide.Precise",L"LeanDock.Hide.KeepShown",L"LeanDock.Hide.Decisions",L"LeanDock.Hide.Left",L"LeanDock.Hide.Top",L"LeanDock.Hide.Right",L"LeanDock.Hide.Bottom"})RemovePropW(window,key);
+        return TRUE;
+    },0);
     if(g_wasAutoHideDisabled) {
         HWND taskbar=FindCurrentProcessTaskbarWnd();
         if(taskbar)SendMessage(taskbar,kHandleTrayPrivateSettingMessage,kTrayPrivateSettingAutoHideSet,FALSE);

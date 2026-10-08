@@ -53,7 +53,7 @@ static constexpr const wchar_t* Props[]={L"LeanDock.Card.Ready",L"LeanDock.Card.
     L"LeanDock.Card.PowerContentLeft100",L"LeanDock.Card.PowerContentRight100",L"LeanDock.Card.PowerContentTop100",L"LeanDock.Card.PowerContentBottom100",
     L"LeanDock.Card.TitleHeight100",L"LeanDock.Card.TitleRowHeight100",L"LeanDock.Card.TitleTop100",L"LeanDock.Card.TitleBottom100",
     L"LeanDock.Card.ClockActive",L"LeanDock.Card.ClockHourMinute",L"LeanDock.Card.ClockMonthDay",L"LeanDock.Card.ClockUpdates",
-    L"LeanDock.Card.AppWidth100",L"LeanDock.Card.RootWidth100",L"LeanDock.Card.RootMinWidth100",L"LeanDock.Card.FrameMinWidth100"};
+    L"LeanDock.Card.AppWidth100",L"LeanDock.Card.RootWidth100",L"LeanDock.Card.RootMinWidth100",L"LeanDock.Card.FrameMinWidth100",L"LeanDock.Card.MediaPlaying"};
 static uint64_t Bits(FILETIME t){return (uint64_t(t.dwHighDateTime)<<32)|t.dwLowDateTime;}
 static std::optional<CpuTimes> Times(){
     // This API is group-local on machines with more than 64 processors. Do
@@ -504,13 +504,14 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
             previous.IsEnabled(controls.IsPreviousEnabled()&&!commandGate.busy);next.IsEnabled(controls.IsNextEnabled()&&!commandGate.busy);
             play.IsEnabled(controls.IsPlayPauseToggleEnabled()&&!commandGate.busy);
             const bool playing=info.PlaybackStatus()==m::GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;
+            Put(hwnd,56,playing);
             playGlyph.Text(playing?L"\xE769":L"\xE768");
             x::Automation::AutomationProperties::SetName(play,playing?L"暂停":L"播放");
             Metadata(weak_from_this(),session,generation);
-        }else{previous.IsEnabled(false);play.IsEnabled(false);next.IsEnabled(false);playGlyph.Text(L"\xE768");}
+        }else{Put(hwnd,56,0);previous.IsEnabled(false);play.IsEnabled(false);next.IsEnabled(false);playGlyph.Text(L"\xE768");}
         Render();
     }catch(...){
-        Fail();++generation;CancelCommand();
+        Fail();if(hwnd)RemovePropW(hwnd,Props[56]);++generation;CancelCommand();
         propertiesChanged.revoke();playbackChanged.revoke();session=nullptr;
         try{if(metadata)metadata.Cancel();metadata=nullptr;Render();}catch(...){}
     }

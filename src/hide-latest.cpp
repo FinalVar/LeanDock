@@ -480,8 +480,8 @@ bool CanHideTaskbarForWindow(HWND hWnd,
     }
 
     RECT windowRect{};
-    DwmGetWindowAttribute(hWnd, DWMWA_EXTENDED_FRAME_BOUNDS, &windowRect,
-                          sizeof(windowRect));
+    if(FAILED(DwmGetWindowAttribute(hWnd,DWMWA_EXTENDED_FRAME_BOUNDS,&windowRect,sizeof(windowRect))) &&
+       !GetWindowRect(hWnd,&windowRect))return false;
 
     // Don't keep the taskbar shown for a fullscreen window.
     if (EqualRect(&windowRect, &monitorInfo->rcMonitor)) {
@@ -495,7 +495,7 @@ bool CanHideTaskbarForWindow(HWND hWnd,
     if (g_settings.mode == Mode::intersected ||
         (g_settings.mode == Mode::maximized && isWindowArranged)) {
         RECT intersectRect;
-        if (IntersectRect(&intersectRect, &windowRect, taskbarRect)) {
+        if (LeanDockGeometry::Overlaps(windowRect, *taskbarRect)) {
             return true;
         }
     }
@@ -525,6 +525,12 @@ bool ShouldKeepTaskbarShown(HWND hTaskbarWnd, HMONITOR monitor) {
 
     RECT taskbarRect{};
     GetTaskbarRectForMonitor(monitor, &taskbarRect);
+    const bool precise=LeanDockGeometry::OcclusionRect(hTaskbarWnd,monitor,taskbarRect);
+    SetPropW(hTaskbarWnd,L"LeanDock.Hide.Precise",reinterpret_cast<HANDLE>(uintptr_t(precise+1)));
+    // Diagnostics are scalar and title-free, written only on a real decision.
+    const LONG coordinates[]={taskbarRect.left,taskbarRect.top,taskbarRect.right,taskbarRect.bottom};
+    const wchar_t* names[]={L"LeanDock.Hide.Left",L"LeanDock.Hide.Top",L"LeanDock.Hide.Right",L"LeanDock.Hide.Bottom"};
+    for(unsigned i=0;i<4;++i)SetPropW(hTaskbarWnd,names[i],reinterpret_cast<HANDLE>(intptr_t(coordinates[i])+1));
 
     if (g_settings.foregroundWindowOnly) {
         HWND hForegroundWnd = GetForegroundWindow();
@@ -782,6 +788,7 @@ LRESULT WINAPI TrayUI_WndProc_Hook(void* pThis,
                                    bool* flag) {
     if(g_eventStopping)return TrayUI_WndProc_Original(pThis,hWnd,Msg,wParam,lParam,flag);
     if(Msg==g_updateTaskbarStateRegisteredMsg && lParam!=g_eventGeneration.load())return 0;
+    if(Msg==LeanDockGeometry::ChangedMessage())AdjustTaskbar(hWnd);
 
     if(Msg==WM_TIMER && wParam==kTrayUITimerUnhide && LeanDockGeometry::RejectPointerReveal(hWnd)) {
         KillTimer(hWnd,kTrayUITimerUnhide);return 0;
@@ -828,6 +835,9 @@ LRESULT WINAPI TrayUI_WndProc_Hook(void* pThis,
 
         HMONITOR monitor = TrayUI_GetStuckMonitor_Original(pThis);
         bool keepShown = ShouldKeepTaskbarShown(hWnd, monitor);
+        SetPropW(hWnd,L"LeanDock.Hide.KeepShown",reinterpret_cast<HANDLE>(uintptr_t(keepShown+1)));
+        auto decisions=reinterpret_cast<uintptr_t>(GetPropW(hWnd,L"LeanDock.Hide.Decisions"));
+        SetPropW(hWnd,L"LeanDock.Hide.Decisions",reinterpret_cast<HANDLE>(decisions+1));
 
         void* pTrayUI_IInspectable =
             QueryViaVtableBackwards(pThis, TrayUI_vftable_IInspectable);
@@ -875,6 +885,7 @@ LRESULT WINAPI CSecondaryTray_v_WndProc_Hook(void* pThis,
                                              LPARAM lParam) {
     if(g_eventStopping)return CSecondaryTray_v_WndProc_Original(pThis,hWnd,Msg,wParam,lParam);
     if(Msg==g_updateTaskbarStateRegisteredMsg && lParam!=g_eventGeneration.load())return 0;
+    if(Msg==LeanDockGeometry::ChangedMessage())AdjustTaskbar(hWnd);
 
     if(Msg==WM_TIMER && wParam==kTrayUITimerUnhide && LeanDockGeometry::RejectPointerReveal(hWnd)) {
         KillTimer(hWnd,kTrayUITimerUnhide);return 0;
@@ -894,6 +905,9 @@ LRESULT WINAPI CSecondaryTray_v_WndProc_Hook(void* pThis,
             CSecondaryTray_GetMonitor_Original(pCSecondaryTray_ISecondaryTray);
 
         bool keepShown = ShouldKeepTaskbarShown(hWnd, monitor);
+        SetPropW(hWnd,L"LeanDock.Hide.KeepShown",reinterpret_cast<HANDLE>(uintptr_t(keepShown+1)));
+        auto decisions=reinterpret_cast<uintptr_t>(GetPropW(hWnd,L"LeanDock.Hide.Decisions"));
+        SetPropW(hWnd,L"LeanDock.Hide.Decisions",reinterpret_cast<HANDLE>(decisions+1));
 
         bool keptShown = g_taskbarsKeptShown.contains(pThis);
 
@@ -1566,6 +1580,12 @@ void HideComponentAfterInit() {
 void HideComponentUninit() {
     g_eventStopping=true;++g_eventGeneration;
     StopEventThread();
+    EnumWindows([](HWND window,LPARAM)->BOOL {
+        DWORD owner=0;GetWindowThreadProcessId(window,&owner);
+        if(owner==GetCurrentProcessId() && IsTaskbarWindow(window))
+            for(auto key:{L"LeanDock.Hide.Precise",L"LeanDock.Hide.KeepShown",L"LeanDock.Hide.Decisions",L"LeanDock.Hide.Left",L"LeanDock.Hide.Top",L"LeanDock.Hide.Right",L"LeanDock.Hide.Bottom"})RemovePropW(window,key);
+        return TRUE;
+    },0);
     if(g_wasAutoHideDisabled) {
         HWND taskbar=FindCurrentProcessTaskbarWnd();
         if(taskbar)SendMessage(taskbar,kHandleTrayPrivateSettingMessage,kTrayPrivateSettingAutoHideSet,FALSE);
