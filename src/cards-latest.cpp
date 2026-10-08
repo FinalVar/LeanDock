@@ -49,7 +49,8 @@ static constexpr const wchar_t* Props[]={L"LeanDock.Card.Ready",L"LeanDock.Card.
     L"LeanDock.Card.PowerLeft100",L"LeanDock.Card.PowerRight100",L"LeanDock.Card.PowerTop100",L"LeanDock.Card.PowerBottom100",
     L"LeanDock.Card.PowerActive",L"LeanDock.Card.VisiblePages",L"LeanDock.Card.BatteryMode",L"LeanDock.Card.PowerUpdates",L"LeanDock.Card.Switches",
     L"LeanDock.Card.CpuRefreshing",L"LeanDock.Card.CpuIntervalMs",L"LeanDock.Card.TitleFont100",
-    L"LeanDock.Card.PowerContentLeft100",L"LeanDock.Card.PowerContentRight100",L"LeanDock.Card.PowerContentTop100",L"LeanDock.Card.PowerContentBottom100"};
+    L"LeanDock.Card.PowerContentLeft100",L"LeanDock.Card.PowerContentRight100",L"LeanDock.Card.PowerContentTop100",L"LeanDock.Card.PowerContentBottom100",
+    L"LeanDock.Card.TitleHeight100",L"LeanDock.Card.TitleRowHeight100",L"LeanDock.Card.TitleTop100",L"LeanDock.Card.TitleBottom100"};
 static uint64_t Bits(FILETIME t){return (uint64_t(t.dwHighDateTime)<<32)|t.dwLowDateTime;}
 static std::optional<CpuTimes> Times(){
     // This API is group-local on machines with more than 64 processors. Do
@@ -164,7 +165,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     <TextBlock Text="内存" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
    </Grid>
   </Grid>
-  <Grid x:Name="Media" Visibility="Collapsed" Margin="7,2"><Grid.RowDefinitions><RowDefinition Height="16"/><RowDefinition Height="24"/></Grid.RowDefinitions>
+  <Grid x:Name="Media" Visibility="Collapsed" Margin="7,0"><Grid.RowDefinitions><RowDefinition Height="20"/><RowDefinition Height="24"/></Grid.RowDefinitions>
    <TextBlock x:Name="Title" FontSize="10" TextTrimming="CharacterEllipsis" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"/>
     <StackPanel x:Name="MediaControls" Grid.Row="1" Orientation="Horizontal" Width="72" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center">
      <Button x:Name="Previous" AutomationProperties.Name="上一首"><TextBlock FontFamily="Segoe Fluent Icons" FontSize="12" Text="&#xE892;"/></Button>
@@ -311,7 +312,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
                     Put(hwnd,19,std::lround(buttons.Y*100));Put(hwnd,20,std::lround((buttons.Y+mediaControls.ActualHeight())*100));
                     Put(hwnd,21,std::lround(text.X*100));Put(hwnd,22,std::lround((text.X+title.ActualWidth())*100));Put(hwnd,23,std::lround(play.ActualWidth()*100));
                     Put(hwnd,39,std::lround(title.FontSize()*100));
-                }else{for(unsigned i=17;i<=23;++i)RemovePropW(hwnd,Props[i]);RemovePropW(hwnd,Props[39]);}
+                    Put(hwnd,44,std::lround(title.ActualHeight()*100));Put(hwnd,45,std::lround(media.RowDefinitions().GetAt(0).ActualHeight()*100));
+                    Put(hwnd,46,std::lround(text.Y*100));Put(hwnd,47,std::lround((text.Y+title.ActualHeight())*100));
+                }else{for(unsigned i=17;i<=23;++i)RemovePropW(hwnd,Props[i]);RemovePropW(hwnd,Props[39]);for(unsigned i=44;i<=47;++i)RemovePropW(hwnd,Props[i]);}
             }
             Put(hwnd,16,fits);
         }catch(...){Fail();}
@@ -405,7 +408,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     }
     void Render(){
         if(stopped)return;
-        const double titleSize=session?10:12;if(title.FontSize()!=titleSize)title.FontSize(titleSize);
+        const double titleSize=session?10:14;if(title.FontSize()!=titleSize)title.FontSize(titleSize);
         if(!session){title.Text(L"暂无播放");artistName=L"";previous.IsEnabled(false);play.IsEnabled(false);next.IsEnabled(false);playGlyph.Text(L"\xE768");}
         metrics.Visibility(page==Page::Metrics?x::Visibility::Visible:x::Visibility::Collapsed);
         media.Visibility(page==Page::Media?x::Visibility::Visible:x::Visibility::Collapsed);

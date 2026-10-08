@@ -1,12 +1,12 @@
 {
-  "schema": 15,
-  "recordedAtUtc": "2026-10-08T15:35:29.3370607Z",
-  "packageVersion": "0.5.10",
+  "schema": 16,
+  "recordedAtUtc": "2026-10-08T15:39:54.5410576Z",
+  "packageVersion": "0.5.11",
   "controllerVersion": "0.3.3",
-  "backendVersion": "0.4.9",
+  "backendVersion": "0.4.10",
   "startLayoutVersion": "0.1.3",
   "quickPositionVersion": "0.1.1",
-  "scope": "Readable no-media caption, cached CPU ring with guarded 200ms real resample, content-sized centered battery group",
+  "scope": "Larger 14 DIP empty-media caption with 20 DIP text row and media controls shifted down 2 DIP",
   "artifacts": [
     {
       "Name": "latest.exe",
@@ -15,8 +15,8 @@
     },
     {
       "Name": "latest.dll",
-      "Bytes": 1831936,
-      "SHA256": "10D2ED2F6B1BB5BF494AC805CDC12AAC8FC31EC37AB46A96B0F2D17C4706D17E"
+      "Bytes": 1833472,
+      "SHA256": "E539D75B14A21036FB1242B963ECBD48A60E93BB94A277BED7AD6737DF0DE535"
     },
     {
       "Name": "start\\latest.dll",
@@ -47,7 +47,7 @@
     },
     {
       "file": "latest.dll",
-      "bytes": 1831936,
+      "bytes": 1833472,
       "imports": [
         "ole32.dll",
         "OLEAUT32.dll",
@@ -106,21 +106,23 @@
   ],
   "systemDllImportsOnly": true,
   "regression": {
+    "build": "passed",
+    "importCheck": "passed",
+    "lastCardLogicVersion": "0.5.10",
     "cardChecks": 95,
     "failures": 0,
     "productionInputSent": false,
-    "coverage": "Warmup, queued ticks, retained sample freshness, hidden interval exclusion, invalid counters and existing cards logic",
-    "priorUnchangedRegression": "0.5.8 runtime 39 and geometry 98 retained; not rerun for this localized card update"
+    "note": "No new logic tests for text size and row layout; inherited card logic and 95 passing checks unchanged"
   },
   "live": {
     "ready": true,
-    "controllerPid": 9500,
-    "explorerPid": 4864,
+    "controllerPid": 17968,
+    "explorerPid": 23856,
     "backend": {
       "protocol": 1,
-      "version": "0.4.9",
-      "explorerPid": 4864,
-      "ownerPid": 9500,
+      "version": "0.4.10",
+      "explorerPid": 23856,
+      "ownerPid": 17968,
       "state": 2,
       "hooks": 58,
       "styledElements": 31,
@@ -135,8 +137,8 @@
     },
     "start": {
       "version": "0.1.3",
-      "pid": 29964,
-      "ownerPid": 9500,
+      "pid": 29564,
+      "ownerPid": 17968,
       "active": true,
       "lists": 1,
       "items": 41,
@@ -151,16 +153,16 @@
       "watchMode": "events"
     },
     "cards": {
-      "At": "2026-10-08T23:35:29.2145595+08:00",
-      "Hwnd": 7538196,
+      "At": "2026-10-08T23:39:54.5012052+08:00",
+      "Hwnd": 5702430,
       "Ready": 1,
-      "Visible": 0,
-      "Sampling": 0,
-      "Samples": 10,
-      "Cpu": 4,
-      "Memory": 86,
+      "Visible": 1,
+      "Sampling": 1,
+      "Samples": 21,
+      "Cpu": 15,
+      "Memory": 85,
       "Media": 0,
-      "View": 1,
+      "View": 0,
       "Errors": 0,
       "Commands": 0,
       "Left100": 88833,
@@ -170,19 +172,19 @@
       "AppRight100": 86733,
       "RootRight100": 100733,
       "Fits": 1,
-      "ControlsLeft100": 90500,
-      "ControlsRight100": 97700,
-      "ControlsTop100": 2600,
-      "ControlsBottom100": 5000,
-      "TitleLeft100": 89567,
-      "TitleRight100": 94367,
-      "ButtonWidth100": 2400,
+      "ControlsLeft100": null,
+      "ControlsRight100": null,
+      "ControlsTop100": null,
+      "ControlsBottom100": null,
+      "TitleLeft100": null,
+      "TitleRight100": null,
+      "ButtonWidth100": null,
       "PowerReady": 1,
       "PowerActive": 0,
       "VisiblePages": 1,
       "BatteryMode": 7,
-      "PowerUpdates": 12,
-      "Switches": 12,
+      "PowerUpdates": 2,
+      "Switches": 0,
       "BatteryPercent": 100,
       "Charging": 0,
       "Plugged": 1,
@@ -193,8 +195,12 @@
       "NativePowerWidth100": null,
       "NativePowerHeight100": null,
       "CpuRefreshing": 0,
-      "CpuIntervalMs": 0,
-      "TitleFont100": 1200,
+      "CpuIntervalMs": 2000,
+      "TitleFont100": null,
+      "TitleHeight100": null,
+      "TitleRowHeight100": null,
+      "TitleTop100": null,
+      "TitleBottom100": null,
       "PowerContentLeft100": null,
       "PowerContentRight100": null,
       "PowerContentTop100": null,
@@ -210,29 +216,31 @@
     }
   },
   "acceptance": {
-    "status": "user-confirmed",
-    "userQuote": "三处都正常",
-    "scope": "No-media text size, CPU reappearance latency, battery graphic/text centering",
-    "mediaPlaybackCommands": "not newly exercised",
-    "batteryPhysicalStateTransitions": "0.5.8 user-confirmed; battery event and classification code unchanged"
+    "status": "pending-user",
+    "userQuote": "",
+    "scope": "14 DIP no-media text and lowered media buttons",
+    "mediaPlaybackCommands": "not newly exercised"
   },
   "previousAcceptance": {
-    "version": "0.5.9",
-    "userQuote": "比例和圆环合适，切换与点击正常",
-    "record": "verification-v0.5.9.json",
-    "followup": "User then requested larger no-media text, faster CPU initial display, and battery content centering"
+    "version": "0.5.10",
+    "userQuote": "三处都正常",
+    "scope": "CPU reappearance, initial 12 DIP label and battery content centering",
+    "record": "verification-v0.5.10.json",
+    "followup": "User requested one more empty-label size increase and slightly lower controls"
   },
   "behavior": {
     "cardWidthDip": 104,
     "cardHeightDip": 44,
-    "emptyMediaFontDip": 12,
+    "emptyMediaFontDip": 14,
     "activeMediaFontDip": 10,
     "cpuInitialIntervalMs": 200,
     "cpuSteadyIntervalMs": 2000,
     "cpuHiddenTimerStopped": true,
     "cachedSampleLabeledRefreshing": true,
     "batteryTextMaxWidthDip": 60,
-    "batteryTextFixedWidth": false
+    "batteryTextFixedWidth": false,
+    "titleRowHeightDip": 20,
+    "mediaButtonsShiftDownDip": 2
   },
   "protected": {
     "controllerBinaryAndConfig": true,
@@ -242,9 +250,9 @@
     "noNewProcessOrTimer": true
   },
   "review": {
-    "maintainability": "CPU sample state has one tested owner; text layout uses intrinsic width",
-    "boundaries": "Unknown/reset counters not fake zero, stale queued tick cannot publish too short an interval, retained sample explicitly labeled",
-    "regressionRisk": "Existing timer and visible-page gate retained, card size and native battery hit target unchanged"
+    "maintainability": "20 DIP title row plus 24 DIP controls exactly fits the existing 44 DIP card",
+    "boundaries": "Active titles retain truncation; only no-session caption uses larger font",
+    "regressionRisk": "CPU sampling, power events, carousel and battery hit mapping unchanged"
   },
   "boundaries": [
     "Nominal 200ms interval depends on UI-thread scheduling",
