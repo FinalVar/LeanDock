@@ -1,6 +1,6 @@
 {
   "schema": 5,
-  "recordedAtUtc": "2026-10-08T06:15:03.1638015Z",
+  "recordedAtUtc": "2026-10-08T06:33:59.7267830Z",
   "packageVersion": "0.3.4",
   "controllerVersion": "0.3.1",
   "backendVersion": "0.2.2",
@@ -57,7 +57,7 @@
     "disableConfirmed": true,
     "nativeGroupsRestored": 30,
     "pinnedMarginRestored": true,
-    "visibleReopenPending": true,
+    "visibleReopenPending": false,
     "enableConfirmed": true,
     "sameHost": true
   },
@@ -94,10 +94,21 @@
   "newStartCrashEvents": 0,
   "acceptance": {
     "initialVisualStatement": "空白明显减少，布局和点击正常",
-    "finalRepeatedOpen": "pending user feedback",
+    "finalRepeatedOpen": "user-confirmed",
     "initialCandidateHash": "FE091DC86DC6624C725C46AF0A9A45B5346645B4620F97AE97BE987FB870C1FA",
-    "subsequentChange": "Use native column limit instead of provisional startup MainMenu width; native geometry rechecked"
+    "subsequentChange": "Use native column limit instead of provisional startup MainMenu width; native geometry rechecked",
+    "finalStatement": "没有发现问题",
+    "finalScope": "User reply to repeated open/close check after startup-width correction",
+    "finalArtifactHash": "AB275AB1ABCEF101CAC88790061E3E76680B01A4ECEECACE47AAB6883E072C59"
   },
   "previousVerification": "verification-v0.3.3.json",
-  "validationBoundary": "Final binary geometry observed in native XAML with 41 unclipped items and search/footer in bounds. Disable/re-enable protocol and restoration of native groups, auto height and margins checked in the same host. The hidden Start dispatcher defers final reflow until next visible open. User confirmation covers the initial visually equivalent sizing candidate; repeated open after the reload fix is pending. Login/reboot, dynamic installs, DPI changes, multiple displays and accessibility were not tested."
+  "validationBoundary": "Final binary geometry refreshed after the user repeated-open check: 41 unclipped items in 7 columns and 6 rows, native search/footer in bounds. Disable/re-enable protocol, restoration of native groups, auto height and margins, and final visible reopen were checked in the same host. User confirmed initial appearance and clicks, then reported no problem with repeated opening after the reload fix. Login/reboot, dynamic installs, DPI changes, multiple displays, accessibility and long-term stability were not tested.",
+  "liveReadiness": {
+    "dock": true,
+    "hotCorners": true,
+    "startLayout": true,
+    "startLayoutBlocked": false,
+    "startLayoutFailures": 0,
+    "sameStartHostAfterReopen": true
+  }
 }
