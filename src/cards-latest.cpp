@@ -47,7 +47,9 @@ static constexpr const wchar_t* Props[]={L"LeanDock.Card.Ready",L"LeanDock.Card.
     L"LeanDock.Card.TitleLeft100",L"LeanDock.Card.TitleRight100",L"LeanDock.Card.ButtonWidth100",
     L"LeanDock.Card.PowerReady",L"LeanDock.Card.BatteryPercent",L"LeanDock.Card.Charging",L"LeanDock.Card.Plugged",
     L"LeanDock.Card.PowerLeft100",L"LeanDock.Card.PowerRight100",L"LeanDock.Card.PowerTop100",L"LeanDock.Card.PowerBottom100",
-    L"LeanDock.Card.PowerActive",L"LeanDock.Card.VisiblePages",L"LeanDock.Card.BatteryMode",L"LeanDock.Card.PowerUpdates",L"LeanDock.Card.Switches"};
+    L"LeanDock.Card.PowerActive",L"LeanDock.Card.VisiblePages",L"LeanDock.Card.BatteryMode",L"LeanDock.Card.PowerUpdates",L"LeanDock.Card.Switches",
+    L"LeanDock.Card.CpuRefreshing",L"LeanDock.Card.CpuIntervalMs",L"LeanDock.Card.TitleFont100",
+    L"LeanDock.Card.PowerContentLeft100",L"LeanDock.Card.PowerContentRight100",L"LeanDock.Card.PowerContentTop100",L"LeanDock.Card.PowerContentBottom100"};
 static uint64_t Bits(FILETIME t){return (uint64_t(t.dwHighDateTime)<<32)|t.dwLowDateTime;}
 static std::optional<CpuTimes> Times(){
     // This API is group-local on machines with more than 64 processors. Do
@@ -87,7 +89,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     c::Grid root{nullptr}; x::FrameworkElement background{nullptr}, apps{nullptr};
     IInspectable oldPadding{nullptr},oldMargin{nullptr};
     c::Border card{nullptr}; x::Shapes::Rectangle divider{nullptr};
-    c::Button powerCard{nullptr};c::TextBlock powerText{nullptr},powerStatus{nullptr};
+    c::Button powerCard{nullptr};c::TextBlock powerText{nullptr},powerStatus{nullptr};c::StackPanel powerContent{nullptr};
     x::Shapes::Rectangle powerFill{nullptr};x::Shapes::Path powerBolt{nullptr};
     x::UIElement wheelRoot{nullptr};IInspectable wheelHandler{nullptr};
     Power::RemainingChargePercentChanged_revoker chargeChanged;
@@ -95,7 +97,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     Power::PowerSupplyStatusChanged_revoker supplyChanged;
     c::Grid metrics{nullptr},media{nullptr}; c::TextBlock title{nullptr};
     c::StackPanel mediaControls{nullptr};winrt::hstring artistName;
-    RingDrawing cpuRing,memoryRing;std::optional<unsigned> cpuPercent,memoryPercent;
+    RingDrawing cpuRing,memoryRing;CpuSampler cpu;std::optional<unsigned> memoryPercent;
     c::Button previous{nullptr},play{nullptr},next{nullptr};c::TextBlock playGlyph{nullptr};
     x::DispatcherTimer timer{nullptr};winrt::Windows::UI::Core::CoreDispatcher dispatcher{nullptr};
     Manager manager{nullptr};Session session{nullptr};
@@ -112,7 +114,6 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     Page page=Page::Metrics;
     unsigned generation=0,samples=0,errors=0,commands=0,powerUpdates=0,switches=0;
     int wheelRemainder=0;
-    std::optional<CpuTimes> baseline;
     std::atomic<bool> refreshQueued=false;
     std::atomic<bool> powerQueued=false;
     Battery battery;
@@ -193,7 +194,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
   <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
   </Grid>
  </ControlTemplate></Button.Template>
- <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+  <StackPanel x:Name="PowerContent" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
   <Viewbox Width="24" Height="18" VerticalAlignment="Center">
   <Grid Width="32" Height="20" VerticalAlignment="Center">
    <Border Width="28" Height="16" CornerRadius="3" BorderThickness="1" BorderBrush="{ThemeResource SystemControlForegroundBaseHighBrush}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
@@ -202,7 +203,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
    <Path x:Name="PowerBolt" Data="M 16,1 L 10,11 L 15,11 L 12,19 L 22,7 L 17,7 Z" Fill="{ThemeResource SystemControlForegroundBaseHighBrush}" Stroke="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}" StrokeThickness="0.8" Visibility="Collapsed"/>
   </Grid>
   </Viewbox>
-  <StackPanel Width="60" VerticalAlignment="Center">
+   <StackPanel MaxWidth="60" VerticalAlignment="Center">
    <TextBlock x:Name="PowerText" Text="—" FontFamily="Segoe UI Variable" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
    <TextBlock x:Name="PowerStatus" Text="电源状态未知" FontFamily="Segoe UI Variable" FontSize="9" Opacity="0.75" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
   </StackPanel>
@@ -211,6 +212,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         powerCard.Width(CardWidth);
         powerText=powerCard.FindName(L"PowerText").as<c::TextBlock>();powerFill=powerCard.FindName(L"PowerFill").as<x::Shapes::Rectangle>();
         powerStatus=powerCard.FindName(L"PowerStatus").as<c::TextBlock>();powerBolt=powerCard.FindName(L"PowerBolt").as<x::Shapes::Path>();
+        powerContent=powerCard.FindName(L"PowerContent").as<c::StackPanel>();
         divider=x::Shapes::Rectangle();divider.Name(L"LeanDockCardDivider");divider.Width(1);divider.Height(40);
         divider.HorizontalAlignment(x::HorizontalAlignment::Right);divider.VerticalAlignment(x::VerticalAlignment::Center);
         divider.Margin({0,0,2,0});divider.IsHitTestVisible(false);
@@ -252,7 +254,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         play.Click([weak](auto&&,auto&&){Command(weak,1);});
         next.Click([weak](auto&&,auto&&){Command(weak,2);});
         unloaded=root.Unloaded(winrt::auto_revoke,[weak](auto&&,auto&&){if(auto p=weak.lock())p->Stop();});
-        timer=x::DispatcherTimer();timer.Interval(std::chrono::seconds(2));
+        timer=x::DispatcherTimer();timer.Interval(std::chrono::milliseconds(CpuRefreshMs));
         timer.Tick([weak](auto&&,auto&&){if(auto p=weak.lock())try{p->Tick();}catch(...){p->Fail();}});
         title.Text(L"暂无播放");previous.IsEnabled(false);play.IsEnabled(false);next.IsEnabled(false);
         ReadPower();
@@ -288,8 +290,11 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
             PublishSlot();
             if(fits&&page==Page::Power){auto p=powerCard.TransformToVisual(root.XamlRoot().Content()).TransformPoint({0,0});
                 Put(hwnd,28,std::lround(p.X*100));Put(hwnd,29,std::lround((p.X+powerCard.ActualWidth())*100));
-                Put(hwnd,30,std::lround(p.Y*100));Put(hwnd,31,std::lround((p.Y+powerCard.ActualHeight())*100));}
-            else for(unsigned i=28;i<=31;++i)RemovePropW(hwnd,Props[i]);
+                Put(hwnd,30,std::lround(p.Y*100));Put(hwnd,31,std::lround((p.Y+powerCard.ActualHeight())*100));
+                auto body=powerContent.TransformToVisual(root.XamlRoot().Content()).TransformPoint({0,0});
+                Put(hwnd,40,std::lround(body.X*100));Put(hwnd,41,std::lround((body.X+powerContent.ActualWidth())*100));
+                Put(hwnd,42,std::lround(body.Y*100));Put(hwnd,43,std::lround((body.Y+powerContent.ActualHeight())*100));}
+            else{for(unsigned i=28;i<=31;++i)RemovePropW(hwnd,Props[i]);for(unsigned i=40;i<=43;++i)RemovePropW(hwnd,Props[i]);}
             if(fits){
                 auto content=root.XamlRoot().Content();
                 auto pos=card.TransformToVisual(content).TransformPoint({0,0});
@@ -305,7 +310,8 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
                     Put(hwnd,17,std::lround(buttons.X*100));Put(hwnd,18,std::lround((buttons.X+mediaControls.ActualWidth())*100));
                     Put(hwnd,19,std::lround(buttons.Y*100));Put(hwnd,20,std::lround((buttons.Y+mediaControls.ActualHeight())*100));
                     Put(hwnd,21,std::lround(text.X*100));Put(hwnd,22,std::lround((text.X+title.ActualWidth())*100));Put(hwnd,23,std::lround(play.ActualWidth()*100));
-                }else for(unsigned i=17;i<=23;++i)RemovePropW(hwnd,Props[i]);
+                    Put(hwnd,39,std::lround(title.FontSize()*100));
+                }else{for(unsigned i=17;i<=23;++i)RemovePropW(hwnd,Props[i]);RemovePropW(hwnd,Props[39]);}
             }
             Put(hwnd,16,fits);
         }catch(...){Fail();}
@@ -315,15 +321,26 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         const bool want=ShouldSample(shown&&fits,page==Page::Metrics,!stopped);
         if(want==sampling)return;
         sampling=want;Put(hwnd,2,sampling);
-        if(want){baseline=Times();cpuPercent.reset();cpuRing.Set({});RemovePropW(hwnd,Props[4]);ReadMemory();timer.Start();}
-        else{timer.Stop();baseline.reset();}
+        if(want){
+            cpu.Resume(Times(),GetTickCount64());UpdateCpuVisual();ReadMemory();
+            timer.Interval(std::chrono::milliseconds(cpu.IntervalMs()));timer.Start();
+        }else{timer.Stop();cpu.Pause();Put(hwnd,37,0);Put(hwnd,38,0);}
+    }
+    void UpdateCpuVisual(){
+        cpuRing.Set(cpu.value);
+        if(cpu.value)Put(hwnd,4,*cpu.value);else RemovePropW(hwnd,Props[4]);
+        Put(hwnd,37,cpu.refreshing);Put(hwnd,38,sampling?cpu.IntervalMs():0);
+    }
+    winrt::hstring CpuText()const{
+        if(cpu.refreshing)return cpu.value?L"更新中（上次 "+PercentText(cpu.value)+L"）":L"采样中";
+        return PercentText(cpu.value);
     }
     void ReadMemory(){MEMORYSTATUSEX s{sizeof(s)};if(GlobalMemoryStatusEx(&s)){
         memoryPercent=s.dwMemoryLoad;memoryRing.Set(memoryPercent);
         Put(hwnd,5,s.dwMemoryLoad);
     }else{memoryPercent.reset();memoryRing.Set({});RemovePropW(hwnd,Props[5]);}MetricsDescription();}
     void MetricsDescription() {
-        auto description=L"CPU "+PercentText(cpuPercent)+L"，内存 "+PercentText(memoryPercent);
+        auto description=L"CPU "+CpuText()+L"，内存 "+PercentText(memoryPercent);
         c::ToolTipService::SetToolTip(metrics,winrt::box_value(description+L"\n滚轮：切换卡片"));
         x::Automation::AutomationProperties::SetName(metrics,description);
         if(page==Page::Metrics){
@@ -333,11 +350,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     }
     void Tick(){
         if(stopped)return;shown=Visible();Put(hwnd,1,shown);Sampling();if(!sampling)return;
-        auto current=Times();auto percent=(current&&baseline)?CpuPercent(*baseline,*current):std::nullopt;
-        baseline=current;
-        cpuPercent=percent;cpuRing.Set(percent);
-        if(percent)Put(hwnd,4,*percent);else RemovePropW(hwnd,Props[4]);
-        ReadMemory();++samples;Put(hwnd,3,samples);
+        const bool measured=cpu.Sample(Times(),GetTickCount64());
+        timer.Interval(std::chrono::milliseconds(cpu.IntervalMs()));UpdateCpuVisual();
+        ReadMemory();if(measured){++samples;Put(hwnd,3,samples);}
     }
     void Publish(){Put(hwnd,3,samples);Put(hwnd,6,bool(session));Put(hwnd,7,static_cast<unsigned>(page));Put(hwnd,8,errors);Put(hwnd,9,commands);
         if(battery.percent>=0)Put(hwnd,25,battery.percent);else if(hwnd)RemovePropW(hwnd,Props[25]);Put(hwnd,26,battery.charging);Put(hwnd,27,battery.plugged);
@@ -390,15 +405,16 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     }
     void Render(){
         if(stopped)return;
+        const double titleSize=session?10:12;if(title.FontSize()!=titleSize)title.FontSize(titleSize);
         if(!session){title.Text(L"暂无播放");artistName=L"";previous.IsEnabled(false);play.IsEnabled(false);next.IsEnabled(false);playGlyph.Text(L"\xE768");}
         metrics.Visibility(page==Page::Metrics?x::Visibility::Visible:x::Visibility::Collapsed);
         media.Visibility(page==Page::Media?x::Visibility::Visible:x::Visibility::Collapsed);
         powerCard.Visibility(page==Page::Power?x::Visibility::Visible:x::Visibility::Collapsed);
         auto tip=winrt::hstring(L"滚轮切换：CPU／内存 · 媒体 · 电池；右键：系统工具菜单");
         if(page==Page::Media)tip=title.Text()+(artistName.empty()?L"":L"\n"+artistName)+L"\n"+tip;
-        if(page==Page::Metrics)tip=L"CPU "+PercentText(cpuPercent)+L"，内存 "+PercentText(memoryPercent)+L"\n"+tip;
+        if(page==Page::Metrics)tip=L"CPU "+CpuText()+L"，内存 "+PercentText(memoryPercent)+L"\n"+tip;
         c::ToolTipService::SetToolTip(card,winrt::box_value(tip));
-        x::Automation::AutomationProperties::SetName(card,page==Page::Metrics?L"CPU "+PercentText(cpuPercent)+L"，内存 "+PercentText(memoryPercent):
+        x::Automation::AutomationProperties::SetName(card,page==Page::Metrics?L"CPU "+CpuText()+L"，内存 "+PercentText(memoryPercent):
             page==Page::Media?L"媒体 "+title.Text():L"电池 "+powerText.Text()+L"，"+powerStatus.Text());
         Sampling();Publish();PublishSlot();
     }

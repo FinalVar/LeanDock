@@ -91,6 +91,30 @@ inline std::optional<unsigned> CpuPercent(CpuTimes a, CpuTimes b) {
     if(total<=0 || double(idle)>total)return {};
     return unsigned(std::clamp(std::lround(100.0*(total-double(idle))/total),0l,100l));
 }
+inline constexpr uint64_t CpuWarmupMs=200, CpuRefreshMs=2000;
+struct CpuSampler {
+    std::optional<CpuTimes> baseline;
+    std::optional<unsigned> value;
+    uint64_t baselineAt=0;
+    bool refreshing=false;
+    void Resume(std::optional<CpuTimes> current,uint64_t now) {
+        baseline=current;baselineAt=now;refreshing=bool(current);
+        if(!current)value.reset();
+    }
+    // Keep the last measured value for display, but exclude the hidden period
+    // from the next sample. The UI labels retained values as refreshing.
+    void Pause(){baseline.reset();refreshing=false;}
+    bool Sample(std::optional<CpuTimes> current,uint64_t now) {
+        if(!current){baseline.reset();value.reset();refreshing=false;return true;}
+        if(!baseline||now<baselineAt){Resume(current,now);return false;}
+        // A queued tick from before Pause must not publish an almost-zero
+        // interval after Resume. Use the same guard for the initial sample.
+        if(now-baselineAt<CpuWarmupMs)return false;
+        value=CpuPercent(*baseline,*current);baseline=current;baselineAt=now;refreshing=false;
+        return true;
+    }
+    uint64_t IntervalMs()const{return refreshing?CpuWarmupMs:CpuRefreshMs;}
+};
 inline bool Fits(double available,double apps,double tray,bool alreadyShown,double slot=SlotWidth) {
     if(!std::isfinite(available)||!std::isfinite(apps)||!std::isfinite(tray) ||
        !std::isfinite(slot)||available<=0||apps<=0||tray<0||slot<=0)return false;

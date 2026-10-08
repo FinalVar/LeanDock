@@ -1,12 +1,12 @@
 {
-  "schema": 14,
-  "recordedAtUtc": "2026-10-08T15:19:27.8829208Z",
-  "packageVersion": "0.5.9",
+  "schema": 15,
+  "recordedAtUtc": "2026-10-08T15:35:29.3370607Z",
+  "packageVersion": "0.5.10",
   "controllerVersion": "0.3.3",
-  "backendVersion": "0.4.8",
+  "backendVersion": "0.4.9",
   "startLayoutVersion": "0.1.3",
   "quickPositionVersion": "0.1.1",
-  "scope": "Compact 104 DIP single card, arc-length CPU and memory gauges without numeric centers, matching native battery hit bounds",
+  "scope": "Readable no-media caption, cached CPU ring with guarded 200ms real resample, content-sized centered battery group",
   "artifacts": [
     {
       "Name": "latest.exe",
@@ -15,8 +15,8 @@
     },
     {
       "Name": "latest.dll",
-      "Bytes": 1828352,
-      "SHA256": "364C0C9DC2F6335E47424FDE5E48589C5436E1C7B7632B8E2E5878E613A045CE"
+      "Bytes": 1831936,
+      "SHA256": "10D2ED2F6B1BB5BF494AC805CDC12AAC8FC31EC37AB46A96B0F2D17C4706D17E"
     },
     {
       "Name": "start\\latest.dll",
@@ -47,7 +47,7 @@
     },
     {
       "file": "latest.dll",
-      "bytes": 1828352,
+      "bytes": 1831936,
       "imports": [
         "ole32.dll",
         "OLEAUT32.dll",
@@ -106,24 +106,24 @@
   ],
   "systemDllImportsOnly": true,
   "regression": {
-    "cardChecks": 81,
+    "cardChecks": 95,
     "failures": 0,
     "productionInputSent": false,
-    "generatedSourceReproducible": true,
-    "priorUnchangedRegression": "0.5.8 runtime 39 and geometry 98 passed; not repeated solely for presentation changes"
+    "coverage": "Warmup, queued ticks, retained sample freshness, hidden interval exclusion, invalid counters and existing cards logic",
+    "priorUnchangedRegression": "0.5.8 runtime 39 and geometry 98 retained; not rerun for this localized card update"
   },
   "live": {
     "ready": true,
-    "controllerPid": 24848,
-    "explorerPid": 9984,
+    "controllerPid": 9500,
+    "explorerPid": 4864,
     "backend": {
       "protocol": 1,
-      "version": "0.4.8",
-      "explorerPid": 9984,
-      "ownerPid": 24848,
+      "version": "0.4.9",
+      "explorerPid": 4864,
+      "ownerPid": 9500,
       "state": 2,
       "hooks": 58,
-      "styledElements": 34,
+      "styledElements": 31,
       "failed": false
     },
     "quick": {
@@ -135,8 +135,8 @@
     },
     "start": {
       "version": "0.1.3",
-      "pid": 26304,
-      "ownerPid": 24848,
+      "pid": 29964,
+      "ownerPid": 9500,
       "active": true,
       "lists": 1,
       "items": 41,
@@ -151,37 +151,37 @@
       "watchMode": "events"
     },
     "cards": {
-      "At": "2026-10-08T23:19:27.8372209+08:00",
-      "Hwnd": 7669054,
+      "At": "2026-10-08T23:35:29.2145595+08:00",
+      "Hwnd": 7538196,
       "Ready": 1,
-      "Visible": 1,
+      "Visible": 0,
       "Sampling": 0,
-      "Samples": 0,
-      "Cpu": null,
+      "Samples": 10,
+      "Cpu": 4,
       "Memory": 86,
       "Media": 0,
       "View": 1,
       "Errors": 0,
       "Commands": 0,
-      "Left100": 91433,
+      "Left100": 88833,
       "Top100": 800,
-      "Right100": 101833,
+      "Right100": 99233,
       "Bottom100": 5200,
-      "AppRight100": 89333,
-      "RootRight100": 103333,
+      "AppRight100": 86733,
+      "RootRight100": 100733,
       "Fits": 1,
-      "ControlsLeft100": 93100,
-      "ControlsRight100": 100300,
+      "ControlsLeft100": 90500,
+      "ControlsRight100": 97700,
       "ControlsTop100": 2600,
       "ControlsBottom100": 5000,
-      "TitleLeft100": 92167,
-      "TitleRight100": 96167,
+      "TitleLeft100": 89567,
+      "TitleRight100": 94367,
       "ButtonWidth100": 2400,
       "PowerReady": 1,
       "PowerActive": 0,
       "VisiblePages": 1,
       "BatteryMode": 7,
-      "PowerUpdates": 7,
+      "PowerUpdates": 12,
       "Switches": 12,
       "BatteryPercent": 100,
       "Charging": 0,
@@ -192,6 +192,13 @@
       "PowerBottom100": null,
       "NativePowerWidth100": null,
       "NativePowerHeight100": null,
+      "CpuRefreshing": 0,
+      "CpuIntervalMs": 0,
+      "TitleFont100": 1200,
+      "PowerContentLeft100": null,
+      "PowerContentRight100": null,
+      "PowerContentTop100": null,
+      "PowerContentBottom100": null,
       "NativePowerHit": false,
       "NativePowerClicks": 0,
       "SystemPower": {
@@ -204,22 +211,28 @@
   },
   "acceptance": {
     "status": "user-confirmed",
-    "userQuote": "比例和圆环合适，切换与点击正常",
-    "scope": "Compact proportions, arc-length fill, absence of numeric ring centers, wheel, battery click after resizing",
+    "userQuote": "三处都正常",
+    "scope": "No-media text size, CPU reappearance latency, battery graphic/text centering",
     "mediaPlaybackCommands": "not newly exercised",
-    "batteryPhysicalStateTransitions": "previous 0.5.8 user acceptance retained; event and battery classification logic unchanged"
+    "batteryPhysicalStateTransitions": "0.5.8 user-confirmed; battery event and classification code unchanged"
   },
-  "previousCarouselAcceptance": {
-    "version": "0.5.8",
-    "userQuote": "切换、点击和电源状态变化都正常",
-    "scope": "Single card, wheel, battery left/right clicks and physical power transitions",
-    "record": "verification-v0.5.8.json"
+  "previousAcceptance": {
+    "version": "0.5.9",
+    "userQuote": "比例和圆环合适，切换与点击正常",
+    "record": "verification-v0.5.9.json",
+    "followup": "User then requested larger no-media text, faster CPU initial display, and battery content centering"
   },
-  "computerUse": {
-    "attempted": true,
-    "targetDockReturned": false,
-    "inputSent": false,
-    "result": "Dock absent from targetable windows; request user interaction evidence"
+  "behavior": {
+    "cardWidthDip": 104,
+    "cardHeightDip": 44,
+    "emptyMediaFontDip": 12,
+    "activeMediaFontDip": 10,
+    "cpuInitialIntervalMs": 200,
+    "cpuSteadyIntervalMs": 2000,
+    "cpuHiddenTimerStopped": true,
+    "cachedSampleLabeledRefreshing": true,
+    "batteryTextMaxWidthDip": 60,
+    "batteryTextFixedWidth": false
   },
   "protected": {
     "controllerBinaryAndConfig": true,
@@ -229,13 +242,13 @@
     "noNewProcessOrTimer": true
   },
   "review": {
-    "maintainability": "Shared card width for rendering, layout reservation and native hit mapping; reused vector ring geometries",
-    "boundaries": "Empty/unknown and full rings, quarter and half arcs, all intermediate endpoints inside stroke bounds; tooltip retains precise values",
-    "regressionRisk": "Presentation and native battery target size only; controller, panel positioning, hot corners and power events unchanged"
+    "maintainability": "CPU sample state has one tested owner; text layout uses intrinsic width",
+    "boundaries": "Unknown/reset counters not fake zero, stale queued tick cannot publish too short an interval, retained sample explicitly labeled",
+    "regressionRisk": "Existing timer and visible-page gate retained, card size and native battery hit target unchanged"
   },
   "boundaries": [
-    "Current pinned Windows binaries only",
-    "Battery transition logic tests do not prove physical unplug/replug delivery",
-    "Multi-monitor, assistive technology, sleep/login and new system builds not exercised"
+    "Nominal 200ms interval depends on UI-thread scheduling",
+    "Current system build and display configuration only",
+    "Media playback, real low-battery hardware, multi-monitor and sleep/login not newly exercised"
   ]
 }
