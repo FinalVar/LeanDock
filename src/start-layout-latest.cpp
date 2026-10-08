@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 #undef GetCurrentTime
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
@@ -57,6 +58,14 @@ struct Zoom {
  winrt::weak_ref<c::SemanticZoom> target;
  bool canChange,button,zoomedIn;
 };
+struct Property {
+ winrt::weak_ref<x::DependencyObject> target;
+ x::DependencyProperty property{nullptr};
+ f::IInspectable local{nullptr};
+ f::IInspectable effective{nullptr};
+ d::BindingBase binding{nullptr};
+ f::IInspectable applied{nullptr};
+};
 struct State {
  HWND host{};DWORD owner{};HANDLE ownerProcess{};PTP_WAIT ownerWait{};
  x::Window window{nullptr};winrt::event_token activated{},visible{};
@@ -65,6 +74,9 @@ struct State {
  std::vector<Wrap> wraps;
  std::vector<Selector> selectors;
  std::vector<Zoom> zooms;
+ std::vector<Property> sizing;
+ unsigned columns{},rows{},fitRetries{};
+ double panelWidth{},panelHeight{};
 };
 // Allocated only inside the target UI thread; pinned DLL owns event callbacks.
 static State* state;
@@ -77,9 +89,9 @@ static void WriteStatus() noexcept {
   wcscpy_s(slash+1,std::size(path)-(slash+1-path),L"latest-status.json");
   unsigned items=0,groups=0;size_t applied=0;
   for(auto const& entry:state->lists)if(auto target=entry->target.get())if(target.ItemsSource()==entry->view){++applied;items+=entry->count;groups+=entry->groups;}
-  char text[700];auto bytes=snprintf(text,sizeof(text),
-    "{\"version\":\"0.1.1\",\"pid\":%lu,\"ownerPid\":%lu,\"active\":%s,\"lists\":%zu,\"items\":%u,\"sourceGroups\":%u,\"lockedSelectors\":%zu,\"passes\":%u,\"failures\":%u,\"watchMode\":\"events\"}\n",
-    GetCurrentProcessId(),state->owner,state->active?"true":"false",applied,items,groups,state->selectors.size(),state->passes,state->failures);
+  char text[900];auto bytes=snprintf(text,sizeof(text),
+    "{\"version\":\"0.1.2\",\"pid\":%lu,\"ownerPid\":%lu,\"active\":%s,\"lists\":%zu,\"items\":%u,\"sourceGroups\":%u,\"lockedSelectors\":%zu,\"columns\":%u,\"rows\":%u,\"panelWidth\":%.3f,\"panelHeight\":%.3f,\"passes\":%u,\"failures\":%u,\"watchMode\":\"events\"}\n",
+    GetCurrentProcessId(),state->owner,state->active?"true":"false",applied,items,groups,state->selectors.size(),state->columns,state->rows,state->panelWidth,state->panelHeight,state->passes,state->failures);
   HANDLE file=CreateFileW(path,GENERIC_WRITE,FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
   if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,text,bytes,&written,nullptr);CloseHandle(file);}
  }catch(...){}
@@ -175,15 +187,110 @@ static bool AllAppsAncestor(x::DependencyObject obj) {
  }
  return false;
 }
+static bool DirectAllAppsPanel(x::DependencyObject obj) {
+ for(unsigned depth=0;obj && depth<64;depth++) {
+  obj=x::Media::VisualTreeHelper::GetParent(obj);
+  if(auto items=obj.try_as<c::ItemsControl>())return items.Name()==L"AllAppsGrid";
+ }
+ return false;
+}
+template<class T> static void SetSizing(x::DependencyObject const& target,x::DependencyProperty const& property,T const& value) {
+ const auto current=target.GetValue(property);
+ auto found=std::find_if(state->sizing.begin(),state->sizing.end(),[&](auto const& entry){return entry.target.get()==target && entry.property==property;});
+ // The shell can update a responsive template property between openings.
+ // Restore its latest external value, not a provisional startup width.
+ if(found!=state->sizing.end() && found->applied && winrt::unbox_value<T>(current)!=winrt::unbox_value<T>(found->applied)) {
+  found->local=target.ReadLocalValue(property);found->effective=current;found->binding=nullptr;
+  if(auto fe=target.try_as<x::FrameworkElement>())if(auto expr=fe.GetBindingExpression(property))found->binding=expr.ParentBinding();
+ }
+ if(winrt::unbox_value<T>(current)==value)return;
+ if(found==state->sizing.end()) {
+  Property saved{winrt::make_weak(target),property,target.ReadLocalValue(property),current};
+  if(auto fe=target.try_as<x::FrameworkElement>())if(auto expr=fe.GetBindingExpression(property))saved.binding=expr.ParentBinding();
+  state->sizing.push_back(std::move(saved));
+  found=state->sizing.end()-1;
+ }
+ found->applied=winrt::box_value(value);target.SetValue(property,found->applied);
+}
+template<class T> static T OriginalValue(x::DependencyObject const& target,x::DependencyProperty const& property) {
+ for(auto const& entry:state->sizing)if(entry.target.get()==target && entry.property==property)
+  return winrt::unbox_value<T>(entry.effective);
+ return winrt::unbox_value<T>(target.GetValue(property));
+}
+static void RestoreSizing() noexcept {
+ for(auto it=state->sizing.rbegin();it!=state->sizing.rend();++it)try {
+  if(auto target=it->target.get()) {
+   if(it->binding)target.as<x::FrameworkElement>().SetBinding(it->property,it->binding);
+   else if(it->local==x::DependencyProperty::UnsetValue())target.ClearValue(it->property);
+   else target.SetValue(it->property,it->local);
+  }
+ }catch(...){++state->failures;}
+ state->sizing.clear();state->columns=state->rows=0;state->panelWidth=state->panelHeight=0;
+}
+static bool FitMenu(std::vector<x::FrameworkElement> const& elements,std::vector<c::ItemsWrapGrid> const& wraps) {
+ auto find=[&](wchar_t const* name)->x::FrameworkElement {for(auto fe:elements)if(fe.Name()==name)return fe;return nullptr;};
+ auto frame=find(L"FrameRoot"),menu=find(L"MainMenu"),enforcer=find(L"MaxHeightEnforcer"),
+      header=find(L"TopLevelHeader"),heading=find(L"AllListHeading"),pinned=find(L"StartMenuPinnedList");
+ auto content=find(L"MainContent").try_as<c::Grid>();
+ if(!frame || !menu || !enforcer || !header || !heading || !pinned || !content || content.RowDefinitions().Size()!=3)return true;
+ c::ItemsWrapGrid wrap{nullptr};for(auto candidate:wraps)if(DirectAllAppsPanel(candidate)){wrap=candidate;break;}
+ c::ItemsControl list{nullptr};unsigned count=0;
+ for(auto const& entry:state->lists)if(auto target=entry->target.get())if(target.ItemsSource()==entry->view){list=target;count=entry->count;break;}
+ if(!list || !wrap || !count){RestoreSizing();return true;}
+ auto tile=list.ContainerFromIndex(0).try_as<x::FrameworkElement>();
+ if(!tile)for(auto child:wrap.Children())if(auto item=child.try_as<c::GridViewItem>()){tile=item;break;}
+ if(!tile || tile.ActualWidth()<=0 || tile.ActualHeight()<=0)return false;
+ const double cellWidth=tile.ActualWidth(),cellHeight=tile.ActualHeight();
+ const auto nativeColumns=OriginalValue<int32_t>(wrap,c::ItemsWrapGrid::MaximumRowsOrColumnsProperty());
+ const double scale=double(GetDpiForWindow(state->host))/96.0;
+ MONITORINFO monitor{sizeof(monitor)};
+ if(!GetMonitorInfoW(MonitorFromWindow(state->host,MONITOR_DEFAULTTONEAREST),&monitor) || scale<=0 || nativeColumns<1 || nativeColumns>16)return true;
+ // This verified native template has 32-DIP side insets and a 1-DIP border.
+ // Read them from the realized grid rather than resize or raster-scale tiles.
+ auto grid=frame.as<c::Grid>();auto edge=content.Margin();auto inset=wrap.Margin();
+ const double horizontal=edge.Left+edge.Right+2*inset.Left;
+ const double availableWidth=(monitor.rcWork.right-monitor.rcWork.left)/scale-grid.Padding().Left-grid.Padding().Right;
+ const unsigned maximum=std::min(unsigned(nativeColumns),unsigned(std::max(1.0,std::floor((availableWidth-horizontal+0.01)/cellWidth))));
+ const unsigned rows=(count+maximum-1)/maximum;
+ // Keep the minimum row count, then remove wholly unused columns. Forty-one
+ // items occupy seven columns by six rows instead of eight by six.
+ const unsigned columns=std::min(maximum,std::max(std::min(4u,maximum),(count+rows-1)/rows));
+ SetSizing(menu,x::FrameworkElement::WidthProperty(),columns*cellWidth+horizontal);
+ SetSizing(wrap,c::ItemsWrapGrid::MaximumRowsOrColumnsProperty(),int32_t(columns));
+ SetSizing(heading,x::UIElement::VisibilityProperty(),x::Visibility::Collapsed);
+ // A zero-height pinned list still contributes a 17-DIP native margin.
+ // Leave populated pinned sections and suggestions available to the shell.
+ if(pinned.Height()==0)SetSizing(pinned,x::FrameworkElement::MarginProperty(),x::Thickness{});
+ else if(!state->sizing.empty()) {RestoreSizing();return true;}
+ auto padding=list.as<c::Control>().Padding();padding.Top=12;
+ SetSizing(list,c::Control::PaddingProperty(),padding);
+ // Complete native measurement after changing column count and header. The
+ // mutating guard prevents our synchronous layout from scheduling recursion.
+ menu.UpdateLayout();
+ const auto rootPadding=grid.Padding();
+ const auto top=content.RowDefinitions().GetAt(0).ActualHeight(),bottom=content.RowDefinitions().GetAt(2).ActualHeight();
+ const double body=rows*cellHeight+header.ActualHeight()+padding.Top+padding.Bottom+inset.Top+inset.Bottom;
+ const double desired=top+body+bottom+edge.Top+edge.Bottom+rootPadding.Top+rootPadding.Bottom;
+ // Retain the system height limit and native scrolling on small work areas.
+ const double limit=std::min(frame.MaxHeight(),(monitor.rcWork.bottom-monitor.rcWork.top)/scale-frame.Margin().Top);
+ const double height=std::min(desired,limit);
+ if(height<top+bottom+cellHeight+rootPadding.Top+rootPadding.Bottom){RestoreSizing();return true;}
+ SetSizing(enforcer,x::UIElement::VisibilityProperty(),x::Visibility::Collapsed);
+ SetSizing(frame,x::FrameworkElement::HeightProperty(),height);
+ frame.UpdateLayout();
+ state->columns=columns;state->rows=rows;state->panelWidth=menu.ActualWidth();state->panelHeight=menu.ActualHeight();
+ return true;
+}
 static void Apply() noexcept {
  if(!state || !state->active || state->mutating)return;
- state->queued=false;state->mutating=true;
+ state->queued=false;state->mutating=true;bool fitReady=true;
  try {
   auto root=state->window.Content();if(!root){state->mutating=false;return;}
   std::erase_if(state->lists,[](auto& entry){if(entry->target.get())return false;Unsubscribe(*entry);return true;});
   std::erase_if(state->wraps,[](auto const& entry){return !entry.target.get();});
   std::erase_if(state->selectors,[](auto const& entry){return !entry.target.get();});
   std::erase_if(state->zooms,[](auto const& entry){return !entry.target.get();});
+  std::erase_if(state->sizing,[](auto const& entry){return !entry.target.get();});
   // Gather controls before changing their source; no traversal over a tree
   // concurrently invalidated by replacing a virtualized ItemsSource.
   std::vector<x::DependencyObject> todo{root};
@@ -191,10 +298,12 @@ static void Apply() noexcept {
   std::vector<c::ItemsWrapGrid> wraps;
   std::vector<c::Button> selectors;
   std::vector<c::SemanticZoom> zooms;
+  std::vector<x::FrameworkElement> elements;
   unsigned visited=0;
   while(!todo.empty() && ++visited<20000) {
    auto obj=todo.back();todo.pop_back();
    if(auto fe=obj.try_as<x::FrameworkElement>()) {
+    if(!fe.Name().empty())elements.push_back(fe);
     if(fe.Name()==L"AllAppsGrid")if(auto items=fe.try_as<c::ItemsControl>())lists.push_back(items);
     if(auto wrap=fe.try_as<c::ItemsWrapGrid>())if(AllAppsAncestor(wrap))wraps.push_back(wrap);
     if(fe.Name()==L"ViewSelectionButton")if(auto b=fe.try_as<c::Button>())selectors.push_back(b);
@@ -226,9 +335,12 @@ static void Apply() noexcept {
    if(target.GroupPadding()!=x::Thickness{})target.GroupPadding({});
    if(target.AreStickyGroupHeadersEnabled())target.AreStickyGroupHeadersEnabled(false);
   }
+  if(!state->lists.empty())fitReady=FitMenu(elements,wraps);
   ++state->passes;
  }catch(...){++state->failures;}
  state->mutating=false;WriteStatus();
+ if(fitReady)state->fitRetries=0;
+ else if(state->fitRetries++<2)Schedule();
 }
 static void Schedule() {
  if(!state || !state->active || state->queued || state->mutating)return;
@@ -246,6 +358,7 @@ static void Restore() {
  if(state->ownerWait){SetThreadpoolWait(state->ownerWait,nullptr,nullptr);WaitForThreadpoolWaitCallbacks(state->ownerWait,TRUE);CloseThreadpoolWait(state->ownerWait);state->ownerWait=nullptr;}
  if(state->ownerProcess){CloseHandle(state->ownerProcess);state->ownerProcess=nullptr;}
  try{state->window.Activated(state->activated);state->window.VisibilityChanged(state->visible);}catch(...){}
+ RestoreSizing();
  for(auto& entry:state->lists) {
   Unsubscribe(*entry);
   try {if(auto target=entry->target.get()) {

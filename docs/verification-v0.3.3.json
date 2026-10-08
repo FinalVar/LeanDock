@@ -1,0 +1,77 @@
+{
+  "schema": 4,
+  "recordedAtUtc": "2026-10-08T05:48:31.8615500Z",
+  "packageVersion": "0.3.3",
+  "controllerVersion": "0.3.1",
+  "backendVersion": "0.2.2",
+  "startLayoutVersion": "0.1.1",
+  "scope": "Continuous native all-apps grid; hidden and disabled view selector; native collection contract and reversible event-driven lifecycle",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 227840,
+      "SHA256": "754898E4ABE870C62AF1A51071C4BF58AE22B6B28A3AE809F882962DFA2CCD1F"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1590272,
+      "SHA256": "449BA4DF9153253F73189C584F73DE863DEB94BA1EDC8043B51DB50A76CA0A85"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 329728,
+      "SHA256": "BAA159ED87C458AE535F17CDB13DB00CFD8FA319F1431699A0E230F1024C4FEC"
+    }
+  ],
+  "runtimeChecks": {
+    "passed": 39,
+    "failed": 0
+  },
+  "systemDllImportsOnly": true,
+  "nativeLayoutProbe": {
+    "flatGroups": 0,
+    "viewSelectorEnabled": false,
+    "viewSelectorCollapsed": true,
+    "nativeCollectionViewRetained": true,
+    "flatItems": 41,
+    "flatContentHeightDip": 639.333,
+    "originalItems": 41,
+    "viewSelectorTabStop": false,
+    "originalGroups": 30,
+    "originalContentHeightDip": 2982
+  },
+  "restoration": {
+    "originalGroupsRestored": 30,
+    "reEnablePassed": true,
+    "startPidUnchangedDuringCycle": true,
+    "selectorRestored": true
+  },
+  "liveReadiness": {
+    "dock": true,
+    "startLayoutFailures": 0,
+    "startLayout": true,
+    "hotCorners": true,
+    "startLayoutBlocked": false
+  },
+  "preservedFileHashes": 6,
+  "deploymentPayloadHashes": 3,
+  "acceptance": {
+    "scope": "Grid, view selector, native application launch, folder expansion and two or three open/close cycles",
+    "statement": "入口消失，排列、点击和反复开关都正常",
+    "status": "user-confirmed"
+  },
+  "knownRegression": {
+    "rejectedPrototype": "0.1.0",
+    "exception": "E_NOINTERFACE",
+    "causeProven": false,
+    "productionAutostartUsedRejectedPrototype": false,
+    "correction": "Use a native CollectionViewSource.View instead of bare vector; disable alternate view entry"
+  },
+  "maintenance": {
+    "warmExplorerAttachFailed": "XAML diagnostics 0x8000FFFF",
+    "recoveredWithVerifiedFreshExplorer": true,
+    "newStartCrashEventsAfterCandidate": 0
+  },
+  "previousVerification": "verification-v0.3.2.json",
+  "validationBoundary": "Validated on pinned local Start binaries. Windows login/reboot, app install/uninstall while menu is open, accessibility, multiple displays and long-term stability were not newly tested. User feedback on 0.1.0 is not acceptance of 0.1.1; final confirmation was collected after deploying 0.1.1."
+}

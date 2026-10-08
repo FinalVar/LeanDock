@@ -1,6 +1,6 @@
 # Sources and licensing
 
-LeanDock 0.3.3 (legacy NativeTaskbarDock controller 0.3.1, backend 0.2.2 and Start layout 0.1.1). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release.
+LeanDock 0.3.4 (legacy NativeTaskbarDock controller 0.3.1, backend 0.2.2 and Start layout 0.1.2). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release.
 
 Preserved GPL-3.0 upstream sources by m417z and their credited contributors:
 

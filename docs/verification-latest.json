@@ -1,11 +1,11 @@
 {
-  "schema": 4,
-  "recordedAtUtc": "2026-10-08T05:48:31.8615500Z",
-  "packageVersion": "0.3.3",
+  "schema": 5,
+  "recordedAtUtc": "2026-10-08T06:15:03.1638015Z",
+  "packageVersion": "0.3.4",
   "controllerVersion": "0.3.1",
   "backendVersion": "0.2.2",
-  "startLayoutVersion": "0.1.1",
-  "scope": "Continuous native all-apps grid; hidden and disabled view selector; native collection contract and reversible event-driven lifecycle",
+  "startLayoutVersion": "0.1.2",
+  "scope": "Fit the native Start panel to its continuous grid, balance columns, and remove unused heading and empty pinned-list margins",
   "artifacts": [
     {
       "Name": "latest.exe",
@@ -19,59 +19,85 @@
     },
     {
       "Name": "start\\latest.dll",
-      "Bytes": 329728,
-      "SHA256": "BAA159ED87C458AE535F17CDB13DB00CFD8FA319F1431699A0E230F1024C4FEC"
+      "Bytes": 393216,
+      "SHA256": "AB275AB1ABCEF101CAC88790061E3E76680B01A4ECEECACE47AAB6883E072C59"
     }
   ],
-  "runtimeChecks": {
-    "passed": 39,
-    "failed": 0
-  },
   "systemDllImportsOnly": true,
   "nativeLayoutProbe": {
-    "flatGroups": 0,
-    "viewSelectorEnabled": false,
-    "viewSelectorCollapsed": true,
-    "nativeCollectionViewRetained": true,
-    "flatItems": 41,
-    "flatContentHeightDip": 639.333,
-    "originalItems": 41,
-    "viewSelectorTabStop": false,
-    "originalGroups": 30,
-    "originalContentHeightDip": 2982
+    "items": 41,
+    "columns": 7,
+    "rows": 6,
+    "lastRowItems": 6,
+    "tileDip": [
+      96,
+      84
+    ],
+    "panelDip": [
+      738,
+      670
+    ],
+    "previousPanelDip": [
+      834,
+      866
+    ],
+    "areaReductionPercent": 31.54,
+    "headerDip": 0,
+    "allTilesWithinViewport": true,
+    "searchAndFooterWithinPanel": true,
+    "appBottomPaddingDip": 24.0,
+    "restoreGroups": 30,
+    "restoreHeightAuto": true,
+    "restorePinnedMargin": true,
+    "sameHostDuringRestoreCycle": true,
+    "hostPid": 23336
   },
-  "restoration": {
-    "originalGroupsRestored": 30,
-    "reEnablePassed": true,
-    "startPidUnchangedDuringCycle": true,
-    "selectorRestored": true
+  "restoreCycle": {
+    "heightLocalValueRestoredToAuto": true,
+    "disableConfirmed": true,
+    "nativeGroupsRestored": 30,
+    "pinnedMarginRestored": true,
+    "visibleReopenPending": true,
+    "enableConfirmed": true,
+    "sameHost": true
   },
-  "liveReadiness": {
-    "dock": true,
-    "startLayoutFailures": 0,
-    "startLayout": true,
-    "hotCorners": true,
-    "startLayoutBlocked": false
-  },
-  "preservedFileHashes": 6,
-  "deploymentPayloadHashes": 3,
+  "preservedFileHashes": [
+    {
+      "Name": "latest.exe",
+      "Match": true
+    },
+    {
+      "Name": "latest.dll",
+      "Match": true
+    },
+    {
+      "Name": "latest.ini",
+      "Match": true
+    },
+    {
+      "Name": "hotcorners\\latest.ini",
+      "Match": true
+    },
+    {
+      "Name": "include\\settings-generated.h",
+      "Match": true
+    },
+    {
+      "Name": "include\\dock-geometry-latest.h",
+      "Match": true
+    },
+    {
+      "Name": "baseline\\styles-latest.json",
+      "Match": true
+    }
+  ],
+  "newStartCrashEvents": 0,
   "acceptance": {
-    "scope": "Grid, view selector, native application launch, folder expansion and two or three open/close cycles",
-    "statement": "入口消失，排列、点击和反复开关都正常",
-    "status": "user-confirmed"
+    "initialVisualStatement": "空白明显减少，布局和点击正常",
+    "finalRepeatedOpen": "pending user feedback",
+    "initialCandidateHash": "FE091DC86DC6624C725C46AF0A9A45B5346645B4620F97AE97BE987FB870C1FA",
+    "subsequentChange": "Use native column limit instead of provisional startup MainMenu width; native geometry rechecked"
   },
-  "knownRegression": {
-    "rejectedPrototype": "0.1.0",
-    "exception": "E_NOINTERFACE",
-    "causeProven": false,
-    "productionAutostartUsedRejectedPrototype": false,
-    "correction": "Use a native CollectionViewSource.View instead of bare vector; disable alternate view entry"
-  },
-  "maintenance": {
-    "warmExplorerAttachFailed": "XAML diagnostics 0x8000FFFF",
-    "recoveredWithVerifiedFreshExplorer": true,
-    "newStartCrashEventsAfterCandidate": 0
-  },
-  "previousVerification": "verification-v0.3.2.json",
-  "validationBoundary": "Validated on pinned local Start binaries. Windows login/reboot, app install/uninstall while menu is open, accessibility, multiple displays and long-term stability were not newly tested. User feedback on 0.1.0 is not acceptance of 0.1.1; final confirmation was collected after deploying 0.1.1."
+  "previousVerification": "verification-v0.3.3.json",
+  "validationBoundary": "Final binary geometry observed in native XAML with 41 unclipped items and search/footer in bounds. Disable/re-enable protocol and restoration of native groups, auto height and margins checked in the same host. The hidden Start dispatcher defers final reflow until next visible open. User confirmation covers the initial visually equivalent sizing candidate; repeated open after the reload fix is pending. Login/reboot, dynamic installs, DPI changes, multiple displays and accessibility were not tested."
 }
