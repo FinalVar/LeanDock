@@ -96,7 +96,9 @@ def main():
             name, val = value.split("=", 1)
             constants[name] = val
     rules = []
-    for index in range(17):
+    targets = sorted(int(match.group(1)) for key in style
+                     if (match := re.fullmatch(r"controlStyles\[(\d+)\]\.target", key)))
+    for index in targets:
         target = style[f"controlStyles[{index}].target"]
         values = []
         for sub in range(100):
