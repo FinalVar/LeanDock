@@ -1,12 +1,12 @@
 {
-  "schema": 11,
-  "recordedAtUtc": "2026-10-08T13:37:16.0042689Z",
-  "packageVersion": "0.5.6",
+  "schema": 12,
+  "recordedAtUtc": "2026-10-08T14:47:35.0424156Z",
+  "packageVersion": "0.5.7",
   "controllerVersion": "0.3.3",
-  "backendVersion": "0.4.5",
+  "backendVersion": "0.4.6",
   "startLayoutVersion": "0.1.3",
   "quickPositionVersion": "0.1.1",
-  "scope": "Timing audit: Start placement, controller shutdown, event-thread lifecycle, stale media commands, coherent geometry snapshots",
+  "scope": "Pointer-origin Win+X initial focus; native anchor, input, panel placement and corner config retained",
   "artifacts": [
     {
       "Name": "latest.exe",
@@ -15,8 +15,8 @@
     },
     {
       "Name": "latest.dll",
-      "Bytes": 1778688,
-      "SHA256": "41A02422E483DEAC7FF72496E9ADA5C44CADD66669298A79D681E30DC6A1F7FD"
+      "Bytes": 1794560,
+      "SHA256": "04477ED2EF0007B086EDA31E53F3C44EE6091F846275508FB82D5109AAC175B6"
     },
     {
       "Name": "start\\latest.dll",
@@ -47,7 +47,7 @@
     },
     {
       "file": "latest.dll",
-      "bytes": 1778688,
+      "bytes": 1794560,
       "imports": [
         "ole32.dll",
         "OLEAUT32.dll",
@@ -106,33 +106,25 @@
   ],
   "systemDllImportsOnly": true,
   "regression": {
-    "cardsChecks": 47,
-    "geometryChecks": 98,
-    "positionChecks": 72,
-    "eventLifecycleChecksPerRun": 200,
-    "eventLifecycleRuns": 3,
-    "eventThreadStartStops": 150,
-    "geometryPublications": 40000,
     "runtimeChecks": 39,
-    "trayLayoutInvariants": 105780,
     "shellActionChecks": 67,
-    "hotCornerChecks": 66,
-    "hotCornerConfigChecks": 22,
+    "nativeCallerAndCallTargetChecks": 3,
     "failures": 0,
-    "productionInputSent": false
+    "productionInputSent": false,
+    "generatedSourceReproducible": true
   },
   "live": {
     "ready": true,
-    "controllerPid": 18180,
-    "explorerPid": 24944,
+    "controllerPid": 8792,
+    "explorerPid": 1512,
     "backend": {
       "protocol": 1,
-      "version": "0.4.5",
-      "explorerPid": 24944,
-      "ownerPid": 18180,
+      "version": "0.4.6",
+      "explorerPid": 1512,
+      "ownerPid": 8792,
       "state": 2,
-      "hooks": 57,
-      "styledElements": 31,
+      "hooks": 58,
+      "styledElements": 36,
       "failed": false
     },
     "quick": {
@@ -140,185 +132,91 @@
       "Active": true,
       "Blocked": false,
       "Failures": 0,
-      "Adjustments": 1
+      "Adjustments": 0
     },
     "start": {
       "version": "0.1.3",
-      "pid": 18624,
-      "ownerPid": 18180,
+      "pid": 21628,
+      "ownerPid": 8792,
       "active": true,
       "lists": 1,
       "items": 41,
       "sourceGroups": 30,
       "lockedSelectors": 1,
-      "columns": 7,
-      "rows": 6,
-      "panelWidth": 738.0,
-      "panelHeight": 670.0,
-      "passes": 2,
+      "columns": 0,
+      "rows": 0,
+      "panelWidth": 0.0,
+      "panelHeight": 0.0,
+      "passes": 3,
       "failures": 0,
       "watchMode": "events"
     },
-    "runtime": {
-      "version": "0.3.3",
-      "controllerPid": 18180,
-      "explorerPid": 24944,
-      "state": 2,
-      "attempts": 4,
-      "watchMode": "events",
-      "hotCornersReady": true,
-      "dockSupported": true,
-      "elevated": true,
-      "panelAnchoring": true,
-      "panelMoves": [
-        0,
-        1
-      ],
-      "panelFailures": 0,
-      "startLayoutSupported": true,
-      "startLayoutActive": true,
-      "startLayoutBlocked": false,
-      "startLayoutFailures": 0,
-      "error": "",
-      "quickPositionSupported": true,
-      "quickPositionActive": true,
-      "quickPositionBlocked": false,
-      "quickPositionFailures": 0,
-      "quickPositionAdjustments": 1,
-      "quickPositionWindow": 5177822
-    },
-    "cards": {
-      "At": "2026-10-08T21:37:15.974286+08:00",
-      "Hwnd": 3999064,
-      "Ready": 1,
-      "Visible": 0,
-      "Sampling": 0,
-      "Samples": 10,
-      "Cpu": null,
-      "Memory": 76,
-      "Media": 0,
-      "View": 0,
-      "Errors": 0,
-      "Commands": 0,
-      "Left100": 84433,
-      "Top100": 800,
-      "Right100": 100433,
-      "Bottom100": 5200,
-      "AppRight100": 82333,
-      "RootRight100": 107933,
-      "Fits": 1,
-      "ControlsLeft100": null,
-      "ControlsRight100": null,
-      "ControlsTop100": null,
-      "ControlsBottom100": null,
-      "TitleLeft100": null,
-      "TitleRight100": null,
-      "ButtonWidth100": null,
-      "PowerReady": 1,
-      "BatteryPercent": 100,
-      "Charging": 0,
-      "Plugged": 1,
-      "PowerLeft100": 101233,
-      "PowerRight100": 106433,
-      "PowerTop100": 800,
-      "PowerBottom100": 5200
+    "menuFocus": {
+      "At": "2026-10-08T22:47:35.0098246+08:00",
+      "Hwnd": 5965474,
+      "NativeAnchor": 1,
+      "Error": 0,
+      "AnchorX100": 49867,
+      "AnchorY100": -800,
+      "FocusArmed": 1,
+      "FocusBefore": 2,
+      "FocusAfter": 1,
+      "PointerFocus": 1,
+      "FocusError": 0,
+      "FocusOpened": 2,
+      "FocusGot": 2,
+      "FocusItemCount": 20
     }
-  },
-  "observation": {
-    "At": "2026-10-08T21:35:20.401076+08:00",
-    "Seconds": 45,
-    "ReadOnly": true,
-    "Samples": [
-      {
-        "Ms": 27,
-        "Window": 5177822,
-        "Pid": 27824,
-        "Visible": false,
-        "Rect": {
-          "Left": 1984,
-          "Top": 0,
-          "Right": 2560,
-          "Bottom": 1504
-        },
-        "Active": 1,
-        "Adjustments": 0
-      },
-      {
-        "Ms": 5975,
-        "Window": 5177822,
-        "Pid": 27824,
-        "Visible": true,
-        "Rect": {
-          "Left": 1177,
-          "Top": 6,
-          "Right": 1753,
-          "Bottom": 1510
-        },
-        "Active": 1,
-        "Adjustments": 1
-      },
-      {
-        "Ms": 6566,
-        "Window": 5177822,
-        "Pid": 27824,
-        "Visible": false,
-        "Rect": {
-          "Left": 1177,
-          "Top": 6,
-          "Right": 1753,
-          "Bottom": 1510
-        },
-        "Active": 1,
-        "Adjustments": 1
-      }
-    ]
   },
   "acceptance": {
-    "newStartRepeatedOpeningAndClick": "pending-user",
-    "newQuickRepeatedOpeningAndClick": "pending-user",
-    "smartHide": "pending-user",
-    "oneQuickOpenCloseObserved": true,
-    "observationLimit": "Read-only sampling saw one visible target placement, not frame-by-frame visual or click acceptance",
-    "mediaSessionSwitch": "automated stale-command regression only, no live player test",
-    "priorWinX": {
-      "version": "0.5.4",
-      "userQuote": "位置稳定、不闪跳，设置能打开",
-      "newlyRetested": false
-    }
+    "status": "outline-user-confirmed",
+    "userQuote": "没有了",
+    "mouseInitialFocus": "passed",
+    "mouseHoverAndSettingsClick": "not newly confirmed for this candidate",
+    "keyboardWinXNavigation": "not newly confirmed for this candidate",
+    "positionNoFlash": "Native anchor retained; not newly claimed before explicit UI feedback"
+  },
+  "firstCandidate": {
+    "backendHash": "06C21556B082E02F3942630B84D9E558D33535A8A9DB026F10CD304075AF0F48",
+    "userQuote": "第一项仍像被选中",
+    "accepted": false,
+    "diagnostic": "Native opening matched, but placement-root focus lookup did not identify a focused menu item",
+    "replacement": "Read native menu items directly and subscribe once to first-item GotFocus before ShowAt"
+  },
+  "secondCandidate": {
+    "backendHash": "18C31F1F8EAA65E2D4FE8E3DC4114BB3242758F67635360AFC254C4CDC9DF66C",
+    "userQuote": "第一项仍像被选中",
+    "accepted": false,
+    "diagnostic": "Opened and GotFocus occurred while inspected item was Unfocused; no pointer focus was applied",
+    "replacement": "Finish only when actual item focus is corrected or gesture expires, not merely on first event"
+  },
+  "previousTimingAcceptance": {
+    "version": "0.5.6",
+    "userQuote": "都正常",
+    "record": "verification-v0.5.6.json",
+    "scope": "Repeated Start and Quick Settings opening, item activation and maximized smart hide"
   },
   "computerUse": {
-    "dockOrPanelReturned": false,
-    "automatedInputSent": false,
-    "observedApps": [
-      "ChatGPT",
-      "Edge"
-    ],
-    "reason": "No targetable Dock, Start or Quick Settings window returned"
+    "attempted": true,
+    "targetMenuReturned": false,
+    "inputSent": false,
+    "result": "System menu absent from targetable windows; UI acceptance requested from user"
   },
   "protected": {
-    "hotCornerSourceAndConfig": true,
-    "nativeWinXAnchor": true,
-    "nativeBatteryPointerMapping": true,
-    "noExtraProcessOrPolling": true
-  },
-  "hostReplacement": {
-    "host": "ShellHost.exe",
-    "startedAtLocal": "2026-10-08T21:22:30+08:00",
-    "oldRuntimeProtectivelyBlocked": true,
-    "application1000or1001ErrorFound": false,
-    "exitCause": "not established",
-    "protectionRetained": true
+    "controllerBinaryAndConfig": true,
+    "hotCornerBinaryAndConfig": true,
+    "startAndQuickBinaries": true,
+    "nativeMenuAnchor": true,
+    "noNewProcessOrPolling": true
   },
   "review": {
-    "maintainability": "Shared placement calculation; upstream adaptations remain in generator; lifecycle helpers directly tested",
-    "boundaries": "Odd/in-progress geometry, pending stop before message queue, stale media completion, disabled placement, target ownership",
-    "regressionRisk": "Native input path and dimensions retained; all changed binaries built and path/hash verified; visible acceptance tracked separately"
+    "maintainability": "Generator and source fragment synchronized; one additional pinned hook with three read-only call-site symbols",
+    "boundaries": "Exact menu and caller, XamlRoot, gesture age, focus item, weak references, stop cleanup",
+    "regressionRisk": "Only Explorer backend replaced; keyboard navigation and click acceptance tracked separately"
   },
   "boundaries": [
-    "Pinned local Windows components only",
-    "Cold-host first frame, real multi-monitor and DPI transitions, sleep and login not exercised",
-    "No real-player delayed command test",
-    "Concurrent hot-corner changes preserved and excluded from this commit",
-    "No claim that code audit eliminates every possible timing issue"
+    "Pinned current Windows binaries only",
+    "No independent frame-by-frame visual proof",
+    "Multi-monitor, assistive technology, sleep/login and new system builds not exercised"
   ]
 }

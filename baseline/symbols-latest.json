@@ -38,5 +38,10 @@
     "Mod": "LeanDock native XAML menu anchor",
     "Key": "pdb_24534974E00E46A58F69F60D0CEB9BD91",
     "Value": "1#taskbar.view.dll#1789085818-10055680#struct winrt::fire_and_forget __cdecl winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync(struct winrt::Windows::UI::Xaml::FrameworkElement,struct winrt::WindowsUdk::UI::Shell::TaskbarModel,struct winrt::Taskbar::TaskbarFrame,struct winrt::com_ptr<struct winrt::Taskbar::implementation::ViewCoordinator>)#8124788"
+  },
+  {
+    "Mod": "LeanDock pointer menu focus",
+    "Key": "pdb_24534974E00E46A58F69F60D0CEB9BD91",
+    "Value": "1#taskbar.view.dll#1789085818-10055680#winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync$_ResumeCoro$1#8118960#`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`63'::<lambda_7>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>#8106040#`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`68'::<lambda_8>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>#8106704#public: __cdecl winrt::impl::consume_Windows_UI_Xaml_Controls_Primitives_IFlyoutBase5<struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutBase>::ShowAt(struct winrt::Windows::UI::Xaml::DependencyObject const &,struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutShowOptions const &)const#2962068"
   }
 ]

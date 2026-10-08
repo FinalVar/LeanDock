@@ -5,7 +5,97 @@
 // the original function still consumes/releases all four arguments.
 using LeanDockNativeMenu=unsigned char(WINAPI*)(FrameworkElement*,void*,void*,void*);
 LeanDockNativeMenu g_nativeDockMenu;
+using LeanDockFlyoutShow=void(WINAPI*)(Controls::Primitives::FlyoutBase*,const DependencyObject*,const Controls::Primitives::FlyoutShowOptions*);
+LeanDockFlyoutShow g_nativeFlyoutShow;
+void (*g_nativeMenuResume)();
+void (*g_nativeMenuShowLeft)();
+void (*g_nativeMenuShowRight)();
+
+// The ShowAt wrapper is shared by other flyouts. Match the native Win+X call
+// sites from this pinned module's PDB as well as the one-use mouse gesture.
+// Merely opening another MenuFlyout must never change its keyboard focus.
+bool IsLeanDockMenuCaller(void* caller) {
+    DWORD64 base=0;
+    auto entry=RtlLookupFunctionEntry(reinterpret_cast<DWORD64>(caller),&base,nullptr);
+    if(!entry)return false;
+    const auto start=base+entry->BeginAddress;
+    return (g_nativeMenuResume&&start==reinterpret_cast<DWORD64>(g_nativeMenuResume))||
+        (g_nativeMenuShowLeft&&start==reinterpret_cast<DWORD64>(g_nativeMenuShowLeft))||
+        (g_nativeMenuShowRight&&start==reinterpret_cast<DWORD64>(g_nativeMenuShowRight));
+}
+void ClearLeanDockMenuFocus(ClickThroughTaskbarState& state) noexcept {
+    state.menuPointerAt=0;
+    try{if(auto flyout=state.menuFocusFlyout.get();flyout&&state.menuFocusOpened.value)flyout.Opened(state.menuFocusOpened);}catch(...){}
+    try{if(auto item=state.menuFocusItem.get();item&&state.menuFocusGot.value)item.GotFocus(state.menuFocusGot);}catch(...){}
+    state.menuFocusFlyout={};state.menuFocusOpened={};
+    state.menuFocusItem={};state.menuFocusGot={};
+}
+bool SetLeanDockPointerFocus(Controls::Control const& item,HWND taskbar,ULONGLONG requested) noexcept {
+    try{
+        if(!item||!LeanDockMenu::Fresh({taskbar,{},requested},GetTickCount64())||
+           !LeanDockShell::IsTaskbar(taskbar,GetCurrentProcessId())||item.FocusState()==FocusState::Unfocused)return false;
+        LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusBefore",static_cast<ULONG_PTR>(item.FocusState()));
+        if(item.FocusState()==FocusState::Keyboard||item.FocusState()==FocusState::Programmatic){
+            const bool changed=item.Focus(FocusState::Pointer);
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.PointerFocus",changed&&item.FocusState()==FocusState::Pointer);
+        }
+        LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusAfter",static_cast<ULONG_PTR>(item.FocusState()));
+        return item.FocusState()==FocusState::Pointer;
+    }catch(...){LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusError",static_cast<ULONG_PTR>(winrt::to_hresult()));}
+    return false;
+}
+void WINAPI ShowLeanDockFlyout(Controls::Primitives::FlyoutBase* value,const DependencyObject* target,const Controls::Primitives::FlyoutShowOptions* options) {
+    if(value&&target&&IsLeanDockMenuCaller(__builtin_return_address(0)))try {
+        auto menu=value->try_as<Controls::MenuFlyout>();
+        auto element=target->try_as<FrameworkElement>();
+        if(menu&&element)for(auto& state:g_clickThroughTaskbarState){
+            auto frame=state.taskbarFrame.get();
+            if(state.cardsClosing||!state.menuPointerAt||!frame||!state.islandHwnd||
+               frame.XamlRoot()!=element.XamlRoot())continue;
+            const HWND taskbar=GetAncestor(state.islandHwnd,GA_ROOT);
+            const auto requested=state.menuPointerAt;
+            ClearLeanDockMenuFocus(state); // consume before calling into XAML
+            if(!LeanDockMenu::Fresh({taskbar,{},requested},GetTickCount64()))break;
+            auto weak=winrt::make_weak(menu);
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusItemCount",menu.Items().Size());
+            for(auto const& item:menu.Items()){
+                auto control=item.try_as<Controls::Control>();
+                if(!control||!control.IsEnabled()||control.Visibility()!=Visibility::Visible)continue;
+                auto weakItem=winrt::make_weak(control);
+                auto focusToken=std::make_shared<winrt::event_token>();
+                *focusToken=control.GotFocus([weakItem,focusToken,taskbar,requested](auto const&,auto const&) noexcept {
+                    try{if(auto item=weakItem.get()){
+                        LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusGot",reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Menu.FocusGot")));
+                        if(!LeanDockMenu::Fresh({taskbar,{},requested},GetTickCount64())||
+                           SetLeanDockPointerFocus(item,taskbar,requested))item.GotFocus(*focusToken);
+                    }}catch(...){}
+                });
+                state.menuFocusItem=weakItem;state.menuFocusGot=*focusToken;
+                break;
+            }
+            auto token=std::make_shared<winrt::event_token>();
+            *token=menu.Opened([weak,token,taskbar,requested](auto const&,auto const&) noexcept {
+                try{
+                    auto flyout=weak.get();if(!flyout)return;
+                    LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusOpened",reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Menu.FocusOpened")));
+                    if(!LeanDockMenu::Fresh({taskbar,{},requested},GetTickCount64())){flyout.Opened(*token);return;}
+                    // A windowed popup can have a distinct focus scope from
+                    // the placement target. Inspect its own items directly.
+                    for(auto const& item:flyout.Items())if(auto control=item.try_as<Controls::Control>();control&&control.FocusState()!=FocusState::Unfocused){
+                        if(SetLeanDockPointerFocus(control,taskbar,requested))flyout.Opened(*token);
+                        break;
+                    }
+                }catch(...){LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusError",static_cast<ULONG_PTR>(winrt::to_hresult()));}
+            });
+            state.menuFocusFlyout=weak;state.menuFocusOpened=*token;
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusArmed",1);
+            break;
+        }
+    }catch(...){Wh_Log(L"LeanDock pointer menu focus unavailable: %08X",winrt::to_hresult());}
+    g_nativeFlyoutShow(value,target,options);
+}
 unsigned char WINAPI ShowLeanDockNativeMenu(FrameworkElement* source,void* model,void* frameArg,void* coordinator) {
+    for(auto& state:g_clickThroughTaskbarState)ClearLeanDockMenuFocus(state);
     LeanDockMenu::Gesture gesture;
     if(source&&LeanDockMenu::Take(gesture))try {
         for(auto& state:g_clickThroughTaskbarState){
@@ -30,6 +120,7 @@ unsigned char WINAPI ShowLeanDockNativeMenu(FrameworkElement* source,void* model
             }
             Media::TranslateTransform offset;offset.X(local.X);offset.Y(local.Y);anchor.RenderTransform(offset);anchor.UpdateLayout();
             *source=anchor; // native coroutine now owns the correct XAML anchor
+            state.menuPointerAt=gesture.at;
             LeanDockMenu::Put(gesture.taskbar,L"LeanDock.Menu.NativeAnchor",1);
             LeanDockMenu::Put(gesture.taskbar,L"LeanDock.Menu.AnchorX100",std::lround(local.X*100));
             LeanDockMenu::Put(gesture.taskbar,L"LeanDock.Menu.AnchorY100",std::lround(local.Y*100));
@@ -45,6 +136,13 @@ void InstallLeanDockMenuHook() {
         &g_nativeDockMenu,ShowLeanDockNativeMenu
     }};
     WindhawkUtils::HookSymbols(module,hooks,ARRAYSIZE(hooks));
+    const WindhawkUtils::SYMBOL_HOOK focusHooks[]={
+        {{LR"(winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync$_ResumeCoro$1)"},&g_nativeMenuResume,nullptr,true},
+        {{LR"(`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`63'::<lambda_7>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>)"},&g_nativeMenuShowLeft,nullptr,true},
+        {{LR"(`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`68'::<lambda_8>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>)"},&g_nativeMenuShowRight,nullptr,true},
+        {{LR"(public: __cdecl winrt::impl::consume_Windows_UI_Xaml_Controls_Primitives_IFlyoutBase5<struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutBase>::ShowAt(struct winrt::Windows::UI::Xaml::DependencyObject const &,struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutShowOptions const &)const)"},&g_nativeFlyoutShow,ShowLeanDockFlyout,true}
+    };
+    WindhawkUtils::HookSymbols(module,focusHooks,ARRAYSIZE(focusHooks));
 }
 
 // The material uses the existing backdrop composition brush. This hairline
@@ -81,6 +179,7 @@ void UpdateLeanDockDivider(ClickThroughTaskbarState& state) try {
 } catch(...) { Wh_Log(L"LeanDock divider waiting for a stable visual tree"); }
 void ClearLeanDockDivider(ClickThroughTaskbarState& state) {
     LeanDockMenu::Cancel();
+    ClearLeanDockMenuFocus(state);
     auto anchor=state.menuAnchor.get();auto anchorParent=state.menuAnchorParent.get();
     if(anchor&&anchorParent){uint32_t index=0;if(anchorParent.Children().IndexOf(anchor,index))anchorParent.Children().RemoveAt(index);}
     state.menuAnchor={};state.menuAnchorParent={};

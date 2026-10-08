@@ -117,6 +117,7 @@ def main():
         source = read(ROOT / "upstream" / (name + ".cpp"))
         source = source[source.index("#include"):]
         if name == "styler":
+            source = source.replace("#include <winrt/Windows.UI.Xaml.h>", "#include <winrt/Windows.UI.Xaml.h>\n#include <winrt/Windows.UI.Xaml.Controls.Primitives.h>\n#include <winrt/Windows.UI.Xaml.Input.h>", 1)
             a = source.index("const Theme g_themeTranslucentTaskbar")
             b = source.index("// An InstanceHandle", a)
             # Retain non-theme declarations immediately before the visual-tree section.
@@ -147,6 +148,11 @@ def main():
             source = replace_once(source, "struct ClickThroughTaskbarState {", """struct ClickThroughTaskbarState {
     winrt::weak_ref<Controls::Button> menuAnchor;
     winrt::weak_ref<Controls::Grid> menuAnchorParent;
+    winrt::weak_ref<Controls::MenuFlyout> menuFocusFlyout;
+    winrt::event_token menuFocusOpened{};
+    winrt::weak_ref<Controls::Control> menuFocusItem;
+    winrt::event_token menuFocusGot{};
+    ULONGLONG menuPointerAt{};
     winrt::weak_ref<Shapes::Rectangle> divider;
     winrt::weak_ref<Controls::Grid> dividerParent;
     std::shared_ptr<LeanDockCards::Host> cards;

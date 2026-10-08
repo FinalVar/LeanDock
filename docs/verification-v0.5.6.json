@@ -1,0 +1,327 @@
+{
+  "schema": 11,
+  "recordedAtUtc": "2026-10-08T13:37:16.0042689Z",
+  "packageVersion": "0.5.6",
+  "controllerVersion": "0.3.3",
+  "backendVersion": "0.4.5",
+  "startLayoutVersion": "0.1.3",
+  "quickPositionVersion": "0.1.1",
+  "scope": "Timing audit: Start placement, controller shutdown, event-thread lifecycle, stale media commands, coherent geometry snapshots",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 229888,
+      "SHA256": "AF52D5F80D84609F069607496C91C1AA50BF0F1F5772F373651CB554C2C31FDF"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1778688,
+      "SHA256": "41A02422E483DEAC7FF72496E9ADA5C44CADD66669298A79D681E30DC6A1F7FD"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 197120,
+      "SHA256": "5D16A9E16FBB784ACD538F9BFBC775EDF375E06676A03F03182A3A38D5470A5C"
+    }
+  ],
+  "imports": [
+    {
+      "file": "latest.exe",
+      "bytes": 229888,
+      "imports": [
+        "SHELL32.dll",
+        "bcrypt.dll",
+        "dwmapi.dll",
+        "WTSAPI32.dll",
+        "ADVAPI32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": []
+    },
+    {
+      "file": "latest.dll",
+      "bytes": 1778688,
+      "imports": [
+        "ole32.dll",
+        "OLEAUT32.dll",
+        "api-ms-win-core-winrt-error-l1-1-0.dll",
+        "api-ms-win-core-winrt-l1-1-0.dll",
+        "api-ms-win-core-winrt-error-l1-1-1.dll",
+        "VERSION.dll",
+        "SHLWAPI.dll",
+        "COMCTL32.dll",
+        "SHELL32.dll",
+        "dwmapi.dll",
+        "SHCORE.dll",
+        "GDI32.dll",
+        "msvcrt.dll",
+        "ADVAPI32.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "DllCanUnloadNow",
+        "DllGetClassObject",
+        "NativeDock_Start"
+      ]
+    },
+    {
+      "file": "start\\latest.dll",
+      "bytes": 396288,
+      "imports": [
+        "ole32.dll",
+        "OLEAUT32.dll",
+        "api-ms-win-core-winrt-l1-1-0.dll",
+        "api-ms-win-core-winrt-error-l1-1-1.dll",
+        "api-ms-win-core-winrt-error-l1-1-0.dll",
+        "COMCTL32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "LeanDockStartHook"
+      ]
+    },
+    {
+      "file": "panels\\latest.dll",
+      "bytes": 197120,
+      "imports": [
+        "COMCTL32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "LeanDockQuickHook"
+      ]
+    }
+  ],
+  "systemDllImportsOnly": true,
+  "regression": {
+    "cardsChecks": 47,
+    "geometryChecks": 98,
+    "positionChecks": 72,
+    "eventLifecycleChecksPerRun": 200,
+    "eventLifecycleRuns": 3,
+    "eventThreadStartStops": 150,
+    "geometryPublications": 40000,
+    "runtimeChecks": 39,
+    "trayLayoutInvariants": 105780,
+    "shellActionChecks": 67,
+    "hotCornerChecks": 66,
+    "hotCornerConfigChecks": 22,
+    "failures": 0,
+    "productionInputSent": false
+  },
+  "live": {
+    "ready": true,
+    "controllerPid": 18180,
+    "explorerPid": 24944,
+    "backend": {
+      "protocol": 1,
+      "version": "0.4.5",
+      "explorerPid": 24944,
+      "ownerPid": 18180,
+      "state": 2,
+      "hooks": 57,
+      "styledElements": 31,
+      "failed": false
+    },
+    "quick": {
+      "Supported": true,
+      "Active": true,
+      "Blocked": false,
+      "Failures": 0,
+      "Adjustments": 9
+    },
+    "start": {
+      "version": "0.1.3",
+      "pid": 18624,
+      "ownerPid": 18180,
+      "active": true,
+      "lists": 1,
+      "items": 41,
+      "sourceGroups": 30,
+      "lockedSelectors": 1,
+      "columns": 7,
+      "rows": 6,
+      "panelWidth": 738.0,
+      "panelHeight": 670.0,
+      "passes": 6,
+      "failures": 0,
+      "watchMode": "events"
+    },
+    "runtime": {
+      "version": "0.3.3",
+      "controllerPid": 18180,
+      "explorerPid": 24944,
+      "state": 2,
+      "attempts": 4,
+      "watchMode": "events",
+      "hotCornersReady": true,
+      "dockSupported": true,
+      "elevated": true,
+      "panelAnchoring": true,
+      "panelMoves": [
+        0,
+        9
+      ],
+      "panelFailures": 0,
+      "startLayoutSupported": true,
+      "startLayoutActive": true,
+      "startLayoutBlocked": false,
+      "startLayoutFailures": 0,
+      "error": "",
+      "quickPositionSupported": true,
+      "quickPositionActive": true,
+      "quickPositionBlocked": false,
+      "quickPositionFailures": 0,
+      "quickPositionAdjustments": 9,
+      "quickPositionWindow": 5177822
+    },
+    "cards": {
+      "At": "2026-10-08T21:37:15.974286+08:00",
+      "Hwnd": 3999064,
+      "Ready": 1,
+      "Visible": 0,
+      "Sampling": 0,
+      "Samples": 10,
+      "Cpu": null,
+      "Memory": 76,
+      "Media": 0,
+      "View": 0,
+      "Errors": 0,
+      "Commands": 0,
+      "Left100": 84433,
+      "Top100": 800,
+      "Right100": 100433,
+      "Bottom100": 5200,
+      "AppRight100": 82333,
+      "RootRight100": 107933,
+      "Fits": 1,
+      "ControlsLeft100": null,
+      "ControlsRight100": null,
+      "ControlsTop100": null,
+      "ControlsBottom100": null,
+      "TitleLeft100": null,
+      "TitleRight100": null,
+      "ButtonWidth100": null,
+      "PowerReady": 1,
+      "BatteryPercent": 100,
+      "Charging": 0,
+      "Plugged": 1,
+      "PowerLeft100": 101233,
+      "PowerRight100": 106433,
+      "PowerTop100": 800,
+      "PowerBottom100": 5200
+    }
+  },
+  "observation": {
+    "At": "2026-10-08T21:35:20.401076+08:00",
+    "Seconds": 45,
+    "ReadOnly": true,
+    "Samples": [
+      {
+        "Ms": 27,
+        "Window": 5177822,
+        "Pid": 27824,
+        "Visible": false,
+        "Rect": {
+          "Left": 1984,
+          "Top": 0,
+          "Right": 2560,
+          "Bottom": 1504
+        },
+        "Active": 1,
+        "Adjustments": 0
+      },
+      {
+        "Ms": 5975,
+        "Window": 5177822,
+        "Pid": 27824,
+        "Visible": true,
+        "Rect": {
+          "Left": 1177,
+          "Top": 6,
+          "Right": 1753,
+          "Bottom": 1510
+        },
+        "Active": 1,
+        "Adjustments": 1
+      },
+      {
+        "Ms": 6566,
+        "Window": 5177822,
+        "Pid": 27824,
+        "Visible": false,
+        "Rect": {
+          "Left": 1177,
+          "Top": 6,
+          "Right": 1753,
+          "Bottom": 1510
+        },
+        "Active": 1,
+        "Adjustments": 1
+      }
+    ]
+  },
+  "acceptance": {
+    "newStartRepeatedOpeningAndClick": "user-confirmed",
+    "newQuickRepeatedOpeningAndClick": "user-confirmed",
+    "smartHide": "user-confirmed",
+    "oneQuickOpenCloseObserved": true,
+    "observationLimit": "Read-only sampling saw one visible target placement, not frame-by-frame visual or click acceptance",
+    "mediaSessionSwitch": "automated stale-command regression only, no live player test",
+    "priorWinX": {
+      "version": "0.5.4",
+      "userQuote": "位置稳定、不闪跳，设置能打开",
+      "newlyRetested": false
+    },
+    "userQuote": "都正常",
+    "confirmedAt": "2026-10-08T21:39:12.4664034+08:00",
+    "scopeNote": "Combined repeated-open/close, item click and maximized-hide check passed; exact app or settings item not separately identified"
+  },
+  "computerUse": {
+    "dockOrPanelReturned": false,
+    "automatedInputSent": false,
+    "observedApps": [
+      "ChatGPT",
+      "Edge"
+    ],
+    "reason": "No targetable Dock, Start or Quick Settings window returned"
+  },
+  "protected": {
+    "hotCornerSourceAndConfig": true,
+    "nativeWinXAnchor": true,
+    "nativeBatteryPointerMapping": true,
+    "noExtraProcessOrPolling": true
+  },
+  "hostReplacement": {
+    "host": "ShellHost.exe",
+    "startedAtLocal": "2026-10-08T21:22:30+08:00",
+    "oldRuntimeProtectivelyBlocked": true,
+    "application1000or1001ErrorFound": false,
+    "exitCause": "not established",
+    "protectionRetained": true
+  },
+  "review": {
+    "maintainability": "Shared placement calculation; upstream adaptations remain in generator; lifecycle helpers directly tested",
+    "boundaries": "Odd/in-progress geometry, pending stop before message queue, stale media completion, disabled placement, target ownership",
+    "regressionRisk": "Native input path and dimensions retained; all changed binaries built and path/hash verified; visible acceptance tracked separately"
+  },
+  "boundaries": [
+    "Pinned local Windows components only",
+    "Cold-host first frame, real multi-monitor and DPI transitions, sleep and login not exercised",
+    "No real-player delayed command test",
+    "Concurrent hot-corner changes preserved and excluded from this commit",
+    "No claim that code audit eliminates every possible timing issue"
+  ]
+}

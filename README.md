@@ -2,7 +2,7 @@
 
 面向 Windows 11 的精简原生任务栏定制：悬浮 Dock、连续双排托盘、智能隐藏与触发角。
 
-当前是 **0.5.6 私有开发版本**，从已部署的 NativeTaskbarDock 整理而来。它直接调整 Windows 原生任务栏，保留原生应用按钮、通知图标与快速设置入口。当前构建只支持已核验的一组 Windows 系统组件，尚不是面向所有 Windows 11 版本的通用安装包。菜单位置与原生电池命中更新的实际验收状态见 docs/verification-latest.json，不能仅凭组件就绪判断点击成功。
+当前是 **0.5.7 私有开发版本**，从已部署的 NativeTaskbarDock 整理而来。它直接调整 Windows 原生任务栏，保留原生应用按钮、通知图标与快速设置入口。当前构建只支持已核验的一组 Windows 系统组件，尚不是面向所有 Windows 11 版本的通用安装包。菜单位置与原生电池命中更新的实际验收状态见 docs/verification-latest.json，不能仅凭组件就绪判断点击成功。
 
 ## 功能
 
@@ -119,3 +119,5 @@ python .\tests\imports-latest.py
 使用 GPL-3.0，保留 Windhawk Mod 原作者及贡献者信息；MinHook 保留自身许可证。任务栏样式和行为来自保留的上游源码及本地适配，触发角复用本项目原有 Win32 实现。NextKDE 提供布局参考；当前没有运行或复制 KDE 的任务栏组件。详见 `NOTICE.md`、`LICENSE.txt` 及第三方目录中的声明。
 
 0.5.6 补齐智能隐藏线程的停止通知、旧计时器清理与刷新代次，并用带版本的快照共享 Dock 边界。具体范围、压力回归与尚未覆盖的真实场景见 docs/timing-latest.md。
+
+0.5.7 调整鼠标右键打开系统工具菜单时的初始焦点，避免沿用 Win+X 的键盘焦点外观；手动 Win+X 和后续方向键继续原生处理。实现范围和验收边界见 docs/menu-focus-latest.md。

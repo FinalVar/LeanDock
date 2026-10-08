@@ -30,7 +30,7 @@ inline bool Request(HWND taskbar) {
     if(previous&&GetTickCount64()-previous<200)return true;
     Gesture next{taskbar,{},GetTickCount64()};if(!GetCursorPos(&next.click))return false;
     {std::lock_guard lock(gestureMutex);gesture=next;}
-    for(auto key:{L"LeanDock.Menu.NativeAnchor",L"LeanDock.Menu.Error"})Put(taskbar,key,0);
+    for(auto key:{L"LeanDock.Menu.NativeAnchor",L"LeanDock.Menu.Error",L"LeanDock.Menu.FocusArmed",L"LeanDock.Menu.PointerFocus",L"LeanDock.Menu.FocusBefore",L"LeanDock.Menu.FocusAfter",L"LeanDock.Menu.FocusError",L"LeanDock.Menu.FocusOpened",L"LeanDock.Menu.FocusGot",L"LeanDock.Menu.FocusItemCount"})Put(taskbar,key,0);
     if(LeanDockShell::Request(taskbar,LeanDockShell::Action::PowerUser))return true;
     Cancel();return false;
 }

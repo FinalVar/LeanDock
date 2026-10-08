@@ -15,6 +15,8 @@
 #undef GetCurrentTime
 
 #include <winrt/Windows.UI.Xaml.h>
+#include <winrt/Windows.UI.Xaml.Controls.Primitives.h>
+#include <winrt/Windows.UI.Xaml.Input.h>
 
 struct ThemeTargetStyles {
     PCWSTR target;
@@ -1476,6 +1478,11 @@ thread_local winrt::event_token g_colorValuesChangedToken;
 struct ClickThroughTaskbarState {
     winrt::weak_ref<Controls::Button> menuAnchor;
     winrt::weak_ref<Controls::Grid> menuAnchorParent;
+    winrt::weak_ref<Controls::MenuFlyout> menuFocusFlyout;
+    winrt::event_token menuFocusOpened{};
+    winrt::weak_ref<Controls::Control> menuFocusItem;
+    winrt::event_token menuFocusGot{};
+    ULONGLONG menuPointerAt{};
     winrt::weak_ref<Shapes::Rectangle> divider;
     winrt::weak_ref<Controls::Grid> dividerParent;
     std::shared_ptr<LeanDockCards::Host> cards;

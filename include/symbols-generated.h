@@ -46,6 +46,8 @@ static const NativeSymbol NativeSymbols[] = {
     {L"taskbar.dll", L"static  ShellIconLoaderV2::LoadAsyncIcon$_ResumeCoro$1()", 661184u},
     {L"taskbar.dll", L"void __cdecl IconUtils::GetIconSize(bool,enum IconUtils::IconType,struct tagSIZE *)", 188924u},
     {L"taskbar.view.dll", L"__real@4048000000000000", 8528056u},
+    {L"taskbar.view.dll", L"`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`63'::<lambda_7>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>", 8106040u},
+    {L"taskbar.view.dll", L"`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`68'::<lambda_8>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>", 8106704u},
     {L"taskbar.view.dll", L"private: void __cdecl winrt::Microsoft::Windows::Taskbar::implementation::TaskbarComponentHost::UpdateDefaultWidth(void)", 8089920u},
     {L"taskbar.view.dll", L"private: void __cdecl winrt::Taskbar::implementation::TaskListButton::CreateMultiWindowClip(void)", 3070608u},
     {L"taskbar.view.dll", L"private: void __cdecl winrt::Taskbar::implementation::TaskListButton::UpdateBadge(void)", 210496u},
@@ -58,6 +60,7 @@ static const NativeSymbol NativeSymbols[] = {
     {L"taskbar.view.dll", L"protected: virtual void __cdecl winrt::Taskbar::implementation::ExperienceToggleButton::UpdateButtonPadding(void)", 3032960u},
     {L"taskbar.view.dll", L"public: __cdecl winrt::impl::consume_WindowsUdk_UI_Shell_ITaskbarSettings<struct winrt::WindowsUdk::UI::Shell::ITaskbarSettings>::Size(void)const ", 284616u},
     {L"taskbar.view.dll", L"public: __cdecl winrt::impl::consume_Windows_Foundation_Collections_IMap<struct winrt::Windows::UI::Xaml::ResourceDictionary,struct winrt::Windows::Foundation::IInspectable,struct winrt::Windows::Foundation::IInspectable>::Lookup(struct winrt::Windows::Foundation::IInspectable const &)const ", 975292u},
+    {L"taskbar.view.dll", L"public: __cdecl winrt::impl::consume_Windows_UI_Xaml_Controls_Primitives_IFlyoutBase5<struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutBase>::ShowAt(struct winrt::Windows::UI::Xaml::DependencyObject const &,struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutShowOptions const &)const", 2962068u},
     {L"taskbar.view.dll", L"public: __cdecl winrt::impl::consume_Windows_UI_Xaml_IFrameworkElement<struct winrt::Microsoft::UI::Xaml::Controls::ProgressBar>::Width(double)const ", 497528u},
     {L"taskbar.view.dll", L"public: __cdecl winrt::impl::consume_Windows_UI_Xaml_IFrameworkElement<struct winrt::Taskbar::implementation::TaskbarFrame>::Height(double)const ", 499956u},
     {L"taskbar.view.dll", L"public: __cdecl winrt::impl::consume_Windows_UI_Xaml_IFrameworkElement<struct winrt::Taskbar::implementation::TaskbarFrame>::MaxHeight(double)const ", 2622784u},
@@ -76,4 +79,5 @@ static const NativeSymbol NativeSymbols[] = {
     {L"taskbar.view.dll", L"public: void __cdecl winrt::Taskbar::implementation::TaskListButton::OverlayIcon(struct winrt::Windows::Storage::Streams::IRandomAccessStream const &)", 2045332u},
     {L"taskbar.view.dll", L"public: void __cdecl winrt::Taskbar::implementation::ViewCoordinator::UpdateIsExpanded(unsigned __int64,enum TaskbarTipTest::TaskbarExpandCollapseReason)", 288712u},
     {L"taskbar.view.dll", L"struct winrt::fire_and_forget __cdecl winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync(struct winrt::Windows::UI::Xaml::FrameworkElement,struct winrt::WindowsUdk::UI::Shell::TaskbarModel,struct winrt::Taskbar::TaskbarFrame,struct winrt::com_ptr<struct winrt::Taskbar::implementation::ViewCoordinator>)", 8124788u},
+    {L"taskbar.view.dll", L"winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync$_ResumeCoro$1", 8118960u},
 };
