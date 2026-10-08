@@ -344,11 +344,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     }else{memoryPercent.reset();memoryRing.Set({});RemovePropW(hwnd,Props[5]);}MetricsDescription();}
     void MetricsDescription() {
         auto description=L"CPU "+CpuText()+L"，内存 "+PercentText(memoryPercent);
-        c::ToolTipService::SetToolTip(metrics,winrt::box_value(description+L"\n滚轮：切换卡片"));
         x::Automation::AutomationProperties::SetName(metrics,description);
         if(page==Page::Metrics){
             x::Automation::AutomationProperties::SetName(card,description);
-            c::ToolTipService::SetToolTip(card,winrt::box_value(description+L"\n滚轮：切换卡片；右键：系统工具菜单"));
         }
     }
     void Tick(){
@@ -386,7 +384,6 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         const auto state=BatteryCaption(battery);
         powerStatus.Text(mode==BatteryMode::Plugged?L"插电未充电":mode==BatteryMode::NoBattery?L"未检测到电池":
             mode==BatteryMode::Unknown?(battery.plugged?L"已插电 · 未知":L"电源状态未知"):state);
-        c::ToolTipService::SetToolTip(powerCard,winrt::box_value(powerText.Text()+L" · "+state+L"\n左键：快速设置；右键：系统工具菜单；滚轮：切换卡片"));
         x::Automation::AutomationProperties::SetName(powerCard,L"电池 "+powerText.Text()+L"，"+state+L"，打开快速设置");
         ++powerUpdates;Publish();
     }
@@ -413,10 +410,6 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         metrics.Visibility(page==Page::Metrics?x::Visibility::Visible:x::Visibility::Collapsed);
         media.Visibility(page==Page::Media?x::Visibility::Visible:x::Visibility::Collapsed);
         powerCard.Visibility(page==Page::Power?x::Visibility::Visible:x::Visibility::Collapsed);
-        auto tip=winrt::hstring(L"滚轮切换：CPU／内存 · 媒体 · 电池；右键：系统工具菜单");
-        if(page==Page::Media)tip=title.Text()+(artistName.empty()?L"":L"\n"+artistName)+L"\n"+tip;
-        if(page==Page::Metrics)tip=L"CPU "+CpuText()+L"，内存 "+PercentText(memoryPercent)+L"\n"+tip;
-        c::ToolTipService::SetToolTip(card,winrt::box_value(tip));
         x::Automation::AutomationProperties::SetName(card,page==Page::Metrics?L"CPU "+CpuText()+L"，内存 "+PercentText(memoryPercent):
             page==Page::Media?L"媒体 "+title.Text():L"电池 "+powerText.Text()+L"，"+powerStatus.Text());
         Sampling();Publish();PublishSlot();

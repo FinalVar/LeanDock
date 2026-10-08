@@ -1,12 +1,12 @@
 {
-  "schema": 16,
-  "recordedAtUtc": "2026-10-08T15:39:54.5410576Z",
-  "packageVersion": "0.5.11",
+  "schema": 17,
+  "recordedAtUtc": "2026-10-08T15:48:41.3321813Z",
+  "packageVersion": "0.5.12",
   "controllerVersion": "0.3.3",
-  "backendVersion": "0.4.10",
+  "backendVersion": "0.4.11",
   "startLayoutVersion": "0.1.3",
   "quickPositionVersion": "0.1.1",
-  "scope": "Larger 14 DIP empty-media caption with 20 DIP text row and media controls shifted down 2 DIP",
+  "scope": "Remove custom hover tooltips from carousel root, metrics and battery; preserve accessibility names",
   "artifacts": [
     {
       "Name": "latest.exe",
@@ -15,8 +15,8 @@
     },
     {
       "Name": "latest.dll",
-      "Bytes": 1833472,
-      "SHA256": "E539D75B14A21036FB1242B963ECBD48A60E93BB94A277BED7AD6737DF0DE535"
+      "Bytes": 1827328,
+      "SHA256": "B45FC53E061961BD79558910AFEECB9E233E455D7FB1F0C674713F67A9C2A447"
     },
     {
       "Name": "start\\latest.dll",
@@ -47,7 +47,7 @@
     },
     {
       "file": "latest.dll",
-      "bytes": 1833472,
+      "bytes": 1827328,
       "imports": [
         "ole32.dll",
         "OLEAUT32.dll",
@@ -112,17 +112,17 @@
     "cardChecks": 95,
     "failures": 0,
     "productionInputSent": false,
-    "note": "No new logic tests for text size and row layout; inherited card logic and 95 passing checks unchanged"
+    "note": "No new or repeated logic tests for removing tooltip assignments; existing card behavior unchanged"
   },
   "live": {
     "ready": true,
-    "controllerPid": 17968,
-    "explorerPid": 23856,
+    "controllerPid": 9472,
+    "explorerPid": 3768,
     "backend": {
       "protocol": 1,
-      "version": "0.4.10",
-      "explorerPid": 23856,
-      "ownerPid": 17968,
+      "version": "0.4.11",
+      "explorerPid": 3768,
+      "ownerPid": 9472,
       "state": 2,
       "hooks": 58,
       "styledElements": 31,
@@ -137,8 +137,8 @@
     },
     "start": {
       "version": "0.1.3",
-      "pid": 29564,
-      "ownerPid": 17968,
+      "pid": 26124,
+      "ownerPid": 9472,
       "active": true,
       "lists": 1,
       "items": 41,
@@ -153,14 +153,14 @@
       "watchMode": "events"
     },
     "cards": {
-      "At": "2026-10-08T23:39:54.5012052+08:00",
-      "Hwnd": 5702430,
+      "At": "2026-10-08T23:48:41.2933992+08:00",
+      "Hwnd": 12387532,
       "Ready": 1,
-      "Visible": 1,
-      "Sampling": 1,
-      "Samples": 21,
-      "Cpu": 15,
-      "Memory": 85,
+      "Visible": 0,
+      "Sampling": 0,
+      "Samples": 1,
+      "Cpu": 36,
+      "Memory": 89,
       "Media": 0,
       "View": 0,
       "Errors": 0,
@@ -195,7 +195,7 @@
       "NativePowerWidth100": null,
       "NativePowerHeight100": null,
       "CpuRefreshing": 0,
-      "CpuIntervalMs": 2000,
+      "CpuIntervalMs": 0,
       "TitleFont100": null,
       "TitleHeight100": null,
       "TitleRowHeight100": null,
@@ -216,9 +216,9 @@
     }
   },
   "acceptance": {
-    "status": "pending-user",
-    "userQuote": "",
-    "scope": "14 DIP no-media text and lowered media buttons",
+    "status": "applied-not-user-verified",
+    "scope": "Custom hover tooltip removal",
+    "userRequest": "我看有悬停文字提示，不需要",
     "mediaPlaybackCommands": "not newly exercised"
   },
   "previousAcceptance": {
@@ -240,7 +240,9 @@
     "batteryTextMaxWidthDip": 60,
     "batteryTextFixedWidth": false,
     "titleRowHeightDip": 20,
-    "mediaButtonsShiftDownDip": 2
+    "mediaButtonsShiftDownDip": 2,
+    "customCardTooltips": false,
+    "accessibilityNamesRetained": true
   },
   "protected": {
     "controllerBinaryAndConfig": true,
@@ -250,13 +252,14 @@
     "noNewProcessOrTimer": true
   },
   "review": {
-    "maintainability": "20 DIP title row plus 24 DIP controls exactly fits the existing 44 DIP card",
-    "boundaries": "Active titles retain truncation; only no-session caption uses larger font",
-    "regressionRisk": "CPU sampling, power events, carousel and battery hit mapping unchanged"
+    "maintainability": "Delete four tooltip registrations and their display-only text construction",
+    "boundaries": "Data refresh and page changes cannot reattach deleted custom tips; global Windows tooltip settings untouched",
+    "regressionRisk": "Rendering, input events, sampling, battery state and native hit mapping unchanged"
   },
   "boundaries": [
     "Nominal 200ms interval depends on UI-thread scheduling",
     "Current system build and display configuration only",
     "Media playback, real low-battery hardware, multi-monitor and sleep/login not newly exercised"
-  ]
+  ],
+  "previousVersionRecord": "verification-v0.5.11.json"
 }

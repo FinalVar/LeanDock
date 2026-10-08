@@ -1,0 +1,262 @@
+{
+  "schema": 16,
+  "recordedAtUtc": "2026-10-08T15:39:54.5410576Z",
+  "packageVersion": "0.5.11",
+  "controllerVersion": "0.3.3",
+  "backendVersion": "0.4.10",
+  "startLayoutVersion": "0.1.3",
+  "quickPositionVersion": "0.1.1",
+  "scope": "Larger 14 DIP empty-media caption with 20 DIP text row and media controls shifted down 2 DIP",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 229888,
+      "SHA256": "AF52D5F80D84609F069607496C91C1AA50BF0F1F5772F373651CB554C2C31FDF"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1833472,
+      "SHA256": "E539D75B14A21036FB1242B963ECBD48A60E93BB94A277BED7AD6737DF0DE535"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 197120,
+      "SHA256": "5D16A9E16FBB784ACD538F9BFBC775EDF375E06676A03F03182A3A38D5470A5C"
+    }
+  ],
+  "imports": [
+    {
+      "file": "latest.exe",
+      "bytes": 229888,
+      "imports": [
+        "SHELL32.dll",
+        "bcrypt.dll",
+        "dwmapi.dll",
+        "WTSAPI32.dll",
+        "ADVAPI32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": []
+    },
+    {
+      "file": "latest.dll",
+      "bytes": 1833472,
+      "imports": [
+        "ole32.dll",
+        "OLEAUT32.dll",
+        "api-ms-win-core-winrt-error-l1-1-0.dll",
+        "api-ms-win-core-winrt-l1-1-0.dll",
+        "api-ms-win-core-winrt-error-l1-1-1.dll",
+        "VERSION.dll",
+        "SHLWAPI.dll",
+        "COMCTL32.dll",
+        "SHELL32.dll",
+        "dwmapi.dll",
+        "SHCORE.dll",
+        "GDI32.dll",
+        "msvcrt.dll",
+        "ADVAPI32.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "DllCanUnloadNow",
+        "DllGetClassObject",
+        "NativeDock_Start"
+      ]
+    },
+    {
+      "file": "start\\latest.dll",
+      "bytes": 396288,
+      "imports": [
+        "ole32.dll",
+        "OLEAUT32.dll",
+        "api-ms-win-core-winrt-l1-1-0.dll",
+        "api-ms-win-core-winrt-error-l1-1-1.dll",
+        "api-ms-win-core-winrt-error-l1-1-0.dll",
+        "COMCTL32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "LeanDockStartHook"
+      ]
+    },
+    {
+      "file": "panels\\latest.dll",
+      "bytes": 197120,
+      "imports": [
+        "COMCTL32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "LeanDockQuickHook"
+      ]
+    }
+  ],
+  "systemDllImportsOnly": true,
+  "regression": {
+    "build": "passed",
+    "importCheck": "passed",
+    "lastCardLogicVersion": "0.5.10",
+    "cardChecks": 95,
+    "failures": 0,
+    "productionInputSent": false,
+    "note": "No new logic tests for text size and row layout; inherited card logic and 95 passing checks unchanged"
+  },
+  "live": {
+    "ready": true,
+    "controllerPid": 17968,
+    "explorerPid": 23856,
+    "backend": {
+      "protocol": 1,
+      "version": "0.4.10",
+      "explorerPid": 23856,
+      "ownerPid": 17968,
+      "state": 2,
+      "hooks": 58,
+      "styledElements": 31,
+      "failed": false
+    },
+    "quick": {
+      "Supported": true,
+      "Active": true,
+      "Blocked": false,
+      "Failures": 0,
+      "Adjustments": 0
+    },
+    "start": {
+      "version": "0.1.3",
+      "pid": 29564,
+      "ownerPid": 17968,
+      "active": true,
+      "lists": 1,
+      "items": 41,
+      "sourceGroups": 30,
+      "lockedSelectors": 1,
+      "columns": 7,
+      "rows": 6,
+      "panelWidth": 738.0,
+      "panelHeight": 670.0,
+      "passes": 2,
+      "failures": 0,
+      "watchMode": "events"
+    },
+    "cards": {
+      "At": "2026-10-08T23:39:54.5012052+08:00",
+      "Hwnd": 5702430,
+      "Ready": 1,
+      "Visible": 1,
+      "Sampling": 1,
+      "Samples": 21,
+      "Cpu": 15,
+      "Memory": 85,
+      "Media": 0,
+      "View": 0,
+      "Errors": 0,
+      "Commands": 0,
+      "Left100": 88833,
+      "Top100": 800,
+      "Right100": 99233,
+      "Bottom100": 5200,
+      "AppRight100": 86733,
+      "RootRight100": 100733,
+      "Fits": 1,
+      "ControlsLeft100": null,
+      "ControlsRight100": null,
+      "ControlsTop100": null,
+      "ControlsBottom100": null,
+      "TitleLeft100": null,
+      "TitleRight100": null,
+      "ButtonWidth100": null,
+      "PowerReady": 1,
+      "PowerActive": 0,
+      "VisiblePages": 1,
+      "BatteryMode": 7,
+      "PowerUpdates": 2,
+      "Switches": 0,
+      "BatteryPercent": 100,
+      "Charging": 0,
+      "Plugged": 1,
+      "PowerLeft100": null,
+      "PowerRight100": null,
+      "PowerTop100": null,
+      "PowerBottom100": null,
+      "NativePowerWidth100": null,
+      "NativePowerHeight100": null,
+      "CpuRefreshing": 0,
+      "CpuIntervalMs": 2000,
+      "TitleFont100": null,
+      "TitleHeight100": null,
+      "TitleRowHeight100": null,
+      "TitleTop100": null,
+      "TitleBottom100": null,
+      "PowerContentLeft100": null,
+      "PowerContentRight100": null,
+      "PowerContentTop100": null,
+      "PowerContentBottom100": null,
+      "NativePowerHit": false,
+      "NativePowerClicks": 0,
+      "SystemPower": {
+        "Valid": true,
+        "AC": 1,
+        "Flags": 1,
+        "Percent": 100
+      }
+    }
+  },
+  "acceptance": {
+    "status": "pending-user",
+    "userQuote": "",
+    "scope": "14 DIP no-media text and lowered media buttons",
+    "mediaPlaybackCommands": "not newly exercised"
+  },
+  "previousAcceptance": {
+    "version": "0.5.10",
+    "userQuote": "三处都正常",
+    "scope": "CPU reappearance, initial 12 DIP label and battery content centering",
+    "record": "verification-v0.5.10.json",
+    "followup": "User requested one more empty-label size increase and slightly lower controls"
+  },
+  "behavior": {
+    "cardWidthDip": 104,
+    "cardHeightDip": 44,
+    "emptyMediaFontDip": 14,
+    "activeMediaFontDip": 10,
+    "cpuInitialIntervalMs": 200,
+    "cpuSteadyIntervalMs": 2000,
+    "cpuHiddenTimerStopped": true,
+    "cachedSampleLabeledRefreshing": true,
+    "batteryTextMaxWidthDip": 60,
+    "batteryTextFixedWidth": false,
+    "titleRowHeightDip": 20,
+    "mediaButtonsShiftDownDip": 2
+  },
+  "protected": {
+    "controllerBinaryAndConfig": true,
+    "hotCornerBinaryAndConfig": true,
+    "startAndQuickBinaries": true,
+    "nativeMenuAnchorAndFocus": true,
+    "noNewProcessOrTimer": true
+  },
+  "review": {
+    "maintainability": "20 DIP title row plus 24 DIP controls exactly fits the existing 44 DIP card",
+    "boundaries": "Active titles retain truncation; only no-session caption uses larger font",
+    "regressionRisk": "CPU sampling, power events, carousel and battery hit mapping unchanged"
+  },
+  "boundaries": [
+    "Nominal 200ms interval depends on UI-thread scheduling",
+    "Current system build and display configuration only",
+    "Media playback, real low-battery hardware, multi-monitor and sleep/login not newly exercised"
+  ]
+}
