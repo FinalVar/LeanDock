@@ -1,11 +1,11 @@
 {
-  "schema": 5,
-  "recordedAtUtc": "2026-10-08T06:33:59.7267830Z",
-  "packageVersion": "0.3.4",
+  "schema": 6,
+  "recordedAtUtc": "2026-10-08T07:11:39.4327201Z",
+  "packageVersion": "0.4.0",
   "controllerVersion": "0.3.1",
-  "backendVersion": "0.2.2",
+  "backendVersion": "0.3.0",
   "startLayoutVersion": "0.1.2",
-  "scope": "Fit the native Start panel to its continuous grid, balance columns, and remove unused heading and empty pinned-list margins",
+  "scope": "Native middle information card: CPU/memory and event-driven SMTC controls; fixed slot and crowded-layout collapse",
   "artifacts": [
     {
       "Name": "latest.exe",
@@ -14,8 +14,8 @@
     },
     {
       "Name": "latest.dll",
-      "Bytes": 1590272,
-      "SHA256": "449BA4DF9153253F73189C584F73DE863DEB94BA1EDC8043B51DB50A76CA0A85"
+      "Bytes": 1678336,
+      "SHA256": "A35111118B010ED39519061B1C2D1A13E0775B2E89C8A502CE003D5B2753EC75"
     },
     {
       "Name": "start\\latest.dll",
@@ -24,91 +24,80 @@
     }
   ],
   "systemDllImportsOnly": true,
-  "nativeLayoutProbe": {
-    "items": 41,
-    "columns": 7,
-    "rows": 6,
-    "lastRowItems": 6,
-    "tileDip": [
-      96,
-      84
+  "generatorReproducesBuiltStyler": true,
+  "regression": {
+    "cardCoreChecks": 30,
+    "geometryChecks": 89,
+    "failures": 0,
+    "apiProbeAvailable": true,
+    "apiFixtureCommandSuccess": [
+      "toggle-play-pause",
+      "next",
+      "previous"
     ],
-    "panelDip": [
-      738,
-      670
-    ],
-    "previousPanelDip": [
-      834,
-      866
-    ],
-    "areaReductionPercent": 31.54,
-    "headerDip": 0,
-    "allTilesWithinViewport": true,
-    "searchAndFooterWithinPanel": true,
-    "appBottomPaddingDip": 24.0,
-    "restoreGroups": 30,
-    "restoreHeightAuto": true,
-    "restorePinnedMargin": true,
-    "sameHostDuringRestoreCycle": true,
-    "hostPid": 23336
+    "fixtureCommandsReceived": 3,
+    "fixtureExited": true
   },
-  "restoreCycle": {
-    "heightLocalValueRestoredToAuto": true,
-    "disableConfirmed": true,
-    "nativeGroupsRestored": 30,
-    "pinnedMarginRestored": true,
-    "visibleReopenPending": false,
-    "enableConfirmed": true,
-    "sameHost": true
+  "native": {
+    "cardReady": true,
+    "cardDip": [
+      160,
+      44
+    ],
+    "slotDip": 184,
+    "topDip": 8,
+    "bottomDip": 52,
+    "appToCardGapDip": 21,
+    "cardToFrameEndDip": 15,
+    "errorCount": 0,
+    "realCpuSamples": 27,
+    "mediaSessionAppeared": true,
+    "sessionEndedReturnsMetrics": true,
+    "stopRemovedDiagnosticProperties": true,
+    "reloaded": true,
+    "taskbarSingleController": true,
+    "newExplorerOrStartCrashEvents": 0
   },
-  "preservedFileHashes": [
+  "preserved": [
     {
-      "Name": "latest.exe",
-      "Match": true
+      "File": "latest.exe",
+      "Unchanged": true
     },
     {
-      "Name": "latest.dll",
-      "Match": true
+      "File": "start/latest.dll",
+      "Unchanged": true
     },
     {
-      "Name": "latest.ini",
-      "Match": true
+      "File": "latest.ini",
+      "Unchanged": true
     },
     {
-      "Name": "hotcorners\\latest.ini",
-      "Match": true
+      "File": "hotcorners/latest.ini",
+      "Unchanged": true
     },
     {
-      "Name": "include\\settings-generated.h",
-      "Match": true
+      "File": "include/dock-geometry-latest.h",
+      "Unchanged": true
     },
     {
-      "Name": "include\\dock-geometry-latest.h",
-      "Match": true
-    },
-    {
-      "Name": "baseline\\styles-latest.json",
-      "Match": true
+      "File": "include/shell-panels-latest.h",
+      "Unchanged": true
     }
   ],
-  "newStartCrashEvents": 0,
   "acceptance": {
-    "initialVisualStatement": "空白明显减少，布局和点击正常",
-    "finalRepeatedOpen": "user-confirmed",
-    "initialCandidateHash": "FE091DC86DC6624C725C46AF0A9A45B5346645B4620F97AE97BE987FB870C1FA",
-    "subsequentChange": "Use native column limit instead of provisional startup MainMenu width; native geometry rechecked",
-    "finalStatement": "没有发现问题",
-    "finalScope": "User reply to repeated open/close check after startup-width correction",
-    "finalArtifactHash": "AB275AB1ABCEF101CAC88790061E3E76680B01A4ECEECACE47AAB6883E072C59"
+    "userSelected": "CPU／内存＋媒体控制（推荐）",
+    "visual": "pending",
+    "wheelAndButtons": "pending",
+    "actualPlayer": "pending",
+    "hiddenTimerAndResume": "pending",
+    "startReopenAfterReload": "pending",
+    "notes": "No user reply yet to the two desktop acceptance questions. Fixture API delivery is not proof of card-button input or real-player behavior."
   },
-  "previousVerification": "verification-v0.3.3.json",
-  "validationBoundary": "Final binary geometry refreshed after the user repeated-open check: 41 unclipped items in 7 columns and 6 rows, native search/footer in bounds. Disable/re-enable protocol, restoration of native groups, auto height and margins, and final visible reopen were checked in the same host. User confirmed initial appearance and clicks, then reported no problem with repeated opening after the reload fix. Login/reboot, dynamic installs, DPI changes, multiple displays, accessibility and long-term stability were not tested.",
-  "liveReadiness": {
-    "dock": true,
-    "hotCorners": true,
-    "startLayout": true,
-    "startLayoutBlocked": false,
-    "startLayoutFailures": 0,
-    "sameStartHostAfterReopen": true
-  }
+  "boundaries": [
+    "Multiple monitors and DPI transitions are not physically tested",
+    "No incremental memory or whole-device power claim from whole-Explorer snapshots",
+    "More than 64 logical processors displays unavailable CPU instead of a misleading group-only value",
+    "Only Windows SMTC-enabled player sessions are controllable",
+    "Start component is unchanged and attaches on next menu opening; reopen acceptance remains pending"
+  ]
 }

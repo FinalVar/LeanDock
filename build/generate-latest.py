@@ -143,10 +143,12 @@ def main():
             source = source.replace(
                 "{ 0xc85d8cc7, 0x5463, 0x40e8, { 0xa4, 0x32, 0xf5, 0x91, 0x6b, 0x64, 0x27, 0xe5 } }",
                 "{ 0x7e54f66a, 0x1a8e, 0x4b90, { 0x94, 0x2f, 0x37, 0x45, 0x8b, 0x35, 0xe2, 0x01 } }")
-            source = '#include "dock-geometry-latest.h"\n' + source
+            source = '#include "dock-geometry-latest.h"\n#include "cards-latest.h"\n' + source
             source = replace_once(source, "struct ClickThroughTaskbarState {", """struct ClickThroughTaskbarState {
     winrt::weak_ref<Shapes::Rectangle> divider;
-    winrt::weak_ref<Controls::Grid> dividerParent;""")
+    winrt::weak_ref<Controls::Grid> dividerParent;
+    std::shared_ptr<LeanDockCards::Host> cards;
+    bool cardsClosing=false;""")
             source = replace_once(source, "void UpdateClickThroughRegion(ClickThroughTaskbarState& state) {",
                 '#include "surface-latest.inc"\nvoid UpdateClickThroughRegion(ClickThroughTaskbarState& state) {')
             source = replace_once(source, "    // LayoutUpdated is frequent; only re-apply when the result actually",

@@ -35,7 +35,7 @@ foreach($name in @('buffer','hook','trampoline','hde\hde64')) {
     if($LASTEXITCODE -ne 0){throw "C compilation failed: $name"}
     $objects.Add($object)
 }
-foreach($name in @('runtime','size','tray','hide','show','styler')) {
+foreach($name in @('runtime','size','tray','hide','show','styler','cards')) {
     $file=Join-Path $root ('src\'+$name+'-latest.cpp')
     $object=Join-Path $build ($name+'.o')
     if((Test-Path -LiteralPath $object) -and
@@ -63,7 +63,7 @@ if(-not $BackendOnly){
 }
 if(-not $ControllerOnly -and -not $BackendOnly){& (Join-Path $PSScriptRoot 'start-latest.ps1') -CompilerRoot $compiler}
 [pscustomobject]@{
-    Version='0.3.4';ControllerVersion='0.3.1';BackendVersion='0.2.2';StartLayoutVersion='0.1.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true
+    Version='0.4.0';ControllerVersion='0.3.1';BackendVersion='0.3.0';StartLayoutVersion='0.1.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true;CardsIntegrated=$true
     RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll,(Join-Path $root 'start\latest.dll') | ForEach-Object {
         [pscustomobject]@{Name=[IO.Path]::GetRelativePath($root,$_.FullName);Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName).Hash}
     })

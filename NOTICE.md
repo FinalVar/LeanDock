@@ -1,6 +1,6 @@
 # Sources and licensing
 
-LeanDock 0.3.4 (legacy NativeTaskbarDock controller 0.3.1, backend 0.2.2 and Start layout 0.1.2). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release.
+LeanDock 0.4.0 (legacy NativeTaskbarDock controller 0.3.1, backend 0.3.0 and Start layout 0.1.2). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release.
 
 Preserved GPL-3.0 upstream sources by m417z and their credited contributors:
 
@@ -56,3 +56,16 @@ The full reference is retained as upstream/start-layout.cpp. LeanDock's small
 companion retains a native CollectionViewSource.View, preserves native models,
 uses collection/window events instead of the upstream traversal timer, and
 limits changes to the grid and its view selector. No Windhawk runtime is used.
+
+The 0.4.0 information slot was designed with reference to NextKDE commit
+5cfb6a3a18312c81844ee7b1ca3db85153753e75, inspected on 2026-10-08:
+- https://github.com/SuceV587/NextKde/blob/5cfb6a3a18312c81844ee7b1ca3db85153753e75/shell/desktop/modules/dock/DockInfoCarousel.qml
+- https://github.com/SuceV587/NextKde/blob/5cfb6a3a18312c81844ee7b1ca3db85153753e75/shell/desktop/modules/dock/DockContainer.qml
+
+The fixed shared slot, manual switching and crowded-layout collapse informed
+the design. The Windows implementation is new C++/WinRT code; it does not copy
+or depend on QML, Qt, Quickshell, MPRIS or a separate hardware-monitor process.
+Windows API references:
+- https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getsystemtimes
+- https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-globalmemorystatusex
+- https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager

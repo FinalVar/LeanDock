@@ -1,0 +1,114 @@
+{
+  "schema": 5,
+  "recordedAtUtc": "2026-10-08T06:33:59.7267830Z",
+  "packageVersion": "0.3.4",
+  "controllerVersion": "0.3.1",
+  "backendVersion": "0.2.2",
+  "startLayoutVersion": "0.1.2",
+  "scope": "Fit the native Start panel to its continuous grid, balance columns, and remove unused heading and empty pinned-list margins",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 227840,
+      "SHA256": "754898E4ABE870C62AF1A51071C4BF58AE22B6B28A3AE809F882962DFA2CCD1F"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1590272,
+      "SHA256": "449BA4DF9153253F73189C584F73DE863DEB94BA1EDC8043B51DB50A76CA0A85"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 393216,
+      "SHA256": "AB275AB1ABCEF101CAC88790061E3E76680B01A4ECEECACE47AAB6883E072C59"
+    }
+  ],
+  "systemDllImportsOnly": true,
+  "nativeLayoutProbe": {
+    "items": 41,
+    "columns": 7,
+    "rows": 6,
+    "lastRowItems": 6,
+    "tileDip": [
+      96,
+      84
+    ],
+    "panelDip": [
+      738,
+      670
+    ],
+    "previousPanelDip": [
+      834,
+      866
+    ],
+    "areaReductionPercent": 31.54,
+    "headerDip": 0,
+    "allTilesWithinViewport": true,
+    "searchAndFooterWithinPanel": true,
+    "appBottomPaddingDip": 24.0,
+    "restoreGroups": 30,
+    "restoreHeightAuto": true,
+    "restorePinnedMargin": true,
+    "sameHostDuringRestoreCycle": true,
+    "hostPid": 23336
+  },
+  "restoreCycle": {
+    "heightLocalValueRestoredToAuto": true,
+    "disableConfirmed": true,
+    "nativeGroupsRestored": 30,
+    "pinnedMarginRestored": true,
+    "visibleReopenPending": false,
+    "enableConfirmed": true,
+    "sameHost": true
+  },
+  "preservedFileHashes": [
+    {
+      "Name": "latest.exe",
+      "Match": true
+    },
+    {
+      "Name": "latest.dll",
+      "Match": true
+    },
+    {
+      "Name": "latest.ini",
+      "Match": true
+    },
+    {
+      "Name": "hotcorners\\latest.ini",
+      "Match": true
+    },
+    {
+      "Name": "include\\settings-generated.h",
+      "Match": true
+    },
+    {
+      "Name": "include\\dock-geometry-latest.h",
+      "Match": true
+    },
+    {
+      "Name": "baseline\\styles-latest.json",
+      "Match": true
+    }
+  ],
+  "newStartCrashEvents": 0,
+  "acceptance": {
+    "initialVisualStatement": "空白明显减少，布局和点击正常",
+    "finalRepeatedOpen": "user-confirmed",
+    "initialCandidateHash": "FE091DC86DC6624C725C46AF0A9A45B5346645B4620F97AE97BE987FB870C1FA",
+    "subsequentChange": "Use native column limit instead of provisional startup MainMenu width; native geometry rechecked",
+    "finalStatement": "没有发现问题",
+    "finalScope": "User reply to repeated open/close check after startup-width correction",
+    "finalArtifactHash": "AB275AB1ABCEF101CAC88790061E3E76680B01A4ECEECACE47AAB6883E072C59"
+  },
+  "previousVerification": "verification-v0.3.3.json",
+  "validationBoundary": "Final binary geometry refreshed after the user repeated-open check: 41 unclipped items in 7 columns and 6 rows, native search/footer in bounds. Disable/re-enable protocol, restoration of native groups, auto height and margins, and final visible reopen were checked in the same host. User confirmed initial appearance and clicks, then reported no problem with repeated opening after the reload fix. Login/reboot, dynamic installs, DPI changes, multiple displays, accessibility and long-term stability were not tested.",
+  "liveReadiness": {
+    "dock": true,
+    "hotCorners": true,
+    "startLayout": true,
+    "startLayoutBlocked": false,
+    "startLayoutFailures": 0,
+    "sameStartHostAfterReopen": true
+  }
+}

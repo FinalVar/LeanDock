@@ -1,11 +1,16 @@
 // The material uses the existing backdrop composition brush. This hairline
 // follows NextKDE DockDivider's centered, short-line proportions.
 void UpdateLeanDockDivider(ClickThroughTaskbarState& state) try {
+    if(state.cardsClosing)return;
     auto frame=state.taskbarFrame.get();
     if(!frame || !state.systemTrayFrame.get())return;
     if(Media::VisualTreeHelper::GetChildrenCount(frame)<1)return;
     auto root=Media::VisualTreeHelper::GetChild(frame,0).try_as<Controls::Grid>();
-    if(!root)return;
+    if(!root || !root.IsLoaded())return;
+    if(!state.cards || !state.cards->Alive())state.cards=LeanDockCards::Create(root);
+    if(state.cards && state.islandHwnd)state.cards->Update(
+        GetAncestor(state.islandHwnd,GA_ROOT),frame.XamlRoot().Size().Width,
+        state.systemTrayFrame.get().ActualWidth());
     if(state.divider.get())return;
     Shapes::Rectangle line;
     line.Name(L"LeanDockDivider");line.Width(1);line.Height(40);
@@ -26,6 +31,8 @@ void UpdateLeanDockDivider(ClickThroughTaskbarState& state) try {
     state.dividerParent=winrt::make_weak(root);
 } catch(...) { Wh_Log(L"LeanDock divider waiting for a stable visual tree"); }
 void ClearLeanDockDivider(ClickThroughTaskbarState& state) {
+    state.cardsClosing=true;
+    if(state.cards){state.cards->Stop();state.cards.reset();}
     auto parent=state.dividerParent.get();auto line=state.divider.get();
     if(parent && line){uint32_t index=0;if(parent.Children().IndexOf(line,index))parent.Children().RemoveAt(index);}
     state.divider={};state.dividerParent={};
