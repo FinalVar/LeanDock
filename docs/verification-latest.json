@@ -1,6 +1,6 @@
 {
   "schema": 8,
-  "recordedAtUtc": "2026-10-08T10:32:50.3250428Z",
+  "recordedAtUtc": "2026-10-08T10:37:44.9101863Z",
   "packageVersion": "0.5.1",
   "controllerVersion": "0.3.1",
   "backendVersion": "0.4.1",
@@ -200,12 +200,21 @@
     }
   ],
   "acceptance": {
-    "mouseFocusOutline": "pending",
-    "powerUserPlacement": "pending",
-    "backgroundRightClick": "pending",
+    "mouseFocusOutline": "user-confirmed",
+    "powerUserPlacement": "user-confirmed",
+    "backgroundRightClick": "not separately established; combined battery-or-background question passed",
     "appAndTrayMenus": "not re-tested",
-    "notes": "Native hit testing and window placement counters cannot prove visible menus. Await user desktop acceptance.",
-    "powerClick": "pending"
+    "notes": "User confirmed: 左右键正常，位置和焦点框都好了. Exact right-click target was not separately specified.",
+    "powerClick": "user-confirmed",
+    "computerUse": {
+      "attempted": true,
+      "windowListCount": 0,
+      "windowListCountAfterReinitialize": 0,
+      "appsHadTargetableWindows": false,
+      "inputActionsPerformed": 0,
+      "screenshotsCaptured": 0,
+      "result": "blocked: no targetable Windows windows returned"
+    }
   },
   "rejectedCandidate": {
     "includedInFinalCode": false,
@@ -215,7 +224,7 @@
   },
   "boundaries": [
     "Current native hit geometry checked on one display at 150 percent scaling; display/DPI transitions not physically exercised",
-    "New native pointer activation, focus appearance and menu placement still require desktop acceptance",
+    "Native clicks, focus appearance and placement passed user observation; independent Computer Use verification could not run because both window inventories were empty",
     "Keyboard fallback remains available when the native target cannot be mapped; that fallback may show a keyboard focus outline",
     "Battery plug/unplug, crowded fallback and keyboard accessibility not newly exercised",
     "No new controller, helper process, task, service or permanent menu polling"
