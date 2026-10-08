@@ -24,6 +24,9 @@
 #include <winrt/Windows.UI.Xaml.Shapes.h>
 
 namespace LeanDockMenu { std::mutex gestureMutex;Gesture gesture; }
+// Called on the owning XAML thread after the selected page changes. This
+// retires the previous native hit target before another page accepts input.
+extern "C" void Native_tray_refresh_cards();
 
 namespace LeanDockCards {
 namespace x=winrt::Windows::UI::Xaml;
@@ -43,7 +46,8 @@ static constexpr const wchar_t* Props[]={L"LeanDock.Card.Ready",L"LeanDock.Card.
     L"LeanDock.Card.ControlsLeft100",L"LeanDock.Card.ControlsRight100",L"LeanDock.Card.ControlsTop100",L"LeanDock.Card.ControlsBottom100",
     L"LeanDock.Card.TitleLeft100",L"LeanDock.Card.TitleRight100",L"LeanDock.Card.ButtonWidth100",
     L"LeanDock.Card.PowerReady",L"LeanDock.Card.BatteryPercent",L"LeanDock.Card.Charging",L"LeanDock.Card.Plugged",
-    L"LeanDock.Card.PowerLeft100",L"LeanDock.Card.PowerRight100",L"LeanDock.Card.PowerTop100",L"LeanDock.Card.PowerBottom100"};
+    L"LeanDock.Card.PowerLeft100",L"LeanDock.Card.PowerRight100",L"LeanDock.Card.PowerTop100",L"LeanDock.Card.PowerBottom100",
+    L"LeanDock.Card.PowerActive",L"LeanDock.Card.VisiblePages",L"LeanDock.Card.BatteryMode",L"LeanDock.Card.PowerUpdates",L"LeanDock.Card.Switches"};
 static uint64_t Bits(FILETIME t){return (uint64_t(t.dwHighDateTime)<<32)|t.dwLowDateTime;}
 static std::optional<CpuTimes> Times(){
     // This API is group-local on machines with more than 64 processors. Do
@@ -64,7 +68,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     c::Grid root{nullptr}; x::FrameworkElement background{nullptr}, apps{nullptr};
     IInspectable oldPadding{nullptr},oldMargin{nullptr};
     c::Border card{nullptr}; x::Shapes::Rectangle divider{nullptr};
-    c::Button powerCard{nullptr};c::TextBlock powerText{nullptr};x::Shapes::Rectangle powerFill{nullptr};
+    c::Button powerCard{nullptr};c::TextBlock powerText{nullptr},powerStatus{nullptr};
+    x::Shapes::Rectangle powerFill{nullptr};x::Shapes::Path powerBolt{nullptr};
+    x::UIElement wheelRoot{nullptr};IInspectable wheelHandler{nullptr};
     Power::RemainingChargePercentChanged_revoker chargeChanged;
     Power::BatteryStatusChanged_revoker batteryChanged;
     Power::PowerSupplyStatusChanged_revoker supplyChanged;
@@ -83,8 +89,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     winrt::Windows::Foundation::IAsyncOperation<m::GlobalSystemMediaTransportControlsSessionMediaProperties> metadata{nullptr};
     winrt::Windows::Foundation::IAsyncOperation<bool> command{nullptr};
     CommandGate commandGate;
-    HWND hwnd=nullptr; bool stopped=false,shown=false,fits=false,powerFits=false,mediaView=false,busy=false,sampling=false;
-    unsigned generation=0,samples=0,errors=0,commands=0;
+    HWND hwnd=nullptr; bool stopped=false,shown=false,fits=false,busy=false,sampling=false;
+    Page page=Page::Metrics;
+    unsigned generation=0,samples=0,errors=0,commands=0,powerUpdates=0,switches=0;
     int wheelRemainder=0;
     std::optional<CpuTimes> baseline;
     std::atomic<bool> refreshQueued=false;
@@ -108,7 +115,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
  x:Name="LeanDockCard" Width="160" Height="44" CornerRadius="10" Background="#0CFFFFFF"
  HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,-160,0">
  <Border.RenderTransform><TranslateTransform X="21"/></Border.RenderTransform>
- <Grid Margin="9,3">
+ <Grid>
   <Grid.Resources>
    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource SystemControlForegroundBaseHighBrush}"/><Setter Property="FontFamily" Value="Segoe UI Variable"/></Style>
    <Style TargetType="Button">
@@ -125,13 +132,13 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
      </Grid></ControlTemplate></Setter.Value></Setter>
    </Style>
   </Grid.Resources>
-  <Grid x:Name="Metrics"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+  <Grid x:Name="Metrics" Margin="9,3"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
    <StackPanel><TextBlock Text="CPU" FontSize="10" Opacity="0.70"/><TextBlock x:Name="Cpu" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,-2,0,0"/>
     <Grid Height="2" Margin="0,1,0,0" Background="#18808080"><Rectangle x:Name="CpuBar" Width="0" Fill="#886C9AD8" HorizontalAlignment="Left"/></Grid></StackPanel>
    <StackPanel Grid.Column="2"><TextBlock Text="内存" FontSize="10" Opacity="0.70"/><TextBlock x:Name="Memory" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,-2,0,0"/>
     <Grid Height="2" Margin="0,1,0,0" Background="#18808080"><Rectangle x:Name="MemoryBar" Width="0" Fill="#8885ADA6" HorizontalAlignment="Left"/></Grid></StackPanel>
   </Grid>
-  <Grid x:Name="Media" Visibility="Collapsed" Margin="0,-1,0,-1"><Grid.RowDefinitions><RowDefinition Height="16"/><RowDefinition Height="24"/></Grid.RowDefinitions>
+  <Grid x:Name="Media" Visibility="Collapsed" Margin="9,2"><Grid.RowDefinitions><RowDefinition Height="16"/><RowDefinition Height="24"/></Grid.RowDefinitions>
    <TextBlock x:Name="Title" FontSize="11" TextTrimming="CharacterEllipsis" TextAlignment="Center" VerticalAlignment="Center"/>
     <StackPanel x:Name="MediaControls" Grid.Row="1" Orientation="Horizontal" Width="72" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center">
      <Button x:Name="Previous" AutomationProperties.Name="上一首"><TextBlock FontFamily="Segoe Fluent Icons" FontSize="12" Text="&#xE892;"/></Button>
@@ -149,29 +156,32 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         playGlyph=card.FindName(L"PlayGlyph").as<c::TextBlock>();
         powerCard=x::Markup::XamlReader::Load(LR"xaml(
 <Button xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- x:Name="LeanDockPowerCard" Width="52" Height="44" MinWidth="0" MinHeight="0" Padding="0"
- HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,-52,0" AutomationProperties.Name="电池与快速设置">
- <Button.RenderTransform><TranslateTransform X="189"/></Button.RenderTransform>
+ x:Name="LeanDockPowerCard" Width="160" Height="44" MinWidth="0" MinHeight="0" Padding="0"
+ HorizontalAlignment="Center" VerticalAlignment="Center" AutomationProperties.Name="电池与快速设置">
  <Button.Template><ControlTemplate TargetType="Button">
   <Grid Background="Transparent"><VisualStateManager.VisualStateGroups><VisualStateGroup x:Name="CommonStates">
    <VisualState x:Name="Normal"/><VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="hover.Opacity" Value="0.12"/></VisualState.Setters></VisualState>
    <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="hover.Opacity" Value="0.20"/></VisualState.Setters></VisualState>
   </VisualStateGroup></VisualStateManager.VisualStateGroups>
-  <Border CornerRadius="10" Background="#0CFFFFFF"/>
   <Border x:Name="hover" CornerRadius="10" Background="{ThemeResource SystemControlForegroundBaseHighBrush}" Opacity="0"/>
   <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
   </Grid>
  </ControlTemplate></Button.Template>
- <StackPanel Spacing="1" HorizontalAlignment="Center">
-  <Grid Width="26" Height="16" HorizontalAlignment="Center">
-   <Border Width="23" Height="12" CornerRadius="3" BorderThickness="1" BorderBrush="{ThemeResource SystemControlForegroundBaseHighBrush}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-   <Rectangle x:Name="PowerFill" Width="0" Height="6" RadiusX="1" RadiusY="1" Fill="{ThemeResource SystemControlForegroundBaseHighBrush}" HorizontalAlignment="Left" Margin="3,0,0,0"/>
-   <Border Width="2" Height="4" CornerRadius="1" Background="{ThemeResource SystemControlForegroundBaseHighBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+ <StackPanel Orientation="Horizontal" Spacing="9" HorizontalAlignment="Center">
+  <Grid Width="32" Height="20" VerticalAlignment="Center">
+   <Border Width="28" Height="16" CornerRadius="3" BorderThickness="1" BorderBrush="{ThemeResource SystemControlForegroundBaseHighBrush}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+   <Rectangle x:Name="PowerFill" Width="0" Height="10" RadiusX="1" RadiusY="1" Fill="{ThemeResource SystemControlForegroundBaseHighBrush}" HorizontalAlignment="Left" Margin="3,0,0,0"/>
+   <Border Width="2" Height="6" CornerRadius="1" Background="{ThemeResource SystemControlForegroundBaseHighBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+   <Path x:Name="PowerBolt" Data="M 16,1 L 10,11 L 15,11 L 12,19 L 22,7 L 17,7 Z" Fill="{ThemeResource SystemControlForegroundBaseHighBrush}" Stroke="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}" StrokeThickness="0.8" Visibility="Collapsed"/>
   </Grid>
-  <TextBlock x:Name="PowerText" Text="—" FontFamily="Segoe UI Variable" FontSize="11" TextAlignment="Center" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+  <StackPanel Width="104" VerticalAlignment="Center">
+   <TextBlock x:Name="PowerText" Text="—" FontFamily="Segoe UI Variable" FontSize="16" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+   <TextBlock x:Name="PowerStatus" Text="电源状态未知" FontFamily="Segoe UI Variable" FontSize="10" Opacity="0.75" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+  </StackPanel>
  </StackPanel>
 </Button>)xaml").as<c::Button>();
         powerText=powerCard.FindName(L"PowerText").as<c::TextBlock>();powerFill=powerCard.FindName(L"PowerFill").as<x::Shapes::Rectangle>();
+        powerStatus=powerCard.FindName(L"PowerStatus").as<c::TextBlock>();powerBolt=powerCard.FindName(L"PowerBolt").as<x::Shapes::Path>();
         divider=x::Shapes::Rectangle();divider.Name(L"LeanDockCardDivider");divider.Width(1);divider.Height(40);
         divider.HorizontalAlignment(x::HorizontalAlignment::Right);divider.VerticalAlignment(x::VerticalAlignment::Center);
         divider.Margin({0,0,2,0});divider.IsHitTestVisible(false);
@@ -183,37 +193,50 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         divider.Fill(brush);c::Canvas::SetZIndex(card,20);c::Canvas::SetZIndex(powerCard,20);c::Canvas::SetZIndex(divider,10);
         card.Visibility(x::Visibility::Collapsed);divider.Visibility(x::Visibility::Collapsed);
         powerCard.Visibility(x::Visibility::Collapsed);
-        root.Children().Append(card);root.Children().Append(powerCard);root.Children().Append(divider);
+        card.Child().as<c::Grid>().Children().Append(powerCard);
+        root.Children().Append(card);root.Children().Append(divider);
         auto weak=weak_from_this();
         powerCard.Click([weak](auto&&,auto&&){if(auto p=weak.lock();p&&!p->stopped)p->OpenPower();});
         auto context=[weak](IInspectable const&,x::Input::RightTappedRoutedEventArgs const& e){
             if(auto p=weak.lock();p&&!p->stopped&&LeanDockMenu::Request(p->hwnd))e.Handled(true);
         };
-        card.RightTapped(context);powerCard.RightTapped(context);
-        card.PointerWheelChanged([weak](IInspectable const& sender,x::Input::PointerRoutedEventArgs const& e){
-            if(auto p=weak.lock();p && !p->stopped && p->session)try{
-                if(AdvanceWheel(e.GetCurrentPoint(sender.as<x::UIElement>()).Properties().MouseWheelDelta(),p->wheelRemainder)){p->mediaView=!p->mediaView;p->Render();}
+        card.RightTapped(context);
+        // The native battery hit target has its original parent in the tray,
+        // not in this card. Observe wheel events on their shared XAML root,
+        // including handled events, and restrict them to the measured card.
+        wheelRoot=root.XamlRoot().Content();
+        wheelHandler=winrt::box_value(x::Input::PointerEventHandler([weak](IInspectable const&,x::Input::PointerRoutedEventArgs const& e){
+            if(auto p=weak.lock();p&&!p->stopped&&p->fits&&p->Visible())try{
+                auto point=e.GetCurrentPoint(p->card);auto pos=point.Position();
+                if(pos.X<0||pos.Y<0||pos.X>=p->card.ActualWidth()||pos.Y>=p->card.ActualHeight()||
+                   point.Properties().IsHorizontalMouseWheel())return;
+                if(auto step=WheelStep(point.Properties().MouseWheelDelta(),p->wheelRemainder)){
+                    p->page=Cycle(p->page,step);++p->switches;
+                    if(p->page==Page::Power)p->ReadPower();
+                    p->Render();
+                }
                 e.Handled(true);
             }catch(...){p->Fail();}
-        });
+        }));
+        wheelRoot.AddHandler(x::UIElement::PointerWheelChangedEvent(),wheelHandler,true);
         previous.Click([weak](auto&&,auto&&){Command(weak,0);});
         play.Click([weak](auto&&,auto&&){Command(weak,1);});
         next.Click([weak](auto&&,auto&&){Command(weak,2);});
         unloaded=root.Unloaded(winrt::auto_revoke,[weak](auto&&,auto&&){if(auto p=weak.lock())p->Stop();});
         timer=x::DispatcherTimer();timer.Interval(std::chrono::seconds(2));
         timer.Tick([weak](auto&&,auto&&){if(auto p=weak.lock())try{p->Tick();}catch(...){p->Fail();}});
-        c::ToolTipService::SetToolTip(card,winrt::box_value(L"CPU／内存；播放媒体后，可用滚轮切换"));
+        title.Text(L"暂无播放");previous.IsEnabled(false);play.IsEnabled(false);next.IsEnabled(false);
         ReadPower();
         try{
             chargeChanged=Power::RemainingChargePercentChanged(winrt::auto_revoke,[weak](auto&&,auto&&){QueuePower(weak);});
             batteryChanged=Power::BatteryStatusChanged(winrt::auto_revoke,[weak](auto&&,auto&&){QueuePower(weak);});
             supplyChanged=Power::PowerSupplyStatusChanged(winrt::auto_revoke,[weak](auto&&,auto&&){QueuePower(weak);});
         }catch(...){Fail();} // Opening/revealing the Dock still refreshes power state.
-        Request(weak);
+        Render();Request(weak);
     }
     void Fail() noexcept{++errors;Put(hwnd,8,errors);}
     bool Visible()const {
-        if(!hwnd || !powerFits || !IsWindowVisible(hwnd) || IsIconic(hwnd))return false;
+        if(!hwnd || !fits || !IsWindowVisible(hwnd) || IsIconic(hwnd))return false;
         RECT r{};MONITORINFO mi{sizeof(mi)};
         if(!GetWindowRect(hwnd,&r)||!GetMonitorInfoW(MonitorFromWindow(hwnd,MONITOR_DEFAULTTONEAREST),&mi))return false;
         // A hidden auto-hide taskbar keeps a one/two-pixel activation strip.
@@ -227,19 +250,17 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
             hwnd=taskbar;
             const double appWidth=std::max(double(apps.ActualWidth()),double(apps.DesiredSize().Width));
             bool nextFits=Fits(available,appWidth,tray,fits);
-            bool nextPowerFits=nextFits||Fits(available,appWidth,tray,powerFits,PowerSlotWidth);
-            const double slot=nextFits?SlotWidth:nextPowerFits?PowerSlotWidth:0;
+            const double slot=nextFits?SlotWidth:0;
             auto padding=root.Padding();if(padding.Left!=12||padding.Right!=12+slot||padding.Top||padding.Bottom)root.Padding({12,0,12+slot,0});
             auto margin=background.Margin();if(margin.Right!=-12-slot||margin.Left!=-13||margin.Top!=-1||margin.Bottom!=-1)background.Margin({-13,-1,-12-slot,-1});
-            if(fits!=nextFits){fits=nextFits;card.Visibility(fits?x::Visibility::Visible:x::Visibility::Collapsed);}
-            if(powerFits!=nextPowerFits){powerFits=nextPowerFits;powerCard.Visibility(powerFits?x::Visibility::Visible:x::Visibility::Collapsed);divider.Visibility(powerCard.Visibility());}
-            auto shift=powerCard.RenderTransform().as<x::Media::TranslateTransform>();if(shift.X()!=(fits?189:21))shift.X(fits?189:21);
+            if(fits!=nextFits){fits=nextFits;card.Visibility(fits?x::Visibility::Visible:x::Visibility::Collapsed);divider.Visibility(card.Visibility());}
             auto lineShift=divider.RenderTransform().as<x::Media::TranslateTransform>();if(lineShift.X()!=12+slot)lineShift.X(12+slot);
             const bool wasShown=shown;shown=Visible();if(shown&&!wasShown)ReadPower();Sampling();Put(hwnd,0,1);Put(hwnd,1,shown);Publish();
-            Put(hwnd,24,powerFits&&powerCard.IsLoaded()&&powerCard.ActualWidth()>0&&powerCard.ActualHeight()>0);
-            if(powerFits){auto p=powerCard.TransformToVisual(root.XamlRoot().Content()).TransformPoint({0,0});
+            PublishSlot();
+            if(fits&&page==Page::Power){auto p=powerCard.TransformToVisual(root.XamlRoot().Content()).TransformPoint({0,0});
                 Put(hwnd,28,std::lround(p.X*100));Put(hwnd,29,std::lround((p.X+powerCard.ActualWidth())*100));
                 Put(hwnd,30,std::lround(p.Y*100));Put(hwnd,31,std::lround((p.Y+powerCard.ActualHeight())*100));}
+            else for(unsigned i=28;i<=31;++i)RemovePropW(hwnd,Props[i]);
             if(fits){
                 auto content=root.XamlRoot().Content();
                 auto pos=card.TransformToVisual(content).TransformPoint({0,0});
@@ -249,7 +270,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
                 Put(hwnd,10,std::lround(pos.X*100));Put(hwnd,11,std::lround(pos.Y*100));
                 Put(hwnd,12,std::lround((pos.X+card.ActualWidth())*100));Put(hwnd,13,std::lround((pos.Y+card.ActualHeight())*100));
                 Put(hwnd,14,std::lround((appPos.X+apps.ActualWidth())*100));Put(hwnd,15,std::lround((rootPos.X+root.ActualWidth())*100));
-                if(mediaView){
+                if(page==Page::Media){
                     auto buttons=mediaControls.TransformToVisual(content).TransformPoint({0,0});
                     auto text=title.TransformToVisual(content).TransformPoint({0,0});
                     Put(hwnd,17,std::lround(buttons.X*100));Put(hwnd,18,std::lround((buttons.X+mediaControls.ActualWidth())*100));
@@ -262,7 +283,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         busy=false;
     }
     void Sampling() {
-        const bool want=ShouldSample(shown&&fits,!mediaView,!stopped);
+        const bool want=ShouldSample(shown&&fits,page==Page::Metrics,!stopped);
         if(want==sampling)return;
         sampling=want;Put(hwnd,2,sampling);
         if(want){baseline=Times();cpu.Text(L"—");cpuBar.Width(0);RemovePropW(hwnd,Props[4]);ReadMemory();timer.Start();}
@@ -281,16 +302,36 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         ReadMemory();++samples;Put(hwnd,3,samples);
         x::Automation::AutomationProperties::SetName(card,L"CPU "+cpu.Text()+L"，内存 "+memory.Text());
     }
-    void Publish(){Put(hwnd,3,samples);Put(hwnd,6,bool(session));Put(hwnd,7,mediaView);Put(hwnd,8,errors);Put(hwnd,9,commands);
-        if(battery.percent>=0)Put(hwnd,25,battery.percent);else if(hwnd)RemovePropW(hwnd,Props[25]);Put(hwnd,26,battery.charging);Put(hwnd,27,battery.plugged);}
+    void Publish(){Put(hwnd,3,samples);Put(hwnd,6,bool(session));Put(hwnd,7,static_cast<unsigned>(page));Put(hwnd,8,errors);Put(hwnd,9,commands);
+        if(battery.percent>=0)Put(hwnd,25,battery.percent);else if(hwnd)RemovePropW(hwnd,Props[25]);Put(hwnd,26,battery.charging);Put(hwnd,27,battery.plugged);
+        Put(hwnd,34,static_cast<unsigned>(Mode(battery)));Put(hwnd,35,powerUpdates);Put(hwnd,36,switches);}
+    void PublishSlot() {
+        if(!hwnd)return;
+        const bool ready=fits&&card.IsLoaded()&&card.ActualWidth()>0&&card.ActualHeight()>0;
+        const bool active=ready&&page==Page::Power;
+        const bool changed=reinterpret_cast<uintptr_t>(GetPropW(hwnd,Props[24]))!=uintptr_t(ready+1)||
+            reinterpret_cast<uintptr_t>(GetPropW(hwnd,Props[32]))!=uintptr_t(active+1);
+        Put(hwnd,24,ready);Put(hwnd,32,active);
+        Put(hwnd,33,fits?(metrics.Visibility()==x::Visibility::Visible)+
+            (media.Visibility()==x::Visibility::Visible)+(powerCard.Visibility()==x::Visibility::Visible):0);
+        if(changed)Native_tray_refresh_cards();
+    }
     void ReadPower(){
         SYSTEM_POWER_STATUS status{};const bool ok=GetSystemPowerStatus(&status)!=FALSE;
         battery=BatteryState(ok,status.BatteryLifePercent,status.BatteryFlag,status.ACLineStatus);
-        powerText.Text(battery.percent>=0?winrt::to_hstring(battery.percent)+L"%":ok&&!battery.present?L"电源":L"—");
-        powerFill.Width(battery.percent>=0?17.0*battery.percent/100:0);
-        const auto state=battery.charging?L"正在充电":battery.plugged?L"已接通电源":battery.present?L"正在使用电池":L"电源状态";
-        c::ToolTipService::SetToolTip(powerCard,winrt::box_value(powerText.Text()+L" · "+state+L"\n左键：快速设置；右键：系统工具菜单"));
-        x::Automation::AutomationProperties::SetName(powerCard,L"电池 "+powerText.Text()+L"，"+state+L"，打开快速设置");Publish();
+        powerText.Text(battery.percent>=0?winrt::to_hstring(battery.percent)+L"%":battery.presentKnown&&!battery.present?L"电源":L"—");
+        powerFill.Width(battery.percent>=0?22.0*battery.percent/100:0);
+        powerBolt.Visibility(battery.charging?x::Visibility::Visible:x::Visibility::Collapsed);
+        auto mode=Mode(battery);
+        if(mode==BatteryMode::Charging||mode==BatteryMode::Full)
+            powerFill.Fill(x::Media::SolidColorBrush({255,48,178,100}));
+        else if(mode==BatteryMode::Critical)powerFill.Fill(x::Media::SolidColorBrush({255,223,78,65}));
+        else if(mode==BatteryMode::Low)powerFill.Fill(x::Media::SolidColorBrush({255,213,153,42}));
+        else powerFill.Fill(powerText.Foreground());
+        const auto state=BatteryCaption(battery);powerStatus.Text(state);
+        c::ToolTipService::SetToolTip(powerCard,winrt::box_value(powerText.Text()+L" · "+state+L"\n左键：快速设置；右键：系统工具菜单；滚轮：切换卡片"));
+        x::Automation::AutomationProperties::SetName(powerCard,L"电池 "+powerText.Text()+L"，"+state+L"，打开快速设置");
+        ++powerUpdates;Publish();
     }
     void OpenPower() noexcept {
         try{
@@ -309,13 +350,17 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         });}catch(...){if(auto p=weak.lock())p->powerQueued=false;}
     }
     void Render(){
-        if(stopped)return;if(!session)mediaView=false;
-        metrics.Visibility(mediaView?x::Visibility::Collapsed:x::Visibility::Visible);
-        media.Visibility(mediaView?x::Visibility::Visible:x::Visibility::Collapsed);
-        auto tip=winrt::hstring(session?L"滚轮切换系统状态／媒体控制":L"CPU／内存；播放媒体后，可用滚轮切换");
-        if(mediaView)tip=title.Text()+(artistName.empty()?L"":L"\n"+artistName)+L"\n"+tip;
+        if(stopped)return;
+        if(!session){title.Text(L"暂无播放");artistName=L"";previous.IsEnabled(false);play.IsEnabled(false);next.IsEnabled(false);playGlyph.Text(L"\xE768");}
+        metrics.Visibility(page==Page::Metrics?x::Visibility::Visible:x::Visibility::Collapsed);
+        media.Visibility(page==Page::Media?x::Visibility::Visible:x::Visibility::Collapsed);
+        powerCard.Visibility(page==Page::Power?x::Visibility::Visible:x::Visibility::Collapsed);
+        auto tip=winrt::hstring(L"滚轮切换：CPU／内存 · 媒体 · 电池；右键：系统工具菜单");
+        if(page==Page::Media)tip=title.Text()+(artistName.empty()?L"":L"\n"+artistName)+L"\n"+tip;
         c::ToolTipService::SetToolTip(card,winrt::box_value(tip));
-        Sampling();Publish();
+        x::Automation::AutomationProperties::SetName(card,page==Page::Metrics?L"CPU "+cpu.Text()+L"，内存 "+memory.Text():
+            page==Page::Media?L"媒体 "+title.Text():L"电池 "+powerText.Text()+L"，"+powerStatus.Text());
+        Sampling();Publish();PublishSlot();
     }
     static winrt::fire_and_forget Request(std::weak_ptr<Board> weak) {
         try{
@@ -344,7 +389,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         if(current!=session){
             CancelCommand();
             propertiesChanged.revoke();playbackChanged.revoke();session=current;
-            title.Text(L"媒体");artistName=L"";
+            title.Text(session?L"媒体":L"暂无播放");artistName=L"";
             if(session){auto weak=weak_from_this();
                 propertiesChanged=session.MediaPropertiesChanged(winrt::auto_revoke,[weak](auto&&,auto&&){Queue(weak);});
                 playbackChanged=session.PlaybackInfoChanged(winrt::auto_revoke,[weak](auto&&,auto&&){Queue(weak);});
@@ -359,7 +404,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
             playGlyph.Text(playing?L"\xE769":L"\xE768");
             x::Automation::AutomationProperties::SetName(play,playing?L"暂停":L"播放");
             Metadata(weak_from_this(),session,generation);
-        }
+        }else{previous.IsEnabled(false);play.IsEnabled(false);next.IsEnabled(false);playGlyph.Text(L"\xE768");}
         Render();
     }catch(...){
         Fail();++generation;CancelCommand();
@@ -404,7 +449,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         try{if(request)request.Cancel();if(metadata)metadata.Cancel();}catch(...){}
         managerChanged.revoke();sessionsChanged.revoke();propertiesChanged.revoke();playbackChanged.revoke();unloaded.revoke();
         chargeChanged.revoke();batteryChanged.revoke();supplyChanged.revoke();
-        try{if(root){for(auto e:{card.try_as<x::UIElement>(),powerCard.try_as<x::UIElement>(),divider.try_as<x::UIElement>()}){uint32_t index=0;if(e&&root.Children().IndexOf(e,index))root.Children().RemoveAt(index);}
+        try{if(wheelRoot&&wheelHandler)wheelRoot.RemoveHandler(x::UIElement::PointerWheelChangedEvent(),wheelHandler);}catch(...){}
+        wheelHandler=nullptr;wheelRoot=nullptr;
+        try{if(root){for(auto e:{card.try_as<x::UIElement>(),divider.try_as<x::UIElement>()}){uint32_t index=0;if(e&&root.Children().IndexOf(e,index))root.Children().RemoveAt(index);}
             if(oldPadding==x::DependencyProperty::UnsetValue())root.ClearValue(c::Grid::PaddingProperty());else root.SetValue(c::Grid::PaddingProperty(),oldPadding);
         }}catch(...){}
         try{if(background){if(oldMargin==x::DependencyProperty::UnsetValue())background.ClearValue(x::FrameworkElement::MarginProperty());else background.SetValue(x::FrameworkElement::MarginProperty(),oldMargin);}}catch(...){}

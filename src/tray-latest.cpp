@@ -579,9 +579,10 @@ void ClearNativePowerHit() {
     if(g_dockUnified&&g_dockUnified->threadId!=GetCurrentThreadId())return;
     g_powerEntered.revoke();g_powerExited.revoke();g_powerPressed.revoke();g_powerReleased.revoke();
     g_powerContext.revoke();
-    if(auto card=g_nativePowerCard.get()){card.IsHitTestVisible(true);card.IsTabStop(true);}
+    if(auto card=g_nativePowerCard.get()){VisualStateManager::GoToState(card,L"Normal",false);card.IsHitTestVisible(true);card.IsTabStop(true);}
     g_nativePowerButton={};g_nativePowerCard={};
-    RemovePropW(FindWindowW(L"Shell_TrayWnd",nullptr),L"LeanDock.Card.NativePowerHit");
+    for(auto name:{L"LeanDock.Card.NativePowerHit",L"LeanDock.Card.NativePowerWidth100",L"LeanDock.Card.NativePowerHeight100"})
+        RemovePropW(FindWindowW(L"Shell_TrayWnd",nullptr),name);
 }
 FrameworkElement DockFindNamed(DependencyObject const& node,const wchar_t* name,unsigned depth=0) {
     if(!node||depth>24)return nullptr;
@@ -603,7 +604,7 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
     auto grid=FindChildByClassName(battery,L"Windows.UI.Xaml.Controls.Grid");
     if(!card||!grid||!card.IsLoaded()||card.Visibility()!=Visibility::Visible)return false;
     const double width=card.ActualWidth(),height=card.ActualHeight();
-    if(width<24||width>100||height<24||height>80)return false;
+    if(width<24||width>160.5||height<24||height>80)return false;
     // Preserve the native parent, event handlers and accessibility. A zero
     // flow slot avoids restoring the old tray gap; the full native hit target
     // is translated onto the already-measured custom battery card.
@@ -655,9 +656,10 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
     return true;
 }
 
-// Kept separate from preserved upstream. Battery moves only after a visible
-// replacement card is measured. A crowded or failed card restores the native
-// entry, including its original compact two-row placement.
+// The whole carousel owns the battery entry as soon as the slot is measured.
+// Only the selected power page gets a native hit target. Other pages remove
+// that target immediately, without bringing back an extra tray battery icon.
+// A crowded/failed carousel restores the original compact native entry.
 void UpdateUnifiedDockGrid() {
     if(!g_dockUnified||g_dockUnified->updating||g_unloading||
        g_dockUnified->threadId!=GetCurrentThreadId())return;
@@ -680,11 +682,22 @@ void UpdateUnifiedDockGrid() {
         }
         struct Guard{bool& flag;Guard(bool& f):flag(f){flag=true;}~Guard(){flag=false;}}guard(g_dockUnified->updating);
         auto apps=DockCollect(root,true);if(!apps.container||!apps.panel)return;
-        // A failed map retains the working keyboard fallback on the card.
-        if(!MapNativePowerHit(battery,taskbar)){
+        const bool powerActive=reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Card.PowerActive"))==2;
+        // A failed map retains the working Invoke/keyboard fallback on the card.
+        if(!powerActive){
             ClearNativePowerHit();
-            // Keep the zero-width flow slot measured for the next layout pass.
             DockSet(battery,UIElement::IsHitTestVisibleProperty(),false);
+            DockSet(battery,UIElement::VisibilityProperty(),Visibility::Collapsed);
+        }else if(!MapNativePowerHit(battery,taskbar)){
+            ClearNativePowerHit();
+            // A collapsed native button cannot acquire its new measured
+            // bounds. Keep a transparent, non-interactive zero-flow slot
+            // until the next layout can validate the actual hit target.
+            DockSet(battery,UIElement::VisibilityProperty(),Visibility::Visible);
+            DockSet(battery,UIElement::OpacityProperty(),0.0);
+            DockSet(battery,UIElement::IsHitTestVisibleProperty(),false);
+            DockBox(battery,160,44,HorizontalAlignment::Left,false);
+            DockSet(battery,FrameworkElement::MarginProperty(),Thickness{0,0,-160,0});
         }
         DockSet(input,UIElement::VisibilityProperty(),Visibility::Collapsed);
         const double cell=g_settings.notificationIconWidth,pitch=cell+4,row=24;
@@ -1932,3 +1945,5 @@ extern "C" void Native_tray_after() { NDTray::TrayComponentAfterInit(); }
 extern "C" void Native_tray_stop() { NDTray::TrayComponentUninit(); }
 extern "C" void Native_tray_before() { NDTray::TrayComponentBeforeUninit(); }
 extern "C" void Native_tray_resume() { NDTray::g_unloading=false; NDTray::TrayComponentAfterInit(); }
+
+extern "C" void Native_tray_refresh_cards() { NDTray::UpdateUnifiedDockGrid(); }

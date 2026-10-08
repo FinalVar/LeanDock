@@ -308,6 +308,8 @@ void StopEventThread() {
             source += f'extern "C" void Native_{name}_resume() {{ {namespace}g_unloading=false; {namespace}{name.title()}ComponentAfterInit(); }}\n'
         if name == "styler":
             source += '\nextern "C" unsigned Native_styler_count() { unsigned count=0; HWND w=GetTaskbarUiWnd(); if(w) RunFromWindowThread(w, [](void* p){ *static_cast<unsigned*>(p)=static_cast<unsigned>(g_elementsCustomizationState.size()); }, &count); return count; }\n'
+        if name == "tray":
+            source += '\nextern "C" void Native_tray_refresh_cards() { NDTray::UpdateUnifiedDockGrid(); }\n'
         # Full origin/license information remains in upstream and NOTICE.
         source = "// Derived from the preserved GPL-3.0 upstream; see NOTICE.md.\n" + source
         emit(ROOT / "src" / (name + "-latest.cpp"), source)
