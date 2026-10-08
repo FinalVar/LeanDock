@@ -76,8 +76,15 @@ Battery readings use GetSystemPowerStatus, with PowerManager change events:
 The package adds no third-party power monitor, elevated message bridge or
 background process. Existing native notification objects and menus remain.
 
-The 0.5.1 pointer-target mapping and bounded native-menu placement are original
-code. A private-COM activation experiment returned success but failed desktop
-acceptance on this Windows build; it was rolled back and is not included here.
-The final design retains the original Quick Settings object and the working
-Win+X invocation, without relying on those unverified private interfaces.
+The 0.5.1 pointer-target mapping is original code. Its post-show HWND placement,
+and the later 0.5.2 HWND position constraint, were withdrawn after user reports
+of flashing and nonfunctional item clicks. A private-COM activation experiment
+also failed desktop acceptance and is not included here.
+
+The 0.5.4 implementation substitutes a XAML anchor at the actual native menu
+entry, preserving native rendering, input, command handling and submenus. Its
+entry and x64 calling convention were checked against the matching Microsoft
+public symbols for the already-pinned Taskbar.View.dll. No Microsoft binary or
+PDB is redistributed; menu-native-symbol-latest.json records the verification
+metadata. The original Quick Settings object and working Win+X invocation
+remain. No menu-position polling or additional runtime process was added.

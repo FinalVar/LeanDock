@@ -75,4 +75,5 @@ static const NativeSymbol NativeSymbols[] = {
     {L"taskbar.view.dll", L"public: void __cdecl winrt::Taskbar::implementation::TaskListButton::IconHeight(double)", 1872460u},
     {L"taskbar.view.dll", L"public: void __cdecl winrt::Taskbar::implementation::TaskListButton::OverlayIcon(struct winrt::Windows::Storage::Streams::IRandomAccessStream const &)", 2045332u},
     {L"taskbar.view.dll", L"public: void __cdecl winrt::Taskbar::implementation::ViewCoordinator::UpdateIsExpanded(unsigned __int64,enum TaskbarTipTest::TaskbarExpandCollapseReason)", 288712u},
+    {L"taskbar.view.dll", L"struct winrt::fire_and_forget __cdecl winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync(struct winrt::Windows::UI::Xaml::FrameworkElement,struct winrt::WindowsUdk::UI::Shell::TaskbarModel,struct winrt::Taskbar::TaskbarFrame,struct winrt::com_ptr<struct winrt::Taskbar::implementation::ViewCoordinator>)", 8124788u},
 };

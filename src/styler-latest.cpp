@@ -1474,6 +1474,8 @@ thread_local winrt::event_token g_colorValuesChangedToken;
 // returned by GetClickThroughState stays valid even if a reentrant XAML call
 // adds or reaps entries while the pointer is in use.
 struct ClickThroughTaskbarState {
+    winrt::weak_ref<Controls::Button> menuAnchor;
+    winrt::weak_ref<Controls::Grid> menuAnchorParent;
     winrt::weak_ref<Shapes::Rectangle> divider;
     winrt::weak_ref<Controls::Grid> dividerParent;
     std::shared_ptr<LeanDockCards::Host> cards;
@@ -9495,6 +9497,7 @@ void LoadSettings() {
 }
 
 BOOL StylerComponentInit() {
+    InstallLeanDockMenuHook();
     Wh_Log(L">");
 
     LoadSettings();

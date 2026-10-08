@@ -22,7 +22,7 @@
 #include <winrt/Windows.UI.Xaml.Media.h>
 #include <winrt/Windows.UI.Xaml.Shapes.h>
 
-namespace LeanDockMenu { thread_local Pending pending; }
+namespace LeanDockMenu { std::mutex gestureMutex;Gesture gesture; }
 
 namespace LeanDockCards {
 namespace x=winrt::Windows::UI::Xaml;

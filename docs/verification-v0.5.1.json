@@ -1,0 +1,232 @@
+{
+  "schema": 8,
+  "recordedAtUtc": "2026-10-08T10:37:44.9101863Z",
+  "packageVersion": "0.5.1",
+  "controllerVersion": "0.3.1",
+  "backendVersion": "0.4.1",
+  "startLayoutVersion": "0.1.2",
+  "scope": "Preserve native mouse activation under the battery card; bounded placement of the actual Explorer XAML Power User popup",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 227840,
+      "SHA256": "754898E4ABE870C62AF1A51071C4BF58AE22B6B28A3AE809F882962DFA2CCD1F"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1769984,
+      "SHA256": "845BA52B106EE0433D1CF413A23F850D8E8BFCDC2E5749D6479C606ED27D4C87"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 393216,
+      "SHA256": "AB275AB1ABCEF101CAC88790061E3E76680B01A4ECEECACE47AAB6883E072C59"
+    }
+  ],
+  "systemDllImportsOnly": true,
+  "imports": [
+    "ole32.dll",
+    "OLEAUT32.dll",
+    "api-ms-win-core-winrt-error-l1-1-0.dll",
+    "api-ms-win-core-winrt-l1-1-0.dll",
+    "api-ms-win-core-winrt-error-l1-1-1.dll",
+    "VERSION.dll",
+    "SHLWAPI.dll",
+    "COMCTL32.dll",
+    "SHELL32.dll",
+    "dwmapi.dll",
+    "SHCORE.dll",
+    "GDI32.dll",
+    "msvcrt.dll",
+    "ADVAPI32.dll",
+    "USER32.dll",
+    "KERNEL32.dll"
+  ],
+  "generatorReproducesBuiltSources": true,
+  "regression": {
+    "cardCoreChecks": 39,
+    "geometryChecks": 89,
+    "failures": 0,
+    "shellInputAndPlacementChecks": 61,
+    "shellInputTestSendsKeys": false
+  },
+  "native": {
+    "tray": {
+      "active": true,
+      "apps": 4,
+      "battery": 0,
+      "input": 0,
+      "total": 4,
+      "columns": 2,
+      "cells": [
+        [
+          10.0,
+          6.0,
+          24.0,
+          24.0
+        ],
+        [
+          10.0,
+          30.0,
+          24.0,
+          24.0
+        ],
+        [
+          38.0,
+          6.0,
+          24.0,
+          24.0
+        ],
+        [
+          38.0,
+          30.0,
+          24.0,
+          24.0
+        ]
+      ]
+    },
+    "hotCornersReady": true,
+    "card": {
+      "At": "2026-10-08T18:32:50.2301846+08:00",
+      "Hwnd": 15664398,
+      "Ready": 1,
+      "Visible": 1,
+      "Sampling": 1,
+      "Samples": 173,
+      "Cpu": 8,
+      "Memory": 72,
+      "Media": 0,
+      "View": 0,
+      "Errors": 0,
+      "Commands": 0,
+      "Left100": 81833,
+      "Top100": 800,
+      "Right100": 97833,
+      "Bottom100": 5200,
+      "AppRight100": 79733,
+      "RootRight100": 105333,
+      "Fits": 1,
+      "ControlsLeft100": null,
+      "ControlsRight100": null,
+      "ControlsTop100": null,
+      "ControlsBottom100": null,
+      "TitleLeft100": null,
+      "TitleRight100": null,
+      "ButtonWidth100": null,
+      "PowerReady": 1,
+      "BatteryPercent": 100,
+      "Charging": 0,
+      "Plugged": 1,
+      "PowerLeft100": 98633,
+      "PowerRight100": 103833,
+      "PowerTop100": 800,
+      "PowerBottom100": 5200
+    },
+    "menu": {
+      "At": "2026-10-08T18:32:50.3002111+08:00",
+      "Native": 0,
+      "PowerUser": 0,
+      "QuickSettings": 0,
+      "LastResult": 0,
+      "LastRequest": 0,
+      "NativePower": {
+        "NativePowerHit": 1,
+        "NativePowerClicks": 0,
+        "NativePowerWidth100": 5200,
+        "NativePowerHeight100": 4400
+      },
+      "Menu": {
+        "Seen": null,
+        "Placed": null,
+        "Error": null,
+        "X": null,
+        "Y": null,
+        "Window": null
+      },
+      "Panels": [
+        {
+          "Class": "ControlCenterWindow",
+          "Hwnd": 0,
+          "Visible": false,
+          "Cloaked": 1,
+          "Rect": {
+            "Left": 0,
+            "Top": 0,
+            "Right": 0,
+            "Bottom": 0
+          }
+        },
+        {
+          "Class": "Xaml_WindowedPopupClass",
+          "Hwnd": 0,
+          "Visible": false,
+          "Cloaked": 1,
+          "Rect": {
+            "Left": 0,
+            "Top": 0,
+            "Right": 0,
+            "Bottom": 0
+          }
+        }
+      ]
+    },
+    "live": true,
+    "singleController": true
+  },
+  "preserved": [
+    {
+      "file": "latest.exe",
+      "unchanged": true
+    },
+    {
+      "file": "start/latest.dll",
+      "unchanged": true
+    },
+    {
+      "file": "latest.ini",
+      "unchanged": true
+    },
+    {
+      "file": "hotcorners/latest.ini",
+      "unchanged": true
+    },
+    {
+      "file": "include/dock-geometry-latest.h",
+      "unchanged": true
+    },
+    {
+      "file": "include/shell-panels-latest.h",
+      "unchanged": true
+    }
+  ],
+  "acceptance": {
+    "mouseFocusOutline": "user-confirmed",
+    "powerUserPlacement": "user-confirmed",
+    "backgroundRightClick": "not separately established; combined battery-or-background question passed",
+    "appAndTrayMenus": "not re-tested",
+    "notes": "User confirmed: 左右键正常，位置和焦点框都好了. Exact right-click target was not separately specified.",
+    "powerClick": "user-confirmed",
+    "computerUse": {
+      "attempted": true,
+      "windowListCount": 0,
+      "windowListCountAfterReinitialize": 0,
+      "appsHadTargetableWindows": false,
+      "inputActionsPerformed": 0,
+      "screenshotsCaptured": 0,
+      "result": "blocked: no targetable Windows windows returned"
+    }
+  },
+  "rejectedCandidate": {
+    "includedInFinalCode": false,
+    "privateComActivation": "Rejected by user: both clicks stopped opening panels",
+    "restoredBeforeReplacement": true,
+    "defenderProtectionUnchanged": true
+  },
+  "boundaries": [
+    "Current native hit geometry checked on one display at 150 percent scaling; display/DPI transitions not physically exercised",
+    "Native clicks, focus appearance and placement passed user observation; independent Computer Use verification could not run because both window inventories were empty",
+    "Keyboard fallback remains available when the native target cannot be mapped; that fallback may show a keyboard focus outline",
+    "Battery plug/unplug, crowded fallback and keyboard accessibility not newly exercised",
+    "No new controller, helper process, task, service or permanent menu polling"
+  ]
+}

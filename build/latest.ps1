@@ -63,7 +63,7 @@ if(-not $BackendOnly){
 }
 if(-not $ControllerOnly -and -not $BackendOnly){& (Join-Path $PSScriptRoot 'start-latest.ps1') -CompilerRoot $compiler}
 [pscustomobject]@{
-    Version='0.5.1';ControllerVersion='0.3.1';BackendVersion='0.4.1';StartLayoutVersion='0.1.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true;CardsIntegrated=$true
+    Version='0.5.4';ControllerVersion='0.3.1';BackendVersion='0.4.4';StartLayoutVersion='0.1.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true;CardsIntegrated=$true
     RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll,(Join-Path $root 'start\latest.dll') | ForEach-Object {
         [pscustomobject]@{Name=[IO.Path]::GetRelativePath($root,$_.FullName);Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName).Hash}
     })

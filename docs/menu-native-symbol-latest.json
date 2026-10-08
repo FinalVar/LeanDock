@@ -1,0 +1,22 @@
+{
+  "VerifiedAt": "2026-10-08",
+  "Module": "Taskbar.View.dll",
+  "Version": "2608.26001.200.0",
+  "SHA256": "CF7E002533DEF6628BA121481A703A06FC30ACCAA5E5CADD1A412F65F2D8BA77",
+  "Pdb": "Taskbar.View.pdb",
+  "GuidAge": "24534974E00E46A58F69F60D0CEB9BD91",
+  "PublicSymbolsSource": "https://msdl.microsoft.com/download/symbols/Taskbar.View.pdb/24534974E00E46A58F69F60D0CEB9BD91/Taskbar.View.pdb",
+  "Signature": "struct winrt::fire_and_forget __cdecl winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync(struct winrt::Windows::UI::Xaml::FrameworkElement,struct winrt::WindowsUdk::UI::Shell::TaskbarModel,struct winrt::Taskbar::TaskbarFrame,struct winrt::com_ptr<struct winrt::Taskbar::implementation::ViewCoordinator>)",
+  "Rva": 8124788,
+  "CallingConvention": {
+    "Return": "fire_and_forget returned in AL",
+    "Replacement": "Only first FrameworkElement value assigned using normal COM copy assignment; native original consumes all arguments",
+    "Arguments": "RCX RDX R8 R9 point to four owned WinRT value objects",
+    "Architecture": "Windows x64",
+    "Ownership": "InitCoro moves each value into the coroutine and clears its caller slot; native function subsequently destroys the cleared parameter values"
+  },
+  "Guard": "Existing full module SHA-256 and PE timestamp/image-size checks",
+  "RuntimeDependenciesAdded": [],
+  "WindowPositionHooksAdded": 0,
+  "MenuTimersAdded": 0
+}
