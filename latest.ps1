@@ -64,8 +64,21 @@ function Get-LiveStatus {
     $cornerReady=$running -and $runtime.hotCornersReady -and $corners -and $corners.pid -eq $processes[0].ProcessId -and $corners.running -and $corners.rawInputRegistered
     $dockReady=$code -eq 0 -and $processes.Count -eq 1 -and $backend -and $backend.explorerPid -eq $shell.ProcessId -and $backend.ownerPid -eq $processes[0].ProcessId -and $backend.state -eq 2 -and -not $backend.failed -and $backend.styledElements -gt 0
     $live=$dockReady -and $cornerReady
+    $startLayout=$null;$startReady=$false
+    $startStatusPath=Join-Path $root 'start\latest-status.json'
+    if(Test-Path -LiteralPath $startStatusPath){try{$startLayout=Get-Content -LiteralPath $startStatusPath -Raw | ConvertFrom-Json}catch{$startLayout=$null}}
+    if($running -and $runtime.startLayoutActive -and $startLayout -and $startLayout.active -and $startLayout.ownerPid -eq $processes[0].ProcessId){
+        $startPath=[NativeDockManagementPathV2]::Read($startLayout.pid)
+        $expectedStart=Join-Path $env:windir 'SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe'
+        if($startPath -ieq $expectedStart){
+            try {
+                $loaded=@((Get-Process -Id $startLayout.pid).Modules | Where-Object {$_.FileName -ieq (Join-Path $root 'start\latest.dll')})
+                $startReady=$loaded.Count -eq 1 -and $startLayout.lists -gt 0 -and $startLayout.lockedSelectors -gt 0 -and $startLayout.failures -eq 0
+            } catch {$startReady=$false}
+        }
+    }
     $t=Get-OwnTask
-    [pscustomobject]@{Live=$live;Running=$running;DockReady=$dockReady;HotCornersReady=$cornerReady;DockSupported=$runtime.dockSupported;Elevated=$runtime.elevated;HotCorners=$corners;Controller=@($processes | Select-Object ProcessId,ExecutablePath);ExplorerPid=$shell.ProcessId;Backend=$backend;LoadedComponents=$modules;Task=if($t){[pscustomobject]@{Name=$t.TaskName;State=[string]$t.State;RunLevel=[string]$t.Principal.RunLevel;LogonType=[string]$t.Principal.LogonType}}else{$null};WindhawkService=[string](Get-Service Windhawk -ErrorAction SilentlyContinue).Status}
+    [pscustomobject]@{Live=$live;Running=$running;DockReady=$dockReady;HotCornersReady=$cornerReady;DockSupported=$runtime.dockSupported;StartLayoutReady=$startReady;StartLayoutSupported=$runtime.startLayoutSupported;StartLayoutBlocked=$runtime.startLayoutBlocked;StartLayout=$startLayout;Elevated=$runtime.elevated;HotCorners=$corners;Controller=@($processes | Select-Object ProcessId,ExecutablePath);ExplorerPid=$shell.ProcessId;Backend=$backend;LoadedComponents=$modules;Task=if($t){[pscustomobject]@{Name=$t.TaskName;State=[string]$t.State;RunLevel=[string]$t.Principal.RunLevel;LogonType=[string]$t.Principal.LogonType}}else{$null};WindhawkService=[string](Get-Service Windhawk -ErrorAction SilentlyContinue).Status}
 }
 function Stop-Native {
     $code=Invoke-Control '--stop'

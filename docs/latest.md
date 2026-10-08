@@ -2,13 +2,17 @@
 
 ## 当前基线
 
-项目 0.3.2；控制程序 0.3.0；Explorer 组件 0.2.2。
+项目 0.3.3；控制程序 0.3.1；Explorer 组件 0.2.2；开始菜单组件 0.1.1。
 
 配置：应用图像 40、按钮宽 52、任务栏高 64、背景高 60、底边留白 4 DIP；小图标 24×24、列距 28。应用与托盘用 1×40 DIP 柔和竖线分开。连续两排、末列单颗上下居中的布局保持。
 
 0.3.1 取消应用按钮白色描边，将活动／悬停背景改为低透明度纯色，并减弱 Dock 外沿高光。`MultiWindowElement` 仅设 `Opacity=0`、`IsHitTestVisible=False`，不折叠或更改其布局尺寸，避免影响原生多窗口裁剪、分组和预览。生成器按配置中的目标条目生成规则，新增样式不再依赖手动修改固定数量。控制程序、触发角配置、托盘排列和范围计算代码未修改。
 
 0.3.2 应用户要求，将 `src/surface-latest.inc` 中竖线的高度由 28 调整为 40 DIP。功能性修改仅此一项；仍宽 1 DIP、垂直居中、使用原渐变，并保持不可点击。
+
+0.3.3 将开始菜单的原生 AllAppsGrid 分组内容平铺到不分组的 CollectionViewSource.View，保留原生应用与文件夹对象及点击处理。ViewSelectionButton 隐藏、禁用并移出 Tab 顺序；SemanticZoom 的字母跳转关闭。停用时恢复数据绑定、原始集合、分组样式与入口属性。不修改菜单尺寸、搜索、应用图像、固定区、推荐区和 Windows 缩放。
+
+早期 0.1.0 预览在用户确认排列与应用／文件夹点击正常之后发生过 Start 宿主崩溃（E_NOINTERFACE），用户同时报告曾切换类别／网格／列表；没有转储堆栈证明直接因果。该版没有接入自启。0.1.1 保留原生 ICollectionView 契约并锁定切换入口，必须以新版本的运行和界面证据验收，不能用此前反馈覆盖后续回归。
 
 ## 代码入口
 
@@ -21,6 +25,8 @@
 | `src/controller-latest.cpp` | 系统核验、隐藏控制窗口、Explorer 生命周期、触发角消息循环 |
 | `src/runtime-latest.cpp` | 组件管理、共享钩子链、还原和运行状态 |
 | `src/tray-latest.cpp` | 生成的连续托盘布局 |
+| `src/start-layout-latest.cpp`、`include/start-host-latest.h` | 原生开始菜单连续网格、切换入口锁定、独立宿主校验和恢复 |
+| `build/start-latest.ps1` | 独立构建开始菜单组件 |
 | `baseline/` | 外观、固定功能参数、系统组件哈希、符号缓存 |
 | `hotcorners/core/`、`hotcorners/actions/` | 触发状态机和系统按键序列 |
 
@@ -44,6 +50,8 @@
 - 运行时仍使用 NativeTaskbarDock / NativeHotCorners 内部标识。未来重命名需要独立迁移设计，不能只改一处名称。
 - 0.3.0 将低浓度模糊背景、反光和渐变边缘组合为玻璃质感；这不包含 KWin 的 Snell 折射。
 - 开启保留 Styler 的窗口区域裁剪，并在现有 WndProc 中过滤 Dock 宽度以外的鼠标悬停计时器。保留键盘、无障碍和菜单主动 Unhide 请求。几何来自已布局 XAML 根、转换为当前窗口的物理像素，不随隐藏动画改变投影范围。
-- 开始菜单采用 Windows 居中对齐；其透明宿主底边以及 ControlCenterWindow 由同一控制进程的 WinEvent 监听定位。只移动经过完整路径核验的两类窗口，不注入这两个宿主。
+- 开始菜单采用 Windows 居中对齐；其透明宿主底边以及 ControlCenterWindow 由同一控制进程的 WinEvent 监听定位。开始菜单另加载独立布局组件；快速设置只定位、不注入。StartMenuExperienceHost.exe 与 StartDocked.dll 的 SHA-256 都需匹配，失败只禁用开始菜单布局，不影响触发角和兼容的 Dock。
+- 开始菜单关闭或被系统暂停时等待 SHOW／UNCLOAKED 事件，不持续轮询。每个宿主只尝试附加一次，修改后的宿主退出时停止本次会话的再次附加，避免崩溃循环。控制程序正常停止或意外退出会请求还原；开始菜单组件保留映射直到该系统进程退出，以保证回调地址有效。
+- 状态必须核对实际 PID、进程路径、已加载组件和当前控制程序归属；磁盘旧状态不代表新宿主已修改。`StartLayoutReady` 与 Dock／触发角就绪分别报告，开始菜单尚未展开时不阻塞控制程序启动。
 - 触发角左上为 lock-screen，其余配置保留。锁屏 API 成功只表示请求获接收，真实锁定效果须用户观察。
 - 一次维护发现同会话同时存在多个 Explorer；维护入口已改为核对 Shell_TrayWnd 的所属 PID 和完整路径，不能再以“只有一个 explorer.exe”作为前提。

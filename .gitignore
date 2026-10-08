@@ -20,6 +20,7 @@ latest-status.json
 latest-backend.json
 latest-layout.json
 hotcorners/latest-status.json
+start/latest-status.json
 hotcorners/*.log.*
 backups/
 verification/

@@ -4,9 +4,10 @@
 #include <cwchar>
 #include <iterator>
 #include "dock-geometry-latest.h"
+#include "start-host-latest.h"
 
-// Native Start and Quick Settings remain in their own system processes. Their
-// transparent host windows are anchored, without resizing or injecting code.
+// Native Start and Quick Settings remain in their own system processes. This
+// module positions their hosts; the separate Start companion adjusts its grid.
 namespace LeanDockPanels {
 inline constexpr UINT Message=WM_APP+224, Timer=3;
 struct Panel { HWND window{}; RECT original{},applied{}; bool moved{},pending{}; };
@@ -72,6 +73,7 @@ inline void Restore(Panel& panel) {
 inline void CALLBACK Event(HWINEVENTHOOK,DWORD event,HWND w,LONG object,LONG child,DWORD,DWORD) {
     if(object!=OBJID_WINDOW || child!=CHILDID_SELF)return;
     int kind=Kind(w);if(kind<0)return;
+    if(kind==0 && (event==EVENT_OBJECT_SHOW || event==EVENT_OBJECT_UNCLOAKED))LeanDockStart::Attach(w);
     auto& panel=panels[kind];
     if(event==EVENT_OBJECT_HIDE || event==EVENT_OBJECT_CLOAKED){Restore(panel);return;}
     if(panel.window!=w){Restore(panel);panel.window=w;}

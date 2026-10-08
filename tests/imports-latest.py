@@ -29,9 +29,11 @@ def inspect(path):
         exports=[string(struct.unpack_from('<I',b,names+i*4)[0]) for i in range(num)]
     prohibited=['windhawk','libc++','libunwind','libgcc','vcruntime','msvcp','python','node']
     assert not any(word in dll.lower() for word in prohibited for dll in imports), imports
-    if path.suffix=='.dll':
+    if path==ROOT/'start'/'latest.dll':
+        assert 'LeanDockStartHook' in exports
+    elif path.suffix=='.dll':
         assert 'NativeDock_Start' in exports and 'DllGetClassObject' in exports
-    return {'file':path.name,'bytes':len(b),'imports':imports,'exports':exports}
-result=[inspect(ROOT/'latest.exe'),inspect(ROOT/'latest.dll')]
+    return {'file':str(path.relative_to(ROOT)),'bytes':len(b),'imports':imports,'exports':exports}
+result=[inspect(ROOT/'latest.exe'),inspect(ROOT/'latest.dll'),inspect(ROOT/'start'/'latest.dll')]
 (ROOT/'tests'/'imports-latest.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
 print(json.dumps(result,indent=2))

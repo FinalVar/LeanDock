@@ -41,8 +41,8 @@ static void SaveStatus() {
     char json[1600],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
     // Error messages are fixed internal labels, never window titles or application text.
     int size=snprintf(json,sizeof(json),
-        "{\"version\":\"0.3.0\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"error\":\"%s\"}\n",
-        GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",LeanDockPanels::moves[0],LeanDockPanels::moves[1],LeanDockPanels::failures,error);
+        "{\"version\":\"0.3.1\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\"}\n",
+        GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",LeanDockPanels::moves[0],LeanDockPanels::moves[1],LeanDockPanels::failures,LeanDockStart::supported?"true":"false",(LeanDockStart::target && LeanDockStart::Query(LeanDockStart::target))?"true":"false",LeanDockStart::blocked?"true":"false",LeanDockStart::failures,error);
     HANDLE file=CreateFileW(path,GENERIC_WRITE,FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,json,size,&written,nullptr);CloseHandle(file);}
 }
@@ -151,6 +151,7 @@ static void CancelHelper() {
     CloseHandle(g_helper);g_helper=nullptr;
 }
 static void StopDock() {
+    LeanDockStart::Stop();
     LeanDockPanels::Stop();
     g_stopping=true;KillTimer(g_window,1);CancelHelper();
     if(HWND backend=Backend(g_explorerPid)) {
@@ -303,6 +304,9 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     if(!NativeCorners::Initialize(g_window,g_directory)){
         if(!g_dockSupported){SaveStatus();DestroyWindow(g_window);ReleaseMutex(mutex);CloseHandle(mutex);return 25;}
     }
+    // Start layout support is independently pinned and never blocks Dock or
+    // corners when a Windows update changes the Start components.
+    LeanDockStart::Start(g_directory);
     g_panelsReady=g_dockSupported && LeanDockPanels::Start(g_window);
     if(!g_panelsReady)LeanDockPanels::Stop();
     SaveStatus();

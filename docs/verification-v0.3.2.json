@@ -1,0 +1,33 @@
+{
+  "schema": 3,
+  "recordedAtUtc": "2026-10-08T04:42:09.9798061Z",
+  "packageVersion": "0.3.2",
+  "controllerVersion": "0.3.0",
+  "backendVersion": "0.2.2",
+  "scope": "Lengthen the application and tray divider from 28 to 40 DIP; width, gradient, position and vertical centering unchanged.",
+  "backendBuildPassed": true,
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 44544,
+      "SHA256": "57C6EAC4B1465531DF1C9CBB8B9871DC36FC11451E42A8A927894A52C6C28BA1"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1590272,
+      "SHA256": "449BA4DF9153253F73189C584F73DE863DEB94BA1EDC8043B51DB50A76CA0A85"
+    }
+  ],
+  "productionDockAndCornersReady": true,
+  "deployedPayloadHashes": 5,
+  "preservedFileHashes": 17,
+  "controllerBinaryUnchanged": true,
+  "cornerConfigurationUnchanged": true,
+  "recoveryGuardExited": true,
+  "previousVerification": "verification-v0.3.1.json",
+  "acceptance": {
+    "scope": "Longer divider appearance",
+    "status": "awaiting-user-observation"
+  },
+  "validationBoundary": "Backend build, exact deployed hashes, preserved file hashes, loaded backend version and live readiness verified. No automated taskbar screenshot was captured. Existing runtime tests and prior feature UI acceptance were not repeated for this one-line visual change."
+}

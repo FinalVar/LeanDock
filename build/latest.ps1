@@ -61,9 +61,10 @@ if(-not $BackendOnly){
     & $clang @common @link '-std=c++23' '-mwindows' '-municode' (Join-Path $root 'src\controller-latest.cpp') (Join-Path $root 'src\hotcorners-latest.cpp') '-o' (Join-Path $root 'latest.exe') '-lshell32' '-lbcrypt' '-ldwmapi' '-lwtsapi32' '-ladvapi32'
     if($LASTEXITCODE -ne 0){throw 'Controller compilation failed.'}
 }
+if(-not $ControllerOnly -and -not $BackendOnly){& (Join-Path $PSScriptRoot 'start-latest.ps1') -CompilerRoot $compiler}
 [pscustomobject]@{
-    Version='0.3.2';ControllerVersion='0.3.0';BackendVersion='0.2.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true
-    RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll | ForEach-Object {
-        [pscustomobject]@{Name=$_.Name;Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName).Hash}
+    Version='0.3.3';ControllerVersion='0.3.1';BackendVersion='0.2.2';StartLayoutVersion='0.1.1';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true
+    RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll,(Join-Path $root 'start\latest.dll') | ForEach-Object {
+        [pscustomobject]@{Name=[IO.Path]::GetRelativePath($root,$_.FullName);Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName).Hash}
     })
 } | ConvertTo-Json -Depth 4 | Tee-Object -FilePath (Join-Path $PSScriptRoot 'latest.json')

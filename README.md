@@ -2,7 +2,7 @@
 
 面向 Windows 11 的精简原生任务栏定制：悬浮 Dock、连续双排托盘、智能隐藏与触发角。
 
-当前是 **0.3.2 私有开发版本**，从已部署的 NativeTaskbarDock 整理而来。它直接调整 Windows 原生任务栏，保留原生应用按钮、通知图标与快速设置入口。当前构建只支持已核验的一组 Windows 系统组件，尚不是面向所有 Windows 11 版本的通用安装包。
+当前是 **0.3.3 私有开发版本**，从已部署的 NativeTaskbarDock 整理而来。它直接调整 Windows 原生任务栏，保留原生应用按钮、通知图标与快速设置入口。当前构建只支持已核验的一组 Windows 系统组件，尚不是面向所有 Windows 11 版本的通用安装包。
 
 ## 功能
 
@@ -12,13 +12,14 @@
 - 隐藏开始、搜索、任务视图、小组件、日期时间、网络、音量、电量百分比及输入法标记。
 - 窗口与任务栏区域相交时隐藏，桌面或没有重叠窗口时显示；按 Dock 实际宽度限制底边唤出，透明两侧不占鼠标区域。
 - 原生开始菜单保持居中，快速设置靠 Dock 右端，上方保留约 8 DIP 可见间隙。
+- 开始菜单的“全部应用”网格连续排列，保留原生应用与文件夹对象；隐藏并禁用“类别／网格／列表”切换入口，避免误改。停用后恢复原始分组、数据绑定和切换入口。
 - 左上角调用原生 LockWorkStation 锁屏，左下角显示／恢复桌面，右下角任务视图；零停留延迟，移出角落后才可再次触发。
 
 ## 运行结构
 
-只有一个额外的隐藏控制进程，另有一个组件加载到 Explorer 中。通过当前用户交互式登录计划任务启动，没有自己的托盘图标、可见窗口或 Windows 服务。正常运行不需要 Windhawk 引擎、Python、Node 或 .NET；目前构建工具复用 Windhawk 随附的 Clang/MinGW/WinRT 开发环境。
+只有一个额外的隐藏控制进程，另有组件分别加载到 Explorer 和原生开始菜单宿主中。通过当前用户交互式登录计划任务启动，没有自己的托盘图标、可见窗口或 Windows 服务。正常运行不需要 Windhawk 引擎、Python、Node 或 .NET；目前构建工具复用 Windhawk 随附的 Clang/MinGW/WinRT 开发环境。
 
-控制进程使用事件处理 Explorer 生命周期、鼠标原始输入及两个原生菜单窗口的位置。菜单通过 WinEvent 事件触发，合并短时布局通知；没有常驻轮询，也不向菜单宿主加载 DLL。触发角已接入同一消息循环。为了支持已有管理员权限的前台窗口，现有部署的任务使用 HighestAvailable；Explorer 本身不因此提权。
+控制进程使用事件处理 Explorer 生命周期、鼠标原始输入及两个原生菜单窗口的位置。菜单通过 WinEvent 事件触发，合并短时布局通知；没有常驻轮询。开始菜单布局使用单独的 `start/latest.dll`，只在已核验的宿主 UI 线程调整原生网格，不改快速设置内容。它保留原生 ICollectionView 集合接口，用窗口与集合事件更新。被修改的开始菜单进程退出后，本次控制进程不再重复加载，以避免崩溃循环；新宿主暂时使用原生布局，明确重启控制程序才会重试。触发角已接入同一消息循环。为了支持已有管理员权限的前台窗口，现有部署的任务使用 HighestAvailable；Explorer 本身不因此提权。
 
 `NativeTaskbarDock` 任务名、窗口类、互斥锁等内部标识暂时保留，以兼容已有部署。LeanDock 是仓库和项目名称，首次入库没有重命名或重装当前运行的程序。
 
@@ -38,7 +39,7 @@
 .\build\latest.ps1 -CompilerRoot "$env:ProgramFiles\Windhawk\Compiler" -PythonPath python
 ```
 
-也可通过 `LEANDOCK_COMPILER_ROOT`、`LEANDOCK_PYTHON` 指定工具位置。构建产生根目录 `latest.exe`、`latest.dll` 及被 Git 忽略的构建收据，不会安装、启动或注入任何进程。
+也可通过 `LEANDOCK_COMPILER_ROOT`、`LEANDOCK_PYTHON` 指定工具位置。完整构建产生根目录 `latest.exe`、`latest.dll`、`start/latest.dll` 及被 Git 忽略的构建收据，不会安装、启动或注入任何进程。开始菜单组件也可单独运行 `build/start-latest.ps1` 构建。
 
 `-ControllerOnly` 只构建控制程序；`-BackendOnly` 只构建 Explorer 组件，两者互斥。完整构建会先重跑生成器。维护任务栏适配时改 `build/generate-latest.py`，维护触发角接入时改 `build/adapt-hotcorners-latest.py`，不要只改生成文件。
 
@@ -84,6 +85,8 @@ python .\tests\imports-latest.py
 历史验收及边界保存在 `docs/baseline-latest.json`，当前版本的复核见 `docs/verification-latest.json`。0.3.0 的原生托盘数量 5→6→7→6→5 变化已核对 29 个实际控件矩形，鼠标裁剪范围随宽度同步变化。用户当时确认玻璃外观与比例、菜单位置、呼出范围、锁屏及另外两个触发角均正常；后续又指出应用按钮亮边不协调。0.3.1 针对这一外观反馈修补，旧版验收单独保留在 `docs/verification-v0.3.0.json`，不能作为新外观的人工验收。
 
 0.3.1 的白线修补已获用户确认，记录保存在 `docs/verification-v0.3.1.json`。0.3.2 只将应用与托盘间的竖线由 28 加长至 40 DIP，细度、渐变、位置和其余功能保持原样。
+
+0.3.3 的开始菜单布局已获用户确认：“入口消失，排列、点击和反复开关都正常”。原生检查记录 41 项应用从 30 个字母组变为连续网格，内容高度由 2982 缩至约 639 DIP；停用可恢复分组和视图切换入口，再启用时宿主进程未重启。接入控制程序时，已有 Explorer 的 XAML 诊断接口热重连失败，干净重载精确的任务栏宿主后恢复；今后仍采用受保护的干净加载流程。此次没有实测注销／重启登录、动态安装卸载和长期运行。
 
 ## 当前边界
 

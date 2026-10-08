@@ -1,6 +1,6 @@
 # Sources and licensing
 
-LeanDock 0.3.0 (legacy NativeTaskbarDock controller 0.3.0 and backend 0.2.0). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release.
+LeanDock 0.3.3 (legacy NativeTaskbarDock controller 0.3.1, backend 0.2.2 and Start layout 0.1.1). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release.
 
 Preserved GPL-3.0 upstream sources by m417z and their credited contributors:
 
@@ -47,3 +47,12 @@ not a claim of physically refractive rendering or full macOS feature parity.
 The original NativeHotCorners input is retained unchanged. The current local
 core adds LockScreen and routes it to the Windows LockWorkStation API through
 the generator; it deliberately generates no synthetic Win+L keystrokes.
+
+The native Start grid flattening, restoration and semantic-zoom handling were
+adapted with reference to Asteski's Compact Start Menu 1.0.0 at windhawk-mods
+commit 5b32bb24425ef9af3e7769665f667b8144352a20:
+https://github.com/ramensoftware/windhawk-mods/blob/5b32bb24425ef9af3e7769665f667b8144352a20/mods/compact-start-menu.wh.cpp
+The full reference is retained as upstream/start-layout.cpp. LeanDock's small
+companion retains a native CollectionViewSource.View, preserves native models,
+uses collection/window events instead of the upstream traversal timer, and
+limits changes to the grid and its view selector. No Windhawk runtime is used.
