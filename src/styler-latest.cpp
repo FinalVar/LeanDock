@@ -5,6 +5,7 @@
 #include "dock-geometry-latest.h"
 #include "cards-latest.h"
 #include "shell-actions-latest.h"
+#include "shell-menu-latest.h"
 #include <commctrl.h>
 #include <xamlom.h>
 

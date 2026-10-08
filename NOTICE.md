@@ -1,6 +1,6 @@
 # Sources and licensing
 
-LeanDock 0.4.0 (legacy NativeTaskbarDock controller 0.3.1, backend 0.3.0 and Start layout 0.1.2). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release.
+LeanDock 0.5.1 (legacy NativeTaskbarDock controller 0.3.1, backend 0.4.1 and Start layout 0.1.2). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release.
 
 Preserved GPL-3.0 upstream sources by m417z and their credited contributors:
 
@@ -75,3 +75,9 @@ Battery readings use GetSystemPowerStatus, with PowerManager change events:
 - https://learn.microsoft.com/en-us/uwp/api/windows.system.power.powermanager
 The package adds no third-party power monitor, elevated message bridge or
 background process. Existing native notification objects and menus remain.
+
+The 0.5.1 pointer-target mapping and bounded native-menu placement are original
+code. A private-COM activation experiment returned success but failed desktop
+acceptance on this Windows build; it was rolled back and is not included here.
+The final design retains the original Quick Settings object and the working
+Win+X invocation, without relying on those unverified private interfaces.

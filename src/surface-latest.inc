@@ -31,6 +31,7 @@ void UpdateLeanDockDivider(ClickThroughTaskbarState& state) try {
     state.dividerParent=winrt::make_weak(root);
 } catch(...) { Wh_Log(L"LeanDock divider waiting for a stable visual tree"); }
 void ClearLeanDockDivider(ClickThroughTaskbarState& state) {
+    LeanDockMenu::Cancel();
     state.cardsClosing=true;
     if(state.cards){state.cards->Stop();state.cards.reset();}
     auto parent=state.dividerParent.get();auto line=state.divider.get();
@@ -56,8 +57,9 @@ bool HandleLeanDockContext(HWND window,LPARAM position) try {
             DependencyObject node=hit;
             for(unsigned depth=0;node&&depth<32;++depth,node=Media::VisualTreeHelper::GetParent(node)){
                 auto fe=node.try_as<FrameworkElement>();if(!fe)continue;
-                if(fe.Name()==L"LeanDockCard"||fe.Name()==L"LeanDockPowerCard")
-                    return LeanDockShell::Request(window,LeanDockShell::Action::PowerUser);
+                if(fe.Name()==L"LeanDockCard"||fe.Name()==L"LeanDockPowerCard"||
+                   (fe.Name()==L"ControlCenterButton"&&GetPropW(window,L"LeanDock.Card.NativePowerHit")))
+                    return LeanDockMenu::Request(window);
                 const auto type=winrt::get_class_name(fe);
                 if(fe.try_as<Controls::Primitives::ButtonBase>()||
                    type==L"SystemTray.NotifyIconView"||fe.Name()==L"NotifyItemIcon")nativeControl=true;
@@ -65,7 +67,7 @@ bool HandleLeanDockContext(HWND window,LPARAM position) try {
             }
             if(nativeControl)return false;
         }
-        if(inDock)return LeanDockShell::Request(window,LeanDockShell::Action::PowerUser);
+        if(inDock)return LeanDockMenu::Request(window);
     }
     return false;
 }catch(...){return false;}

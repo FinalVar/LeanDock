@@ -1,0 +1,169 @@
+{
+  "schema": 7,
+  "recordedAtUtc": "2026-10-08T08:08:47.8389247Z",
+  "packageVersion": "0.5.0",
+  "controllerVersion": "0.3.1",
+  "backendVersion": "0.4.0",
+  "startLayoutVersion": "0.1.2",
+  "scope": "Centered media controls, independent battery card, app-only tray, scoped native system-tool context menu",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 227840,
+      "SHA256": "754898E4ABE870C62AF1A51071C4BF58AE22B6B28A3AE809F882962DFA2CCD1F"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1736704,
+      "SHA256": "377B2CD272130526B2243DCFB35AF4B8EAF2CDBD36AB8DC5DFAC36CBE96286E0"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 393216,
+      "SHA256": "AB275AB1ABCEF101CAC88790061E3E76680B01A4ECEECACE47AAB6883E072C59"
+    }
+  ],
+  "systemDllImportsOnly": true,
+  "generatorReproducesBuiltSources": true,
+  "regression": {
+    "shellInputChecks": 37,
+    "shellInputTestSendsKeys": false,
+    "geometryChecks": 89,
+    "cardCoreChecks": 39,
+    "failures": 0
+  },
+  "native": {
+    "singleController": true,
+    "mediaGeometry": {
+      "Checked": false
+    },
+    "hotCornersReady": true,
+    "live": true,
+    "hardwareBattery": [
+      {
+        "EstimatedChargeRemaining": 100,
+        "BatteryStatus": 2
+      }
+    ],
+    "newShellCrashEvents": 0,
+    "card": {
+      "At": "2026-10-08T16:08:46.3240515+08:00",
+      "Hwnd": 7668614,
+      "Ready": 1,
+      "Visible": 1,
+      "Sampling": 1,
+      "Samples": 105,
+      "Cpu": 4,
+      "Memory": 74,
+      "Media": 1,
+      "View": 0,
+      "Errors": 0,
+      "Commands": 0,
+      "Left100": 81833,
+      "Top100": 800,
+      "Right100": 97833,
+      "Bottom100": 5200,
+      "AppRight100": 79733,
+      "RootRight100": 105333,
+      "Fits": 1,
+      "ControlsLeft100": null,
+      "ControlsRight100": null,
+      "ControlsTop100": null,
+      "ControlsBottom100": null,
+      "TitleLeft100": null,
+      "TitleRight100": null,
+      "ButtonWidth100": null,
+      "PowerReady": 1,
+      "BatteryPercent": 100,
+      "Charging": 0,
+      "Plugged": 1,
+      "PowerLeft100": 98633,
+      "PowerRight100": 103833,
+      "PowerTop100": 800,
+      "PowerBottom100": 5200
+    },
+    "tray": {
+      "active": true,
+      "apps": 4,
+      "battery": 0,
+      "input": 0,
+      "total": 4,
+      "columns": 2,
+      "cells": [
+        [
+          10.0,
+          6.0,
+          24.0,
+          24.0
+        ],
+        [
+          10.0,
+          30.0,
+          24.0,
+          24.0
+        ],
+        [
+          38.0,
+          6.0,
+          24.0,
+          24.0
+        ],
+        [
+          38.0,
+          30.0,
+          24.0,
+          24.0
+        ]
+      ]
+    }
+  },
+  "preserved": [
+    {
+      "File": "latest.exe",
+      "Unchanged": true
+    },
+    {
+      "File": "start/latest.dll",
+      "Unchanged": true
+    },
+    {
+      "File": "latest.ini",
+      "Unchanged": true
+    },
+    {
+      "File": "hotcorners/latest.ini",
+      "Unchanged": true
+    },
+    {
+      "File": "include/dock-geometry-latest.h",
+      "Unchanged": true
+    },
+    {
+      "File": "include/shell-panels-latest.h",
+      "Unchanged": true
+    }
+  ],
+  "acceptance": {
+    "backgroundRightClick": "pending",
+    "cardRightClick": "pending",
+    "appAndTrayMenus": "pending",
+    "powerClick": "pending",
+    "visual": "pending",
+    "notes": "Await real desktop use. API submission and readiness are not proof of visible menu or player behavior."
+  },
+  "maintenance": {
+    "candidateControllerRejected": true,
+    "finalDeploymentUsesOriginalController": true,
+    "knownControllerRestored": true,
+    "candidateElevatedActionBridgeRemoved": true,
+    "taskDefinitionRestored": true,
+    "defenderProtectionUnchanged": true
+  },
+  "boundaries": [
+    "Current geometry observed on one display; multi-display and DPI transitions untested",
+    "Odd tray count and crowded fallback have not been physically exercised this deployment",
+    "Battery plug/unplug events not physically exercised",
+    "Native menu appearance and media controls require user observation",
+    "No claim about exact Defender detection cause or whole-device power savings"
+  ]
+}

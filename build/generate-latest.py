@@ -143,7 +143,7 @@ def main():
             source = source.replace(
                 "{ 0xc85d8cc7, 0x5463, 0x40e8, { 0xa4, 0x32, 0xf5, 0x91, 0x6b, 0x64, 0x27, 0xe5 } }",
                 "{ 0x7e54f66a, 0x1a8e, 0x4b90, { 0x94, 0x2f, 0x37, 0x45, 0x8b, 0x35, 0xe2, 0x01 } }")
-            source = '#include "dock-geometry-latest.h"\n#include "cards-latest.h"\n#include "shell-actions-latest.h"\n' + source
+            source = '#include "dock-geometry-latest.h"\n#include "cards-latest.h"\n#include "shell-actions-latest.h"\n#include "shell-menu-latest.h"\n' + source
             source = replace_once(source, "struct ClickThroughTaskbarState {", """struct ClickThroughTaskbarState {
     winrt::weak_ref<Shapes::Rectangle> divider;
     winrt::weak_ref<Controls::Grid> dividerParent;
@@ -210,6 +210,7 @@ def main():
             ? 0.0 : row*(DockGrid::Row(appCount,0)-0.5);
         DockTranslate(battery,batteryX,batteryY);""")
             source = replace_once(source, "void UpdateUnifiedDockGrid() {", "void UpdateLegacyUnifiedDockGrid() {")
+            source = replace_once(source, "void StopUnifiedDockGrid() {", "void ClearNativePowerHit();\nvoid StopUnifiedDockGrid() {\n    ClearNativePowerHit();")
             source = replace_once(source, "bool TryUnifiedDockGrid(FrameworkElement element) try {",
                 read(ROOT / "src" / "tray-cards-latest.inc") + "\nbool TryUnifiedDockGrid(FrameworkElement element) try {")
         # Every functional unit shares one loader, configuration reader and hook manager.

@@ -1,6 +1,7 @@
 #include "cards-latest.h"
 #include "cards-core-latest.h"
 #include "shell-actions-latest.h"
+#include "shell-menu-latest.h"
 #include <atomic>
 #include <chrono>
 #include <string>
@@ -20,6 +21,8 @@
 #include <winrt/Windows.UI.Xaml.Markup.h>
 #include <winrt/Windows.UI.Xaml.Media.h>
 #include <winrt/Windows.UI.Xaml.Shapes.h>
+
+namespace LeanDockMenu { thread_local Pending pending; }
 
 namespace LeanDockCards {
 namespace x=winrt::Windows::UI::Xaml;
@@ -181,7 +184,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         auto weak=weak_from_this();
         powerCard.Click([weak](auto&&,auto&&){if(auto p=weak.lock();p&&!p->stopped)p->OpenPower();});
         auto context=[weak](IInspectable const&,x::Input::RightTappedRoutedEventArgs const& e){
-            if(auto p=weak.lock();p&&!p->stopped&&LeanDockShell::Request(p->hwnd,LeanDockShell::Action::PowerUser))e.Handled(true);
+            if(auto p=weak.lock();p&&!p->stopped&&LeanDockMenu::Request(p->hwnd))e.Handled(true);
         };
         card.RightTapped(context);powerCard.RightTapped(context);
         card.PointerWheelChanged([weak](IInspectable const& sender,x::Input::PointerRoutedEventArgs const& e){
