@@ -27,6 +27,7 @@ namespace LeanDockMenu { std::mutex gestureMutex;Gesture gesture; }
 // Called on the owning XAML thread after the selected page changes. This
 // retires the previous native hit target before another page accepts input.
 extern "C" void Native_tray_refresh_cards();
+extern "C" BOOL InternalWh_SetStringValue(void*,PCWSTR,PCWSTR);
 
 namespace LeanDockCards {
 namespace x=winrt::Windows::UI::Xaml;
@@ -50,7 +51,9 @@ static constexpr const wchar_t* Props[]={L"LeanDock.Card.Ready",L"LeanDock.Card.
     L"LeanDock.Card.PowerActive",L"LeanDock.Card.VisiblePages",L"LeanDock.Card.BatteryMode",L"LeanDock.Card.PowerUpdates",L"LeanDock.Card.Switches",
     L"LeanDock.Card.CpuRefreshing",L"LeanDock.Card.CpuIntervalMs",L"LeanDock.Card.TitleFont100",
     L"LeanDock.Card.PowerContentLeft100",L"LeanDock.Card.PowerContentRight100",L"LeanDock.Card.PowerContentTop100",L"LeanDock.Card.PowerContentBottom100",
-    L"LeanDock.Card.TitleHeight100",L"LeanDock.Card.TitleRowHeight100",L"LeanDock.Card.TitleTop100",L"LeanDock.Card.TitleBottom100"};
+    L"LeanDock.Card.TitleHeight100",L"LeanDock.Card.TitleRowHeight100",L"LeanDock.Card.TitleTop100",L"LeanDock.Card.TitleBottom100",
+    L"LeanDock.Card.ClockActive",L"LeanDock.Card.ClockHourMinute",L"LeanDock.Card.ClockMonthDay",L"LeanDock.Card.ClockUpdates",
+    L"LeanDock.Card.AppWidth100",L"LeanDock.Card.RootWidth100",L"LeanDock.Card.RootMinWidth100",L"LeanDock.Card.FrameMinWidth100"};
 static uint64_t Bits(FILETIME t){return (uint64_t(t.dwHighDateTime)<<32)|t.dwLowDateTime;}
 static std::optional<CpuTimes> Times(){
     // This API is group-local on machines with more than 64 processors. Do
@@ -96,7 +99,8 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     Power::RemainingChargePercentChanged_revoker chargeChanged;
     Power::BatteryStatusChanged_revoker batteryChanged;
     Power::PowerSupplyStatusChanged_revoker supplyChanged;
-    c::Grid metrics{nullptr},media{nullptr}; c::TextBlock title{nullptr};
+    c::Grid metrics{nullptr},media{nullptr}; c::StackPanel clock{nullptr};
+    c::TextBlock title{nullptr},clockTime{nullptr},clockDate{nullptr};
     c::StackPanel mediaControls{nullptr};winrt::hstring artistName;
     RingDrawing cpuRing,memoryRing;CpuSampler cpu;std::optional<unsigned> memoryPercent;
     c::Button previous{nullptr},play{nullptr},next{nullptr};c::TextBlock playGlyph{nullptr};
@@ -111,13 +115,14 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     winrt::Windows::Foundation::IAsyncOperation<m::GlobalSystemMediaTransportControlsSessionMediaProperties> metadata{nullptr};
     winrt::Windows::Foundation::IAsyncOperation<bool> command{nullptr};
     CommandGate commandGate;
-    HWND hwnd=nullptr; bool stopped=false,shown=false,fits=false,busy=false,sampling=false;
+    HWND hwnd=nullptr; bool stopped=false,shown=false,fits=false,busy=false,sampling=false,clocking=false;
     Page page=Page::Metrics;
-    unsigned generation=0,samples=0,errors=0,commands=0,powerUpdates=0,switches=0;
+    unsigned generation=0,samples=0,errors=0,commands=0,powerUpdates=0,switches=0,clockUpdates=0;
     int wheelRemainder=0;
     std::atomic<bool> refreshQueued=false;
     std::atomic<bool> powerQueued=false;
     Battery battery;
+    std::wstring lastLayout;
     ~Board(){Stop();}
 
     void Init(c::Grid const& grid) {
@@ -173,10 +178,16 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
      <Button x:Name="Next" AutomationProperties.Name="下一首"><TextBlock FontFamily="Segoe Fluent Icons" FontSize="12" Text="&#xE893;"/></Button>
     </StackPanel>
   </Grid>
+  <StackPanel x:Name="Clock" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center">
+   <TextBlock x:Name="ClockTime" FontSize="20" FontWeight="SemiBold" Typography.NumeralAlignment="Tabular" TextAlignment="Center"/>
+   <TextBlock x:Name="ClockDate" FontSize="10" Opacity="0.72" CharacterSpacing="100" TextAlignment="Center"/>
+  </StackPanel>
  </Grid>
 </Border>)xaml").as<c::Border>();
         card.Width(CardWidth);card.Margin({0,0,-CardWidth,0});
         metrics=card.FindName(L"Metrics").as<c::Grid>();media=card.FindName(L"Media").as<c::Grid>();
+        clock=card.FindName(L"Clock").as<c::StackPanel>();
+        clockTime=card.FindName(L"ClockTime").as<c::TextBlock>();clockDate=card.FindName(L"ClockDate").as<c::TextBlock>();
         title=card.FindName(L"Title").as<c::TextBlock>();mediaControls=card.FindName(L"MediaControls").as<c::StackPanel>();
         title.Width(CardWidth-14);
         cpuRing.Init(card.FindName(L"CpuRing").as<x::Shapes::Path>());memoryRing.Init(card.FindName(L"MemoryRing").as<x::Shapes::Path>());
@@ -281,6 +292,10 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         try{
             hwnd=taskbar;
             const double appWidth=std::max(double(apps.ActualWidth()),double(apps.DesiredSize().Width));
+            Put(hwnd,52,std::lround(apps.ActualWidth()*100));Put(hwnd,53,std::lround(root.ActualWidth()*100));
+            Put(hwnd,54,std::lround(root.MinWidth()*100));
+            if(auto frame=x::Media::VisualTreeHelper::GetParent(root).try_as<x::FrameworkElement>())Put(hwnd,55,std::lround(frame.MinWidth()*100));
+            PublishLayout();
             bool nextFits=Fits(available,appWidth,tray,fits);
             const double slot=nextFits?SlotWidth:0;
             auto padding=root.Padding();if(padding.Left!=12||padding.Right!=12+slot||padding.Top||padding.Bottom)root.Padding({12,0,12+slot,0});
@@ -322,12 +337,45 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     }
     void Sampling() {
         const bool want=ShouldSample(shown&&fits,page==Page::Metrics,!stopped);
-        if(want==sampling)return;
-        sampling=want;Put(hwnd,2,sampling);
+        const bool wantClock=shown&&fits&&page==Page::Clock&&!stopped;
+        if(want==sampling&&wantClock==clocking)return;
+        timer.Stop();cpu.Pause();sampling=want;clocking=wantClock;
+        Put(hwnd,2,sampling);Put(hwnd,48,clocking);
         if(want){
             cpu.Resume(Times(),GetTickCount64());UpdateCpuVisual();ReadMemory();
             timer.Interval(std::chrono::milliseconds(cpu.IntervalMs()));timer.Start();
-        }else{timer.Stop();cpu.Pause();Put(hwnd,37,0);Put(hwnd,38,0);}
+        }else{Put(hwnd,37,0);Put(hwnd,38,0);}
+        if(wantClock){ReadClock();timer.Start();}
+    }
+    void PublishLayout() {
+        // Small, read-only numeric snapshot on the existing layout event. No
+        // app titles or content, and no full-tree walk or background polling.
+        auto describe=[](x::FrameworkElement const& e){
+            auto name=std::wstring(e.Name());
+            for(auto& ch:name)if(!((ch>=L'a'&&ch<=L'z')||(ch>=L'A'&&ch<=L'Z')||(ch>=L'0'&&ch<=L'9')||ch==L'_'))ch=L'_';
+            return L"{\"name\":\""+name+L"\",\"actual\":"+std::to_wstring(e.ActualWidth())+
+                L",\"desired\":"+std::to_wstring(e.DesiredSize().Width)+L",\"min\":"+std::to_wstring(e.MinWidth())+
+                L",\"visible\":"+std::to_wstring(e.Visibility()==x::Visibility::Visible)+L"}";
+        };
+        auto data=L"{\"root\":"+describe(root)+L",\"children\":[";
+        bool first=true;for(auto const& child:root.Children())if(auto element=child.try_as<x::FrameworkElement>()){
+            if(!first)data+=L",";first=false;data+=describe(element);
+        }data+=L"]}";
+        if(data!=lastLayout){InternalWh_SetStringValue(nullptr,L"cardsLayoutState",data.c_str());lastLayout=std::move(data);}
+    }
+    void ReadClock() {
+        SYSTEMTIME now{};GetLocalTime(&now);
+        auto text=ClockText(now.wHour,now.wMinute,now.wMonth,now.wDay);
+        if(clockTime.Text()!=text.time)clockTime.Text(text.time);
+        if(clockDate.Text()!=text.date)clockDate.Text(text.date);
+        x::Automation::AutomationProperties::SetName(card,text.date+L" "+text.time);
+        Put(hwnd,49,now.wHour*100+now.wMinute);Put(hwnd,50,now.wMonth*100+now.wDay);Put(hwnd,51,++clockUpdates);
+        timer.Interval(std::chrono::milliseconds(NextMinuteMs(now.wSecond,now.wMilliseconds)));
+    }
+    void TimeChanged() noexcept override {
+        try{auto weak=weak_from_this();dispatcher.RunAsync(CoreDispatcherPriority::Normal,[weak]{
+            if(auto p=weak.lock();p&&!p->stopped&&p->clocking)try{p->timer.Stop();p->ReadClock();p->timer.Start();}catch(...){p->Fail();}
+        });}catch(...){}
     }
     void UpdateCpuVisual(){
         cpuRing.Set(cpu.value);
@@ -350,7 +398,8 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         }
     }
     void Tick(){
-        if(stopped)return;shown=Visible();Put(hwnd,1,shown);Sampling();if(!sampling)return;
+        if(stopped)return;shown=Visible();Put(hwnd,1,shown);Sampling();
+        if(clocking){ReadClock();return;}if(!sampling)return;
         const bool measured=cpu.Sample(Times(),GetTickCount64());
         timer.Interval(std::chrono::milliseconds(cpu.IntervalMs()));UpdateCpuVisual();
         ReadMemory();if(measured){++samples;Put(hwnd,3,samples);}
@@ -366,7 +415,8 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
             reinterpret_cast<uintptr_t>(GetPropW(hwnd,Props[32]))!=uintptr_t(active+1);
         Put(hwnd,24,ready);Put(hwnd,32,active);
         Put(hwnd,33,fits?(metrics.Visibility()==x::Visibility::Visible)+
-            (media.Visibility()==x::Visibility::Visible)+(powerCard.Visibility()==x::Visibility::Visible):0);
+            (media.Visibility()==x::Visibility::Visible)+(powerCard.Visibility()==x::Visibility::Visible)+
+            (clock.Visibility()==x::Visibility::Visible):0);
         if(changed)Native_tray_refresh_cards();
     }
     void ReadPower(){
@@ -410,8 +460,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         metrics.Visibility(page==Page::Metrics?x::Visibility::Visible:x::Visibility::Collapsed);
         media.Visibility(page==Page::Media?x::Visibility::Visible:x::Visibility::Collapsed);
         powerCard.Visibility(page==Page::Power?x::Visibility::Visible:x::Visibility::Collapsed);
+        clock.Visibility(page==Page::Clock?x::Visibility::Visible:x::Visibility::Collapsed);
         x::Automation::AutomationProperties::SetName(card,page==Page::Metrics?L"CPU "+CpuText()+L"，内存 "+PercentText(memoryPercent):
-            page==Page::Media?L"媒体 "+title.Text():L"电池 "+powerText.Text()+L"，"+powerStatus.Text());
+            page==Page::Media?L"媒体 "+title.Text():page==Page::Power?L"电池 "+powerText.Text()+L"，"+powerStatus.Text():clockDate.Text()+L" "+clockTime.Text());
         Sampling();Publish();PublishSlot();
     }
     static winrt::fire_and_forget Request(std::weak_ptr<Board> weak) {

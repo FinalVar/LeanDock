@@ -163,7 +163,7 @@ def main():
             signature = "LRESULT CALLBACK ClickThroughTaskbarSubclassProc("
             start = source.index(signature)
             body = source.index("    switch (uMsg) {", start)
-            source = source[:body] + "    if(uMsg==WM_CONTEXTMENU && HandleLeanDockContext(hWnd,lParam))return 0;\n" + source[body:]
+            source = source[:body] + "    if(uMsg==WM_CONTEXTMENU && HandleLeanDockContext(hWnd,lParam))return 0;\n    if(uMsg==WM_TIMECHANGE)LeanDockTimeChanged(hWnd);\n" + source[body:]
             source = replace_once(source, "    // LayoutUpdated is frequent; only re-apply when the result actually",
                 """    // Share only the projected, fully shown geometry. Both popup placement
     // and edge reveal track application/tray count and DPI changes automatically.

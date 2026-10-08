@@ -21,6 +21,8 @@ latest-backend.json
 latest-layout.json
 hotcorners/latest-status.json
 start/latest-status.json
+panels/latest-status.json
+latest-cards-layout.json
 hotcorners/*.log.*
 backups/
 verification/

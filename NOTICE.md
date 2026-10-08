@@ -101,3 +101,24 @@ Documented APIs used for thread ownership and the placement transaction:
 - https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowshookexw
 
 The 0.5.6 timing changes are original adaptations: shared native pending placement, versioned scalar geometry, media command generations and bounded event-thread shutdown. No additional upstream code or runtime dependency was introduced.
+
+The 0.6.0 theme worker's IThemeManager ABI and appearance registry values were
+adapted with reference to tinodin's Auto Theme Switcher 1.3.2 (GPL-3.0):
+https://github.com/ramensoftware/windhawk-mods/blob/a5c9b87ba0824d826d6c1a95f6a497cb48d2dc66/mods/auto-theme-switcher.wh.cpp
+The original reference is retained as upstream/theme-switch.cpp, SHA-256
+421AC8B0EEF2C7DC6E65D374D4C5712113671D7E974E42B593DAEAA30785609B.
+LeanDock adds a pinned system implementation, exact built-in theme allowlist,
+isolated short-lived worker, same-session mutex, visible-window notification
+budget, conditional appearance rollback, and complete-state verification.
+It does not use that mod's scheduler, location lookup or Windhawk engine.
+
+The quick-theme companion uses the XAML diagnostics IObjectWithSite pattern
+already preserved in upstream/styler.cpp, originally derived from TranslucentTB
+ExplorerTAP and adapted by m417z. The minimal pattern was also checked against:
+https://gist.github.com/m417z/8741e52d8eaad67b47ee365a20070bf8
+Its discovery subscription is temporary. Diagnostic object handles are released
+before normal operation continues with the target UI thread's local events.
+Only the BlueLightReduction tile presentation is replaced; the native data
+model and original template/binding remain available for restoration.
+Windows theme file format:
+https://learn.microsoft.com/en-us/windows/win32/controls/themesfileformat-overview

@@ -58,13 +58,13 @@ if(Test-Path -LiteralPath $dll){Copy-Item -LiteralPath $dll -Destination (Join-P
 if($LASTEXITCODE -ne 0){throw 'Standalone backend link failed.'}
 }
 if(-not $BackendOnly){
-    & $clang @common @link '-std=c++23' '-mwindows' '-municode' (Join-Path $root 'src\controller-latest.cpp') (Join-Path $root 'src\hotcorners-latest.cpp') '-o' (Join-Path $root 'latest.exe') '-lshell32' '-lbcrypt' '-ldwmapi' '-lwtsapi32' '-ladvapi32'
+    & $clang @common @link '-std=c++23' '-mwindows' '-municode' (Join-Path $root 'src\controller-latest.cpp') (Join-Path $root 'src\hotcorners-latest.cpp') '-o' (Join-Path $root 'latest.exe') '-lshell32' '-lbcrypt' '-ldwmapi' '-lwtsapi32' '-ladvapi32' '-lole32' '-loleaut32' '-luuid'
     if($LASTEXITCODE -ne 0){throw 'Controller compilation failed.'}
 }
 if(-not $ControllerOnly -and -not $BackendOnly){& (Join-Path $PSScriptRoot 'start-latest.ps1') -CompilerRoot $compiler}
 if(-not $BackendOnly){& (Join-Path $PSScriptRoot 'panels-latest.ps1') -CompilerRoot $compiler | Out-Null}
 [pscustomobject]@{
-    Version='0.5.12';ControllerVersion='0.3.3';BackendVersion='0.4.11';StartLayoutVersion='0.1.3';QuickPositionVersion='0.1.1';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true;CardsIntegrated=$true
+    Version='0.6.0';ControllerVersion='0.3.4';BackendVersion='0.4.12';StartLayoutVersion='0.1.3';QuickPositionVersion='0.2.0';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true;CardsIntegrated=$true
     RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll,(Join-Path $root 'start\latest.dll'),(Join-Path $root 'panels\latest.dll') | ForEach-Object {
         [pscustomobject]@{Name=[IO.Path]::GetRelativePath($root,$_.FullName);Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName).Hash}
     })

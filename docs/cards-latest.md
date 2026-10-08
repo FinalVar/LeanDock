@@ -75,3 +75,15 @@ quick-position-latest.ps1 包含 57 项检查：分数缩放、负坐标、屏�
 ## 0.5.6 时序修补
 
 开始菜单也改为宿主 UI 线程内的待提交位置调整，移除旧的 30ms 事后移动。两类面板共用定位计算，并读取同一版本的完整 Dock 边界。媒体命令在换会话时先废弃代次再取消，迟到结果不能影响新会话；卡片订阅和 UI 线程归属不变。智能隐藏的停止、重启、计时器及排队刷新也已补齐生命周期处理。详见 timing-latest.md，实际验收记录以 verification-latest.json 为准。
+
+## 0.6.0 时间页
+
+单卡片轮换顺序为 CPU／内存、媒体、电池、时间，向上滚轮反向；时间页没有独立占位。时间采用 24 小时 HH:mm，下方为 MM月dd日，两行整体居中，深浅主题使用既有前景色。没有秒、自动轮播或自定义 ToolTip。
+
+时间页与 CPU 页复用同一个 DispatcherTimer：仅当前卡片可见时运行，CPU 沿用真实采样周期，时间页在下一个分钟边界更新。切页、自动隐藏、停止时撤销旧周期；恢复可见时立即读取本地时间。系统 WM_TIMECHANGE 排回所属 XAML Dispatcher，更新时间并重设分钟边界，不修改系统时钟。跨午夜、跨年、闰日、提前 Tick 和四页双向循环有核心回归；真实时区与系统时间调整尚须实测。
+
+新增只读时钟状态 ClockActive、ClockHourMinute、ClockMonthDay、ClockUpdates，以及直接子容器的数值布局快照 latest-cards-layout.json。快照不包含应用标题或内容，也不新增全树遍历、输入控制或后台采样。View=3 是时间页，容纳时 VisiblePages 仍必须为 1。
+
+## 0.6.0 少量应用的空位修正
+
+现场布局快照显示 TaskbarFrameRepeater 只有 52 DIP，但同级 GripperControl 的 DesiredSize 为 120 DIP，导致 RootGrid 内容区取较大值，卡片前出现 68 DIP 的额外空位。精确样式规则只折叠 Taskbar.TaskbarFrame / RootGrid 下名为 GripperControl 的对象；没有固定应用总宽度、计数猜测或整体负边距。屏幕边缘描线 DesiredSize 为 0，并不是本次撑宽来源。停用样式由已有可恢复属性机制还原。触屏平板姿态未在本轮验收范围内。

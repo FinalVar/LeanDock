@@ -189,6 +189,10 @@ void ClearLeanDockDivider(ClickThroughTaskbarState& state) {
     if(parent && line){uint32_t index=0;if(parent.Children().IndexOf(line,index))parent.Children().RemoveAt(index);}
     state.divider={};state.dividerParent={};
 }
+void LeanDockTimeChanged(HWND taskbar) {
+    for(auto& state:g_clickThroughTaskbarState)if(!state.cardsClosing&&state.cards&&state.islandHwnd&&
+        GetAncestor(state.islandHwnd,GA_ROOT)==taskbar)state.cards->TimeChanged();
+}
 
 // Intercept only the taskbar's background context menu. Application jump
 // lists and notification icons retain their native, separate right-clicks.

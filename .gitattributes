@@ -1,5 +1,7 @@
 * text=auto eol=lf
 upstream/** -text
+# Preserve the pinned reference byte-for-byte, including upstream whitespace.
+upstream/theme-switch.cpp whitespace=-blank-at-eol,-blank-at-eof,cr-at-eol
 vendor/** -text
 *.png binary
 *.ico binary

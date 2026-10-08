@@ -3,6 +3,8 @@
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <cstdio>
+#include <string>
 
 namespace LeanDockCards {
 // UI-thread owned. Invalidate before cancellation, so both synchronous and
@@ -28,9 +30,24 @@ inline RingArc GaugeArc(std::optional<unsigned> percent) {
     arc.y=RingSize/2-RingRadius*std::cos(angle);
     return arc;
 }
-enum class Page : unsigned { Metrics, Media, Power };
+enum class Page : unsigned { Metrics, Media, Power, Clock, Count };
 inline Page Cycle(Page page,int direction) {
-    return static_cast<Page>((static_cast<int>(page)+(direction<0?2:direction>0?1:0))%3);
+    constexpr auto count=static_cast<int>(Page::Count);
+    return static_cast<Page>((static_cast<int>(page)+(direction<0?count-1:direction>0?1:0))%count);
+}
+struct ClockLabels {std::wstring time,date;};
+inline ClockLabels ClockText(unsigned hour,unsigned minute,unsigned month,unsigned day) {
+    if(hour>23||minute>59||month<1||month>12||day<1||day>31)return {L"—",L"—"};
+    wchar_t time[8]{},date[16]{};
+    std::swprintf(time,8,L"%02u:%02u",hour,minute);
+    std::swprintf(date,16,L"%02u月%02u日",month,day);
+    return {time,date};
+}
+inline unsigned NextMinuteMs(unsigned second,unsigned millis) {
+    if(second>59||millis>999)return 60000;
+    // A little past the boundary avoids an early DispatcherTimer tick showing
+    // the preceding minute. The minimum prevents a tight loop at rollover.
+    return std::max(250u,60000-second*1000-millis+20);
 }
 // One wheel event advances at most one page. Keep high-resolution residuals;
 // positive wheel movement goes backwards, negative movement goes forwards.

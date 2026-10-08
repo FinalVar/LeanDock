@@ -7,6 +7,7 @@ namespace LeanDockCards {
 struct Host {
     virtual ~Host()=default;
     virtual void Update(HWND taskbar,double available,double tray)=0;
+    virtual void TimeChanged() noexcept=0;
     virtual void Stop() noexcept=0;
     virtual bool Alive()const noexcept=0;
 };

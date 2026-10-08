@@ -7218,6 +7218,7 @@ LRESULT CALLBACK ClickThroughTaskbarSubclassProc(HWND hWnd,
                                                  LPARAM lParam,
                                                  DWORD_PTR) {
     if(uMsg==WM_CONTEXTMENU && HandleLeanDockContext(hWnd,lParam))return 0;
+    if(uMsg==WM_TIMECHANGE)LeanDockTimeChanged(hWnd);
     switch (uMsg) {
         case WM_WINDOWPOSCHANGED: {
             // The taskbar moved or was shown - e.g. an auto-hidden taskbar
@@ -8885,6 +8886,7 @@ void ProcessAllStylesFromSettings() {
     AddElementCustomizationRules(L"SystemTray.NotifyIconView > Grid#ContainerGrid@ > Border#BackgroundBorder, SystemTray.Stack#NonActivatableStack > * > SystemTray.IconView > Grid#ContainerGrid@ > Border#BackgroundBorder, SystemTray.OmniButton#ControlCenterButton > Grid@CommonStates > Border#BackgroundBorder", {L"Width=24", L"Height=24", L"HorizontalAlignment=Center", L"VerticalAlignment=Center", L"Margin=0", L"CornerRadius=5", L"BorderThickness=0", L"BorderBrush=Transparent", L"Background=Transparent", L"Background@Normal=Transparent", L"Background@PointerOver:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.08\" />", L"Background@Pressed:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.12\" />", L"Background@Checked:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.06\" />", L"Background@CheckedPointerOver:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.10\" />", L"Background@CheckedPressed:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.12\" />"});
     AddElementCustomizationRules(L"SystemTray.OmniButton#ControlCenterButton > * > SystemTray.IconView > Grid#ContainerGrid > Border#BackgroundBorder", {L"Opacity=0"});
     AddElementCustomizationRules(L"Grid#IconPanel > Border#MultiWindowElement, Taskbar.TaskListLabeledButtonPanel > Border#MultiWindowElement", {L"Opacity=0", L"IsHitTestVisible=False"});
+    AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.Gripper#GripperControl", {L"Visibility=Collapsed"});
     g_resourceVariables.clear();
 }
 

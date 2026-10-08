@@ -3,9 +3,10 @@
 #include <cwchar>
 #include <iterator>
 #include "quick-position-latest.h"
+#include "quick-theme-latest.h"
 
-// One window, on its owning thread. No detours, private interfaces, keyboard
-// synthesis, polling or new process. The controller loads this companion once.
+// One window, on its owning thread. Positioning uses only a window subclass;
+// the separately owned theme tile does not alter the placement transaction.
 namespace {
 HMODULE module;
 HWND window;
@@ -47,6 +48,7 @@ bool DockFor(const RECT& proposed,RECT& dock,MONITORINFO& info) {
 }
 LRESULT CALLBACK WindowProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
 void Stop(bool restore=true) {
+    LeanDockQuickTheme::Stop();
     active=false;
     if(ownerWait){SetThreadpoolWait(ownerWait,nullptr,nullptr);WaitForThreadpoolWaitCallbacks(ownerWait,TRUE);CloseThreadpoolWait(ownerWait);ownerWait=nullptr;}
     if(ownerProcess){CloseHandle(ownerProcess);ownerProcess=nullptr;}
@@ -94,6 +96,7 @@ LRESULT CALLBACK WindowProc(HWND w,UINT message,WPARAM p,LPARAM l,UINT_PTR,DWORD
     // so the visual surface and native input both receive the same move.
     const auto result=DefSubclassProc(w,message,p,l);
     if(message==WM_WINDOWPOSCHANGING&&l)Position(*reinterpret_cast<WINDOWPOS*>(l));
+    LeanDockQuickTheme::WindowMessage(message,p,l);
     return result;
 }
 bool Start(HWND w,DWORD pid) {
@@ -117,6 +120,7 @@ bool Start(HWND w,DWORD pid) {
     // Prime even a hidden host. Later native moves and show requests are
     // intercepted synchronously; nothing is restored on hide/close.
     RECT r{};if(GetWindowRect(w,&r))SetWindowPos(w,nullptr,r.left,r.top,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOOWNERZORDER);
+    LeanDockQuickTheme::Start(w,module);
     return true;
 }
 }

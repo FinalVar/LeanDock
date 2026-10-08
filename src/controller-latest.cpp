@@ -10,6 +10,7 @@
 #include "config-latest.h"
 #include "hotcorners-latest.h"
 #include "shell-panels-latest.h"
+#include "theme-latest.h"
 
 static HINSTANCE g_instance;
 static HWND g_window;
@@ -41,7 +42,7 @@ static void SaveStatus() {
     char json[2400],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
     // Error messages are fixed internal labels, never window titles or application text.
     int size=snprintf(json,sizeof(json),
-        "{\"version\":\"0.3.3\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
+        "{\"version\":\"0.3.4\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
         GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockStart::target,LeanDockStartProtocol::Adjustments))),static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),LeanDockPanels::failures,LeanDockStart::supported?"true":"false",(LeanDockStart::target && LeanDockStart::Query(LeanDockStart::target))?"true":"false",LeanDockStart::blocked?"true":"false",LeanDockStart::failures,error);
     size+=snprintf(json+size,sizeof(json)-size,"\"quickPositionSupported\":%s,\"quickPositionActive\":%s,\"quickPositionBlocked\":%s,\"quickPositionFailures\":%u,\"quickPositionAdjustments\":%llu,\"quickPositionWindow\":%llu}\n",
         LeanDockQuickHost::supported?"true":"false",LeanDockQuickHost::Query()?"true":"false",LeanDockQuickHost::blocked?"true":"false",LeanDockQuickHost::failures,
@@ -233,6 +234,10 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     wcscpy_s(g_directory,g_executable);auto slash=wcsrchr(g_directory,L'\\');if(!slash)return 1;*slash=0;
     int count=0;LPWSTR* args=CommandLineToArgvW(GetCommandLineW(),&count);
     if(!args)return 1;
+    if(count==3 && !wcscmp(args[1],L"--theme")) {
+        const bool dark=!wcscmp(args[2],L"dark"),light=!wcscmp(args[2],L"light");
+        LocalFree(args);return dark||light?LeanDockTheme::Apply(dark):2;
+    }
     if(count==4 && !wcscmp(args[1],L"--attach")) {
         DWORD pid=wcstoul(args[2],nullptr,10),owner=wcstoul(args[3],nullptr,10);
         LocalFree(args);return Attach(pid,owner);

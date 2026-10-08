@@ -79,7 +79,18 @@ function Get-LiveStatus {
     }
     $t=Get-OwnTask
     $quick=[pscustomobject]@{Supported=$runtime.quickPositionSupported;Active=($running -and $runtime.quickPositionActive);Blocked=$runtime.quickPositionBlocked;Failures=$runtime.quickPositionFailures;Adjustments=$runtime.quickPositionAdjustments}
-    [pscustomobject]@{Live=$live;Running=$running;DockReady=$dockReady;HotCornersReady=$cornerReady;DockSupported=$runtime.dockSupported;QuickSettingsPosition=$quick;StartLayoutReady=$startReady;StartLayoutSupported=$runtime.startLayoutSupported;StartLayoutBlocked=$runtime.startLayoutBlocked;StartLayout=$startLayout;Elevated=$runtime.elevated;HotCorners=$corners;Controller=@($processes | Select-Object ProcessId,ExecutablePath);ExplorerPid=$shell.ProcessId;Backend=$backend;LoadedComponents=$modules;Task=if($t){[pscustomobject]@{Name=$t.TaskName;State=[string]$t.State;RunLevel=[string]$t.Principal.RunLevel;LogonType=[string]$t.Principal.LogonType}}else{$null};WindhawkService=[string](Get-Service Windhawk -ErrorAction SilentlyContinue).Status}
+    $theme=$null;$themeStatusPath=Join-Path $root 'panels\latest-status.json'
+    if($quick.Active -and (Test-Path -LiteralPath $themeStatusPath)){
+        try {
+            $candidate=Get-Content -LiteralPath $themeStatusPath -Raw | ConvertFrom-Json
+            $expected=Join-Path $env:windir 'System32\ShellHost.exe'
+            if($candidate.active -and $candidate.ownerPid -eq $runtime.controllerPid -and [NativeDockManagementPathV2]::Read($candidate.pid) -ieq $expected){
+                $loaded=@((Get-Process -Id $candidate.pid).Modules | Where-Object {$_.FileName -ieq (Join-Path $root 'panels\latest.dll')})
+                if($loaded.Count -eq 1){$theme=$candidate}
+            }
+        } catch {$theme=$null}
+    }
+    [pscustomobject]@{Live=$live;Running=$running;DockReady=$dockReady;HotCornersReady=$cornerReady;DockSupported=$runtime.dockSupported;QuickSettingsPosition=$quick;QuickTheme=$theme;StartLayoutReady=$startReady;StartLayoutSupported=$runtime.startLayoutSupported;StartLayoutBlocked=$runtime.startLayoutBlocked;StartLayout=$startLayout;Elevated=$runtime.elevated;HotCorners=$corners;Controller=@($processes | Select-Object ProcessId,ExecutablePath);ExplorerPid=$shell.ProcessId;Backend=$backend;LoadedComponents=$modules;Task=if($t){[pscustomobject]@{Name=$t.TaskName;State=[string]$t.State;RunLevel=[string]$t.Principal.RunLevel;LogonType=[string]$t.Principal.LogonType}}else{$null};WindhawkService=[string](Get-Service Windhawk -ErrorAction SilentlyContinue).Status}
 }
 function Stop-Native {
     $code=Invoke-Control '--stop'

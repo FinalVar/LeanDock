@@ -32,7 +32,7 @@ def inspect(path):
     if path==ROOT/'start'/'latest.dll':
         assert 'LeanDockStartHook' in exports
     elif path==ROOT/'panels'/'latest.dll':
-        assert exports==['LeanDockQuickHook']
+        assert sorted(exports)==['DllGetClassObject','LeanDockQuickHook']
     elif path.suffix=='.dll':
         assert 'NativeDock_Start' in exports and 'DllGetClassObject' in exports
     return {'file':str(path.relative_to(ROOT)),'bytes':len(b),'imports':imports,'exports':exports}

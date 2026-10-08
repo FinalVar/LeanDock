@@ -226,15 +226,15 @@ static void SaveState() {
     if(g_state==NativeActive)elements=Native_styler_count();
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.4.11\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s}\n",
+        "{\"protocol\":1,\"version\":\"0.4.12\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s}\n",
         GetCurrentProcessId(),g_ownerPid,g_state.load(),g_hooks.size(),elements,g_fault?"true":"false");
     HANDLE file=CreateFileW(FilePath(L"latest-backend.json").c_str(),GENERIC_WRITE,
         FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,json,size,&written,nullptr);CloseHandle(file);}
     std::lock_guard guard(g_storageMutex);
     for(auto const& [key,value]:g_storage) {
-        if(key!=L"mergedGridState")continue;
-        const auto path=FilePath(L"latest-layout.json");
+        if(key!=L"mergedGridState"&&key!=L"cardsLayoutState")continue;
+        const auto path=FilePath(key==L"mergedGridState"?L"latest-layout.json":L"latest-cards-layout.json");
         HANDLE f=CreateFileW(path.c_str(),GENERIC_WRITE,FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
         if(f!=INVALID_HANDLE_VALUE) {
             const int length=WideCharToMultiByte(CP_UTF8,0,value.c_str(),-1,nullptr,0,nullptr,nullptr);

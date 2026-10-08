@@ -121,5 +121,7 @@
   "controlStyles[13].styles[3]": "ActualWidth=>dockAppSurfaceWidth",
   "controlStyles[13].styles[4]": "RenderTransformOrigin=0,0",
   "controlStyles[13].styles[5]": "RenderTransform:=<ScaleTransform ScaleX=\"{{dockAppSurfaceWidth>0?(dockAppSurfaceWidth+trayFrameWidth)/dockAppSurfaceWidth:1}}\" />",
-  "controlStyles[13].styles[6]": "IsHitTestVisible=False"
+  "controlStyles[13].styles[6]": "IsHitTestVisible=False",
+  "controlStyles[18].target": "Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.Gripper#GripperControl",
+  "controlStyles[18].styles[0]": "Visibility=Collapsed"
 }
