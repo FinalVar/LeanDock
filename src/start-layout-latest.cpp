@@ -11,6 +11,8 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include "panel-position-latest.h"
+#include "start-protocol-latest.h"
 #undef GetCurrentTime
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
@@ -28,7 +30,7 @@ namespace d=x::Data;
 namespace core=winrt::Windows::UI::Core;
 
 static HMODULE module;
-static UINT Signal(){static UINT id=RegisterWindowMessageW(L"LeanDock.StartLayout.v1");return id;}
+static UINT Signal(){return LeanDockStartProtocol::Signal();}
 static constexpr WPARAM Enable=1,Disable=2,Query=3,OwnerGone=4;
 struct Subscription {fc::IObservableVector<f::IInspectable> source{nullptr};winrt::event_token token{};};
 struct Flat {
@@ -77,11 +79,12 @@ struct State {
  std::vector<Property> sizing;
  unsigned columns{},rows{},fitRetries{};
  double panelWidth{},panelHeight{};
+ RECT original{},applied{};bool moved{};ULONG_PTR moves{};
 };
 // Allocated only inside the target UI thread; pinned DLL owns event callbacks.
 static State* state;
 static void Schedule();
-static void Restore();
+static void Restore(bool position=true);
 static void WriteStatus() noexcept {
  try {
   wchar_t path[32768];GetModuleFileNameW(module,path,std::size(path));
@@ -90,7 +93,7 @@ static void WriteStatus() noexcept {
   unsigned items=0,groups=0;size_t applied=0;
   for(auto const& entry:state->lists)if(auto target=entry->target.get())if(target.ItemsSource()==entry->view){++applied;items+=entry->count;groups+=entry->groups;}
   char text[900];auto bytes=snprintf(text,sizeof(text),
-    "{\"version\":\"0.1.2\",\"pid\":%lu,\"ownerPid\":%lu,\"active\":%s,\"lists\":%zu,\"items\":%u,\"sourceGroups\":%u,\"lockedSelectors\":%zu,\"columns\":%u,\"rows\":%u,\"panelWidth\":%.3f,\"panelHeight\":%.3f,\"passes\":%u,\"failures\":%u,\"watchMode\":\"events\"}\n",
+    "{\"version\":\"0.1.3\",\"pid\":%lu,\"ownerPid\":%lu,\"active\":%s,\"lists\":%zu,\"items\":%u,\"sourceGroups\":%u,\"lockedSelectors\":%zu,\"columns\":%u,\"rows\":%u,\"panelWidth\":%.3f,\"panelHeight\":%.3f,\"passes\":%u,\"failures\":%u,\"watchMode\":\"events\"}\n",
     GetCurrentProcessId(),state->owner,state->active?"true":"false",applied,items,groups,state->selectors.size(),state->columns,state->rows,state->panelWidth,state->panelHeight,state->passes,state->failures);
   HANDLE file=CreateFileW(path,GENERIC_WRITE,FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
   if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,text,bytes,&written,nullptr);CloseHandle(file);}
@@ -352,9 +355,14 @@ static void Schedule() {
 static void CALLBACK OwnerExited(PTP_CALLBACK_INSTANCE,void* context,PTP_WAIT,TP_WAIT_RESULT) {
  PostMessageW(reinterpret_cast<HWND>(context),Signal(),OwnerGone,0);
 }
-static void Restore() {
+static void Restore(bool position) {
  if(!state || !state->active)return;
  state->active=false;++state->generation;state->queued=false;state->mutating=true;
+ for(auto key:{LeanDockStartProtocol::Active,LeanDockStartProtocol::Owner,LeanDockStartProtocol::Adjustments})RemovePropW(state->host,key);
+ RECT current{};
+ if(position && state->moved && GetWindowRect(state->host,&current) && EqualRect(&current,&state->applied))
+  SetWindowPos(state->host,nullptr,state->original.left,state->original.top,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOOWNERZORDER);
+ state->moved=false;
  if(state->ownerWait){SetThreadpoolWait(state->ownerWait,nullptr,nullptr);WaitForThreadpoolWaitCallbacks(state->ownerWait,TRUE);CloseThreadpoolWait(state->ownerWait);state->ownerWait=nullptr;}
  if(state->ownerProcess){CloseHandle(state->ownerProcess);state->ownerProcess=nullptr;}
  try{state->window.Activated(state->activated);state->window.VisibilityChanged(state->visible);}catch(...){}
@@ -390,14 +398,29 @@ static bool ValidOwner(DWORD pid) {
   ProcessIdToSessionId(GetCurrentProcessId(),&ownSession) && ProcessIdToSessionId(pid,&session) && ownSession==session;
  CloseHandle(p);return ok;
 }
+static void Position(WINDOWPOS& pos) {
+ if(!state || !state->active || pos.hwnd!=state->host)return;
+ if(!state->ownerProcess || WaitForSingleObject(state->ownerProcess,0)!=WAIT_TIMEOUT){Restore(false);return;}
+ RECT current{};if(!GetWindowRect(state->host,&current))return;
+ RECT requested=current;
+ if(!(pos.flags&SWP_NOMOVE))OffsetRect(&requested,pos.x-current.left,pos.y-current.top);
+ if(!(pos.flags&SWP_NOSIZE)){requested.right=requested.left+pos.cx;requested.bottom=requested.top+pos.cy;}
+ RECT dock{},native{};MONITORINFO monitor{};
+ if(!LeanDockPlacement::DockFor(requested,dock,monitor) ||
+    !LeanDockPlacement::Adjust(pos,current,dock,monitor.rcMonitor,GetDpiForWindow(state->host),false,&native))return;
+ if(!state->moved || native.left!=state->applied.left || native.top!=state->applied.top)state->original=native;
+ state->applied={pos.x,pos.y,pos.x+native.right-native.left,pos.y+native.bottom-native.top};state->moved=true;
+ SetPropW(state->host,LeanDockStartProtocol::Adjustments,reinterpret_cast<HANDLE>(++state->moves));
+}
 static LRESULT CALLBACK WindowProc(HWND w,UINT message,WPARAM p,LPARAM l,UINT_PTR,DWORD_PTR) {
  if(message==Signal()) {
-  if(p==Query){WriteStatus();return state && state->active?1:0;}
+  if(p==Query)return state && state->active?1:0;
   if(p==Disable && state && DWORD(l)==state->owner){Restore();return 1;}
   if(p==OwnerGone && state && state->ownerProcess && WaitForSingleObject(state->ownerProcess,0)==WAIT_OBJECT_0){Restore();return 1;}
  }
- if(message==WM_NCDESTROY){Restore();RemoveWindowSubclass(w,WindowProc,1);}
+ if(message==WM_NCDESTROY){Restore(false);RemoveWindowSubclass(w,WindowProc,1);}
  auto result=DefSubclassProc(w,message,p,l);
+ if(message==WM_WINDOWPOSCHANGING && l)Position(*reinterpret_cast<WINDOWPOS*>(l));
  if(state && state->active && (message==WM_SHOWWINDOW || message==WM_SIZE || message==WM_WINDOWPOSCHANGED))Schedule();
  return result;
 }
@@ -412,17 +435,21 @@ static bool Start(HWND host,DWORD owner) {
  }
  auto window=x::Window::Current();if(!window)return false;
  if(!state)state=new State();
- if(!SetWindowSubclass(host,WindowProc,1,0))return false;
  // Keep executable callbacks mapped until the system Start process exits.
  HMODULE pinned=nullptr;
  if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,reinterpret_cast<PCWSTR>(WindowProc),&pinned))return false;
+ if(!SetWindowSubclass(host,WindowProc,1,0))return false;
  state->host=host;state->owner=owner;state->window=window;state->active=true;++state->generation;
+ state->moved=false;state->moves=0;state->fitRetries=0;
  state->ownerProcess=OpenProcess(SYNCHRONIZE,FALSE,owner);
  state->ownerWait=CreateThreadpoolWait(OwnerExited,host,nullptr);
  if(!state->ownerProcess || !state->ownerWait){Restore();return false;}
  SetThreadpoolWait(state->ownerWait,state->ownerProcess,nullptr);
  state->activated=window.Activated([](auto const&,auto const& args){if(args.WindowActivationState()!=core::CoreWindowActivationState::Deactivated)Schedule();});
  state->visible=window.VisibilityChanged([](auto const&,auto const& args){if(args.Visible())Schedule();});
+ SetPropW(host,LeanDockStartProtocol::Owner,reinterpret_cast<HANDLE>(static_cast<ULONG_PTR>(owner)));
+ SetPropW(host,LeanDockStartProtocol::Active,reinterpret_cast<HANDLE>(1));
+ RECT current{};if(GetWindowRect(host,&current))SetWindowPos(host,nullptr,current.left,current.top,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOOWNERZORDER);
  Apply();return true;
 }
 extern "C" __declspec(dllexport) LRESULT CALLBACK LeanDockStartHook(int code,WPARAM p,LPARAM l) {

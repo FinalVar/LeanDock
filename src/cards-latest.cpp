@@ -6,6 +6,7 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <utility>
 #undef GetCurrentTime
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
@@ -80,7 +81,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     x::FrameworkElement::Unloaded_revoker unloaded;
     winrt::Windows::Foundation::IAsyncOperation<Manager> request{nullptr};
     winrt::Windows::Foundation::IAsyncOperation<m::GlobalSystemMediaTransportControlsSessionMediaProperties> metadata{nullptr};
-    HWND hwnd=nullptr; bool stopped=false,shown=false,fits=false,powerFits=false,mediaView=false,busy=false,sampling=false,commandBusy=false;
+    winrt::Windows::Foundation::IAsyncOperation<bool> command{nullptr};
+    CommandGate commandGate;
+    HWND hwnd=nullptr; bool stopped=false,shown=false,fits=false,powerFits=false,mediaView=false,busy=false,sampling=false;
     unsigned generation=0,samples=0,errors=0,commands=0;
     int wheelRemainder=0;
     std::optional<CpuTimes> baseline;
@@ -339,6 +342,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         if(stopped || !manager)return;
         auto current=manager.GetCurrentSession();
         if(current!=session){
+            CancelCommand();
             propertiesChanged.revoke();playbackChanged.revoke();session=current;
             title.Text(L"媒体");artistName=L"";
             if(session){auto weak=weak_from_this();
@@ -349,8 +353,8 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         ++generation;if(metadata){metadata.Cancel();metadata=nullptr;}
         if(session){
             auto info=session.GetPlaybackInfo();auto controls=info.Controls();
-            previous.IsEnabled(controls.IsPreviousEnabled()&&!commandBusy);next.IsEnabled(controls.IsNextEnabled()&&!commandBusy);
-            play.IsEnabled(controls.IsPlayPauseToggleEnabled()&&!commandBusy);
+            previous.IsEnabled(controls.IsPreviousEnabled()&&!commandGate.busy);next.IsEnabled(controls.IsNextEnabled()&&!commandGate.busy);
+            play.IsEnabled(controls.IsPlayPauseToggleEnabled()&&!commandGate.busy);
             const bool playing=info.PlaybackStatus()==m::GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;
             playGlyph.Text(playing?L"\xE769":L"\xE768");
             x::Automation::AutomationProperties::SetName(play,playing?L"暂停":L"播放");
@@ -358,7 +362,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         }
         Render();
     }catch(...){
-        Fail();++generation;
+        Fail();++generation;CancelCommand();
         propertiesChanged.revoke();playbackChanged.revoke();session=nullptr;
         try{if(metadata)metadata.Cancel();metadata=nullptr;Render();}catch(...){}
     }
@@ -375,19 +379,27 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         }catch(winrt::hresult_canceled const&){}catch(...){if(auto p=weak.lock();p&&!p->stopped&&p->generation==ticket)p->Fail();}
     }
     static winrt::fire_and_forget Command(std::weak_ptr<Board> weak,int action){
-        Session source{nullptr};
+        Session source{nullptr};uint64_t ticket=0;
         try{
-            auto p=weak.lock();if(!p||p->stopped||p->commandBusy||!p->session)co_return;
-            source=p->session;p->commandBusy=true;p->previous.IsEnabled(false);p->play.IsEnabled(false);p->next.IsEnabled(false);p.reset();
-            bool success=false;
-            if(action==0)success=co_await source.TrySkipPreviousAsync();
-            else if(action==1)success=co_await source.TryTogglePlayPauseAsync();
-            else success=co_await source.TrySkipNextAsync();
-            if(auto q=weak.lock();q&&!q->stopped){q->commandBusy=false;if(success)++q->commands;else q->Fail();q->Refresh();}
-        }catch(...){if(auto p=weak.lock();p&&!p->stopped){p->commandBusy=false;p->Fail();try{p->Refresh();}catch(...){}}}
+            auto p=weak.lock();if(!p||p->stopped||!p->session||!(ticket=p->commandGate.Begin()))co_return;
+            source=p->session;p->previous.IsEnabled(false);p->play.IsEnabled(false);p->next.IsEnabled(false);
+            auto op=action==0?source.TrySkipPreviousAsync():action==1?source.TryTogglePlayPauseAsync():source.TrySkipNextAsync();
+            p->command=op;p.reset();
+            bool success=co_await op;
+            if(auto q=weak.lock();q&&!q->stopped&&q->commandGate.Finish(ticket)){
+                q->command=nullptr;if(success)++q->commands;else q->Fail();q->Refresh();
+            }
+        }catch(...){if(auto p=weak.lock();p&&!p->stopped&&p->commandGate.Finish(ticket)){
+            p->command=nullptr;p->Fail();try{p->Refresh();}catch(...){}}
+        }
+    }
+    void CancelCommand() noexcept {
+        commandGate.Invalidate();auto pending=std::exchange(command,nullptr);
+        try{if(pending)pending.Cancel();}catch(...){}
     }
     void Stop() noexcept override {
         if(stopped)return;stopped=true;++generation;
+        CancelCommand();
         try{if(timer)timer.Stop();}catch(...){}
         try{if(request)request.Cancel();if(metadata)metadata.Cancel();}catch(...){}
         managerChanged.revoke();sessionsChanged.revoke();propertiesChanged.revoke();playbackChanged.revoke();unloaded.revoke();

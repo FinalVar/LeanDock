@@ -1,0 +1,206 @@
+{
+  "schema": 10,
+  "recordedAtUtc": "2026-10-08T12:33:18.6254724Z",
+  "packageVersion": "0.5.5",
+  "controllerVersion": "0.3.2",
+  "backendVersion": "0.4.4",
+  "startLayoutVersion": "0.1.2",
+  "quickPositionVersion": "0.1.0",
+  "scope": "Quick Settings native pending-window-position adjustment; remove delayed post-show movement and hide restoration",
+  "artifacts": [
+    {
+      "file": "latest.exe",
+      "bytes": 232448,
+      "sha256": "964B64F5D07F856089E6AFBDDB283287A3643B9FA54B7FBE3229A13FCBDC3DFC"
+    },
+    {
+      "file": "latest.dll",
+      "bytes": 1776640,
+      "sha256": "9BB872F3091AA7A67E3F8B1827EA0D97F1FB6F9582A5CBEFFB3BEF2AD4FAB223"
+    },
+    {
+      "file": "start/latest.dll",
+      "bytes": 393216,
+      "sha256": "AB275AB1ABCEF101CAC88790061E3E76680B01A4ECEECACE47AAB6883E072C59"
+    },
+    {
+      "file": "panels/latest.dll",
+      "bytes": 197120,
+      "sha256": "639849456E3CD46B220B85BBE9DA22F855AEFF63AC06E7BDE066BE4B6357F25E"
+    }
+  ],
+  "systemDllImportsOnly": true,
+  "imports": [
+    {
+      "file": "latest.exe",
+      "bytes": 232448,
+      "imports": [
+        "SHELL32.dll",
+        "bcrypt.dll",
+        "dwmapi.dll",
+        "WTSAPI32.dll",
+        "ADVAPI32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": []
+    },
+    {
+      "file": "latest.dll",
+      "bytes": 1776640,
+      "imports": [
+        "ole32.dll",
+        "OLEAUT32.dll",
+        "api-ms-win-core-winrt-error-l1-1-0.dll",
+        "api-ms-win-core-winrt-l1-1-0.dll",
+        "api-ms-win-core-winrt-error-l1-1-1.dll",
+        "VERSION.dll",
+        "SHLWAPI.dll",
+        "COMCTL32.dll",
+        "SHELL32.dll",
+        "dwmapi.dll",
+        "SHCORE.dll",
+        "GDI32.dll",
+        "msvcrt.dll",
+        "ADVAPI32.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "DllCanUnloadNow",
+        "DllGetClassObject",
+        "NativeDock_Start"
+      ]
+    },
+    {
+      "file": "start\\latest.dll",
+      "bytes": 393216,
+      "imports": [
+        "ole32.dll",
+        "OLEAUT32.dll",
+        "api-ms-win-core-winrt-l1-1-0.dll",
+        "api-ms-win-core-winrt-error-l1-1-1.dll",
+        "api-ms-win-core-winrt-error-l1-1-0.dll",
+        "COMCTL32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "LeanDockStartHook"
+      ]
+    },
+    {
+      "file": "panels\\latest.dll",
+      "bytes": 197120,
+      "imports": [
+        "COMCTL32.dll",
+        "msvcrt.dll",
+        "USER32.dll",
+        "KERNEL32.dll"
+      ],
+      "exports": [
+        "LeanDockQuickHook"
+      ]
+    }
+  ],
+  "regression": {
+    "quickPositionChecks": 57,
+    "failures": 0,
+    "realHiddenTestWindowMessageCycle": true,
+    "productionInputSent": false
+  },
+  "live": {
+    "ready": true,
+    "controllerPid": 23244,
+    "explorerPid": 19252,
+    "backendHooks": 57,
+    "quick": {
+      "Supported": true,
+      "Active": true,
+      "Blocked": false,
+      "Failures": 0,
+      "Adjustments": 0
+    },
+    "runtime": {
+      "version": "0.3.2",
+      "controllerPid": 23244,
+      "explorerPid": 19252,
+      "state": 2,
+      "attempts": 1,
+      "watchMode": "events",
+      "hotCornersReady": true,
+      "dockSupported": true,
+      "elevated": true,
+      "panelAnchoring": true,
+      "panelMoves": [
+        0,
+        0
+      ],
+      "panelFailures": 0,
+      "startLayoutSupported": true,
+      "startLayoutActive": false,
+      "startLayoutBlocked": false,
+      "startLayoutFailures": 0,
+      "error": "",
+      "quickPositionSupported": true,
+      "quickPositionActive": true,
+      "quickPositionBlocked": false,
+      "quickPositionFailures": 0,
+      "quickPositionAdjustments": 0,
+      "quickPositionWindow": 8455112
+    }
+  },
+  "observation": {
+    "At": "2026-10-08T20:29:56.2026479+08:00",
+    "Seconds": 45,
+    "ReadOnly": true,
+    "Samples": [
+      {
+        "Ms": 26,
+        "Window": 8455112,
+        "Pid": 23776,
+        "Visible": false,
+        "Rect": {
+          "Left": 0,
+          "Top": 0,
+          "Right": 0,
+          "Bottom": 0
+        },
+        "Active": 1,
+        "Adjustments": 0
+      }
+    ]
+  },
+  "unchanged": {
+    "explorerBinary": true,
+    "explorerNotRestarted": true,
+    "startBinary": true,
+    "hotCornerSourceAndConfiguration": true,
+    "nativeBatteryPointerMapping": true,
+    "nativeWinXAnchor": true
+  },
+  "acceptance": {
+    "repeatedBatteryNoFlash": "pending-user",
+    "quickSettingsItemClick": "pending-user",
+    "reason": "No panel opening was observed during the read-only sample; active companion and unit tests are not UI acceptance",
+    "priorWinX": {
+      "version": "0.5.4",
+      "userQuote": "位置稳定、不闪跳，设置能打开",
+      "newlyRetested": false
+    }
+  },
+  "computerUse": {
+    "dockOrQuickPanelReturned": false,
+    "automatedClickAcceptance": false,
+    "onlyChatWindowReturned": true
+  },
+  "boundaries": [
+    "Current pinned ShellHost/ControlCenter only; mismatch leaves native placement",
+    "Cold host first frame not verified",
+    "No real multi-monitor, DPI change, media-height transition, sleep or login test",
+    "Existing concurrent hot-corner work preserved, not included in this source commit",
+    "No new process, periodic position timer, private API, DLL binary patch, or security-setting change"
+  ]
+}

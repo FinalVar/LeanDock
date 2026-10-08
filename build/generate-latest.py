@@ -179,7 +179,69 @@ def main():
         if(state.islandHwnd)LeanDockGeometry::Clear(GetAncestor(state.islandHwnd,GA_ROOT));
     }""")
         if name == "hide":
-            source = '#include "dock-geometry-latest.h"\n' + source
+            source = '#include "dock-geometry-latest.h"\n#include "event-loop-latest.h"\n#include <stdexcept>\n' + source
+            source = replace_once(source, "std::atomic<HANDLE> g_winEventHookThread;", """std::atomic<HANDLE> g_winEventHookThread;
+HANDLE g_eventStop;
+std::atomic<bool> g_eventStopping{true};
+std::atomic<LPARAM> g_eventGeneration{0};""")
+            source = replace_once(source, "DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter);", """DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter);
+void StopEventThread() {
+    std::lock_guard guard(g_winEventHookThreadMutex);
+    if(g_winEventHookThread) {
+        LeanDockEvents::RequestStop(g_eventStop,GetThreadId(g_winEventHookThread));
+        // Keep handles and the pinned image intact if native work is stuck.
+        // Never terminate an Explorer thread or wait forever during Stop.
+        if(!LeanDockEvents::WaitForExit(g_winEventHookThread,5000))
+            throw std::runtime_error("hide event thread did not exit");
+        CloseHandle(g_winEventHookThread);g_winEventHookThread=nullptr;
+    }
+    if(g_eventStop){CloseHandle(g_eventStop);g_eventStop=nullptr;}
+}""")
+            source = replace_function(source, "void AdjustTaskbar(HWND hMMTaskbarWnd, bool clearPendingWhenDone = false)", """    if(g_eventStopping)return;
+    if(g_settings.mode!=Mode::never && !g_winEventHookThread) {
+        std::lock_guard guard(g_winEventHookThreadMutex);
+        if(g_eventStopping)return;
+        if(!g_winEventHookThread) {
+            g_eventStop=CreateEventW(nullptr,TRUE,FALSE,nullptr);
+            if(!g_eventStop)return;
+            g_winEventHookThread=CreateThread(nullptr,0,WinEventHookThread,g_eventStop,0,nullptr);
+            if(!g_winEventHookThread){CloseHandle(g_eventStop);g_eventStop=nullptr;return;}
+        }
+    }
+    PostMessage(hMMTaskbarWnd,g_updateTaskbarStateRegisteredMsg,
+                clearPendingWhenDone,g_eventGeneration.load());""")
+            source = replace_once(source,"bool AdjustAllTaskbarsIfNotPending() {", "bool AdjustAllTaskbarsIfNotPending() {\n    if(g_eventStopping)return true;")
+            # Drop old-generation taskbar work after Stop/resume. Guard native
+            # hooks too while Stop restores the auto-hide preference.
+            for signature, original, args in (
+                ("LRESULT WINAPI TrayUI_WndProc_Hook(", "TrayUI_WndProc_Original", "pThis,hWnd,Msg,wParam,lParam,flag"),
+                ("LRESULT WINAPI CSecondaryTray_v_WndProc_Hook(", "CSecondaryTray_v_WndProc_Original", "pThis,hWnd,Msg,wParam,lParam"),
+            ):
+                opening=source.index("{",source.index(signature))+1
+                source=source[:opening]+f"""
+    if(g_eventStopping)return {original}({args});
+    if(Msg==g_updateTaskbarStateRegisteredMsg && lParam!=g_eventGeneration.load())return 0;
+"""+source[opening:]
+            opening=source.index("{",source.index("void CALLBACK WinEventProc("))+1
+            source=source[:opening]+"\n    if(g_eventStopping)return;\n"+source[opening:]
+            start=source.index("    BOOL bRet;",source.index("DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter) {"))
+            end=source.index("    if (winObjectEventHook1)",start)
+            source=source[:start]+"""    const auto result=LeanDockEvents::Pump(static_cast<HANDLE>(lpThreadParameter));
+    // A nonzero stale timer would suppress all scheduling on the next run.
+    LeanDockEvents::ClearTimer(g_pendingEventsTimer);
+
+"""+source[end:]
+            source = replace_once(source,"void Wh_ModAfterInit() {", """void Wh_ModAfterInit() {
+    ++g_eventGeneration;g_eventStopping=false;""")
+            source = replace_function(source,"void Wh_ModUninit()", """    g_eventStopping=true;++g_eventGeneration;
+    StopEventThread();
+    if(g_wasAutoHideDisabled) {
+        HWND taskbar=FindCurrentProcessTaskbarWnd();
+        if(taskbar)SendMessage(taskbar,kHandleTrayPrivateSettingMessage,kTrayPrivateSettingAutoHideSet,FALSE);
+    }""")
+            # Settings are compile-time constants in this dedicated build, but
+            # keep the retained upstream entry safe if ever invoked internally.
+            source = replace_function(source,"BOOL Wh_ModSettingsChanged(BOOL* bReload)", """    *bReload=TRUE;return TRUE;""")
             # Clip handles normal hit-testing. Filter only the native mouse
             # hover timer, leaving keyboard, accessibility and menu Unhide
             # requests untouched even if the pointer is in an outside corner.

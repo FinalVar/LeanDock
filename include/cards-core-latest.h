@@ -5,6 +5,14 @@
 #include <optional>
 
 namespace LeanDockCards {
+// UI-thread owned. Invalidate before cancellation, so both synchronous and
+// delayed completions from the previous media session are harmless.
+struct CommandGate {
+    uint64_t serial=0;bool busy=false;
+    uint64_t Begin(){if(busy)return 0;busy=true;return ++serial;}
+    void Invalidate(){++serial;busy=false;}
+    bool Finish(uint64_t ticket){if(!ticket||!busy||ticket!=serial)return false;busy=false;return true;}
+};
 inline constexpr double CardWidth=160, CardHeight=44, PowerWidth=52, PowerSlotWidth=76, SlotWidth=244;
 struct Battery { int percent=-1; bool present=false, charging=false, plugged=false; };
 inline Battery BatteryState(bool valid,unsigned percent,unsigned flags,unsigned ac) {

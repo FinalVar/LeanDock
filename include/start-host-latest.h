@@ -4,6 +4,7 @@
 #include <cwchar>
 #include <iterator>
 #include "verify-latest.h"
+#include "start-protocol-latest.h"
 
 // Small Start-only companion, loaded by a thread-specific Windows hook.
 // No additional process, service, symbol detours or periodic polling.
@@ -14,9 +15,9 @@ inline HANDLE targetProcess;
 inline DWORD owner;
 inline DWORD attemptedPid;
 inline HOOKPROC procedure;
-inline bool enabled,supported,blocked;
+inline bool enabled,supported,blocked,attaching;
 inline unsigned failures;
-inline UINT Signal(){static UINT id=RegisterWindowMessageW(L"LeanDock.StartLayout.v1");return id;}
+inline UINT Signal(){return LeanDockStartProtocol::Signal();}
 inline bool Host(HWND w) {
  DWORD pid=0,session=0,ours=0;GetWindowThreadProcessId(w,&pid);
  if(!pid || !ProcessIdToSessionId(pid,&session) || !ProcessIdToSessionId(GetCurrentProcessId(),&ours) || session!=ours)return false;
@@ -38,23 +39,26 @@ inline bool Verify() {
  return true;
 }
 inline bool Query(HWND w) {
- DWORD_PTR result=0;
- return Host(w) && SendMessageTimeoutW(w,Signal(),3,0,SMTO_ABORTIFHUNG|SMTO_BLOCK,1500,&result) && result==1;
+ // Status must not wait for a suspended Start UI thread and stall hot corners.
+ return w && Host(w) && targetProcess && WaitForSingleObject(targetProcess,0)==WAIT_TIMEOUT &&
+  reinterpret_cast<ULONG_PTR>(GetPropW(w,LeanDockStartProtocol::Owner))==owner &&
+  GetPropW(w,LeanDockStartProtocol::Active);
 }
 inline bool Attach(HWND w) {
- if(!supported || blocked || !procedure || !Host(w))return false;
+ if(!supported || blocked || attaching || !procedure || !Host(w))return false;
+ struct Guard{Guard(){attaching=true;}~Guard(){attaching=false;}} guard;
  // Never create a crash/restart loop. Once a modified Start host exits,
  // leave its replacement native until the controller is explicitly restarted.
  if(targetProcess && WaitForSingleObject(targetProcess,0)!=WAIT_TIMEOUT) {
   blocked=true;enabled=false;target=nullptr;++failures;return false;
  }
  if(w==target && Query(w)){enabled=true;return true;}
- // Start may be suspended while closed; wait for the existing SHOW/UNCLOAKED
- // event instead of spending the one allowed attempt on a sleeping UI thread.
- DWORD cloaked=0;
- if(!IsWindowVisible(w) || (SUCCEEDED(DwmGetWindowAttribute(w,DWMWA_CLOAKED,&cloaked,sizeof(cloaked))) && cloaked))return false;
  DWORD pid=0;const auto tid=GetWindowThreadProcessId(w,&pid);
  if(attemptedPid==pid)return false;
+ // Prime a responsive hidden host before its next show. A suspended host is
+ // skipped without consuming the attempt; CREATE/SHOW/UNCLOAKED will retry.
+ DWORD_PTR responsive=0;
+ if(!SendMessageTimeoutW(w,WM_NULL,0,0,SMTO_ABORTIFHUNG|SMTO_BLOCK,200,&responsive))return false;
  attemptedPid=pid;
  if(!targetProcess)targetProcess=OpenProcess(SYNCHRONIZE|PROCESS_QUERY_LIMITED_INFORMATION,FALSE,pid);
  if(!targetProcess){++failures;return false;}
@@ -63,7 +67,7 @@ inline bool Attach(HWND w) {
  bool sent=SendMessageTimeoutW(w,Signal(),1,owner,SMTO_ABORTIFHUNG|SMTO_BLOCK,3000,&result)!=0;
  UnhookWindowsHookEx(hook);
  enabled=sent && Query(w);
- if(enabled)target=w;else ++failures;
+ if(enabled){target=w;attemptedPid=0;}else ++failures;
  return enabled;
 }
 inline bool Start(const wchar_t* directory,DWORD ownerPid=GetCurrentProcessId()) {

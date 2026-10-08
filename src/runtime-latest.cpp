@@ -24,6 +24,7 @@ static HWND g_window;
 static std::atomic<unsigned> g_state{NativeIdle};
 static std::atomic<bool> g_startIssued{false},g_fault{false};
 static bool g_logging=false,g_diagnostics=false,g_everInitialized=false,g_hasApplied=false;
+static bool g_stoppingCore=false;
 static HANDLE g_owner;
 static PTP_WAIT g_ownerWait;
 static DWORD g_ownerPid;
@@ -225,7 +226,7 @@ static void SaveState() {
     if(g_state==NativeActive)elements=Native_styler_count();
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.4.4\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s}\n",
+        "{\"protocol\":1,\"version\":\"0.4.5\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s}\n",
         GetCurrentProcessId(),g_ownerPid,g_state.load(),g_hooks.size(),elements,g_fault?"true":"false");
     HANDLE file=CreateFileW(FilePath(L"latest-backend.json").c_str(),GENERIC_WRITE,
         FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
@@ -272,7 +273,9 @@ static bool SetOwner(DWORD pid) {
     SetThreadpoolWait(wait,process,nullptr);return true;
 }
 static void StopCore() {
+    if(g_stoppingCore)return;
     if(g_state!=NativeActive && g_state!=NativeStarting)return;
+    struct StopGuard{StopGuard(){g_stoppingCore=true;}~StopGuard(){g_stoppingCore=false;}} stopGuard;
     Log(L"Stopping native Dock and restoring original properties");
     bool restored=true;
     auto restore=[&](unsigned index,void (*function)()) {
@@ -323,6 +326,7 @@ static bool StartCore(DWORD owner) {
 }
 static LRESULT CALLBACK BackendProc(HWND w,UINT message,WPARAM p,LPARAM l) {
     try {
+    if(g_stoppingCore && (message==NativeQuery||message==NativeStart||message==NativeStop||message==NativeOwnerExit))return NativeStarting;
     if(message==NativeQuery){SaveState();return g_state.load();}
     if(message==NativeStop || (message==NativeOwnerExit && static_cast<DWORD>(p)==g_ownerPid)){StopCore();return g_state.load();}
     if(message==NativeStart){return StartCore(static_cast<DWORD>(p))?g_state.load():NativeFailed;}

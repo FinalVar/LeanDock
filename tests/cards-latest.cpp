@@ -3,6 +3,15 @@
 #include <limits>
 int main(){using namespace LeanDockCards;int count=0,failed=0;
     auto check=[&](bool ok,const char* name){++count;if(!ok){++failed;std::printf("FAIL %s\n",name);}};
+    CommandGate gate;
+    auto old=gate.Begin();check(old&&gate.busy,"first media command admitted");
+    check(!gate.Begin(),"duplicate click is coalesced");
+    gate.Invalidate();check(!gate.busy,"session switch releases previous player's busy state");
+    auto current=gate.Begin();check(current&&current!=old,"new player can accept command immediately");
+    check(!gate.Finish(old)&&gate.busy,"old completion cannot clear new player's command");
+    check(gate.Finish(current)&&!gate.busy,"current completion releases buttons");
+    check(!gate.Finish(current),"duplicate completion ignored");
+    current=gate.Begin();gate.Invalidate();check(!gate.Finish(current)&&!gate.busy,"completion after Stop ignored");
     check(CpuPercent({100,150,100},{180,250,200})==60,"kernel includes idle");
     check(CpuPercent({0,0,0},{200,200,0})==0,"all idle");
     check(CpuPercent({0,0,0},{0,100,100})==100,"all busy");

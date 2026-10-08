@@ -6,11 +6,12 @@ static int checks,failed;
 static void Check(bool ok,const char* name){++checks;if(!ok){++failed;std::printf("FAIL: %s\n",name);}}
 static RECT dock{300,920,1400,1000},monitor{0,0,1600,1000};
 static bool enabled;
+static bool rightAligned=true;
 static RECT changed{};
 static LRESULT CALLBACK TestProc(HWND w,UINT m,WPARAM p,LPARAM l){
     const auto result=DefWindowProcW(w,m,p,l);
     if(m==WM_WINDOWPOSCHANGING&&enabled){RECT current{};GetWindowRect(w,&current);
-        LeanDockQuick::Adjust(*reinterpret_cast<WINDOWPOS*>(l),current,dock,monitor,144);
+        LeanDockPlacement::Adjust(*reinterpret_cast<WINDOWPOS*>(l),current,dock,monitor,144,rightAligned);
     }
     if(m==WM_WINDOWPOSCHANGED)GetWindowRect(w,&changed);
     return result;
@@ -71,6 +72,14 @@ int main(){
     enabled=false;SetWindowPos(w,nullptr,1000,200,0,0,SWP_NOSIZE|SWP_NOACTIVATE|SWP_NOZORDER);
     RECT restored{};GetWindowRect(w,&restored);
     Check(restored.left==1000&&restored.top==200,"disabled policy restores native movement");
+    enabled=true;rightAligned=false;
+    for(int i=0;i<5;++i){
+        SetWindowPos(w,nullptr,1000,200,600,800,SWP_NOACTIVATE|SWP_NOZORDER);
+        RECT actual{};GetWindowRect(w,&actual);
+        Check(actual.left==550&&actual.top==126,"Start is centered before commit");
+        Check(EqualRect(&actual,&changed),"Start input and display receive same committed position");
+        Check(!IsWindowVisible(w),"Start geometry test keeps its window hidden");
+    }
     DestroyWindow(w);UnregisterClassW(wc.lpszClassName,wc.hInstance);
     std::printf("Quick position: %d checks, %d failures\n",checks,failed);return failed?1:0;
 }

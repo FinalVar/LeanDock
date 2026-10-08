@@ -13,6 +13,7 @@ inline constexpr wchar_t Height[] = L"LeanDock.Geometry.v1.Height";
 inline int Scalar(HWND window,const wchar_t* key) {
     return static_cast<int>(reinterpret_cast<intptr_t>(GetPropW(window,key)))-1;
 }
+inline uintptr_t Revision(HWND window) {return reinterpret_cast<uintptr_t>(GetPropW(window,Ready));}
 inline void Clear(HWND window) {
     for(auto key:{Ready,Left,Right,Height})RemovePropW(window,key);
 }
@@ -21,18 +22,23 @@ inline bool ValidSpan(int left,int right,int height,int width) {
 }
 inline void Publish(HWND window,int left,int right,int height) {
     RECT r{};if(!GetWindowRect(window,&r) || !ValidSpan(left,right,height,r.right-r.left))return;
-    if(GetPropW(window,Ready) && Scalar(window,Left)==left && Scalar(window,Right)==right && Scalar(window,Height)==height)return;
-    RemovePropW(window,Ready);
+    if(Revision(window) && !(Revision(window)&1) && Scalar(window,Left)==left && Scalar(window,Right)==right && Scalar(window,Height)==height)return;
+    // Single UI-thread writer. Odd revisions are in progress; readers must
+    // observe the same completed revision on both sides of the scalar reads.
+    // A boolean ready flag cannot detect a whole publication between reads.
+    auto revision=(Revision(window)&~uintptr_t(1))+2;
+    if(!revision)revision=2;
+    if(!SetPropW(window,Ready,reinterpret_cast<HANDLE>(revision-1)))return;
     if(SetPropW(window,Left,reinterpret_cast<HANDLE>(static_cast<intptr_t>(left+1))) &&
        SetPropW(window,Right,reinterpret_cast<HANDLE>(static_cast<intptr_t>(right+1))) &&
        SetPropW(window,Height,reinterpret_cast<HANDLE>(static_cast<intptr_t>(height+1))))
-        SetPropW(window,Ready,reinterpret_cast<HANDLE>(1));
+        SetPropW(window,Ready,reinterpret_cast<HANDLE>(revision));
 }
 inline bool Read(HWND window,RECT& dock,MONITORINFO* info=nullptr) {
-    if(!GetPropW(window,Ready))return false;
+    const auto revision=Revision(window);if(!revision || (revision&1))return false;
     RECT r{};if(!GetWindowRect(window,&r))return false;
     int left=Scalar(window,Left),right=Scalar(window,Right),height=Scalar(window,Height);
-    if(!GetPropW(window,Ready) || !ValidSpan(left,right,height,r.right-r.left))return false;
+    if(Revision(window)!=revision || !ValidSpan(left,right,height,r.right-r.left))return false;
     MONITORINFO monitor{sizeof(monitor)};
     if(!GetMonitorInfoW(MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST),&monitor))return false;
     // Project the fully shown Dock, never the current slide-animation position.

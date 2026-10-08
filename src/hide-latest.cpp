@@ -3,6 +3,8 @@
 #define WindhawkUtils NDHideUtils
 #include "native-api-latest.h"
 #include "dock-geometry-latest.h"
+#include "event-loop-latest.h"
+#include <stdexcept>
 #include <windhawk_utils.h>
 #include <dwmapi.h>
 #include <psapi.h>
@@ -48,6 +50,9 @@ bool g_wasAutoHideProcessed;
 bool g_wasAutoHideDisabled;
 std::mutex g_winEventHookThreadMutex;
 std::atomic<HANDLE> g_winEventHookThread;
+HANDLE g_eventStop;
+std::atomic<bool> g_eventStopping{true};
+std::atomic<LPARAM> g_eventGeneration{0};
 std::unordered_map<void*, HWND> g_taskbarsKeptShown;
 std::unordered_map<HWND, void*> g_taskbarToViewCoordinator;
 UINT_PTR g_pendingEventsTimer;
@@ -575,21 +580,33 @@ void* QueryViaVtableBackwards(void* object, void* vtable) {
 }
 
 DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter);
+void StopEventThread() {
+    std::lock_guard guard(g_winEventHookThreadMutex);
+    if(g_winEventHookThread) {
+        LeanDockEvents::RequestStop(g_eventStop,GetThreadId(g_winEventHookThread));
+        // Keep handles and the pinned image intact if native work is stuck.
+        // Never terminate an Explorer thread or wait forever during Stop.
+        if(!LeanDockEvents::WaitForExit(g_winEventHookThread,5000))
+            throw std::runtime_error("hide event thread did not exit");
+        CloseHandle(g_winEventHookThread);g_winEventHookThread=nullptr;
+    }
+    if(g_eventStop){CloseHandle(g_eventStop);g_eventStop=nullptr;}
+}
 
 void AdjustTaskbar(HWND hMMTaskbarWnd, bool clearPendingWhenDone = false) {
-    if (g_settings.mode != Mode::never) {
-        if (!g_winEventHookThread) {
-            std::lock_guard<std::mutex> guard(g_winEventHookThreadMutex);
-
-            if (!g_winEventHookThread) {
-                g_winEventHookThread = CreateThread(
-                    nullptr, 0, WinEventHookThread, nullptr, 0, nullptr);
-            }
+    if(g_eventStopping)return;
+    if(g_settings.mode!=Mode::never && !g_winEventHookThread) {
+        std::lock_guard guard(g_winEventHookThreadMutex);
+        if(g_eventStopping)return;
+        if(!g_winEventHookThread) {
+            g_eventStop=CreateEventW(nullptr,TRUE,FALSE,nullptr);
+            if(!g_eventStop)return;
+            g_winEventHookThread=CreateThread(nullptr,0,WinEventHookThread,g_eventStop,0,nullptr);
+            if(!g_winEventHookThread){CloseHandle(g_eventStop);g_eventStop=nullptr;return;}
         }
     }
-
-    PostMessage(hMMTaskbarWnd, g_updateTaskbarStateRegisteredMsg,
-                clearPendingWhenDone, 0);
+    PostMessage(hMMTaskbarWnd,g_updateTaskbarStateRegisteredMsg,
+                clearPendingWhenDone,g_eventGeneration.load());
 }
 
 void AdjustAllTaskbars() {
@@ -605,6 +622,7 @@ void AdjustAllTaskbars() {
 }
 
 bool AdjustAllTaskbarsIfNotPending() {
+    if(g_eventStopping)return true;
     std::unordered_set<HWND> secondaryTaskbarWindows;
     HWND hWnd = FindTaskbarWindows(&secondaryTaskbarWindows);
 
@@ -762,6 +780,9 @@ LRESULT WINAPI TrayUI_WndProc_Hook(void* pThis,
                                    WPARAM wParam,
                                    LPARAM lParam,
                                    bool* flag) {
+    if(g_eventStopping)return TrayUI_WndProc_Original(pThis,hWnd,Msg,wParam,lParam,flag);
+    if(Msg==g_updateTaskbarStateRegisteredMsg && lParam!=g_eventGeneration.load())return 0;
+
     if(Msg==WM_TIMER && wParam==kTrayUITimerUnhide && LeanDockGeometry::RejectPointerReveal(hWnd)) {
         KillTimer(hWnd,kTrayUITimerUnhide);return 0;
     }
@@ -852,6 +873,9 @@ LRESULT WINAPI CSecondaryTray_v_WndProc_Hook(void* pThis,
                                              UINT Msg,
                                              WPARAM wParam,
                                              LPARAM lParam) {
+    if(g_eventStopping)return CSecondaryTray_v_WndProc_Original(pThis,hWnd,Msg,wParam,lParam);
+    if(Msg==g_updateTaskbarStateRegisteredMsg && lParam!=g_eventGeneration.load())return 0;
+
     if(Msg==WM_TIMER && wParam==kTrayUITimerUnhide && LeanDockGeometry::RejectPointerReveal(hWnd)) {
         KillTimer(hWnd,kTrayUITimerUnhide);return 0;
     }
@@ -909,6 +933,8 @@ void CALLBACK WinEventProc(HWINEVENTHOOK hWinEventHook,
                            LONG idChild,
                            DWORD dwEventThread,
                            DWORD dwmsEventTime) {
+    if(g_eventStopping)return;
+
     if (idObject != OBJID_WINDOW ||
         (GetWindowLong(hWnd, GWL_STYLE) & WS_CHILD) || IsTaskbarWindow(hWnd)) {
         return;
@@ -1045,22 +1071,9 @@ DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter) {
         }
     }
 
-    BOOL bRet;
-    MSG msg;
-    while ((bRet = GetMessage(&msg, NULL, 0, 0)) != 0) {
-        if (bRet == -1) {
-            msg.wParam = 0;
-            break;
-        }
-
-        if (msg.hwnd == NULL && msg.message == WM_APP) {
-            PostQuitMessage(0);
-            continue;
-        }
-
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
+    const auto result=LeanDockEvents::Pump(static_cast<HANDLE>(lpThreadParameter));
+    // A nonzero stale timer would suppress all scheduling on the next run.
+    LeanDockEvents::ClearTimer(g_pendingEventsTimer);
 
     if (winObjectEventHook1) {
         UnhookWinEvent(winObjectEventHook1);
@@ -1523,6 +1536,7 @@ BOOL HideComponentInit() {
 }
 
 void HideComponentAfterInit() {
+    ++g_eventGeneration;g_eventStopping=false;
     Wh_Log(L">");
 
     if (g_winVersion >= WinVersion::Win11 && !g_taskbarViewDllLoaded) {
@@ -1550,52 +1564,16 @@ void HideComponentAfterInit() {
 }
 
 void HideComponentUninit() {
-    Wh_Log(L">");
-
-    if (g_winEventHookThread) {
-        PostThreadMessage(GetThreadId(g_winEventHookThread), WM_APP, 0, 0);
-        WaitForSingleObject(g_winEventHookThread, INFINITE);
-        CloseHandle(g_winEventHookThread);
-        g_winEventHookThread = nullptr;
-    }
-
-    if (g_wasAutoHideDisabled) {
-        HWND hTaskbarWnd = FindCurrentProcessTaskbarWnd();
-        if (hTaskbarWnd) {
-            SendMessage(hTaskbarWnd, kHandleTrayPrivateSettingMessage,
-                        kTrayPrivateSettingAutoHideSet, FALSE);
-        }
+    g_eventStopping=true;++g_eventGeneration;
+    StopEventThread();
+    if(g_wasAutoHideDisabled) {
+        HWND taskbar=FindCurrentProcessTaskbarWnd();
+        if(taskbar)SendMessage(taskbar,kHandleTrayPrivateSettingMessage,kTrayPrivateSettingAutoHideSet,FALSE);
     }
 }
 
 BOOL HideComponentSettingsChanged(BOOL* bReload) {
-    Wh_Log(L">");
-
-    bool prevForegroundWindowOnly = g_settings.foregroundWindowOnly;
-    bool prevOldTaskbarOnWin11 = g_settings.oldTaskbarOnWin11;
-
-    LoadSettings();
-
-    if (g_settings.oldTaskbarOnWin11 != prevOldTaskbarOnWin11) {
-        *bReload = TRUE;
-        return TRUE;
-    }
-
-    if (g_settings.mode == Mode::never ||
-        prevForegroundWindowOnly != g_settings.foregroundWindowOnly) {
-        std::lock_guard<std::mutex> guard(g_winEventHookThreadMutex);
-
-        if (g_winEventHookThread) {
-            PostThreadMessage(GetThreadId(g_winEventHookThread), WM_APP, 0, 0);
-            WaitForSingleObject(g_winEventHookThread, INFINITE);
-            CloseHandle(g_winEventHookThread);
-            g_winEventHookThread = nullptr;
-        }
-    }
-
-    AdjustAllTaskbars();
-
-    return TRUE;
+    *bReload=TRUE;return TRUE;
 }
 
 }

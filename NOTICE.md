@@ -99,3 +99,5 @@ Documented APIs used for thread ownership and the placement transaction:
 - https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-windowposchanging
 - https://learn.microsoft.com/en-us/windows/win32/api/commctrl/nf-commctrl-setwindowsubclass
 - https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowshookexw
+
+The 0.5.6 timing changes are original adaptations: shared native pending placement, versioned scalar geometry, media command generations and bounded event-thread shutdown. No additional upstream code or runtime dependency was introduced.

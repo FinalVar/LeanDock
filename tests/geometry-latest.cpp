@@ -1,5 +1,7 @@
 #include "../include/dock-geometry-latest.h"
 #include <cstdio>
+#include <thread>
+#include <atomic>
 int main() {
     using namespace LeanDockGeometry;
     unsigned checks=0,failed=0;
@@ -19,5 +21,26 @@ int main() {
     check(!ValidSpan(0,0,64,2560));check(!ValidSpan(-1,1200,64,2560));
     check(!ValidSpan(600,2561,64,2560));check(!ValidSpan(600,1900,1000,2560));
     check(ValidSpan(600,1900,96,2560));
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    WNDCLASSW type{};type.lpfnWndProc=DefWindowProcW;type.hInstance=GetModuleHandleW(nullptr);type.lpszClassName=L"LeanDockGeometryTest";
+    RegisterClassW(&type);
+    HWND window=CreateWindowW(type.lpszClassName,L"",WS_POPUP,0,0,1000,100,nullptr,nullptr,type.hInstance,nullptr);
+    check(window!=nullptr);
+    if(window){
+        RECT value{};Publish(window,100,700,64);check(Read(window,value));
+        auto revision=Revision(window);Publish(window,100,700,64);check(Revision(window)==revision);
+        SetPropW(window,Ready,reinterpret_cast<HANDLE>(revision+1));check(!Read(window,value));
+        Publish(window,100,700,64);check(Read(window,value)); // recover incomplete publication
+        std::atomic<bool> done=false;std::atomic<unsigned> torn=0;
+        std::thread writer([&]{for(int i=0;i<20000;++i){Publish(window,100,700,64);Publish(window,200,900,96);}done=true;});
+        unsigned reads=0;
+        do{if(Read(window,value)){++reads;
+            if(!((value.left==100&&value.right==700&&value.bottom-value.top==64)||
+                 (value.left==200&&value.right==900&&value.bottom-value.top==96)))++torn;
+        }}while(!done);
+        writer.join();check(torn==0);check(reads>0);check(!IsWindowVisible(window));
+        Clear(window);check(!Read(window,value));DestroyWindow(window);
+    }
+    UnregisterClassW(type.lpszClassName,type.hInstance);
     printf("%u geometry checks, %u failures\n",checks,failed);return failed?1:0;
 }
