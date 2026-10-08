@@ -8,7 +8,7 @@ void UpdateLeanDockDivider(ClickThroughTaskbarState& state) try {
     if(!root)return;
     if(state.divider.get())return;
     Shapes::Rectangle line;
-    line.Name(L"LeanDockDivider");line.Width(1);line.Height(28);
+    line.Name(L"LeanDockDivider");line.Width(1);line.Height(40);
     line.RadiusX(0.5);line.RadiusY(0.5);
     line.HorizontalAlignment(HorizontalAlignment::Right);
     line.VerticalAlignment(VerticalAlignment::Center);

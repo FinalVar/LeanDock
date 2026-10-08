@@ -62,7 +62,7 @@ if(-not $BackendOnly){
     if($LASTEXITCODE -ne 0){throw 'Controller compilation failed.'}
 }
 [pscustomobject]@{
-    Version='0.3.1';ControllerVersion='0.3.0';BackendVersion='0.2.1';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true
+    Version='0.3.2';ControllerVersion='0.3.0';BackendVersion='0.2.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true
     RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll | ForEach-Object {
         [pscustomobject]@{Name=$_.Name;Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName).Hash}
     })

@@ -1,0 +1,52 @@
+{
+  "schema": 3,
+  "recordedAtUtc": "2026-10-08T04:23:36.1113748Z",
+  "packageVersion": "0.3.1",
+  "controllerVersion": "0.3.0",
+  "backendVersion": "0.2.1",
+  "scope": "Remove application button outlines and decorative multi-window rear plate; soften button feedback and outer glass stroke.",
+  "backendBuildPassed": true,
+  "runtimeChecks": 39,
+  "runtimeImports": "Windows system DLLs only",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 44544,
+      "SHA256": "57C6EAC4B1465531DF1C9CBB8B9871DC36FC11451E42A8A927894A52C6C28BA1"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1590272,
+      "SHA256": "0A4C1CA97732D4DD1CDE98430FA86BACBA9C026B9053AEC1824A82364D659D89"
+    }
+  ],
+  "productionDockAndCornersReady": true,
+  "preservedFileHashes": 13,
+  "controllerBinaryUnchanged": true,
+  "cornerConfigurationUnchanged": true,
+  "nativeGeometryReadback": "taskbar rect=0,1598,2560,1694 region=2 clip=987,0,1573,96 geometry=1 dock=987,1504,1573,1600",
+  "recoveryGuardExited": true,
+  "windhawkRunning": false,
+  "previousVerification": "verification-v0.3.0.json",
+  "acceptance": {
+    "recordedAtUtc": "2026-10-08T04:24:04.6780587Z",
+    "status": "user-confirmed",
+    "response": "白线消失，效果自然",
+    "role": "user",
+    "scope": "White outline removed around application buttons; natural hover appearance"
+  },
+  "validationBoundary": "Build, existing runtime checks, system imports, exact deployed hashes and live readiness verified. The user confirmed that the white line disappeared and hover looks natural. No automated taskbar screenshot was captured, and the full previous feature UI matrix was not repeated.",
+  "unchangedAreas": [
+    "tray grid logic",
+    "smart hide and edge span logic",
+    "native panel positioning",
+    "hot corner actions"
+  ],
+  "notRepeated": [
+    "full physical-monitor matrix",
+    "sleep and resume matrix",
+    "logoff and logon",
+    "fullscreen games",
+    "full previous feature UI acceptance"
+  ]
+}
