@@ -29,6 +29,9 @@ static HANDLE g_owner;
 static PTP_WAIT g_ownerWait;
 static DWORD g_ownerPid;
 static std::recursive_mutex g_hookMutex;
+// Like Windhawk's uninitializing gate, registration/application and shutdown
+// share one lock. A late LoadLibrary callback must not re-enable stopped hooks.
+static bool g_hooksAccepting=false; // guarded by g_hookMutex
 static std::mutex g_storageMutex;
 static std::map<std::wstring,std::wstring> g_storage;
 static const wchar_t* g_sections[]={L"runtime",L"styler",L"tray",L"size",L"hide",L"show"};
@@ -112,9 +115,27 @@ struct HookChain {
     std::vector<std::pair<void*,void**>> entries;
 };
 static std::vector<HookChain> g_hooks;
+static MH_STATUS InitializeHooks() {
+    std::lock_guard guard(g_hookMutex);
+    const auto status=MH_Initialize();
+    if(status==MH_OK)g_hooksAccepting=true;
+    return status;
+}
+static MH_STATUS SuspendHooks() {
+    std::lock_guard guard(g_hookMutex);
+    g_hooksAccepting=false;
+    return MH_DisableHook(MH_ALL_HOOKS);
+}
+static MH_STATUS ResumeHooks() {
+    std::lock_guard guard(g_hookMutex);
+    const auto status=MH_EnableHook(MH_ALL_HOOKS);
+    if(status==MH_OK)g_hooksAccepting=true;
+    return status;
+}
 extern "C" BOOL InternalWh_SetFunctionHook(void*,void* target,void* hook,void** original) {
     if(!target || !hook)return FALSE;
     std::lock_guard guard(g_hookMutex);
+    if(!g_hooksAccepting)return FALSE;
     for(auto& chain:g_hooks) {
         if(chain.target!=target)continue;
         for(auto const& entry:chain.entries)if(entry.first==hook) {
@@ -145,12 +166,15 @@ extern "C" BOOL InternalWh_SetFunctionHook(void*,void* target,void* hook,void** 
     }
     if(original)*original=trampoline;
     g_hooks.push_back({target,trampoline,memory,destination,{{hook,original}}});
-    MH_QueueEnableHook(target);
+    if(MH_QueueEnableHook(target)!=MH_OK) {
+        Native_ReportFailure(L"queue hook",E_FAIL);return FALSE;
+    }
     return TRUE;
 }
 extern "C" BOOL InternalWh_RemoveFunctionHook(void*,void*){return FALSE;}
 extern "C" BOOL InternalWh_ApplyHookOperations(void*) {
     std::lock_guard guard(g_hookMutex);
+    if(!g_hooksAccepting)return FALSE;
     const auto status=MH_ApplyQueued();
     if(status!=MH_OK)Native_ReportFailure(L"apply hooks",E_FAIL);
     return status==MH_OK;
@@ -224,10 +248,11 @@ static bool g_initializedCore[5]{};
 static void SaveState() {
     unsigned elements=0;
     if(g_state==NativeActive)elements=Native_styler_count();
+    size_t hooks;{std::lock_guard guard(g_hookMutex);hooks=g_hooks.size();}
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.4.13\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s}\n",
-        GetCurrentProcessId(),g_ownerPid,g_state.load(),g_hooks.size(),elements,g_fault?"true":"false");
+        "{\"protocol\":1,\"version\":\"0.4.14\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s}\n",
+        GetCurrentProcessId(),g_ownerPid,g_state.load(),hooks,elements,g_fault?"true":"false");
     HANDLE file=CreateFileW(FilePath(L"latest-backend.json").c_str(),GENERIC_WRITE,
         FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,json,size,&written,nullptr);CloseHandle(file);}
@@ -285,7 +310,7 @@ static void StopCore() {
     restore(3,Native_hide_stop);
     restore(1,Native_tray_before);
     restore(2,Native_size_before);
-    const auto disabled=MH_DisableHook(MH_ALL_HOOKS);
+    const auto disabled=SuspendHooks();
     if(disabled!=MH_OK && disabled!=MH_ERROR_NOT_INITIALIZED){restored=false;Native_ReportFailure(L"hook restoration",E_FAIL);}
     restore(0,Native_styler_stop);
     restore(4,Native_show_stop);
@@ -302,7 +327,7 @@ static bool StartCore(DWORD owner) {
     if(!SetOwner(owner))return false;
     g_state=NativeStarting;g_fault=false;
     if(!g_everInitialized) {
-        if(MH_Initialize()!=MH_OK){Native_ReportFailure(L"hook initialization",E_FAIL);StopCore();g_state=NativeFailed;SaveState();return false;}
+        if(InitializeHooks()!=MH_OK){Native_ReportFailure(L"hook initialization",E_FAIL);StopCore();g_state=NativeFailed;SaveState();return false;}
         BOOL (*init[])(void)={Native_styler_init,Native_tray_init,Native_size_init,Native_hide_init,Native_show_init};
         // One transaction: resolve all core symbols and only then enable hooks.
         for(unsigned i: {2u,1u,3u,4u,0u}) {
@@ -316,7 +341,7 @@ static bool StartCore(DWORD owner) {
         g_hasApplied=true;
         Native_size_after();Native_tray_after();
     } else {
-        if(MH_EnableHook(MH_ALL_HOOKS)!=MH_OK){Native_ReportFailure(L"hook resume",E_FAIL);StopCore();g_state=NativeFailed;SaveState();return false;}
+        if(ResumeHooks()!=MH_OK){Native_ReportFailure(L"hook resume",E_FAIL);StopCore();g_state=NativeFailed;SaveState();return false;}
         g_hasApplied=true;
         Native_size_resume();Native_tray_resume();
     }

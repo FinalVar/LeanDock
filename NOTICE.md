@@ -1,6 +1,6 @@
 # Sources and licensing
 
-LeanDock 0.5.1 (legacy NativeTaskbarDock controller 0.3.1, backend 0.4.1 and Start layout 0.1.2). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release.
+LeanDock (legacy NativeTaskbarDock). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release. Current package and component versions are recorded in build/latest.json and docs/verification-latest.json.
 
 Preserved GPL-3.0 upstream sources by m417z and their credited contributors:
 
@@ -17,6 +17,15 @@ The local controller, pinned-symbol resolver, hook-chain adapter and maintenance
 MinHook 1.3.4 by Tsuda Kageyu, commit c3fcafdc10146beb5919319d0683e44e3c30d537: https://github.com/TsudaKageyu/minhook . It and bundled HDE source retain all applicable notices in vendor/minhook/LICENSE.txt, AUTHORS.txt and source headers. The import inventory is in tests/imports-latest.json.
 
 The component uses internal Windows taskbar interfaces. Compatibility is deliberately limited to the verified system binaries. This does not establish compatibility with future Windows updates, third-party shell modifications or untested displays.
+
+The 0.7.1 hook-operation shutdown gate follows the lifetime synchronization
+pattern in Windhawk's LoadedMod::BeforeUninit, SetFunctionHook and
+ApplyHookOperations, reviewed at commit aef1a9f1e77f30c8fd96c5dd29373c38181486bf:
+https://github.com/ramensoftware/windhawk/blob/aef1a9f1e77f30c8fd96c5dd29373c38181486bf/src/windhawk/engine/mod.cpp
+It is a small adaptation for this pinned, jointly managed backend, not a copy
+of the Windhawk engine. The existing stock MinHook 1.3.4 and local chain adapter
+remain; Windhawk's extended MinHook and MinHook-Detours were reviewed as possible
+future replacements, not imported or represented as tested LeanDock dependencies.
 
 NativeHotCorners 1.0.2 is the user's existing locally written C++/Win32 implementation. Its original source, tests and notices are retained under upstream/NativeHotCorners. This integration reuses the existing core and SendInput actions; build/adapt-hotcorners-latest.py adapts the window entry point to the controller's message loop and fixes portable wide-string formatting. No additional third-party hot-corner runtime or copied KDE/GNOME source was added.
 

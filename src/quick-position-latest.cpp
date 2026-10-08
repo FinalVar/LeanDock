@@ -37,15 +37,6 @@ HANDLE ValidOwner(DWORD pid) {
        WaitForSingleObject(p,0)!=WAIT_TIMEOUT){CloseHandle(p);return nullptr;}
     return p;
 }
-bool DockFor(const RECT& proposed,RECT& dock,MONITORINFO& info) {
-    const auto monitor=MonitorFromRect(&proposed,MONITOR_DEFAULTTONEAREST);
-    for(auto cls:{L"Shell_TrayWnd",L"Shell_SecondaryTrayWnd"}){
-        HWND bar=nullptr;
-        while((bar=FindWindowExW(nullptr,bar,cls,nullptr)))
-            if(MonitorFromWindow(bar,MONITOR_DEFAULTTONEAREST)==monitor && LeanDockGeometry::Read(bar,dock,&info))return true;
-    }
-    return false;
-}
 LRESULT CALLBACK WindowProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
 void Stop(bool restore=true) {
     LeanDockQuickTheme::Stop();
@@ -76,7 +67,7 @@ void Position(WINDOWPOS& pos) {
     if(!(pos.flags&SWP_NOMOVE)){OffsetRect(&requested,pos.x-current.left,pos.y-current.top);}
     if(!(pos.flags&SWP_NOSIZE)){requested.right=requested.left+pos.cx;requested.bottom=requested.top+pos.cy;}
     RECT dock{};MONITORINFO info{};
-    if(!DockFor(requested,dock,info))return;
+    if(!LeanDockPlacement::DockFor(requested,dock,info))return;
     RECT native{};
     if(!LeanDockQuick::Adjust(pos,current,dock,info.rcMonitor,GetDpiForWindow(window),&native))return;
     if(!moved||(!(pos.flags&SWP_NOSIZE)&&!EqualRect(&native,&applied))||

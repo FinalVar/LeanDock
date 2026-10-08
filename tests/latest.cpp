@@ -1,6 +1,7 @@
 #define NATIVE_RUNTIME_TEST
 #include "../src/runtime-latest.cpp"
 #include <cstdlib>
+#include <thread>
 
 static unsigned passed=0,failed=0;
 static void Check(bool condition,const char* name) {
@@ -19,10 +20,14 @@ static std::wstring StringSetting(unsigned component,const wchar_t* name,...) {
     InternalWh_FreeStringSetting(nullptr,value);return result;
 }
 using Function=int(*)(int);
-static Function firstOriginal,secondOriginal;
+static Function firstOriginal,secondOriginal,pendingOriginal;
 __declspec(noinline) static int Target(int value) { volatile int copy=value;return copy*3+1; }
 __declspec(noinline) static int FirstHook(int value) {return firstOriginal(value)+10;}
 __declspec(noinline) static int SecondHook(int value) {return secondOriginal(value)+100;}
+__declspec(noinline) static int PendingTarget(int value) {volatile int copy=value;return copy*5+2;}
+__declspec(noinline) static int PendingHook(int value) {return pendingOriginal(value)+1000;}
+__declspec(noinline) static int LateTarget(int value) {volatile int copy=value;return copy*7+3;}
+__declspec(noinline) static int LateHook(int value) {return value+5000;}
 
 int main() {
     GetModuleFileNameW(nullptr,g_directory,std::size(g_directory));
@@ -79,7 +84,9 @@ int main() {
     DeleteFileW(input);
     wchar_t mismatch[256];Check(NativeVerifySystem(mismatch,std::size(mismatch)),"current system hashes verified");
 
-    Check(MH_Initialize()==MH_OK,"hook manager initialize");
+    Check(!InternalWh_SetFunctionHook(nullptr,(void*)&Target,(void*)&FirstHook,(void**)&firstOriginal),"reject registration before initialization");
+    Check(!InternalWh_ApplyHookOperations(nullptr),"reject application before initialization");
+    Check(InitializeHooks()==MH_OK,"hook manager initialize");
     Function volatile invoke=&Target;
     Check(invoke(5)==16,"original behavior");
     Check(InternalWh_SetFunctionHook(nullptr,(void*)&Target,(void*)&FirstHook,(void**)&firstOriginal),"first hook prepared");
@@ -92,9 +99,54 @@ int main() {
     Check(secondOriginal(5)==26,"top original links previous layer");
     Check(InternalWh_SetFunctionHook(nullptr,(void*)&Target,(void*)&SecondHook,(void**)&secondOriginal),"duplicate registration is idempotent");
     Check(g_hooks[0].entries.size()==2 && invoke(5)==126,"duplicate does not add another layer");
-    Check(MH_DisableHook(MH_ALL_HOOKS)==MH_OK && invoke(5)==16,"disable restores native function");
-    Check(MH_EnableHook(MH_ALL_HOOKS)==MH_OK && invoke(5)==126,"resume preserves chain");
-    Check(MH_DisableHook(MH_ALL_HOOKS)==MH_OK && invoke(5)==16,"second stop restores native function");
+    Function volatile pending=&PendingTarget;
+    Check(InternalWh_SetFunctionHook(nullptr,(void*)&PendingTarget,(void*)&PendingHook,(void**)&pendingOriginal),"prepare unapplied hook before stop");
+    Check(pending(5)==27,"queued hook remains disabled");
+    // Deterministic contention: a callback arrives before Stop, but cannot
+    // acquire the operation lock until after Stop has disabled the hooks.
+    // It must not extend a live chain, add a target, or apply a queued hook.
+    HANDLE arrived=CreateEventW(nullptr,TRUE,FALSE,nullptr);
+    Check(arrived!=nullptr,"late callback synchronization event");
+    std::unique_lock hold(g_hookMutex);
+    bool extended=false,created=false,duplicate=false,applied=false;
+    Function lateOriginal=nullptr,duplicateOriginal=nullptr;
+    std::thread callback([&]{
+        SetEvent(arrived);
+        extended=InternalWh_SetFunctionHook(nullptr,(void*)&Target,(void*)&LateHook,(void**)&lateOriginal);
+        created=InternalWh_SetFunctionHook(nullptr,(void*)&LateTarget,(void*)&LateHook,(void**)&lateOriginal);
+        duplicate=InternalWh_SetFunctionHook(nullptr,(void*)&Target,(void*)&SecondHook,(void**)&duplicateOriginal);
+        applied=InternalWh_ApplyHookOperations(nullptr);
+    });
+    Check(WaitForSingleObject(arrived,5000)==WAIT_OBJECT_0,"late callback ready before stop");
+    Check(SuspendHooks()==MH_OK && invoke(5)==16,"disable restores native function");
+    hold.unlock();callback.join();CloseHandle(arrived);
+    Check(!extended&&!created&&!duplicate&&!applied,"late callback cannot modify or enable stopped hooks");
+    Check(!lateOriginal&&!duplicateOriginal,"rejected callback leaves original pointers untouched");
+    Check(g_hooks.size()==2&&g_hooks[0].entries.size()==2,"stop rejects both new targets and new chain layers");
+    Check(invoke(5)==16&&pending(5)==27,"late apply leaves both native functions unchanged");
+    Check(!g_fault,"expected shutdown rejections do not fault runtime");
+    Check(ResumeHooks()==MH_OK && invoke(5)==126 && pending(5)==1027,"explicit resume preserves chain and queued target");
+    Check(SuspendHooks()==MH_OK && invoke(5)==16 && pending(5)==27,"second stop restores native functions");
+    Check(!InternalWh_ApplyHookOperations(nullptr),"repeated late application remains rejected");
+    // Exercise the same real MinHook transaction under concurrent callbacks,
+    // using existing registrations so this stress run never grows the chain.
+    for(unsigned cycle=0;cycle<20;++cycle) {
+        Check(ResumeHooks()==MH_OK,"concurrent cycle resume");
+        std::atomic<bool> ready=false,finish=false;
+        std::thread racing([&]{
+            ready=true;
+            while(!finish.load()) {
+                InternalWh_SetFunctionHook(nullptr,(void*)&Target,(void*)&SecondHook,nullptr);
+                InternalWh_ApplyHookOperations(nullptr);
+                SwitchToThread();
+            }
+        });
+        while(!ready.load())SwitchToThread();
+        const auto stopped=SuspendHooks();
+        finish=true;racing.join();
+        Check(stopped==MH_OK && invoke(5)==16 && pending(5)==27 &&
+              !InternalWh_ApplyHookOperations(nullptr),"concurrent stop stays native");
+    }
     MH_Uninitialize();
     for(auto& hook:g_hooks)VirtualFree(hook.stub,0,MEM_RELEASE);
     printf("%u checks passed, %u failed\n",passed,failed);
