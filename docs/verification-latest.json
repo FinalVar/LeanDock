@@ -1,12 +1,9 @@
 {
-  "schema": 21,
-  "recordedAtUtc": "2026-10-09T02:12:03.3003657Z",
-  "packageVersion": "0.7.2",
-  "controllerVersion": "0.3.4",
-  "backendVersion": "0.4.15",
-  "startLayoutVersion": "0.1.3",
-  "quickPositionVersion": "0.2.2",
-  "scope": "Battery card readiness across page/reveal transitions and centered Quick Settings",
+  "schema": 22,
+  "recordedAtUtc": "2026-10-09T02:29:52.9665972Z",
+  "packageVersion": "0.7.3",
+  "backendVersion": "0.4.16",
+  "scope": "Diagnostic follow-up for intermittent first-click loss; not declared fixed",
   "artifacts": [
     {
       "Name": "latest.exe",
@@ -15,8 +12,8 @@
     },
     {
       "Name": "latest.dll",
-      "Bytes": 1867776,
-      "SHA256": "2B798719D5E3B53E77255249464C7EA44B6EA9ECBDA0C72CA3317CCCE4AEB959"
+      "Bytes": 1896960,
+      "SHA256": "D80645974AF15303C5814897ED8CBAFD20FD7CD94393758E7709DC56F4119FC2"
     },
     {
       "Name": "start\\latest.dll",
@@ -29,51 +26,25 @@
       "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
     }
   ],
-  "tests": {
-    "positionChecks": 77,
-    "cardsChecks": 104,
-    "geometryChecks": 199,
-    "failures": 0,
-    "hiddenWin32MessageCycle": true,
-    "imports": "System DLLs only",
-    "inputInjection": false,
-    "realShellClickAcceptance": "Pending"
+  "diagnostics": {
+    "scope": "Genuine input events within battery card only",
+    "sourceCodes": {
+      "customPowerButton": 2,
+      "nativeBattery": 1,
+      "other": 0,
+      "cardContainer": 3
+    },
+    "noSyntheticInput": true,
+    "noNewTimers": true,
+    "noGlobalInputHook": true,
+    "removedOnStop": true
   },
-  "changes": [
-    "Keep inactive native power button measured in the existing zero-flow slot, noninteractive and excluded from Tab/control accessibility navigation",
-    "Restore original navigation values/bindings on activation and stop",
-    "Use the shared already-measured card slot; require actual native target/grid dimensions before publishing mapped state",
-    "Center Quick Settings on the Dock using the existing pre-commit placement path"
-  ],
-  "preserved": {
-    "controllerHashUnchanged": true,
-    "startHashUnchanged": true,
-    "userConfigurationPolicy": "Preserve exact installed latest.ini and hotcorners/latest.ini",
-    "unrelatedWorkingTreeChanges": "Preserved outside this repair",
-    "newTimers": 0,
-    "newProcesses": 0
-  },
+  "previousAcceptance": "0.7.2 centers visible panel at zero-pixel error, but user reports intermittent missed first click remains",
   "deployment": {
     "state": "Applied",
-    "version": "0.7.2",
     "live": true,
-    "backendVersion": "0.4.15",
-    "runtimeHashesMatch": true,
-    "protectedConfigurationsMatch": true,
-    "singleController": true,
-    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.7.2-20261009-101016407",
-    "uiAcceptance": "Pending real first-click and centered panel acceptance",
-    "dormantNativeButtonPrepared": true
-  },
-  "review": {
-    "maintainability": "Retain native object, existing property restoration, shared slot constants and pre-commit positioning",
-    "boundaries": "Dormant slot has no input/Tab/control-accessibility target; cramped layout restores native entry; screen clamp remains",
-    "regression": "77 placement, 104 card and 199 geometry checks; real XAML transitions still require desktop acceptance"
-  },
-  "remaining": [
-    "First click immediately after page switching and Dock reveal requires real user acceptance",
-    "Actual panel centering, rapid reopen, wheel exit, right click and media interaction remain to be checked",
-    "No new multi-monitor, DPI change, sleep, login or cold boot acceptance"
-  ],
-  "previousAcceptance": "See verification-v0.7.1.json and earlier records; old acceptance does not validate this repair"
+    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.7.3-20261009-102413956",
+    "uiAcceptance": "Not yet exercised after diagnostic reload; intermittent first-click defect remains open",
+    "configurationPreserved": true
+  }
 }

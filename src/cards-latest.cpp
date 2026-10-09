@@ -55,6 +55,16 @@ static constexpr const wchar_t* Props[]={L"LeanDock.Card.Ready",L"LeanDock.Card.
     L"LeanDock.Card.ClockActive",L"LeanDock.Card.ClockHourMinute",L"LeanDock.Card.ClockMonthDay",L"LeanDock.Card.ClockUpdates",
     L"LeanDock.Card.AppWidth100",L"LeanDock.Card.RootWidth100",L"LeanDock.Card.RootMinWidth100",L"LeanDock.Card.FrameMinWidth100",L"LeanDock.Card.MediaPlaying"};
 static uint64_t Bits(FILETIME t){return (uint64_t(t.dwHighDateTime)<<32)|t.dwLowDateTime;}
+// Bounded, read-only diagnostics for genuine gestures inside the power card.
+// No global input observation, coordinates outside this card, or titles.
+static constexpr const wchar_t* InputProps[]={
+    L"LeanDock.Card.Input.Presses",L"LeanDock.Card.Input.Releases",L"LeanDock.Card.Input.Taps",
+    L"LeanDock.Card.Input.Kind",L"LeanDock.Card.Input.Source",L"LeanDock.Card.Input.Handled",
+    L"LeanDock.Card.Input.At",L"LeanDock.Card.Input.NativeDx100",L"LeanDock.Card.Input.NativeDy100",
+    L"LeanDock.Card.Input.NativeEnabled",L"LeanDock.Card.Input.NativeHit",L"LeanDock.Card.Input.NativeFocus",
+    L"LeanDock.Card.Input.Fallbacks"};
+static void InputValue(HWND w,unsigned index,intptr_t value){if(w)SetPropW(w,InputProps[index],reinterpret_cast<HANDLE>(value+1));}
+static void InputCount(HWND w,unsigned index){if(w)InputValue(w,index,std::max<intptr_t>(1,reinterpret_cast<intptr_t>(GetPropW(w,InputProps[index]))));}
 static std::optional<CpuTimes> Times(){
     // This API is group-local on machines with more than 64 processors. Do
     // not label that partial value as whole-machine CPU utilization.
@@ -95,7 +105,8 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     c::Border card{nullptr}; x::Shapes::Rectangle divider{nullptr};
     c::Button powerCard{nullptr};c::TextBlock powerText{nullptr},powerStatus{nullptr};c::StackPanel powerContent{nullptr};
     x::Shapes::Rectangle powerFill{nullptr};x::Shapes::Path powerBolt{nullptr};
-    x::UIElement wheelRoot{nullptr};IInspectable wheelHandler{nullptr};
+    x::UIElement wheelRoot{nullptr};IInspectable wheelHandler{nullptr},inputPress{nullptr},inputRelease{nullptr},inputTap{nullptr};
+    winrt::weak_ref<x::FrameworkElement> inputNative;
     Power::RemainingChargePercentChanged_revoker chargeChanged;
     Power::BatteryStatusChanged_revoker batteryChanged;
     Power::PowerSupplyStatusChanged_revoker supplyChanged;
@@ -262,6 +273,21 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
             }catch(...){p->Fail();}
         }));
         wheelRoot.AddHandler(x::UIElement::PointerWheelChangedEvent(),wheelHandler,true);
+        auto tracePointer=[weak](unsigned kind,x::Input::PointerRoutedEventArgs const& e){
+            if(auto p=weak.lock();p&&!p->stopped&&p->page==Page::Power)try{
+                p->TracePowerInput(e.OriginalSource(),e.GetCurrentPoint(p->card).Position(),kind,e.Handled());
+            }catch(...){p->Fail();}
+        };
+        inputPress=winrt::box_value(x::Input::PointerEventHandler([tracePointer](auto&&,auto const& e){tracePointer(0,e);}));
+        inputRelease=winrt::box_value(x::Input::PointerEventHandler([tracePointer](auto&&,auto const& e){tracePointer(1,e);}));
+        inputTap=winrt::box_value(x::Input::TappedEventHandler([weak](auto&&,x::Input::TappedRoutedEventArgs const& e){
+            if(auto p=weak.lock();p&&!p->stopped&&p->page==Page::Power)try{
+                p->TracePowerInput(e.OriginalSource(),e.GetPosition(p->card),2,e.Handled());
+            }catch(...){p->Fail();}
+        }));
+        wheelRoot.AddHandler(x::UIElement::PointerPressedEvent(),inputPress,true);
+        wheelRoot.AddHandler(x::UIElement::PointerReleasedEvent(),inputRelease,true);
+        wheelRoot.AddHandler(x::UIElement::TappedEvent(),inputTap,true);
         previous.Click([weak](auto&&,auto&&){Command(weak,0);});
         play.Click([weak](auto&&,auto&&){Command(weak,1);});
         next.Click([weak](auto&&,auto&&){Command(weak,2);});
@@ -437,7 +463,32 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         x::Automation::AutomationProperties::SetName(powerCard,L"电池 "+powerText.Text()+L"，"+state+L"，打开快速设置");
         ++powerUpdates;Publish();
     }
+    void TracePowerInput(IInspectable const& source,winrt::Windows::Foundation::Point point,unsigned kind,bool handled) {
+        if(!hwnd||!fits||point.X<0||point.Y<0||point.X>=card.ActualWidth()||point.Y>=card.ActualHeight())return;
+        unsigned origin=0;
+        auto node=source.try_as<x::DependencyObject>();
+        for(unsigned depth=0;node&&depth<32;++depth,node=x::Media::VisualTreeHelper::GetParent(node)){
+            if(auto fe=node.try_as<x::FrameworkElement>()){
+                if(fe.Name()==L"ControlCenterButton"){origin=1;break;}
+                if(fe.Name()==L"LeanDockPowerCard"){origin=2;break;}
+                if(fe.Name()==L"LeanDockCard"){origin=3;break;}
+            }
+        }
+        InputCount(hwnd,kind);InputValue(hwnd,3,kind);InputValue(hwnd,4,origin);
+        InputValue(hwnd,5,handled);InputValue(hwnd,6,GetTickCount64());
+        auto native=inputNative.get();
+        if(!native||!native.IsLoaded()){native=NativeQuickSettings(root.XamlRoot().Content());if(native)inputNative=winrt::make_weak(native);}
+        if(native){
+            auto delta=native.TransformToVisual(card).TransformPoint({0,0});
+            InputValue(hwnd,7,std::lround(delta.X*100));InputValue(hwnd,8,std::lround(delta.Y*100));
+            InputValue(hwnd,10,native.IsHitTestVisible());
+            if(auto control=native.try_as<c::Control>()){
+                InputValue(hwnd,9,control.IsEnabled());InputValue(hwnd,11,static_cast<unsigned>(control.FocusState()));
+            }
+        }
+    }
     void OpenPower() noexcept {
+        InputCount(hwnd,12);
         try{
             if(auto native=NativeQuickSettings(root.XamlRoot().Content())){
                 auto peer=x::Automation::Peers::FrameworkElementAutomationPeer::CreatePeerForElement(native);
@@ -554,12 +605,17 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         managerChanged.revoke();sessionsChanged.revoke();propertiesChanged.revoke();playbackChanged.revoke();unloaded.revoke();
         chargeChanged.revoke();batteryChanged.revoke();supplyChanged.revoke();
         try{if(wheelRoot&&wheelHandler)wheelRoot.RemoveHandler(x::UIElement::PointerWheelChangedEvent(),wheelHandler);}catch(...){}
+        try{if(wheelRoot&&inputPress)wheelRoot.RemoveHandler(x::UIElement::PointerPressedEvent(),inputPress);}catch(...){}
+        try{if(wheelRoot&&inputRelease)wheelRoot.RemoveHandler(x::UIElement::PointerReleasedEvent(),inputRelease);}catch(...){}
+        try{if(wheelRoot&&inputTap)wheelRoot.RemoveHandler(x::UIElement::TappedEvent(),inputTap);}catch(...){}
+        inputPress=nullptr;inputRelease=nullptr;inputTap=nullptr;inputNative={};
         wheelHandler=nullptr;wheelRoot=nullptr;
         try{if(root){for(auto e:{card.try_as<x::UIElement>(),divider.try_as<x::UIElement>()}){uint32_t index=0;if(e&&root.Children().IndexOf(e,index))root.Children().RemoveAt(index);}
             if(oldPadding==x::DependencyProperty::UnsetValue())root.ClearValue(c::Grid::PaddingProperty());else root.SetValue(c::Grid::PaddingProperty(),oldPadding);
         }}catch(...){}
         try{if(background){if(oldMargin==x::DependencyProperty::UnsetValue())background.ClearValue(x::FrameworkElement::MarginProperty());else background.SetValue(x::FrameworkElement::MarginProperty(),oldMargin);}}catch(...){}
         for(auto key:Props)if(hwnd)RemovePropW(hwnd,key);
+        for(auto key:InputProps)if(hwnd)RemovePropW(hwnd,key);
         if(hwnd)for(auto name:{L"LeanDock.Shell.LastRequest",L"LeanDock.Shell.PowerUser",L"LeanDock.Shell.QuickSettings"})RemovePropW(hwnd,name);
         session=nullptr;manager=nullptr;
     }
