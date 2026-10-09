@@ -117,6 +117,15 @@ Documented APIs used for thread ownership and the placement transaction:
 
 The 0.5.6 timing changes are original adaptations: shared native pending placement, versioned scalar geometry, media command generations and bounded event-thread shutdown. No additional upstream code or runtime dependency was introduced.
 
+The 0.7.2 battery readiness change reuses the existing native ControlCenterButton
+and the retained tray adapter's reversible dependency-property mechanism.
+The local zero-flow fallback is also retained while inactive, with hit testing,
+Tab navigation and the accessibility control view disabled until activation.
+The shared card slot supplies already-measured geometry. This is a local timing
+adaptation, not newly copied upstream implementation. The panel uses the same
+pre-commit placement helper as before, with its Dock anchor changed to center.
+There is no new polling, process, input simulation or post-show repositioning.
+
 The 0.6.0 theme worker's IThemeManager ABI and appearance registry values were
 adapted with reference to tinodin's Auto Theme Switcher 1.3.2 (GPL-3.0):
 https://github.com/ramensoftware/windhawk-mods/blob/a5c9b87ba0824d826d6c1a95f6a497cb48d2dc66/mods/auto-theme-switcher.wh.cpp

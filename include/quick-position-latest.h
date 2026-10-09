@@ -13,6 +13,6 @@ enum Command:WPARAM { Enable=1,Disable,Query,OwnerGone };
 // visibility, activation and z-order; a hidden window keeps its Dock placement.
 inline bool Adjust(WINDOWPOS& pos,const RECT& current,const RECT& dock,
                    const RECT& monitor,UINT dpi,RECT* requested=nullptr) {
-    return LeanDockPlacement::Adjust(pos,current,dock,monitor,dpi,true,requested);
+    return LeanDockPlacement::Adjust(pos,current,dock,monitor,dpi,false,requested);
 }
 }

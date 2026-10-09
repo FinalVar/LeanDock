@@ -1,12 +1,12 @@
 {
-  "schema": 20,
-  "recordedAtUtc": "2026-10-08T22:46:26.0502457Z",
-  "packageVersion": "0.7.1",
+  "schema": 21,
+  "recordedAtUtc": "2026-10-09T02:12:03.3003657Z",
+  "packageVersion": "0.7.2",
   "controllerVersion": "0.3.4",
-  "backendVersion": "0.4.14",
+  "backendVersion": "0.4.15",
   "startLayoutVersion": "0.1.3",
-  "quickPositionVersion": "0.2.1",
-  "scope": "Upstream reuse audit, serialized hook shutdown, shared panel Dock lookup",
+  "quickPositionVersion": "0.2.2",
+  "scope": "Battery card readiness across page/reveal transitions and centered Quick Settings",
   "artifacts": [
     {
       "Name": "latest.exe",
@@ -15,8 +15,8 @@
     },
     {
       "Name": "latest.dll",
-      "Bytes": 1847296,
-      "SHA256": "5C98000C8E06346BA0053B90E6AC042266BE934F10EE5978A3CA82CECB5E30DA"
+      "Bytes": 1867776,
+      "SHA256": "2B798719D5E3B53E77255249464C7EA44B6EA9ECBDA0C72CA3317CCCE4AEB959"
     },
     {
       "Name": "start\\latest.dll",
@@ -26,94 +26,54 @@
     {
       "Name": "panels\\latest.dll",
       "Bytes": 302592,
-      "SHA256": "2C2E8EFC511C2319358CC91ED903DDD19983059673CEB36E36A6714F9F8856C4"
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
     }
   ],
   "tests": {
-    "runtimeChecks": 91,
-    "positionChecks": 72,
-    "shellActionChecks": 67,
+    "positionChecks": 77,
+    "cardsChecks": 104,
+    "geometryChecks": 199,
     "failures": 0,
-    "concurrentStopResumeCycles": 20,
-    "negativeControl": {
-      "gateRemoved": true,
-      "expectedFailures": 6,
-      "stoppedHookReactivationDetected": true,
-      "isolatedProcess": true
-    },
+    "hiddenWin32MessageCycle": true,
     "imports": "System DLLs only",
-    "inputInjection": false
+    "inputInjection": false,
+    "realShellClickAcceptance": "Pending"
   },
   "changes": [
-    "Serialize hook registration/application and stop; reject late callbacks after stop",
-    "Read hook count under its operation lock; report queue failures",
-    "Reuse LeanDockPlacement::DockFor in Quick Settings"
+    "Keep inactive native power button measured in the existing zero-flow slot, noninteractive and excluded from Tab/control accessibility navigation",
+    "Restore original navigation values/bindings on activation and stop",
+    "Use the shared already-measured card slot; require actual native target/grid dimensions before publishing mapped state",
+    "Center Quick Settings on the Dock using the existing pre-commit placement path"
   ],
-  "upstreamEngineReference": {
-    "repository": "ramensoftware/windhawk",
-    "commit": "aef1a9f1e77f30c8fd96c5dd29373c38181486bf",
-    "path": "src/windhawk/engine/mod.cpp",
-    "engineLinked": false,
-    "extendedMinHookImported": false
-  },
   "preserved": {
     "controllerHashUnchanged": true,
     "startHashUnchanged": true,
     "userConfigurationPolicy": "Preserve exact installed latest.ini and hotcorners/latest.ini",
-    "unrelatedWorkingTreeChanges": "Preserved outside this audit commit"
+    "unrelatedWorkingTreeChanges": "Preserved outside this repair",
+    "newTimers": 0,
+    "newProcesses": 0
   },
   "deployment": {
     "state": "Applied",
-    "version": "0.7.1",
+    "version": "0.7.2",
     "live": true,
-    "dockReady": true,
-    "hotCornersReady": true,
-    "startLayoutReady": true,
-    "quickSettings": {
-      "Supported": true,
-      "Active": true,
-      "Blocked": false,
-      "Failures": 0,
-      "Adjustments": 0
-    },
-    "quickTheme": {
-      "version": "0.2.0",
-      "pid": 27568,
-      "ownerPid": 10920,
-      "active": true,
-      "rootReady": false,
-      "tileInstalled": false,
-      "buttonReady": false,
-      "busy": false,
-      "workerPid": 0,
-      "dark": true,
-      "stateKnown": true,
-      "discoveries": 1,
-      "switches": 0,
-      "failures": 0,
-      "lastExit": 0,
-      "discoveryResult": 0,
-      "watchMode": "events"
-    },
-    "backendVersion": "0.4.14",
-    "backendFailures": false,
+    "backendVersion": "0.4.15",
     "runtimeHashesMatch": true,
     "protectedConfigurationsMatch": true,
     "singleController": true,
-    "windhawkService": "Stopped",
-    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.7.1-20261009-064508462",
-    "uiAcceptance": "Not performed; desktop locked. Hidden Start geometry is provisional until a real opening."
+    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.7.2-20261009-101016407",
+    "uiAcceptance": "Pending real first-click and centered panel acceptance",
+    "dormantNativeButtonPrepared": true
   },
   "review": {
-    "maintainability": "Eliminate duplicate Dock lookup; record precise upstream boundary",
-    "boundaries": "Gate tested with late new-target, existing-chain, duplicate registration, queued apply, explicit resume",
-    "regression": "Do not alter accepted menu anchor, Start grid, card content or controller"
+    "maintainability": "Retain native object, existing property restoration, shared slot constants and pre-commit positioning",
+    "boundaries": "Dormant slot has no input/Tab/control-accessibility target; cramped layout restores native entry; screen clamp remains",
+    "regression": "77 placement, 104 card and 199 geometry checks; real XAML transitions still require desktop acceptance"
   },
   "remaining": [
-    "Start Refresh failure after an already-managed control changes to an unsupported model still needs a dedicated fallback regression",
-    "Replacing the custom chain with Windhawk extended MinHook requires separate integration validation",
-    "No new real multi-monitor, sleep, unlock, login or cold boot acceptance"
+    "First click immediately after page switching and Dock reveal requires real user acceptance",
+    "Actual panel centering, rapid reopen, wheel exit, right click and media interaction remain to be checked",
+    "No new multi-monitor, DPI change, sleep, login or cold boot acceptance"
   ],
-  "previousAcceptance": "See verification-v0.7.0.json and earlier records; old user acceptance is not a new UI test",
-  "audit": "docs/reuse-audit-latest.md"
+  "previousAcceptance": "See verification-v0.7.1.json and earlier records; old acceptance does not validate this repair"
 }

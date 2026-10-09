@@ -6,12 +6,13 @@ static int checks,failed;
 static void Check(bool ok,const char* name){++checks;if(!ok){++failed;std::printf("FAIL: %s\n",name);}}
 static RECT dock{300,920,1400,1000},monitor{0,0,1600,1000};
 static bool enabled;
-static bool rightAligned=true;
+static bool quickPanel=true;
 static RECT changed{};
 static LRESULT CALLBACK TestProc(HWND w,UINT m,WPARAM p,LPARAM l){
     const auto result=DefWindowProcW(w,m,p,l);
     if(m==WM_WINDOWPOSCHANGING&&enabled){RECT current{};GetWindowRect(w,&current);
-        LeanDockPlacement::Adjust(*reinterpret_cast<WINDOWPOS*>(l),current,dock,monitor,144,rightAligned);
+        if(quickPanel)LeanDockQuick::Adjust(*reinterpret_cast<WINDOWPOS*>(l),current,dock,monitor,144);
+        else LeanDockPlacement::Adjust(*reinterpret_cast<WINDOWPOS*>(l),current,dock,monitor,144,false);
     }
     if(m==WM_WINDOWPOSCHANGED)GetWindowRect(w,&changed);
     return result;
@@ -22,14 +23,14 @@ int main(){
         WINDOWPOS p{nullptr,HWND_TOPMOST,1000,200,600,800,SWP_NOACTIVATE|SWP_NOZORDER};
         auto flags=p.flags;
         Check(LeanDockQuick::Adjust(p,current,dock,monitor,dpi),"native move adjusted");
-        Check(p.x==1400+MulDiv(12,dpi,96)-600&&p.y==920+MulDiv(4,dpi,96)-800,"gap scales with DPI");
+        Check(p.x==550&&p.y==920+MulDiv(4,dpi,96)-800,"shared center and DPI-scaled vertical gap");
         Check(p.cx==600&&p.cy==800&&p.hwndInsertAfter==HWND_TOPMOST&&p.flags==flags,"native size z-order and activation preserved");
         RECT positioned{p.x,p.y,p.x+600,p.y+800};
         Check(!LeanDockQuick::Adjust(p,positioned,dock,monitor,dpi),"already positioned is idempotent");
     }
     WINDOWPOS show{nullptr,nullptr,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW|SWP_NOACTIVATE};
     Check(LeanDockQuick::Adjust(show,current,dock,monitor,144),"show without move is anchored before visibility");
-    Check(show.x==818&&show.y==126&&show.cx==0&&show.cy==0,"show reads actual dimensions");
+    Check(show.x==550&&show.y==126&&show.cx==0&&show.cy==0,"show reads actual dimensions");
     Check((show.flags&(SWP_SHOWWINDOW|SWP_NOACTIVATE|SWP_NOSIZE))==(SWP_SHOWWINDOW|SWP_NOACTIVATE|SWP_NOSIZE)&&!(show.flags&SWP_NOMOVE),"show flags retained");
     WINDOWPOS onlySize{nullptr,nullptr,0,0,600,600,SWP_NOMOVE|SWP_NOACTIVATE};
     Check(LeanDockQuick::Adjust(onlySize,current,dock,monitor,144)&&onlySize.y==326,"media height change reanchors bottom");
@@ -41,7 +42,16 @@ int main(){
     Check(LeanDockQuick::Adjust(tall,current,dock,monitor,144)&&tall.y==0,"tall panel kept on monitor");
     RECT negativeDock{-1200,-80,-200,0},negativeMonitor{-1600,-1000,0,0};
     WINDOWPOS negative{nullptr,nullptr,-600,-900,600,800,0};
-    Check(LeanDockQuick::Adjust(negative,current,negativeDock,negativeMonitor,144)&&negative.x==-782&&negative.y==-874,"negative monitor coordinates");
+    Check(LeanDockQuick::Adjust(negative,current,negativeDock,negativeMonitor,144)&&negative.x==-1000&&negative.y==-874,"negative monitor coordinates");
+    for(auto width:{360L,460L,700L,1100L}){
+        RECT centeredDock{800-width/2,920,800+width/2,1000};
+        WINDOWPOS centered{nullptr,nullptr,0,0,600,800,0};
+        Check(LeanDockQuick::Adjust(centered,current,centeredDock,monitor,144)&&centered.x==500,
+              "narrow or wide Dock retains same panel center");
+    }
+    RECT oddDock{401,920,1100,1000};WINDOWPOS odd{nullptr,nullptr,0,0,600,800,0};
+    Check(LeanDockQuick::Adjust(odd,current,oddDock,monitor,144)&&
+          std::abs((2*odd.x+odd.cx)-(oddDock.left+oddDock.right))<=1,"odd pixel widths within half a pixel");
     RECT leftDock{0,920,400,1000};WINDOWPOS left{nullptr,nullptr,1000,0,600,800,0};
     Check(LeanDockQuick::Adjust(left,current,leftDock,monitor,144)&&left.x==0,"left edge clamp");
     RECT rightDock{1000,920,1600,1000};WINDOWPOS right{nullptr,nullptr,0,0,600,800,0};
@@ -65,14 +75,14 @@ int main(){
     for(int i=0;i<5;++i){
         Check(SetWindowPos(w,nullptr,1000,200,600,800,SWP_NOACTIVATE|SWP_NOZORDER)!=0,"real native move accepted");
         RECT actual{};GetWindowRect(w,&actual);
-        Check(actual.left==818&&actual.top==126&&actual.right==1418&&actual.bottom==926,"OS commits target coordinates directly");
+        Check(actual.left==550&&actual.top==126&&actual.right==1150&&actual.bottom==926,"OS commits centered coordinates directly");
         Check(EqualRect(&actual,&changed),"native changed message sees same coordinates");
         Check(!IsWindowVisible(w),"test window stays hidden");
     }
     enabled=false;SetWindowPos(w,nullptr,1000,200,0,0,SWP_NOSIZE|SWP_NOACTIVATE|SWP_NOZORDER);
     RECT restored{};GetWindowRect(w,&restored);
     Check(restored.left==1000&&restored.top==200,"disabled policy restores native movement");
-    enabled=true;rightAligned=false;
+    enabled=true;quickPanel=false;
     for(int i=0;i<5;++i){
         SetWindowPos(w,nullptr,1000,200,600,800,SWP_NOACTIVATE|SWP_NOZORDER);
         RECT actual{};GetWindowRect(w,&actual);

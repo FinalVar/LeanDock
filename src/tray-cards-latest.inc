@@ -17,7 +17,7 @@ void ClearNativePowerHit() {
     g_powerContext.revoke();
     if(auto card=g_nativePowerCard.get()){VisualStateManager::GoToState(card,L"Normal",false);card.IsHitTestVisible(true);card.IsTabStop(true);}
     g_nativePowerButton={};g_nativePowerCard={};
-    for(auto name:{L"LeanDock.Card.NativePowerHit",L"LeanDock.Card.NativePowerWidth100",L"LeanDock.Card.NativePowerHeight100"})
+    for(auto name:{L"LeanDock.Card.NativePowerHit",L"LeanDock.Card.NativePowerPrepared",L"LeanDock.Card.NativePowerWidth100",L"LeanDock.Card.NativePowerHeight100"})
         RemovePropW(FindWindowW(L"Shell_TrayWnd",nullptr),name);
 }
 FrameworkElement DockFindNamed(DependencyObject const& node,const wchar_t* name,unsigned depth=0) {
@@ -30,6 +30,36 @@ FrameworkElement DockFindNamed(DependencyObject const& node,const wchar_t* name,
 void NativePowerState(const wchar_t* state) {
     if(auto card=g_nativePowerCard.get())VisualStateManager::GoToState(card,state,false);
 }
+void RestoreNativePowerNavigation(FrameworkElement const& battery) {
+    // The dormant slot is excluded from keyboard/accessibility navigation.
+    // Restore the actual original values/bindings when it becomes interactive.
+    for(auto property:{Controls::Control::IsTabStopProperty(),Automation::AutomationProperties::AccessibilityViewProperty()})
+        for(auto const& saved:g_dockUnified->saved)if(saved.element.get()==battery&&saved.property==property){
+            if(saved.binding)Data::BindingOperations::SetBinding(battery,property,saved.binding);
+            else if(saved.value==DependencyProperty::UnsetValue())battery.ClearValue(property);
+            else battery.SetValue(property,saved.value);
+            break;
+        }
+}
+void PrepareDormantNativePower(FrameworkElement const& battery) {
+    // Keep the native input object measured across carousel changes. Collapsed
+    // discarded its dimensions, leaving the first click racing the next layout.
+    // The negative margin contributes zero flow width, just like the existing
+    // map-failure fallback; this adds neither a tray icon nor an empty column.
+    DockSet(battery,UIElement::IsHitTestVisibleProperty(),false);
+    DockSet(battery,UIElement::OpacityProperty(),0.0);
+    if(auto control=battery.try_as<Controls::Control>())
+        DockSet(control,Controls::Control::IsTabStopProperty(),false);
+    DockSet(battery,Automation::AutomationProperties::AccessibilityViewProperty(),Automation::Peers::AccessibilityView::Raw);
+    DockSet(battery,UIElement::VisibilityProperty(),Visibility::Visible);
+    DockBox(battery,LeanDockCards::CardWidth,LeanDockCards::CardHeight,HorizontalAlignment::Left,false);
+    DockSet(battery,FrameworkElement::MarginProperty(),Thickness{0,0,-LeanDockCards::CardWidth,0});
+    if(auto grid=FindChildByClassName(battery,L"Windows.UI.Xaml.Controls.Grid"))
+        DockBox(grid,LeanDockCards::CardWidth,LeanDockCards::CardHeight);
+    const bool measured=DockEqual(battery.ActualWidth(),LeanDockCards::CardWidth)&&
+                        DockEqual(battery.ActualHeight(),LeanDockCards::CardHeight);
+    SetPropW(FindWindowW(L"Shell_TrayWnd",nullptr),L"LeanDock.Card.NativePowerPrepared",reinterpret_cast<HANDLE>(measured?2:1));
+}
 bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
     auto content=battery.XamlRoot().Content();
     auto card=g_nativePowerCard.get();
@@ -39,7 +69,11 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
     }
     auto grid=FindChildByClassName(battery,L"Windows.UI.Xaml.Controls.Grid");
     if(!card||!grid||!card.IsLoaded()||card.Visibility()!=Visibility::Visible)return false;
-    const double width=card.ActualWidth(),height=card.ActualHeight();
+    // The shared slot is already laid out on every page. The power page itself
+    // may just have left Collapsed and still report zero/stale ActualWidth.
+    auto slot=FindParentByName(card,L"LeanDockCard");
+    if(!slot||!slot.IsLoaded()||slot.Visibility()!=Visibility::Visible)return false;
+    const double width=slot.ActualWidth(),height=slot.ActualHeight();
     if(width<24||width>LeanDockCards::CardWidth+0.5||height<24||height>80)return false;
     // Preserve the native parent, event handlers and accessibility. A zero
     // flow slot avoids restoring the old tray gap; the full native hit target
@@ -48,12 +82,16 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
     DockSet(battery,UIElement::OpacityProperty(),1.0);
     DockSet(grid,UIElement::OpacityProperty(),0.0);
     DockSet(battery,UIElement::IsHitTestVisibleProperty(),true);
+    if(Automation::AutomationProperties::GetAccessibilityView(battery)==Automation::Peers::AccessibilityView::Raw)
+        RestoreNativePowerNavigation(battery);
     DockBox(battery,width,height,HorizontalAlignment::Left,false);
     DockSet(battery,FrameworkElement::MarginProperty(),Thickness{0,0,-width,0});
     DockBox(grid,width,height);
+    if(!DockEqual(battery.ActualWidth(),width)||!DockEqual(battery.ActualHeight(),height)||
+       !DockEqual(grid.ActualWidth(),width)||!DockEqual(grid.ActualHeight(),height))return false;
     if(!grid.as<Controls::Grid>().Background())
         DockSet(grid,Controls::Panel::BackgroundProperty(),Media::Brush{Media::SolidColorBrush{winrt::Windows::UI::Color{0,0,0,0}}});
-    auto desired=card.TransformToVisual(content).TransformPoint({0,0});
+    auto desired=slot.TransformToVisual(content).TransformPoint({0,0});
     auto actual=battery.TransformToVisual(content).TransformPoint({0,0});
     if(g_nativePowerButton.get()==battery&&GetPropW(taskbar,L"LeanDock.Card.NativePowerHit")&&
        DockEqual(battery.ActualWidth(),width)&&DockEqual(battery.ActualHeight(),height)&&
@@ -89,12 +127,13 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
     LeanDockMenu::Put(taskbar,L"LeanDock.Card.NativePowerWidth100",std::lround(battery.ActualWidth()*100));
     LeanDockMenu::Put(taskbar,L"LeanDock.Card.NativePowerHeight100",std::lround(battery.ActualHeight()*100));
     SetPropW(taskbar,L"LeanDock.Card.NativePowerHit",reinterpret_cast<HANDLE>(1));
+    SetPropW(taskbar,L"LeanDock.Card.NativePowerPrepared",reinterpret_cast<HANDLE>(2));
     return true;
 }
 
 // The whole carousel owns the battery entry as soon as the slot is measured.
-// Only the selected power page gets a native hit target. Other pages remove
-// that target immediately, without bringing back an extra tray battery icon.
+// Only the selected power page gets a native hit target. Other pages retain a
+// measured but noninteractive zero-flow slot, without an extra tray icon.
 // A crowded/failed carousel restores the original compact native entry.
 void UpdateUnifiedDockGrid() {
     if(!g_dockUnified||g_dockUnified->updating||g_unloading||
@@ -109,6 +148,7 @@ void UpdateUnifiedDockGrid() {
         const bool moved=reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Card.PowerReady"))==2;
         if(!moved){
             ClearNativePowerHit();
+            RestoreNativePowerNavigation(battery);
             DockSet(battery,UIElement::OpacityProperty(),1.0);
             if(auto grid=FindChildByClassName(battery,L"Windows.UI.Xaml.Controls.Grid"))DockSet(grid,UIElement::OpacityProperty(),1.0);
             DockSet(battery,UIElement::VisibilityProperty(),Visibility::Visible);
@@ -122,18 +162,10 @@ void UpdateUnifiedDockGrid() {
         // A failed map retains the working Invoke/keyboard fallback on the card.
         if(!powerActive){
             ClearNativePowerHit();
-            DockSet(battery,UIElement::IsHitTestVisibleProperty(),false);
-            DockSet(battery,UIElement::VisibilityProperty(),Visibility::Collapsed);
+            PrepareDormantNativePower(battery);
         }else if(!MapNativePowerHit(battery,taskbar)){
             ClearNativePowerHit();
-            // A collapsed native button cannot acquire its new measured
-            // bounds. Keep a transparent, non-interactive zero-flow slot
-            // until the next layout can validate the actual hit target.
-            DockSet(battery,UIElement::VisibilityProperty(),Visibility::Visible);
-            DockSet(battery,UIElement::OpacityProperty(),0.0);
-            DockSet(battery,UIElement::IsHitTestVisibleProperty(),false);
-            DockBox(battery,LeanDockCards::CardWidth,LeanDockCards::CardHeight,HorizontalAlignment::Left,false);
-            DockSet(battery,FrameworkElement::MarginProperty(),Thickness{0,0,-LeanDockCards::CardWidth,0});
+            PrepareDormantNativePower(battery);
         }
         DockSet(input,UIElement::VisibilityProperty(),Visibility::Collapsed);
         const double cell=g_settings.notificationIconWidth,pitch=cell+4,row=24;

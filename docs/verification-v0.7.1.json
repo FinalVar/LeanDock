@@ -1,0 +1,119 @@
+{
+  "schema": 20,
+  "recordedAtUtc": "2026-10-08T22:46:26.0502457Z",
+  "packageVersion": "0.7.1",
+  "controllerVersion": "0.3.4",
+  "backendVersion": "0.4.14",
+  "startLayoutVersion": "0.1.3",
+  "quickPositionVersion": "0.2.1",
+  "scope": "Upstream reuse audit, serialized hook shutdown, shared panel Dock lookup",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 234496,
+      "SHA256": "209A5097FBD709A0D7B97576A5FAFB6BF3C74D43B2B88BFDD2DE8F2EFDF52ED1"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1847296,
+      "SHA256": "5C98000C8E06346BA0053B90E6AC042266BE934F10EE5978A3CA82CECB5E30DA"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "2C2E8EFC511C2319358CC91ED903DDD19983059673CEB36E36A6714F9F8856C4"
+    }
+  ],
+  "tests": {
+    "runtimeChecks": 91,
+    "positionChecks": 72,
+    "shellActionChecks": 67,
+    "failures": 0,
+    "concurrentStopResumeCycles": 20,
+    "negativeControl": {
+      "gateRemoved": true,
+      "expectedFailures": 6,
+      "stoppedHookReactivationDetected": true,
+      "isolatedProcess": true
+    },
+    "imports": "System DLLs only",
+    "inputInjection": false
+  },
+  "changes": [
+    "Serialize hook registration/application and stop; reject late callbacks after stop",
+    "Read hook count under its operation lock; report queue failures",
+    "Reuse LeanDockPlacement::DockFor in Quick Settings"
+  ],
+  "upstreamEngineReference": {
+    "repository": "ramensoftware/windhawk",
+    "commit": "aef1a9f1e77f30c8fd96c5dd29373c38181486bf",
+    "path": "src/windhawk/engine/mod.cpp",
+    "engineLinked": false,
+    "extendedMinHookImported": false
+  },
+  "preserved": {
+    "controllerHashUnchanged": true,
+    "startHashUnchanged": true,
+    "userConfigurationPolicy": "Preserve exact installed latest.ini and hotcorners/latest.ini",
+    "unrelatedWorkingTreeChanges": "Preserved outside this audit commit"
+  },
+  "deployment": {
+    "state": "Applied",
+    "version": "0.7.1",
+    "live": true,
+    "dockReady": true,
+    "hotCornersReady": true,
+    "startLayoutReady": true,
+    "quickSettings": {
+      "Supported": true,
+      "Active": true,
+      "Blocked": false,
+      "Failures": 0,
+      "Adjustments": 0
+    },
+    "quickTheme": {
+      "version": "0.2.0",
+      "pid": 27568,
+      "ownerPid": 10920,
+      "active": true,
+      "rootReady": false,
+      "tileInstalled": false,
+      "buttonReady": false,
+      "busy": false,
+      "workerPid": 0,
+      "dark": true,
+      "stateKnown": true,
+      "discoveries": 1,
+      "switches": 0,
+      "failures": 0,
+      "lastExit": 0,
+      "discoveryResult": 0,
+      "watchMode": "events"
+    },
+    "backendVersion": "0.4.14",
+    "backendFailures": false,
+    "runtimeHashesMatch": true,
+    "protectedConfigurationsMatch": true,
+    "singleController": true,
+    "windhawkService": "Stopped",
+    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.7.1-20261009-064508462",
+    "uiAcceptance": "Not performed; desktop locked. Hidden Start geometry is provisional until a real opening."
+  },
+  "review": {
+    "maintainability": "Eliminate duplicate Dock lookup; record precise upstream boundary",
+    "boundaries": "Gate tested with late new-target, existing-chain, duplicate registration, queued apply, explicit resume",
+    "regression": "Do not alter accepted menu anchor, Start grid, card content or controller"
+  },
+  "remaining": [
+    "Start Refresh failure after an already-managed control changes to an unsupported model still needs a dedicated fallback regression",
+    "Replacing the custom chain with Windhawk extended MinHook requires separate integration validation",
+    "No new real multi-monitor, sleep, unlock, login or cold boot acceptance"
+  ],
+  "previousAcceptance": "See verification-v0.7.0.json and earlier records; old user acceptance is not a new UI test",
+  "audit": "docs/reuse-audit-latest.md"
+}

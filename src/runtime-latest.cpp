@@ -251,7 +251,7 @@ static void SaveState() {
     size_t hooks;{std::lock_guard guard(g_hookMutex);hooks=g_hooks.size();}
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.4.14\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s}\n",
+        "{\"protocol\":1,\"version\":\"0.4.15\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s}\n",
         GetCurrentProcessId(),g_ownerPid,g_state.load(),hooks,elements,g_fault?"true":"false");
     HANDLE file=CreateFileW(FilePath(L"latest-backend.json").c_str(),GENERIC_WRITE,
         FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
