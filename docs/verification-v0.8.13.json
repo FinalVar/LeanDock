@@ -1,0 +1,52 @@
+{
+  "schema": 39,
+  "recordedAtUtc": "2026-10-10T14:06:34.183808+08:00",
+  "packageVersion": "0.8.13",
+  "backendVersion": "0.5.13",
+  "scope": "Bounded native gesture-path diagnosis; no appearance change",
+  "previousVerification": "docs/verification-v0.8.12.json",
+  "previousAcceptance": "0.8.12 failed: user says 一样; 0.8.9 hot-corner fix remains separately accepted",
+  "tests": {
+    "build": "Backend build passed; only latest.dll changed; three exact-symbol pass-through detours added",
+    "gesture": "Unresolved; this package only records native path calls",
+    "backdrop": "86 checks, 0 failures",
+    "windowTrace": "One-second read-only smoke passed; 58 Explorer metadata records; observer unhooked and exited",
+    "nativeGestureTrace": {
+      "seconds": 180,
+      "samples": 2781,
+      "valid": 2781,
+      "userReproduced": true,
+      "userQuote": "已复现",
+      "observedWindow": "VirtualDesktopGestureSwitcher",
+      "backgroundCopies": 0,
+      "appThumbnails": 0,
+      "backgroundThumbnails": 0,
+      "windowMetadataRecords": 79
+    }
+  },
+  "boundaries": [
+    "No four-finger input simulation is available",
+    "Opacity getters do not establish final pixels",
+    "Native factory use during this gesture is not yet proven"
+  ],
+  "deployment": {
+    "state": "Applied",
+    "version": "0.8.13",
+    "live": true,
+    "backend": "0.5.13",
+    "explorer": 17900,
+    "controller": 3916,
+    "hooks": 61,
+    "failed": false,
+    "configPreserved": true,
+    "runtimeHashes": "4 of 4 match build receipt",
+    "rollback": "Validated 18 files",
+    "backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.13-20261010-140952302"
+  },
+  "review": {
+    "maintainability": "Temporary diagnosis isolated in one owner include; upstream implementations retained",
+    "boundaries": "Native exceptions and return values forwarded; exact PDB/SHA guards; one-second explicit sample lease",
+    "regression": "No material, hot-corner, theme, card input, or geometry behavior changed"
+  },
+  "conclusion": "Actual four-finger animation window identified; native Initialize statically creates a separate taskbar window thumbnail. The three suspected factories were not invoked during this capture. Transparency root cause remains unresolved."
+}

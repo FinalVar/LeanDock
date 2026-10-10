@@ -117,7 +117,7 @@ def main():
         source = read(ROOT / "upstream" / (name + ".cpp"))
         source = source[source.index("#include"):]
         if name == "styler":
-            source = source.replace("#include <winrt/Windows.UI.Xaml.h>", "#include <winrt/Windows.UI.Xaml.h>\n#include <winrt/Windows.UI.Xaml.Controls.Primitives.h>\n#include <winrt/Windows.UI.Xaml.Input.h>", 1)
+            source = source.replace("#include <winrt/Windows.UI.Xaml.h>", "#include <winrt/Windows.UI.Xaml.h>\n#include <winrt/Windows.UI.Xaml.Controls.Primitives.h>\n#include <winrt/Windows.UI.Xaml.Input.h>\n#include <winrt/Windows.UI.Xaml.Data.h>", 1)
             a = source.index("const Theme g_themeTranslucentTaskbar")
             b = source.index("// An InstanceHandle", a)
             # Retain non-theme declarations immediately before the visual-tree section.
@@ -144,7 +144,25 @@ def main():
             source = source.replace(
                 "{ 0xc85d8cc7, 0x5463, 0x40e8, { 0xa4, 0x32, 0xf5, 0x91, 0x6b, 0x64, 0x27, 0xe5 } }",
                 "{ 0x7e54f66a, 0x1a8e, 0x4b90, { 0x94, 0x2f, 0x37, 0x45, 0x8b, 0x35, 0xe2, 0x01 } }")
-            source = '#include "dock-geometry-latest.h"\n#include "cards-latest.h"\n#include "shell-actions-latest.h"\n#include "shell-menu-latest.h"\n' + source
+            source = '#include "dock-geometry-latest.h"\n#include "cards-latest.h"\n#include "cards-preferences-latest.h"\n#include "shell-actions-latest.h"\n#include "shell-menu-latest.h"\n#include "backdrop-resume-latest.h"\n' + source
+            # Preserve the upstream effect graph; add only a bounded reconnect
+            # of its backdrop source after native desktop/expansion transitions.
+            source = replace_once(source, "    ~XamlBlurBrush();", """    ~XamlBlurBrush();
+    void ScheduleBackdropResume(XamlRoot const& root,HWND taskbar,unsigned reason) noexcept;
+    void PrepareBackdrop(XamlRoot const& root,HWND taskbar) noexcept;
+    void StopBackdropResume() noexcept;""")
+            source = replace_once(source, "    wuc::Compositor m_compositor;", """    winrt::weak_ref<FrameworkElement> m_backdropOwner;
+    winrt::Windows::System::DispatcherQueueTimer m_backdropTimer{nullptr};
+    winrt::event_token m_backdropTick{};
+    LeanDockBackdrop::Plan m_backdropPlan;
+    HWND m_backdropTaskbar{};
+    bool RefreshBackdropSource(XamlRoot const& root,HWND taskbar,bool requireVisible);
+    wuc::Compositor m_compositor;""")
+            source = replace_once(source, "    auto fe = element.try_as<FrameworkElement>();\n\n    auto createProxy", "    auto fe = element.try_as<FrameworkElement>();\n    if(fe)m_backdropOwner=winrt::make_weak(fe);\n\n    auto createProxy")
+            source = replace_once(source, "XamlBlurBrush::~XamlBlurBrush()\n{", "XamlBlurBrush::~XamlBlurBrush()\n{\n    StopBackdropResume();")
+            source = replace_once(source, "void XamlBlurBrush::OnDisconnected()\n{", "void XamlBlurBrush::OnDisconnected()\n{\n    StopBackdropResume();")
+            source = replace_once(source, "// Helper functions for tracking, caching and retrying remote image loads.", '#include "backdrop-brush-latest.inc"\n\n// Helper functions for tracking, caching and retrying remote image loads.')
+            source = replace_once(source, "value = winrt::make<XamlBlurBrush>(", "value = MakeLeanDockBlurBrush(")
             source = replace_once(source, "struct ClickThroughTaskbarState {", """struct ClickThroughTaskbarState {
     winrt::weak_ref<Controls::Button> menuAnchor;
     winrt::weak_ref<Controls::Grid> menuAnchorParent;
@@ -153,8 +171,17 @@ def main():
     winrt::weak_ref<Controls::Control> menuFocusItem;
     winrt::event_token menuFocusGot{};
     ULONGLONG menuPointerAt{};
+    winrt::weak_ref<Controls::Grid> contextRoot;
+    UIElement::ContextRequested_revoker contextRequested;
+    winrt::weak_ref<Controls::Grid> contextTrayRoot;
+    UIElement::ContextRequested_revoker contextTrayRequested;
     winrt::weak_ref<Shapes::Rectangle> divider;
     winrt::weak_ref<Controls::Grid> dividerParent;
+    winrt::weak_ref<Controls::Grid> material;
+    winrt::weak_ref<Controls::Canvas> materialHost;
+    winrt::weak_ref<Shapes::Rectangle> materialSource;
+    winrt::weak_ref<Controls::Grid> materialParent;
+    bool materialFailed=false;
     std::shared_ptr<LeanDockCards::Host> cards;
     bool cardsClosing=false;""")
             source = replace_once(source, "void UpdateClickThroughRegion(ClickThroughTaskbarState& state) {",
@@ -163,7 +190,7 @@ def main():
             signature = "LRESULT CALLBACK ClickThroughTaskbarSubclassProc("
             start = source.index(signature)
             body = source.index("    switch (uMsg) {", start)
-            source = source[:body] + "    if(uMsg==WM_CONTEXTMENU && HandleLeanDockContext(hWnd,lParam))return 0;\n    if(uMsg==WM_TIMECHANGE)LeanDockTimeChanged(hWnd);\n" + source[body:]
+            source = source[:body] + "    if(uMsg==LeanDockMaterialProbeMessage())return SampleLeanDockMaterial(hWnd,wParam,lParam);\n    if(uMsg==LeanDockBackdrop::Message()){ResumeLeanDockBackdrop(hWnd,wParam,lParam);return 0;}\n    if(uMsg==WM_CONTEXTMENU && HandleLeanDockContext(hWnd,lParam))return 0;\n    if(uMsg==WM_TIMECHANGE)LeanDockTimeChanged(hWnd);\n    if(uMsg==LeanDockCards::PreferencesMessage())LeanDockPreferencesChanged(hWnd);\n" + source[body:]
             source = replace_once(source, "    // LayoutUpdated is frequent; only re-apply when the result actually",
                 """    // Share only the projected, fully shown geometry. Both popup placement
     // and edge reveal track application/tray count and DPI changes automatically.
@@ -180,12 +207,41 @@ def main():
     }
     // LayoutUpdated is frequent; only re-apply when the result actually""")
             source = replace_once(source,"void ClearClickThroughRegions() {", """void ClearClickThroughRegions() {
+    StopLeanDockBackdrops();
     for(auto& state:g_clickThroughTaskbarState) {
         ClearLeanDockDivider(state);
         if(state.islandHwnd)LeanDockGeometry::Clear(GetAncestor(state.islandHwnd,GA_ROOT));
     }""")
         if name == "hide":
-            source = '#include "dock-geometry-latest.h"\n#include "event-loop-latest.h"\n#include <stdexcept>\n' + source
+            source = '#include "dock-geometry-latest.h"\n#include "event-loop-latest.h"\n#include "backdrop-resume-latest.h"\n#include <stdexcept>\n' + source
+            source = replace_once(source, "using ViewCoordinator_ShouldTaskbarBeExpanded_t =",
+                read(ROOT / "src" / "hide-state-latest.inc") + "\nusing ViewCoordinator_ShouldTaskbarBeExpanded_t =")
+            source = replace_once(source, "    g_taskbarToViewCoordinator[hMMTaskbarWnd] = pThis;", """    g_taskbarToViewCoordinator[hMMTaskbarWnd] = pThis;
+    ResumeValue(hMMTaskbarWnd,L"ExpandedAtQuery",expanded);
+    ResumeValue(hMMTaskbarWnd,L"QueryAt",GetTickCount64());""")
+            source = replace_once(source, "            return true;\n        }\n    }\n\n    return ViewCoordinator_ShouldTaskbarBeExpanded_Original(", "            ResumeValue(hMMTaskbarWnd,L\"Decision\",1);\n            return true;\n        }\n    }\n\n    return ViewCoordinator_ShouldTaskbarBeExpanded_Original(")
+            source = replace_once(source, """    return ViewCoordinator_ShouldTaskbarBeExpanded_Original(
+        pThis, hMMTaskbarWnd, expanded);""", """    const bool result=ViewCoordinator_ShouldTaskbarBeExpanded_Original(pThis,hMMTaskbarWnd,expanded);
+    ResumeValue(hMMTaskbarWnd,L"Decision",result);return result;""")
+            source = replace_once(source, "            ViewCoordinator_UpdateIsExpanded_Original(\n                it->second, hWnd, kReasonIsPointerOverTaskbarFrameChanged);", """            ReadExpandedState(hWnd,L"BeforeSync");
+            ViewCoordinator_UpdateIsExpanded_Original(
+                it->second, hWnd, kReasonIsPointerOverTaskbarFrameChanged);
+            const int after=ReadExpandedState(hWnd,L"AfterSync");
+            // Unhide above may already have expanded the taskbar before this
+            // query. The policy transition, not a before/after inequality,
+            // owns the bounded refresh request.
+            if(after==1)LeanDockBackdrop::Notify(hWnd,LeanDockBackdrop::Reason::Expansion);
+            ResumeValue(hWnd,L"SyncAt",GetTickCount64());""")
+            source = replace_once(source, "    // Taskbar.View.dll\n    WindhawkUtils::SYMBOL_HOOK symbolHooks[] = {", """    // Taskbar.View.dll
+    WindhawkUtils::SYMBOL_HOOK symbolHooks[] = {
+        {{LR"(public: bool __cdecl winrt::Taskbar::implementation::ViewCoordinator::IsExpanded(unsigned __int64))"},
+         &ViewCoordinator_IsExpanded_Original, nullptr, true},""")
+            for unhide_call in (
+                "TrayUI_Unhide_Original(pTrayUI_ITrayComponentHost, 0, 0);",
+                "CSecondaryTray__Unhide_Original(pThis, 0, 0);",
+            ):
+                source = replace_once(source, unhide_call,
+                    "LeanDockBackdrop::Prepare(hWnd);\n                " + unhide_call)
             source = replace_once(source, "    GetTaskbarRectForMonitor(monitor, &taskbarRect);", """    GetTaskbarRectForMonitor(monitor, &taskbarRect);
     const bool precise=LeanDockGeometry::OcclusionRect(hTaskbarWnd,monitor,taskbarRect);
     SetPropW(hTaskbarWnd,L"LeanDock.Hide.Precise",reinterpret_cast<HANDLE>(uintptr_t(precise+1)));
@@ -246,7 +302,15 @@ void StopEventThread() {
     if(Msg==LeanDockGeometry::ChangedMessage())AdjustTaskbar(hWnd);
 """+source[opening:]
             opening=source.index("{",source.index("void CALLBACK WinEventProc("))+1
-            source=source[:opening]+"\n    if(g_eventStopping)return;\n"+source[opening:]
+            source=source[:opening]+"""
+    if(g_eventStopping)return;
+    if(event==EVENT_SYSTEM_FOREGROUND){
+        ObserveBackdropForeground(hWnd);
+        if(!g_settings.foregroundWindowOnly)return;
+    }
+"""+source[opening:]
+            source = replace_once(source, "    if (g_settings.foregroundWindowOnly) {\n        winSystemEventHook1 =", "    {\n        winSystemEventHook1 =")
+            source = replace_once(source, "DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter) {", "DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter) {\n    g_backdropWasDesktop=LeanDockBackdrop::IsDesktop(GetForegroundWindow());")
             start=source.index("    BOOL bRet;",source.index("DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter) {"))
             end=source.index("    if (winObjectEventHook1)",start)
             source=source[:start]+"""    const auto result=LeanDockEvents::Pump(static_cast<HANDLE>(lpThreadParameter));
@@ -260,8 +324,10 @@ void StopEventThread() {
     StopEventThread();
     EnumWindows([](HWND window,LPARAM)->BOOL {
         DWORD owner=0;GetWindowThreadProcessId(window,&owner);
-        if(owner==GetCurrentProcessId() && IsTaskbarWindow(window))
+        if(owner==GetCurrentProcessId() && IsTaskbarWindow(window)) {
             for(auto key:{L"LeanDock.Hide.Precise",L"LeanDock.Hide.KeepShown",L"LeanDock.Hide.Decisions",L"LeanDock.Hide.Left",L"LeanDock.Hide.Top",L"LeanDock.Hide.Right",L"LeanDock.Hide.Bottom"})RemovePropW(window,key);
+            ClearResumeState(window);
+        }
         return TRUE;
     },0);
     if(g_wasAutoHideDisabled) {
@@ -333,6 +399,8 @@ void StopEventThread() {
             source += '\nextern "C" unsigned Native_styler_count() { unsigned count=0; HWND w=GetTaskbarUiWnd(); if(w) RunFromWindowThread(w, [](void* p){ *static_cast<unsigned*>(p)=static_cast<unsigned>(g_elementsCustomizationState.size()); }, &count); return count; }\n'
         if name == "tray":
             source += '\nextern "C" void Native_tray_refresh_cards() { NDTray::UpdateUnifiedDockGrid(); }\n'
+        if name == "hide":
+            source += '\nextern "C" int Native_hide_expanded(HWND window) { return NDHide::ReadExpandedState(window,L"AtInput"); }\n'
         # Full origin/license information remains in upstream and NOTICE.
         source = "// Derived from the preserved GPL-3.0 upstream; see NOTICE.md.\n" + source
         emit(ROOT / "src" / (name + "-latest.cpp"), source)

@@ -1,0 +1,38 @@
+{
+  "schema": 37,
+  "recordedAtUtc": "2026-10-10T04:45:08.9650148Z",
+  "packageVersion": "0.8.11",
+  "backendVersion": "0.5.11",
+  "scope": "On-demand diagnostics for unresolved four-finger gesture transparency",
+  "previousVerification": "docs/verification-v0.8.10.json",
+  "previousAcceptance": "0.8.10 failed four-finger acceptance; lower-left hot corner 0.8.9 accepted for that separate path",
+  "changes": [
+    "Read-only on-demand material ancestor snapshots; no visual or input policy changes"
+  ],
+  "tests": {
+    "build": "Backend build passed; backdrop 86 checks passed",
+    "liveSnapshot": "14/14 matched snapshots: layer and 9-level ancestor chain loaded, visible, opacity 1; Light ARGB 9EC8D1DE; no probe errors",
+    "gesture": "User explicitly confirms the 180-second 2787-snapshot capture included reproducing excessive transparency; still reproduces now. No XAML/Composition opacity base-value, theme, brush-color, cloak or freeze changes. HostVisible changed with normal hide/show; getter values are not final compositor pixels."
+  },
+  "deployment": {
+    "state": "Applied",
+    "version": "0.8.11",
+    "live": true,
+    "backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.11-20261010-124720415",
+    "rollback": "Validated: 15 changed files",
+    "runtimeHashes": "All four match build receipt",
+    "config": "latest.ini and hotcorners/latest.ini unchanged; card page preference preserved at update",
+    "explorer": 11200,
+    "controller": 18672
+  },
+  "boundaries": [
+    "No real touchpad simulation available",
+    "No claim that 0.8.11 fixes the issue"
+  ],
+  "nextStep": "Inspect virtual-desktop animation composition path; do not repeat failed pigment-opacity assumption",
+  "userConfirmedReproduction": {
+    "at": "2026-10-10",
+    "quote": "当然测试了。就是变透，现在也是",
+    "scope": "Capture included actual four-finger reproduction; unresolved"
+  }
+}

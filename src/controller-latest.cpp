@@ -42,12 +42,13 @@ static void SaveStatus() {
     char json[2400],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
     // Error messages are fixed internal labels, never window titles or application text.
     int size=snprintf(json,sizeof(json),
-        "{\"version\":\"0.3.4\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
+        "{\"version\":\"0.3.6\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
         GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockStart::target,LeanDockStartProtocol::Adjustments))),static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),LeanDockPanels::failures,LeanDockStart::supported?"true":"false",(LeanDockStart::target && LeanDockStart::Query(LeanDockStart::target))?"true":"false",LeanDockStart::blocked?"true":"false",LeanDockStart::failures,error);
-    size+=snprintf(json+size,sizeof(json)-size,"\"quickPositionSupported\":%s,\"quickPositionActive\":%s,\"quickPositionBlocked\":%s,\"quickPositionFailures\":%u,\"quickPositionAdjustments\":%llu,\"quickPositionWindow\":%llu}\n",
+    size+=snprintf(json+size,sizeof(json)-size,"\"quickPositionSupported\":%s,\"quickPositionActive\":%s,\"quickPositionBlocked\":%s,\"quickPositionFailures\":%u,\"quickPositionAdjustments\":%llu,\"quickPositionWindow\":%llu,\"quickPositionRecoveries\":%u,\"quickPositionLastExitKnown\":%s,\"quickPositionLastExitCode\":%lu}\n",
         LeanDockQuickHost::supported?"true":"false",LeanDockQuickHost::Query()?"true":"false",LeanDockQuickHost::blocked?"true":"false",LeanDockQuickHost::failures,
         static_cast<unsigned long long>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),
-        static_cast<unsigned long long>(reinterpret_cast<ULONG_PTR>(LeanDockQuickHost::target)));
+        static_cast<unsigned long long>(reinterpret_cast<ULONG_PTR>(LeanDockQuickHost::target)),
+        LeanDockQuickHost::restartPolicy.recoveries,LeanDockQuickHost::lastExitKnown?"true":"false",LeanDockQuickHost::lastExitCode);
     HANDLE file=CreateFileW(path,GENERIC_WRITE,FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,json,size,&written,nullptr);CloseHandle(file);}
 }
@@ -224,6 +225,7 @@ static LRESULT CALLBACK ControllerProc(HWND w,UINT message,WPARAM p,LPARAM l) {
     }
     return DefWindowProcW(w,message,p,l);
 }
+int LeanDockCardsSettings(HINSTANCE instance,LPCWSTR root);
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     g_instance=instance;GetModuleFileNameW(nullptr,g_executable,std::size(g_executable));
     HANDLE token=nullptr;TOKEN_ELEVATION elevation{};DWORD needed=0;
@@ -234,6 +236,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     wcscpy_s(g_directory,g_executable);auto slash=wcsrchr(g_directory,L'\\');if(!slash)return 1;*slash=0;
     int count=0;LPWSTR* args=CommandLineToArgvW(GetCommandLineW(),&count);
     if(!args)return 1;
+    if(count==2&&!wcscmp(args[1],L"--cards")){LocalFree(args);return LeanDockCardsSettings(instance,g_directory);}
     if(count==3 && !wcscmp(args[1],L"--theme")) {
         const bool dark=!wcscmp(args[2],L"dark"),light=!wcscmp(args[2],L"light");
         LocalFree(args);return dark||light?LeanDockTheme::Apply(dark):2;

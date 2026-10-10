@@ -1,0 +1,66 @@
+{
+  "schema": 28,
+  "recordedAtUtc": "2026-10-09T14:38:59.1809433Z",
+  "packageVersion": "0.8.2",
+  "controllerVersion": "0.3.6",
+  "backendVersion": "0.5.2",
+  "scope": "Align network numbers and units; omit visible per-second suffix",
+  "previousVerification": "docs/verification-v0.8.1.json",
+  "changes": [
+    "Fixed 76 DIP content group; right-aligned numbers and left-aligned compact units",
+    "Separate number/unit formatting retains original precision, limits and unknown state",
+    "Visible B/KB/MB/GB omit /s; accessibility labels retain full per-second meaning",
+    "Card 104x44 DIP and slot 128 DIP unchanged"
+  ],
+  "tests": {
+    "PreferencesNetwork": "468 checks, 0 failures",
+    "Review": "Existing formatter refactored without changing units or sample timing; no input or lifecycle changes",
+    "Ui": "Not captured: Computer Use returns Weixin and ChatGPT windows, not taskbar",
+    "Build": "Backend compile/link passed; existing upstream deprecation warning only"
+  },
+  "deployment": {
+    "state": "Applied",
+    "live": true,
+    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.2-20261009-223743101",
+    "rollbackValidation": "Passed, 12 files",
+    "uiAcceptance": "Pending appearance feedback",
+    "configurationUnchanged": true
+  },
+  "boundaries": [
+    "Backend readiness is not visual acceptance",
+    "Prior battery first-click, stale glass and first-right-click acceptance remain separate"
+  ],
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 281088,
+      "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1946112,
+      "SHA256": "B0ADD3E21364E3E841AF8D951A3E4E2E414F8971D801B84D749F3436211F39DD"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ],
+  "currentObservation": {
+    "Ready": 1,
+    "Errors": 0,
+    "View": 3,
+    "VisiblePages": 1,
+    "PageCount": 5,
+    "PreferencesValid": 1,
+    "NetworkActive": null,
+    "NetworkSamples": null
+  },
+  "subsequentUserFeedback": "2026-10-09 screenshot shows numbers/units in aligned columns without /s; user requests less internal spacing, not broad acceptance"
+}

@@ -4,8 +4,10 @@
 #include "native-api-latest.h"
 #include "dock-geometry-latest.h"
 #include "cards-latest.h"
+#include "cards-preferences-latest.h"
 #include "shell-actions-latest.h"
 #include "shell-menu-latest.h"
+#include "backdrop-resume-latest.h"
 #include <commctrl.h>
 #include <xamlom.h>
 
@@ -17,6 +19,7 @@
 #include <winrt/Windows.UI.Xaml.h>
 #include <winrt/Windows.UI.Xaml.Controls.Primitives.h>
 #include <winrt/Windows.UI.Xaml.Input.h>
+#include <winrt/Windows.UI.Xaml.Data.h>
 
 struct ThemeTargetStyles {
     PCWSTR target;
@@ -1483,8 +1486,17 @@ struct ClickThroughTaskbarState {
     winrt::weak_ref<Controls::Control> menuFocusItem;
     winrt::event_token menuFocusGot{};
     ULONGLONG menuPointerAt{};
+    winrt::weak_ref<Controls::Grid> contextRoot;
+    UIElement::ContextRequested_revoker contextRequested;
+    winrt::weak_ref<Controls::Grid> contextTrayRoot;
+    UIElement::ContextRequested_revoker contextTrayRequested;
     winrt::weak_ref<Shapes::Rectangle> divider;
     winrt::weak_ref<Controls::Grid> dividerParent;
+    winrt::weak_ref<Controls::Grid> material;
+    winrt::weak_ref<Controls::Canvas> materialHost;
+    winrt::weak_ref<Shapes::Rectangle> materialSource;
+    winrt::weak_ref<Controls::Grid> materialParent;
+    bool materialFailed=false;
     std::shared_ptr<LeanDockCards::Host> cards;
     bool cardsClosing=false;
     winrt::weak_ref<XamlRoot> xamlRoot;
@@ -1726,6 +1738,9 @@ public:
                   std::optional<winrt::Windows::UI::Color> fallbackColor,
                   winrt::hstring fallbackThemeResourceKey);
     ~XamlBlurBrush();
+    void ScheduleBackdropResume(XamlRoot const& root,HWND taskbar,unsigned reason) noexcept;
+    void PrepareBackdrop(XamlRoot const& root,HWND taskbar) noexcept;
+    void StopBackdropResume() noexcept;
 
     void OnConnected();
     void OnDisconnected();
@@ -1738,6 +1753,12 @@ private:
     wuc::CompositionBrush CreateEffectBrush();
     wuc::CompositionBrush CreateFallbackBrush();
 
+    winrt::weak_ref<FrameworkElement> m_backdropOwner;
+    winrt::Windows::System::DispatcherQueueTimer m_backdropTimer{nullptr};
+    winrt::event_token m_backdropTick{};
+    LeanDockBackdrop::Plan m_backdropPlan;
+    HWND m_backdropTaskbar{};
+    bool RefreshBackdropSource(XamlRoot const& root,HWND taskbar,bool requireVisible);
     wuc::Compositor m_compositor;
     float m_blurAmount;
     winrt::Windows::UI::Color m_tint;
@@ -2587,6 +2608,7 @@ XamlBlurBrush::XamlBlurBrush(UIElement element,
     m_fallbackThemeResourceKey(std::move(fallbackThemeResourceKey))
 {
     auto fe = element.try_as<FrameworkElement>();
+    if(fe)m_backdropOwner=winrt::make_weak(fe);
 
     auto createProxy = [&](winrt::hstring const& themeResourceKey)
         -> Media::SolidColorBrush
@@ -2808,6 +2830,7 @@ void CALLBACK XamlBlurBrush::OnEnergySaverRegistryChanged(PVOID context,
 
 XamlBlurBrush::~XamlBlurBrush()
 {
+    StopBackdropResume();
     // Tear down the registry watch first so no more callbacks can fire while
     // we close the underlying handles.
     if (m_regWaitHandle)
@@ -3017,6 +3040,7 @@ wuc::CompositionBrush XamlBlurBrush::CreateEffectBrush()
 
 void XamlBlurBrush::OnDisconnected()
 {
+    StopBackdropResume();
     if (const auto brush = CompositionBrush())
     {
         brush.Close();
@@ -3118,6 +3142,8 @@ void XamlBlurBrush::RefreshBrush()
 
 // clang-format on
 ////////////////////////////////////////////////////////////////////////////////
+
+#include "backdrop-brush-latest.inc"
 
 // Helper functions for tracking, caching and retrying remote image loads.
 
@@ -4133,7 +4159,7 @@ winrt::Windows::Foundation::IInspectable SetOrClearValue(
     } else if (auto* blurBrushParams =
                    std::get_if<XamlBlurBrushParams>(&overrideValue)) {
         if (auto uiElement = elementDo.try_as<UIElement>()) {
-            value = winrt::make<XamlBlurBrush>(
+            value = MakeLeanDockBlurBrush(
                 uiElement, blurBrushParams->blurAmount, blurBrushParams->tint,
                 blurBrushParams->tintOpacity,
                 winrt::hstring(blurBrushParams->tintThemeResourceKey),
@@ -7217,8 +7243,11 @@ LRESULT CALLBACK ClickThroughTaskbarSubclassProc(HWND hWnd,
                                                  WPARAM wParam,
                                                  LPARAM lParam,
                                                  DWORD_PTR) {
+    if(uMsg==LeanDockMaterialProbeMessage())return SampleLeanDockMaterial(hWnd,wParam,lParam);
+    if(uMsg==LeanDockBackdrop::Message()){ResumeLeanDockBackdrop(hWnd,wParam,lParam);return 0;}
     if(uMsg==WM_CONTEXTMENU && HandleLeanDockContext(hWnd,lParam))return 0;
     if(uMsg==WM_TIMECHANGE)LeanDockTimeChanged(hWnd);
+    if(uMsg==LeanDockCards::PreferencesMessage())LeanDockPreferencesChanged(hWnd);
     switch (uMsg) {
         case WM_WINDOWPOSCHANGED: {
             // The taskbar moved or was shown - e.g. an auto-hidden taskbar
@@ -7371,6 +7400,7 @@ void HandleClickThroughIslandRoot(
 // other than the one recorded as applied is Explorer's own clip (see
 // UpdateClickThroughRegion) and is left in place.
 void ClearClickThroughRegions() {
+    StopLeanDockBackdrops();
     for(auto& state:g_clickThroughTaskbarState) {
         ClearLeanDockDivider(state);
         if(state.islandHwnd)LeanDockGeometry::Clear(GetAncestor(state.islandHwnd,GA_ROOT));
@@ -8882,7 +8912,7 @@ void ProcessAllStylesFromSettings() {
     AddElementCustomizationRules(L"Grid#IconPanel@CommonStates > Border#BackgroundElement, Taskbar.TaskListLabeledButtonPanel@CommonStates > Border#BackgroundElement", {L"Width=48", L"Height=48", L"HorizontalAlignment=Center", L"VerticalAlignment=Center", L"CornerRadius=12", L"Margin=0", L"BorderThickness=0", L"BorderBrush=Transparent", L"Background@InactiveNormal=Transparent", L"Background@ActiveNormal=#14FFFFFF", L"Background@InactivePointerOver=#18FFFFFF", L"Background@ActivePointerOver=#24FFFFFF", L"Background@InactivePressed=#0DFFFFFF", L"Background@ActivePressed=#18FFFFFF", L"Background@MultiWindowNormal=Transparent", L"Background@MultiWindowPointerOver=#18FFFFFF", L"Background@MultiWindowActive=#14FFFFFF", L"Background@MultiWindowPressed=#18FFFFFF"});
     AddElementCustomizationRules(L"Grid#IconPanel@RunningIndicatorStates > Rectangle#RunningIndicator, Taskbar.TaskListLabeledButtonPanel@RunningIndicatorStates > Rectangle#RunningIndicator", {L"Width=4", L"Height=4", L"RadiusX=2", L"RadiusY=2", L"Width@ActiveRunningIndicator=4", L"Width@InactiveRunningIndicator=4", L"Width@InactiveRunningIndicatorPointerOver=4"});
     AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground#BackgroundControl", {L"Height=60", L"VerticalAlignment=Top", L"HorizontalAlignment=Stretch", L"ActualWidth=>dockAppSurfaceWidth", L"RenderTransformOrigin=0,0", L"RenderTransform:=<ScaleTransform ScaleX=\"{{dockAppSurfaceWidth>0?(dockAppSurfaceWidth+trayFrameWidth)/dockAppSurfaceWidth:1}}\" />", L"IsHitTestVisible=False"});
-    AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground > Grid > Rectangle#BackgroundFill", {L"Visibility=Visible", L"Fill:=<WindhawkBlur BlurAmount=\"8\" TintColor=\"{ThemeResource SystemChromeAltHighColor}\" TintOpacity=\"0.10\" TintSaturation=\"1.15\" />", L"Stroke:=<LinearGradientBrush StartPoint=\"0.25,0\" EndPoint=\"0.75,1\"><GradientStop Offset=\"0\" Color=\"#40FFFFFF\"/><GradientStop Offset=\"0.5\" Color=\"#10FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#24E0EDFF\"/></LinearGradientBrush>", L"StrokeThickness=1", L"RadiusX={{dockAppSurfaceWidth>0?30*dockAppSurfaceWidth/(dockAppSurfaceWidth+trayFrameWidth):30}}", L"RadiusY=30"});
+    AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground > Grid > Rectangle#BackgroundFill", {L"Visibility=Visible", L"Fill:=<WindhawkBlur BlurAmount=\"12\" TintColor=\"{ThemeResource SystemChromeAltHighColor}\" TintOpacity=\"0\" TintLuminosityOpacity=\"0\" TintSaturation=\"0.85\" />", L"Stroke:=<LinearGradientBrush StartPoint=\"0.25,0\" EndPoint=\"0.75,1\"><GradientStop Offset=\"0\" Color=\"#40FFFFFF\"/><GradientStop Offset=\"0.5\" Color=\"#10FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#24E0EDFF\"/></LinearGradientBrush>", L"StrokeThickness=1", L"RadiusX={{dockAppSurfaceWidth>0?30*dockAppSurfaceWidth/(dockAppSurfaceWidth+trayFrameWidth):30}}", L"RadiusY=30"});
     AddElementCustomizationRules(L"SystemTray.NotifyIconView > Grid#ContainerGrid@ > Border#BackgroundBorder, SystemTray.Stack#NonActivatableStack > * > SystemTray.IconView > Grid#ContainerGrid@ > Border#BackgroundBorder, SystemTray.OmniButton#ControlCenterButton > Grid@CommonStates > Border#BackgroundBorder", {L"Width=24", L"Height=24", L"HorizontalAlignment=Center", L"VerticalAlignment=Center", L"Margin=0", L"CornerRadius=5", L"BorderThickness=0", L"BorderBrush=Transparent", L"Background=Transparent", L"Background@Normal=Transparent", L"Background@PointerOver:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.08\" />", L"Background@Pressed:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.12\" />", L"Background@Checked:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.06\" />", L"Background@CheckedPointerOver:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.10\" />", L"Background@CheckedPressed:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.12\" />"});
     AddElementCustomizationRules(L"SystemTray.OmniButton#ControlCenterButton > * > SystemTray.IconView > Grid#ContainerGrid > Border#BackgroundBorder", {L"Opacity=0"});
     AddElementCustomizationRules(L"Grid#IconPanel > Border#MultiWindowElement, Taskbar.TaskListLabeledButtonPanel > Border#MultiWindowElement", {L"Opacity=0", L"IsHitTestVisible=False"});

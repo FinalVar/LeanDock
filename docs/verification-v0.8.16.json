@@ -1,0 +1,65 @@
+{
+  "schema": 42,
+  "recordedAt": "2026-10-10T21:56:51+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.16",
+  "backendVersion": "0.5.16",
+  "scope": "Source synchronization with ineffective gesture hooks removed; no production update",
+  "previousVerification": "docs/verification-v0.8.15.json",
+  "workState": "Gesture repair stopped at user request; source commit and push authorized separately",
+  "changes": [
+    "Removed gesture Install/Stop from generator and adapter include from material diagnostics",
+    "Removed three experimental symbols and two experimental module pins",
+    "Kept failed adapter and its tests as inactive historical investigation source",
+    "Preserved previously accepted hot-corner recovery, card behavior and material colors"
+  ],
+  "tests": {
+    "build": "0.8.16 backend passed; one inherited upstream deprecation warning",
+    "builtAt": "2026-10-10T21:44:53.3316378+08:00",
+    "backdrop": "86 checks passed, 0 failures on the 0.8.16 source",
+    "preservation": "Five source hashes matched 0.8.15: backdrop-brush, hide-state, backdrop-resume, material, controller",
+    "gesture": "UNRESOLVED: 0.8.15 Freeze bypass executed but user still observed excessive transparency",
+    "sourceComparison": "Independent copies retained pigment; exact native flags=11 comparison and real animation pixels not obtained",
+    "sourceIntegrity": "Passed: 84 staged text files, 27 JSON parses, two Python syntax checks, nine PowerShell parses, no matching credential patterns, no compiled artifacts or private card settings staged",
+    "peImportsExports": "Passed for all four locally built runtime artifacts without loading them"
+  },
+  "deployment": {
+    "state": "NotApplied",
+    "sourceVersion": "0.8.16",
+    "sourceBackendVersion": "0.5.16",
+    "installedVersion": "0.8.15",
+    "installedBackendVersion": "0.5.15",
+    "installedGestureBypass": "Still present; no runtime reload after user stopped the repair",
+    "configurationChanged": false
+  },
+  "runtimeArtifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 281088,
+      "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2002432,
+      "SHA256": "C539620621A0D3089AD40B972C412F80E72DBD9851E02C20573FDEBA3FE2E76A"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ],
+  "boundaries": [
+    "A successful build is not production deployment or visual acceptance",
+    "Four-finger transparency is not fixed",
+    "0.8.9 hot-corner acceptance is preserved and does not cover gestures",
+    "No compilation binaries, PDBs, credentials or personal card settings are included in Git",
+    "No installation, task restart or Explorer reload is part of this source push"
+  ],
+  "handoff": "docs/gesture-investigation-latest.md"
+}

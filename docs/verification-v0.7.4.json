@@ -1,0 +1,66 @@
+{
+  "schema": 23,
+  "recordedAtUtc": "2026-10-09T03:03:01.5704545Z",
+  "packageVersion": "0.7.4",
+  "controllerVersion": "0.3.5",
+  "backendVersion": "0.4.17",
+  "scope": "Clean quick-host recovery and native child readiness; intermittent click acceptance pending",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 235520,
+      "SHA256": "89688CAA648AE3FEE7A94D9FDFE10085938D1E5DF9C5D92F95BED33BF5F10C34"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1899008,
+      "SHA256": "9D4449370AA782F36BC88DD88A9008FBDCF03D293DB6F42973316D3FBB2E658E"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ],
+  "previousFailure": "docs/verification-v0.7.3.json",
+  "nativeReference": "docs/power-input-native-latest.json",
+  "changes": [
+    "Known zero exit recovers on native create/show events, maximum two recoveries per 60 seconds",
+    "Unknown/nonzero exit and excessive restarts remain blocked",
+    "Only map native battery input with a loaded descendant IconView",
+    "Input diagnostics include native child state; no automatic click retries"
+  ],
+  "tests": {
+    "QuickLifecycle": 22,
+    "QuickPosition": 77,
+    "Imports": "System DLL only",
+    "HotCornersConfig": 22,
+    "Failures": 0,
+    "Cards": 104,
+    "HotCornersCore": 66
+  },
+  "deployment": {
+    "state": "Applied",
+    "live": true,
+    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.7.4-20261009-104822564",
+    "configurationPreserved": true,
+    "uiAcceptance": "Failed: user repeated testing still finds missed power clicks; user additionally correlates failures with stale app content in Dock blur after Show Desktop"
+  },
+  "preserved": {
+    "UnrelatedCornerSource": true,
+    "StartBinary": true,
+    "QuickPositionBinary": true
+  },
+  "boundaries": [
+    "Pointer counters are not panel visibility",
+    "Clean host retirement confirmed but relation to every failed click is not established",
+    "Real desktop clicking and focus remain to validate",
+    "0.7.4 trace: all observed failures still had 3 loaded native IconView descendants, enabled tap and zero geometry offset",
+    "No proof that clean host retirement explains the remaining misses"
+  ]
+}

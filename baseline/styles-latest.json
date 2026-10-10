@@ -1,6 +1,6 @@
 {
   "theme": "",
-  "styleConstants[0]": "DockBackground=<WindhawkBlur BlurAmount=\"8\" TintColor=\"{ThemeResource SystemChromeAltHighColor}\" TintOpacity=\"0.10\" TintSaturation=\"1.15\" />",
+  "styleConstants[0]": "DockBackground=<WindhawkBlur BlurAmount=\"12\" TintColor=\"{ThemeResource SystemChromeAltHighColor}\" TintOpacity=\"0\" TintLuminosityOpacity=\"0\" TintSaturation=\"0.85\" />",
   "themeResourceVariables[0]": "",
   "clickThroughTaskbar": 1,
   "xamlDiagnosticsHandling": "alert",

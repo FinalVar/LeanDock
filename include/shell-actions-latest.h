@@ -4,9 +4,12 @@
 #include <cwchar>
 
 namespace LeanDockShell {
-enum class Action : unsigned { QuickSettings=1, PowerUser=2 };
+enum class Action : unsigned { QuickSettings=1, PowerUser=2, Notifications=3 };
+inline bool Recent(Action action,ULONG_PTR previousAction,ULONGLONG now,ULONGLONG previous) {
+    return previous&&previousAction==static_cast<unsigned>(action)&&now>=previous&&now-previous<200;
+}
 constexpr WORD Key(Action action) {
-    return action==Action::QuickSettings?'A':action==Action::PowerUser?'X':0;
+    return action==Action::QuickSettings?'A':action==Action::PowerUser?'X':action==Action::Notifications?'N':0;
 }
 inline std::array<INPUT,4> Input(Action action) {
     std::array<INPUT,4> input{};
@@ -43,14 +46,17 @@ inline bool Request(HWND taskbar,Action action) {
     const wchar_t* prop=L"LeanDock.Shell.LastRequest";
     const ULONG_PTR now=GetTickCount64();
     const ULONG_PTR previous=reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,prop));
-    if(previous&&now-previous<200)return true;
+    auto result=[&](unsigned value){SetPropW(taskbar,L"LeanDock.Shell.LastResult",reinterpret_cast<HANDLE>(ULONG_PTR(value)+1));};
+    if(Recent(action,reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Shell.LastAction")),now,previous)){result(4);return true;}
     DWORD foreground=0;GetWindowThreadProcessId(GetForegroundWindow(),&foreground);
     // A background right-click need not activate the taskbar by itself. The
     // process receiving this real user gesture may foreground its own window.
-    if(foreground!=GetCurrentProcessId()&&!SetForegroundWindow(taskbar))return false;
-    if(!Invoke(action))return false;
+    if(foreground!=GetCurrentProcessId()&&!SetForegroundWindow(taskbar)){result(2);return false;}
+    if(!Invoke(action)){result(3);return false;}
     SetPropW(taskbar,prop,reinterpret_cast<HANDLE>(now));
-    const wchar_t* counter=action==Action::PowerUser?L"LeanDock.Shell.PowerUser":L"LeanDock.Shell.QuickSettings";
+    SetPropW(taskbar,L"LeanDock.Shell.LastAction",reinterpret_cast<HANDLE>(static_cast<ULONG_PTR>(action)));
+    result(1);
+    const wchar_t* counter=action==Action::PowerUser?L"LeanDock.Shell.PowerUser":action==Action::Notifications?L"LeanDock.Shell.Notifications":L"LeanDock.Shell.QuickSettings";
     const ULONG_PTR count=reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,counter));
     SetPropW(taskbar,counter,reinterpret_cast<HANDLE>(count+1));return true;
 }

@@ -18,8 +18,17 @@ text=text[:start]+'namespace NativeCorners {\n'+text[start:]
 text=text.replace('enum { kEvaluate = WM_APP + 1, kControl = WM_APP + 2, kDwell = 1 };','enum { kEvaluate = WM_APP + 220, kDwell = 2 };')
 text=text.replace('enum { Status = 1, Pause, Resume, Reload, Quit };','static HANDLE instanceMutex;\nstatic bool initialized;')
 text=text.replace('static bool LoadConfig() {','static bool LoadConfig() {\n    if(GetFileAttributesW(iniPath)==INVALID_FILE_ATTRIBUTES)return false;')
+text=text.replace('    next.delay = delay; next.cooldown = cooldown;', '''    const wchar_t* delayKeys[] = { L"TopLeftDelayMs", L"TopRightDelayMs", L"BottomLeftDelayMs", L"BottomRightDelayMs" };
+    for (int c = 0; c < 4; ++c)
+        if (!ReadNumber(delayKeys[c], delay, 0, 1500, next.cornerDelay[c])) return false;
+    next.delay = delay; next.cooldown = cooldown;''')
+text=text.replace('if (expiry || config.delay == 0)', 'if (expiry || config.Delay(engine.waiting.corner) == 0)')
+text=text.replace('config.delay, config.cooldown, config.pixels',
+                  'config.delay, config.Delay(0), config.Delay(1), config.Delay(2), config.Delay(3), config.cooldown, config.pixels')
+text=text.replace(r'\"delayMs\":%u,\"cooldownMs\":%u',
+                  r'\"delayMs\":%u,\"cornerDelayMs\":{\"topLeft\":%u,\"topRight\":%u,\"bottomLeft\":%u,\"bottomRight\":%u},\"cooldownMs\":%u')
 text=text.replace('static bool WriteStatus(bool running = true)', 'static bool WriteStatus(bool running = true)')
-text=text.replace('\\"version\\":\\"1.0.2\\",','\\"version\\":\\"1.0.2-integrated\\",\\"hosted\\":true,')
+text=text.replace('\\"version\\":\\"1.0.2\\",','\\"version\\":\\"1.0.3-integrated\\",\\"hosted\\":true,')
 text=text[:text.index('static LRESULT CALLBACK WindowProc')]
 text+='''
 static bool Paths(const wchar_t* root) {

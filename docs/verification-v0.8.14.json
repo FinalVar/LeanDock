@@ -1,0 +1,41 @@
+{
+  "schema": 40,
+  "recordedAtUtc": "2026-10-10T15:22:34.734564+08:00",
+  "packageVersion": "0.8.14",
+  "backendVersion": "0.5.14",
+  "scope": "Narrow four-finger taskbar thumbnail composition candidate",
+  "previousVerification": "docs/verification-v0.8.13.json",
+  "previousAcceptance": "0.8.9 hot-corner recovery accepted separately; 0.8.10 through 0.8.12 did not fix gesture opacity",
+  "tests": {
+    "build": "passed; 0.8.14 backend only",
+    "gesture": "FAILED: user says 一样 after 0.8.14 loaded; two actual taskbar copies used flags 0x84000000, returned S_OK without fallback",
+    "adapter": "21 checks passed: passthrough, source ownership, fallback, native failure object, nested scope and thread isolation",
+    "backdrop": "86 checks passed; accepted hot-corner source unchanged",
+    "gestureReceipt": {
+      "OutputFlags": "0x84000000",
+      "Copies": 2,
+      "InputFlags": 0,
+      "Fallback": false,
+      "Result": "S_OK"
+    }
+  },
+  "boundaries": [
+    "Exact native signatures and hashes checked; native factory use during user gesture still requires hook receipt",
+    "Private standalone thumbnail fixture returned E_INVALIDARG; no visual comparison resulted",
+    "No claim of established CVI root cause",
+    "No automatic physical four-finger gesture capability"
+  ],
+  "deployment": {
+    "state": "Applied",
+    "version": "0.8.14",
+    "live": true,
+    "explorerPid": 16656,
+    "ownerPid": 29796,
+    "hooks": 60,
+    "failed": false,
+    "runtimeHashesMatched": 4,
+    "configurationPreserved": true,
+    "rollbackValidatedFiles": 22,
+    "backup": "before-0.8.14-20261010-152557666"
+  }
+}

@@ -12,6 +12,8 @@ build/latest.json
 build/sources-latest.json
 build/previous-*
 tests/*-fixture/
+tests/data-cards-*/
+cards/latest.ini
 tests/*.txt
 tests/*.json
 tests/test-config.ini

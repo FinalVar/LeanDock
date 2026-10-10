@@ -126,6 +126,16 @@ adaptation, not newly copied upstream implementation. The panel uses the same
 pre-commit placement helper as before, with its Dock anchor changed to center.
 There is no new polling, process, input simulation or post-show repositioning.
 
+The 0.7.4 native-content readiness guard was checked against this machine's
+Microsoft public SystemTray.pdb, GUID/age and binary hash recorded in
+docs/power-input-native-latest.json. OmniButton::HandleTapped forwards to an
+existing descendant IconView before marking the gesture handled. No Microsoft
+code, binary or PDB is redistributed, and no new native-function hook is added.
+The existing reversible tray adapter and Invoke/shortcut fallback are retained.
+The local host-lifetime policy now distinguishes an explicitly zero exit code
+from abnormal/unknown exits and bounds clean recovery attempts; it adds no timer
+or process watcher and uses the existing shell-window discovery events.
+
 The 0.6.0 theme worker's IThemeManager ABI and appearance registry values were
 adapted with reference to tinodin's Auto Theme Switcher 1.3.2 (GPL-3.0):
 https://github.com/ramensoftware/windhawk-mods/blob/a5c9b87ba0824d826d6c1a95f6a497cb48d2dc66/mods/auto-theme-switcher.wh.cpp
@@ -146,3 +156,59 @@ Only the BlueLightReduction tile presentation is replaced; the native data
 model and original template/binding remain available for restoration.
 Windows theme file format:
 https://learn.microsoft.com/en-us/windows/win32/controls/themesfileformat-overview
+
+0.7.5 诊断复用匹配系统 PDB 中已核验的 ViewCoordinator::IsExpanded 只读入口。继续使用组件哈希校验，在所属 UI 线程查询；不使用对象字段偏移，不新增原生挂钩。符号来源及 RVA 见同一输入诊断来源记录。
+
+0.7.6 further inspects OmniButton::HandleLoaded and the native IconView input
+path in the same pinned SystemTray module. The earlier ForwardClickToIconView
+inspection alone did not establish that ControlCenterButton invokes it.
+The local fix reuses DockNormalizeIcon and reversible dependency-property
+storage to expand the actual visible IconView, preserving its native parent,
+model and event handlers. No Windows code, binary or PDB is distributed.
+Topmost hit-testing and handled-event observation follow the documented
+VisualTreeHelper.FindElementsInHostCoordinates and UIElement.AddHandler APIs.
+This is local adaptation, not newly copied upstream code.
+
+The 0.8.0 ordered single-card preferences refer to the already retained NextKDE
+commit 5cfb6a3a18312c81844ee7b1ca3db85153753e75, DockInfoCarousel.qml and
+DockConfigService.qml (SuceV587/NextKde, GPL-3.0). Its enabled-page projection
+and separation of runtime preferences informed this design. This is behavioral
+reference, not direct copying of QML into the Windows implementation.
+The local settings window reuses Windows common controls; network sampling uses
+Microsoft IP Helper counters, with local filtering, lifetime and reset guards:
+https://learn.microsoft.com/en-us/windows/win32/api/netioapi/nf-netioapi-getiftable2
+https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_row2
+No TrafficMonitor, network driver, polling service or third-party runtime is added.
+
+### 0.8.7 material and theme palette
+
+The glass contrast adjustment reuses the existing upstream WindhawkBlur composition effect and theme-color resolution without replacing their implementation. Light/Dark/HighContrast card resources and gradient dividers use Windows XAML theme resources. The palette is a local design adjustment, not copied NextKDE rendering code.
+
+### 0.8.8 backdrop resume adaptation
+
+The retained upstream XamlBlurBrush remains the effect implementation. The local generator adds weak brush tracking, cancellable UI-thread timers, and a bounded reconnect of the existing effect's backdrop source after observed desktop/expansion transitions. The hide worker's existing WinEvent lifetime is reused; no new worker or permanent refresh timer is introduced. Discussion in https://github.com/ramensoftware/windhawk-mods/issues/2869 informed the investigation but is not a copied complete fix. See docs/backdrop-resume-latest.md for unresolved compositor-cause and visual-acceptance boundaries.
+
+0.8.9 additionally prepares that same backdrop source immediately before the retained native Unhide calls, using a same-thread-only synchronous message. This is a local lifecycle adaptation; it neither replaces native window animation nor adds new private Windows interfaces. The upstream implementation and license attribution above remain applicable.
+
+### 0.8.10 independent material pigment
+
+The retained WindhawkBlur still performs blur and saturation. Its tint and
+luminosity parameters are now zero; a normal XAML Rectangle supplies the themed
+pigment separately. This layer and its weak ownership/template guards are local
+Windows adaptation. NextKDE's already retained LiquidGlassSurface.qml and
+DockThemeService.qml at f9154f4c3603204614925e54d329b39de5987374 (SuceV587,
+GPL-3.0) were reviewed for separating compositor blur, stable material body and
+foreground contrast. No QML code or KWin renderer was copied or added as a
+runtime dependency. The existing source attribution above remains applicable.
+
+### 四指任务栏缩略图适配（0.8.14）
+
+参考 ADeltaX 的 DWM Thumbnail/VirtualDesktop 示例的私有 API/标志定义，以及 ALTaleX531/flip3d_comp（commit 6109667ab3cf88c4354b71985660432fcc9c6ff2）的 ENABLE3D + DISABLEFORCECVI 组合。仅核对接口与行为，不复制项目源文件；适配器独立编写。函数签名、标志指令和模块 SHA256 另外由本机微软公开符号交叉核验。参考链接：https://gist.github.com/ADeltaX/aea6aac248604d0cb7d423a61b06e247 ，https://github.com/ALTaleX531/flip3d_comp/tree/6109667ab3cf88c4354b71985660432fcc9c6ff2 。这两份参考均不构成本问题已经解决的证据。
+
+### 手势任务栏实时副本适配（0.8.15）
+
+0.8.14 的 ENABLE3D/DISABLEFORCECVI 组合实测无效，现已移除；上节作为历史来源记录保留。0.8.15 依据本机已固定哈希的 twinui.pcshell.dll、twinui.dll 及匹配微软公开 PDB，核对 VirtualDesktopGestureWindow::Initialize、CDCompWindowThumbnail::Freeze、GetSourceWindow 的实际调用和接口一致性。精确符号及 PDB 来源见 docs/gesture-thumbnail-symbols-latest.json。候选适配独立编写，只跳过真实手势初始化内已识别 Dock 副本的早期冻结；没有复制微软实现，也没有宣称其他成熟项目已解决本故障。独立对照工具的私有 DWM 标志定义参考上一节 ADeltaX 资料，未作为常驻运行依赖。
+
+### 无效手势实验撤回（0.8.16）
+
+0.8.15 的 Freeze 跳过已被实际四指手势否定。0.8.16 不再编入或安装该适配器；上面的来源和实验源码仅作历史复核材料，不能当作可用修复或当前运行依赖。底层成熟 Mod 的作者、许可和已验收恢复逻辑保持不变。

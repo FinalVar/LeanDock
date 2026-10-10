@@ -1,0 +1,60 @@
+{
+  "schema": 41,
+  "recordedAtUtc": "2026-10-10T08:05:40.2058319Z",
+  "packageVersion": "0.8.15",
+  "backendVersion": "0.5.15",
+  "scope": "Keep the owned taskbar thumbnail live only inside the native four-finger initializer",
+  "previousVerification": "docs/verification-v0.8.14.json",
+  "previousAcceptance": "0.8.9 hot-corner recovery accepted separately and unchanged",
+  "previousFailure": "0.8.14 real gestures used 0x84000000 successfully without fallback but user reports the same excessive transparency; flag hook removed",
+  "tests": {
+    "adapter": "26 checks passed; real detour exercised with controlled native functions and window identity",
+    "backdrop": "86 checks passed; accepted hot-corner source and controller unchanged by hash comparison against 0.8.14 package",
+    "build": "passed; 0.8.15 backend, matching six pinned modules, one inherited deprecation warning",
+    "gesture": "FAILED: user reports 仍然变透 after 0.8.15 loaded; the scoped taskbar Freeze bypass executed once",
+    "sourceComparison": {
+      "result": "Four independent taskbar copies retained full pigment, including two frozen automatically during an actual gesture",
+      "beforeClock": "15:48",
+      "duringClock": "15:50",
+      "duringFreezeResults": [
+        "S_OK",
+        "S_OK"
+      ],
+      "nativeAnimationAcceptance": false,
+      "fixtureClosed": true
+    },
+    "gestureReceiptBeforePrompt": {
+      "materialReady": 1,
+      "sourceHwnd": 8062878,
+      "freezeSkipped": null,
+      "oldCreationFlags": null
+    },
+    "gestureReceipt": {
+      "FreezeSkipped": 1,
+      "FreezeAt": 271168765,
+      "OldCreationFlags": null,
+      "SourceHwnd": 8062878
+    }
+  },
+  "boundaries": [
+    "Matching native signatures, vtable interface identity and module hashes verified; no raw object offsets in runtime",
+    "Only an owned ready taskbar source inside the exact gesture Initialize scope skips Freeze",
+    "Original creation flags, transformations, lifetime and all other thumbnail Freeze calls are preserved",
+    "Ordinary frozen copies retain pigment; native early-freeze timing is still a hypothesis, not a proven root cause",
+    "No automatic physical four-finger gesture capability; user can reply after releasing fingers",
+    "No visual success inferred from hook counts or S_OK"
+  ],
+  "deployment": {
+    "state": "Applied",
+    "version": "0.8.15",
+    "live": true,
+    "explorerPid": 26296,
+    "ownerPid": 17088,
+    "hooks": 60,
+    "failed": false,
+    "runtimeHashesMatched": 4,
+    "configurationPreserved": true,
+    "rollbackValidatedFiles": 17,
+    "backup": "before-0.8.15-20261010-160345760"
+  }
+}

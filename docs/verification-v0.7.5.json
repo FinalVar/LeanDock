@@ -1,0 +1,75 @@
+{
+  "schema": 23,
+  "recordedAtUtc": "2026-10-09T03:08:55.354929Z",
+  "packageVersion": "0.7.5",
+  "controllerVersion": "0.3.5",
+  "backendVersion": "0.4.18",
+  "scope": "Read-only native expansion and XamlRoot input diagnostics for correlated stale backdrop and missed clicks",
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 235520,
+      "SHA256": "89688CAA648AE3FEE7A94D9FDFE10085938D1E5DF9C5D92F95BED33BF5F10C34"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1902592,
+      "SHA256": "66605C8D0FF3BF39DD44BBE22F8DBC30A85F92BF55BBE9FF71E990A65E12ED42"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ],
+  "previousFailure": "docs/verification-v0.7.4.json",
+  "nativeReference": "docs/power-input-native-latest.json",
+  "changes": [
+    "Preserve 0.7.4 bounded clean-host recovery",
+    "Resolve existing ViewCoordinator::IsExpanded getter under exact module hash pin",
+    "Read native expansion, XAML host visibility, hit-test and input source class at genuine battery gestures",
+    "Do not add input retry, forced redraw, background polling or a new native hook"
+  ],
+  "tests": {
+    "Build": "Backend compile and link passed",
+    "Imports": "System DLL only",
+    "Functional": "Not changed; previous component test counts are recorded in 0.7.4",
+    "Ui": "Failed again, user stopped at missed click with stale backdrop"
+  },
+  "deployment": {
+    "state": "Applied",
+    "live": true,
+    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.7.5-20261009-110443097",
+    "configurationPreserved": true,
+    "rollbackValidation": "Passed, 17 files",
+    "uiAcceptance": "Not passed. User reported another missed first click and stopped; preserved failure 2026-10-09 11:10:23 +08:00."
+  },
+  "preserved": {
+    "UnrelatedCornerSource": true,
+    "StartBinary": true,
+    "QuickPositionBinary": true
+  },
+  "boundaries": [
+    "Pointer counters are not panel visibility",
+    "Clean host retirement confirmed but relation to every failed click is not established",
+    "Real desktop clicking and focus remain to validate",
+    "0.7.4 trace: all observed failures still had 3 loaded native IconView descendants, enabled tap and zero geometry offset",
+    "No proof that clean host retirement explains the remaining misses"
+  ],
+  "currentObservation": {
+    "Date": "2026-10-09T11:08:55.3669111+08:00",
+    "QuickHostActive": true,
+    "QuickHostBlocked": false,
+    "QuickPositionBinaryUnchanged": true,
+    "DockGeometryValid": true,
+    "DockCenterPhysicalPixels": 1280,
+    "DwmFrozenAtIdle": 0,
+    "ExpansionGetter": "No expansion query or input yet; unknown, not a false value",
+    "Cause": "Unresolved by 0.7.5. At the failed input: native expansion=true, host visible=true, root hit-test=true, outer offset=0, 3 loaded IconViews; OriginalSource=Grid and Tapped remained unhandled. Later DWM read=0 does not rule out a transient stale composition at input."
+  }
+}

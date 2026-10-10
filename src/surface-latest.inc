@@ -145,6 +145,50 @@ void InstallLeanDockMenuHook() {
     WindhawkUtils::HookSymbols(module,focusHooks,ARRAYSIZE(focusHooks));
 }
 
+enum class DockContextTarget { Unknown, Background, Card, Native };
+DockContextTarget ClassifyDockContext(DependencyObject node,FrameworkElement const& frame,
+                                     FrameworkElement const& tray,HWND taskbar) {
+    bool native=false;
+    for(unsigned depth=0;node&&depth<32;++depth,node=Media::VisualTreeHelper::GetParent(node)){
+        auto fe=node.try_as<FrameworkElement>();if(!fe)continue;
+        const auto name=fe.Name();
+        if(name==L"LeanDockCard"||name==L"LeanDockPowerCard"||
+           (name==L"ControlCenterButton"&&GetPropW(taskbar,L"LeanDock.Card.NativePowerHit")))return DockContextTarget::Card;
+        const auto type=winrt::get_class_name(fe);
+        if(fe.try_as<Controls::Primitives::ButtonBase>()||type==L"SystemTray.NotifyIconView"||
+           type==L"SystemTray.IconView"||type==L"Taskbar.TaskListButtonPanel"||
+           name==L"NotifyItemIcon")native=true;
+        if(fe==frame||fe==tray)return native?DockContextTarget::Native:DockContextTarget::Background;
+    }
+    return DockContextTarget::Unknown;
+}
+void BindLeanDockContext(ClickThroughTaskbarState& state,FrameworkElement const& owner,
+                         winrt::weak_ref<Controls::Grid>& saved,UIElement::ContextRequested_revoker& subscription) {
+    if(!owner||Media::VisualTreeHelper::GetChildrenCount(owner)<1)return;
+    auto root=Media::VisualTreeHelper::GetChild(owner,0).try_as<Controls::Grid>();
+    if(!root||!root.IsLoaded()||saved.get()==root)return;
+    subscription.revoke();saved={};
+    const HWND taskbar=GetAncestor(state.islandHwnd,GA_ROOT);
+    auto frame=state.taskbarFrame,tray=state.systemTrayFrame;
+    // Child RootGrid runs before the native ContextRequested handler on the
+    // frame. A late handler on the shared XamlRoot could run after it opens.
+    subscription=root.ContextRequested(winrt::auto_revoke,[frame,tray,taskbar](UIElement const& sender,Input::ContextRequestedEventArgs const& e) noexcept {
+        try{
+            winrt::Windows::Foundation::Point point{};
+            if(e.Handled()||!e.TryGetPosition(sender,point)||
+               !LeanDockShell::IsTaskbar(taskbar,GetCurrentProcessId()))return;
+            const auto target=ClassifyDockContext(e.OriginalSource().try_as<DependencyObject>(),frame.get(),tray.get(),taskbar);
+            if(target!=DockContextTarget::Card&&target!=DockContextTarget::Background)return;
+            e.Handled(true); // ownership does not depend on SendInput succeeding
+            LeanDockMenu::Consume(taskbar,target==DockContextTarget::Card?
+                LeanDockMenu::ContextSource::XamlCard:LeanDockMenu::ContextSource::XamlBackground);
+        }catch(...){LeanDockMenu::Put(taskbar,L"LeanDock.Menu.ContextError",static_cast<ULONG_PTR>(winrt::to_hresult()));}
+    });
+    saved=winrt::make_weak(root);
+}
+
+#include "material-latest.inc"
+
 // The material uses the existing backdrop composition brush. This hairline
 // follows NextKDE DockDivider's centered, short-line proportions.
 void UpdateLeanDockDivider(ClickThroughTaskbarState& state) try {
@@ -154,30 +198,37 @@ void UpdateLeanDockDivider(ClickThroughTaskbarState& state) try {
     if(Media::VisualTreeHelper::GetChildrenCount(frame)<1)return;
     auto root=Media::VisualTreeHelper::GetChild(frame,0).try_as<Controls::Grid>();
     if(!root || !root.IsLoaded())return;
+    UpdateLeanDockMaterial(state,root);
+    BindLeanDockContext(state,frame,state.contextRoot,state.contextRequested);
+    BindLeanDockContext(state,state.systemTrayFrame.get(),state.contextTrayRoot,state.contextTrayRequested);
     if(!state.cards || !state.cards->Alive())state.cards=LeanDockCards::Create(root);
     if(state.cards && state.islandHwnd)state.cards->Update(
         GetAncestor(state.islandHwnd,GA_ROOT),frame.XamlRoot().Size().Width,
         state.systemTrayFrame.get().ActualWidth());
     if(state.divider.get())return;
-    Shapes::Rectangle line;
+    auto line=Markup::XamlReader::Load(LR"xaml(
+<Rectangle xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+ <Rectangle.Fill><LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1" Opacity="0.30">
+  <GradientStop Offset="0" Color="Transparent"/><GradientStop Offset="0.18" Color="{ThemeResource SystemBaseHighColor}"/>
+  <GradientStop Offset="0.82" Color="{ThemeResource SystemBaseHighColor}"/><GradientStop Offset="1" Color="Transparent"/>
+ </LinearGradientBrush></Rectangle.Fill>
+</Rectangle>)xaml").as<Shapes::Rectangle>();
     line.Name(L"LeanDockDivider");line.Width(1);line.Height(40);
     line.RadiusX(0.5);line.RadiusY(0.5);
     line.HorizontalAlignment(HorizontalAlignment::Right);
     line.VerticalAlignment(VerticalAlignment::Center);
     line.Margin(Thickness{0,0,2,0});line.IsHitTestVisible(false);
     Media::TranslateTransform offset;offset.X(12);line.RenderTransform(offset);
-    Media::LinearGradientBrush brush;
-    brush.StartPoint({0.5f,0});brush.EndPoint({0.5f,1});
-    for(auto [offset,alpha]:{std::pair{0.0,16},std::pair{0.18,70},std::pair{0.82,70},std::pair{1.0,16}}) {
-        Media::GradientStop stop;stop.Offset(offset);
-        stop.Color(winrt::Windows::UI::Color{static_cast<uint8_t>(alpha),100,110,125});
-        brush.GradientStops().Append(stop);
-    }
-    line.Fill(brush);Controls::Canvas::SetZIndex(line,10);
+    Controls::Canvas::SetZIndex(line,10);
     root.Children().Append(line);state.divider=winrt::make_weak(line);
     state.dividerParent=winrt::make_weak(root);
 } catch(...) { Wh_Log(L"LeanDock divider waiting for a stable visual tree"); }
 void ClearLeanDockDivider(ClickThroughTaskbarState& state) {
+    ClearLeanDockMaterial(state);
+    state.contextRequested.revoke();state.contextTrayRequested.revoke();
+    state.contextRoot={};state.contextTrayRoot={};
+    if(state.islandHwnd)for(auto key:{L"LeanDock.Menu.ContextSource",L"LeanDock.Menu.ContextCount",L"LeanDock.Menu.ContextSubmitted",L"LeanDock.Menu.ContextError"})
+        RemovePropW(GetAncestor(state.islandHwnd,GA_ROOT),key);
     LeanDockMenu::Cancel();
     ClearLeanDockMenuFocus(state);
     auto anchor=state.menuAnchor.get();auto anchorParent=state.menuAnchorParent.get();
@@ -193,6 +244,10 @@ void LeanDockTimeChanged(HWND taskbar) {
     for(auto& state:g_clickThroughTaskbarState)if(!state.cardsClosing&&state.cards&&state.islandHwnd&&
         GetAncestor(state.islandHwnd,GA_ROOT)==taskbar)state.cards->TimeChanged();
 }
+void LeanDockPreferencesChanged(HWND taskbar) {
+    for(auto& state:g_clickThroughTaskbarState)if(!state.cardsClosing&&state.cards&&state.islandHwnd&&
+        GetAncestor(state.islandHwnd,GA_ROOT)==taskbar)state.cards->ReloadPreferences();
+}
 
 // Intercept only the taskbar's background context menu. Application jump
 // lists and notification icons retain their native, separate right-clicks.
@@ -204,25 +259,14 @@ bool HandleLeanDockContext(HWND window,LPARAM position) try {
         POINT pt{static_cast<short>(LOWORD(position)),static_cast<short>(HIWORD(position))};
         if(!ScreenToClient(state.islandHwnd,&pt))return false;
         const double scale=frame.XamlRoot().RasterizationScale();if(scale<=0)return false;
-        auto content=frame.XamlRoot().Content();bool inDock=false;
+        auto content=frame.XamlRoot().Content();
         const auto hits=Media::VisualTreeHelper::FindElementsInHostCoordinates(
-            winrt::Windows::Foundation::Point{float(pt.x/scale),float(pt.y/scale)},content,true);
-        for(auto const& hit:hits){
-            bool nativeControl=false;
-            DependencyObject node=hit;
-            for(unsigned depth=0;node&&depth<32;++depth,node=Media::VisualTreeHelper::GetParent(node)){
-                auto fe=node.try_as<FrameworkElement>();if(!fe)continue;
-                if(fe.Name()==L"LeanDockCard"||fe.Name()==L"LeanDockPowerCard"||
-                   (fe.Name()==L"ControlCenterButton"&&GetPropW(window,L"LeanDock.Card.NativePowerHit")))
-                    return LeanDockMenu::Request(window);
-                const auto type=winrt::get_class_name(fe);
-                if(fe.try_as<Controls::Primitives::ButtonBase>()||
-                   type==L"SystemTray.NotifyIconView"||fe.Name()==L"NotifyItemIcon")nativeControl=true;
-                if(fe==frame||fe==state.systemTrayFrame.get())inDock=true;
-            }
-            if(nativeControl)return false;
-        }
-        if(inDock)return LeanDockMenu::Request(window);
+            winrt::Windows::Foundation::Point{float(pt.x/scale),float(pt.y/scale)},content,false).First();
+        if(!hits.HasCurrent())return false;
+        const auto target=ClassifyDockContext(hits.Current(),frame,state.systemTrayFrame.get(),window);
+        if(target==DockContextTarget::Card||target==DockContextTarget::Background)
+            return LeanDockMenu::Consume(window,LeanDockMenu::ContextSource::WindowMessage);
+        return false;
     }
     return false;
 }catch(...){return false;}

@@ -27,11 +27,21 @@ inline void Cancel() {std::lock_guard lock(gestureMutex);gesture={};}
 inline bool Request(HWND taskbar) {
     if(!LeanDockShell::IsTaskbar(taskbar,GetCurrentProcessId()))return false;
     const auto previous=reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Shell.LastRequest"));
-    if(previous&&GetTickCount64()-previous<200)return true;
+    if(LeanDockShell::Recent(LeanDockShell::Action::PowerUser,
+        reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Shell.LastAction")),GetTickCount64(),previous))return true;
     Gesture next{taskbar,{},GetTickCount64()};if(!GetCursorPos(&next.click))return false;
     {std::lock_guard lock(gestureMutex);gesture=next;}
     for(auto key:{L"LeanDock.Menu.NativeAnchor",L"LeanDock.Menu.Error",L"LeanDock.Menu.FocusArmed",L"LeanDock.Menu.PointerFocus",L"LeanDock.Menu.FocusBefore",L"LeanDock.Menu.FocusAfter",L"LeanDock.Menu.FocusError",L"LeanDock.Menu.FocusOpened",L"LeanDock.Menu.FocusGot",L"LeanDock.Menu.FocusItemCount"})Put(taskbar,key,0);
     if(LeanDockShell::Request(taskbar,LeanDockShell::Action::PowerUser))return true;
     Cancel();return false;
+}
+enum class ContextSource : unsigned { WindowMessage=1, XamlBackground=2, XamlCard=3, NativePower=4 };
+// Ownership and successful command submission are separate. An owned context
+// request must not fall through to a second native taskbar menu on failure.
+inline bool Consume(HWND taskbar,ContextSource source) {
+    Put(taskbar,L"LeanDock.Menu.ContextSource",static_cast<unsigned>(source));
+    Put(taskbar,L"LeanDock.Menu.ContextCount",std::max<ULONG_PTR>(1,reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Menu.ContextCount"))));
+    Put(taskbar,L"LeanDock.Menu.ContextSubmitted",Request(taskbar));
+    return true;
 }
 }

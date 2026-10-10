@@ -5,6 +5,8 @@
 #include <optional>
 #include <cstdio>
 #include <string>
+#include <vector>
+#include <string_view>
 
 namespace LeanDockCards {
 // UI-thread owned. Invalidate before cancellation, so both synchronous and
@@ -30,11 +32,93 @@ inline RingArc GaugeArc(std::optional<unsigned> percent) {
     arc.y=RingSize/2-RingRadius*std::cos(angle);
     return arc;
 }
-enum class Page : unsigned { Metrics, Media, Power, Clock, Count };
+enum class Page : unsigned { Metrics, Media, Power, Clock, Network, Count };
 inline Page Cycle(Page page,int direction) {
     constexpr auto count=static_cast<int>(Page::Count);
     return static_cast<Page>((static_cast<int>(page)+(direction<0?count-1:direction>0?1:0))%count);
 }
+inline constexpr Page DefaultOrder[]={Page::Clock,Page::Power,Page::Media,Page::Metrics,Page::Network};
+inline const wchar_t* PageKey(Page page) {
+    switch(page){case Page::Clock:return L"clock";case Page::Power:return L"power";
+    case Page::Media:return L"media";case Page::Metrics:return L"metrics";case Page::Network:return L"network";default:return L"";}
+}
+inline const wchar_t* PageLabel(Page page) {
+    switch(page){case Page::Clock:return L"时间与日期";case Page::Power:return L"电池";
+    case Page::Media:return L"媒体";case Page::Metrics:return L"CPU / 内存";case Page::Network:return L"上传 / 下载";default:return L"";}
+}
+inline std::optional<Page> ParsePage(std::wstring_view text) {
+    for(auto page:DefaultOrder)if(text==PageKey(page))return page;
+    return {};
+}
+struct PageOrder {
+    std::vector<Page> pages{std::begin(DefaultOrder),std::end(DefaultOrder)};
+    bool Has(Page page)const{return std::find(pages.begin(),pages.end(),page)!=pages.end();}
+    Page Select(Page page)const{return Has(page)?page:pages.front();}
+    Page Step(Page page,int direction)const {
+        auto item=std::find(pages.begin(),pages.end(),page);
+        if(item==pages.end())return pages.front();
+        const int count=int(pages.size()),index=int(item-pages.begin());
+        return pages[(index+(direction<0?count-1:direction>0?1:0))%count];
+    }
+    std::wstring Text()const {
+        std::wstring result;for(auto page:pages){if(!result.empty())result+=L',';result+=PageKey(page);}return result;
+    }
+};
+inline std::optional<PageOrder> ParseOrder(std::wstring_view text) {
+    if(text.empty()||text.size()>128)return {};
+    PageOrder order;order.pages.clear();
+    while(!text.empty()){
+        auto end=text.find(L',');auto part=text.substr(0,end);
+        auto first=part.find_first_not_of(L" \t"),last=part.find_last_not_of(L" \t");
+        if(first==std::wstring_view::npos)return {};
+        auto page=ParsePage(part.substr(first,last-first+1));
+        if(!page||order.Has(*page))return {};
+        order.pages.push_back(*page);
+        if(end==std::wstring_view::npos)break;
+        text.remove_prefix(end+1);if(text.empty())return {};
+    }
+    return order;
+}
+struct NetworkCounter {uint64_t id,received,sent;};
+using NetworkSnapshot=std::vector<NetworkCounter>;
+struct NetworkRate {double received=0,sent=0;};
+struct NetworkSampler {
+    std::optional<NetworkSnapshot> baseline;
+    std::optional<NetworkRate> value;
+    uint64_t at=0;bool connected=false;
+    void Pause(){baseline.reset();value.reset();connected=false;}
+    bool Sample(std::optional<NetworkSnapshot> current,uint64_t now) {
+        if(!current){Pause();return true;}
+        connected=!current->empty();
+        if(!baseline||now<at||now-at>10000){baseline=std::move(current);at=now;value.reset();return false;}
+        if(now-at<200)return false;
+        NetworkRate delta;bool complete=true;
+        for(auto const& item:*current){
+            auto previous=std::find_if(baseline->begin(),baseline->end(),[&](auto const& row){return row.id==item.id;});
+            if(previous==baseline->end()||item.received<previous->received||item.sent<previous->sent){complete=false;break;}
+            delta.received+=double(item.received-previous->received);
+            delta.sent+=double(item.sent-previous->sent);
+        }
+        if(complete){const double scale=1000.0/(now-at);value=NetworkRate{delta.received*scale,delta.sent*scale};}
+        else value.reset();
+        baseline=std::move(current);at=now;return complete;
+    }
+    uint64_t IntervalMs()const{return connected&&!value?200:1000;}
+};
+struct RateLabels {
+    std::wstring number=L"—",unit;
+    std::wstring CompactText()const{return unit.empty()?number:number+L" "+unit;}
+    std::wstring PerSecondText()const{return unit.empty()?number:CompactText()+L"/s";}
+};
+inline RateLabels FormatRate(std::optional<double> rate) {
+    if(!rate||!std::isfinite(*rate)||*rate<0)return {};
+    double number=*rate;unsigned unit=0;const wchar_t* units[]={L"B",L"KB",L"MB",L"GB"};
+    while(number>=1000&&unit<3){number/=1000;++unit;}
+    if(number>9999)return {L">9999",L"GB"};
+    wchar_t buffer[32]{};
+    std::swprintf(buffer,32,unit&&number<100?L"%.1f":L"%.0f",number);return {buffer,units[unit]};
+}
+inline std::wstring RateText(std::optional<double> rate) {return FormatRate(rate).PerSecondText();}
 struct ClockLabels {std::wstring time,date;};
 inline ClockLabels ClockText(unsigned hour,unsigned minute,unsigned month,unsigned day) {
     if(hour>23||minute>59||month<1||month>12||day<1||day>31)return {L"—",L"—"};

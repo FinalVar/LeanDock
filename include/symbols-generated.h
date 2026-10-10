@@ -64,6 +64,7 @@ static const NativeSymbol NativeSymbols[] = {
     {L"taskbar.view.dll", L"public: __cdecl winrt::impl::consume_Windows_UI_Xaml_IFrameworkElement<struct winrt::Microsoft::UI::Xaml::Controls::ProgressBar>::Width(double)const ", 497528u},
     {L"taskbar.view.dll", L"public: __cdecl winrt::impl::consume_Windows_UI_Xaml_IFrameworkElement<struct winrt::Taskbar::implementation::TaskbarFrame>::Height(double)const ", 499956u},
     {L"taskbar.view.dll", L"public: __cdecl winrt::impl::consume_Windows_UI_Xaml_IFrameworkElement<struct winrt::Taskbar::implementation::TaskbarFrame>::MaxHeight(double)const ", 2622784u},
+    {L"taskbar.view.dll", L"public: bool __cdecl winrt::Taskbar::implementation::ViewCoordinator::IsExpanded(unsigned __int64)", 262240u},
     {L"taskbar.view.dll", L"public: bool __cdecl winrt::Taskbar::implementation::ViewCoordinator::ShouldTaskbarBeExpanded(unsigned __int64,bool)", 3200204u},
     {L"taskbar.view.dll", L"public: double __cdecl winrt::Taskbar::implementation::ExperienceToggleButton::IconHeight(void)const ", 6866352u},
     {L"taskbar.view.dll", L"public: double __cdecl winrt::Taskbar::implementation::TaskbarConfiguration::GetIconHeightInViewPixels(void)", 2218500u},

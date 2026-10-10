@@ -80,6 +80,9 @@ static bool LoadConfig() {
         else if (!_wcsicmp(value, L"none")) next.actions[c] = nhc::None;
         else return false;
     }
+    const wchar_t* delayKeys[] = { L"TopLeftDelayMs", L"TopRightDelayMs", L"BottomLeftDelayMs", L"BottomRightDelayMs" };
+    for (int c = 0; c < 4; ++c)
+        if (!ReadNumber(delayKeys[c], delay, 0, 1500, next.cornerDelay[c])) return false;
     next.delay = delay; next.cooldown = cooldown; next.pixels = pixels; next.rearm = rearm; next.fullscreen = fullscreen != 0;
     config = next; return true;
 }
@@ -178,7 +181,7 @@ static void Evaluate(bool expiry) {
     }
     // A zero delay executes in this input-event dispatch. Do not route it
     // through SetTimer, whose minimum interval would add an artificial delay.
-    if (expiry || config.delay == 0) {
+    if (expiry || config.Delay(engine.waiting.corner) == 0) {
         int corner = engine.waiting.corner;
         nhc::Action action = engine.Expire(monitors, monitorCount, p, config, GetTickCount64(), blocked);
         if (action != nhc::None) {
@@ -191,16 +194,16 @@ static void Evaluate(bool expiry) {
 static bool WriteStatus(bool running = true) {
     char data[2048];
     int n = snprintf(data, sizeof(data),
-        "{\n  \"version\":\"1.0.2-integrated\",\"hosted\":true,\"pid\":%lu,\"running\":%s,\"paused\":%s,\"locked\":%s,\n"
+        "{\n  \"version\":\"1.0.3-integrated\",\"hosted\":true,\"pid\":%lu,\"running\":%s,\"paused\":%s,\"locked\":%s,\n"
         "  \"inputMode\":\"raw-input-events\",\"rawInputRegistered\":%s,\"inputDesktopAvailable\":%s,\"periodicPolling\":false,\"timerArmed\":%s,\n"
         "  \"uptimeMs\":%llu,\"rawEvents\":%llu,\"evaluations\":%llu,\"monitors\":%d,\n"
-        "  \"delayMs\":%u,\"cooldownMs\":%u,\"cornerPixels\":%d,\"rearmPixels\":%d,\"fullscreenSuppression\":%s,\n"
+        "  \"delayMs\":%u,\"cornerDelayMs\":{\"topLeft\":%u,\"topRight\":%u,\"bottomLeft\":%u,\"bottomRight\":%u},\"cooldownMs\":%u,\"cornerPixels\":%d,\"rearmPixels\":%d,\"fullscreenSuppression\":%s,\n"
         "  \"actions\":[\"%s\",\"%s\",\"%s\",\"%s\"],\"activations\":[%llu,%llu,%llu,%llu],\n"
         "  \"blockedEntries\":%llu,\"failures\":%llu,\"lastError\":%lu\n}\n",
         (unsigned long)GetCurrentProcessId(), running ? "true" : "false", paused ? "true" : "false", locked ? "true" : "false",
         rawRegistered ? "true" : "false", DefaultInputDesktop() ? "true" : "false", timerArmed ? "true" : "false",
         (unsigned long long)(GetTickCount64() - started), (unsigned long long)rawEvents, (unsigned long long)mouseEvaluations, monitorCount,
-        config.delay, config.cooldown, config.pixels, config.rearm, config.fullscreen ? "true" : "false",
+        config.delay, config.Delay(0), config.Delay(1), config.Delay(2), config.Delay(3), config.cooldown, config.pixels, config.rearm, config.fullscreen ? "true" : "false",
         ActionName(config.actions[0]), ActionName(config.actions[1]), ActionName(config.actions[2]), ActionName(config.actions[3]),
         (unsigned long long)activations[0], (unsigned long long)activations[1], (unsigned long long)activations[2], (unsigned long long)activations[3],
         (unsigned long long)blockedEntries, (unsigned long long)failures, (unsigned long)lastErrorCode);

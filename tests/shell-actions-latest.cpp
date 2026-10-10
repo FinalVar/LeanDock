@@ -5,8 +5,8 @@ int main(){
     using namespace LeanDockShell;int count=0,failures=0;
     auto check=[&](bool condition){++count;if(!condition)++failures;};
     check(Key(Action::QuickSettings)=='A');check(Key(Action::PowerUser)=='X');
-    check(!Key(static_cast<Action>(0)));check(!Key(static_cast<Action>(3)));
-    for(auto action:{Action::QuickSettings,Action::PowerUser}){
+    check(Key(Action::Notifications)=='N');check(!Key(static_cast<Action>(0)));check(!Key(static_cast<Action>(4)));
+    for(auto action:{Action::QuickSettings,Action::PowerUser,Action::Notifications}){
         auto input=Input(action);
         check(input[0].ki.wVk==VK_LWIN);check(input[1].ki.wVk==Key(action));
         check(input[2].ki.wVk==Key(action));check(input[3].ki.wVk==VK_LWIN);
@@ -15,6 +15,17 @@ int main(){
             check(bool(input[i].ki.dwFlags&KEYEVENTF_EXTENDEDKEY)==(i==0||i==3));}
     }
     check(!IsTaskbar(nullptr,GetCurrentProcessId()));
+    // One gesture can produce multiple context notifications. Coalesce only
+    // the same action; opening Quick Settings must not consume an immediate
+    // Power User request, nor may a stale/wrapped timestamp suppress input.
+    check(Recent(Action::PowerUser,2,1199,1000));
+    check(!Recent(Action::PowerUser,2,1200,1000));
+    check(!Recent(Action::PowerUser,1,1100,1000));
+    check(!Recent(Action::QuickSettings,2,1100,1000));
+    check(Recent(Action::QuickSettings,1,1100,1000));
+    check(!Recent(Action::PowerUser,2,999,1000));
+    check(!Recent(Action::PowerUser,2,100,0));
+    check(!Recent(Action::PowerUser,0,1100,1000));
     using LeanDockMenu::AnchorPoint;
     for(int dpi:{96,144,192}){
         const RECT screen{0,0,2560,1600},dock{600,1504,1960,1600};

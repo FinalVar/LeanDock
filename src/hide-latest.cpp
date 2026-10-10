@@ -4,6 +4,7 @@
 #include "native-api-latest.h"
 #include "dock-geometry-latest.h"
 #include "event-loop-latest.h"
+#include "backdrop-resume-latest.h"
 #include <stdexcept>
 #include <windhawk_utils.h>
 #include <dwmapi.h>
@@ -672,6 +673,44 @@ bool AdjustAllTaskbarsIfNotPending() {
     return true;
 }
 
+// Foreground events use the existing hide worker, including when occlusion
+// considers all windows. Win+D from the corner and the physical keyboard then
+// follow the same observed desktop transition, not a guessed input completion.
+thread_local bool g_backdropWasDesktop;
+void ObserveBackdropForeground(HWND window) {
+    if(window!=GetForegroundWindow())return; // skip superseded queued events
+    const bool desktop=LeanDockBackdrop::IsDesktop(window);
+    const bool changed=desktop!=g_backdropWasDesktop;
+    g_backdropWasDesktop=desktop;
+    if(!changed)return;
+    std::unordered_set<HWND> secondary;
+    if(auto primary=FindTaskbarWindows(&secondary))LeanDockBackdrop::Notify(primary,LeanDockBackdrop::Reason::Desktop);
+    for(auto taskbar:secondary)LeanDockBackdrop::Notify(taskbar,LeanDockBackdrop::Reason::Desktop);
+}
+
+// Read-only diagnostics. The getter is resolved by exact symbol and the
+// existing module hash pin; no object fields or memory offsets are assumed.
+using ViewCoordinator_IsExpanded_t = bool(WINAPI*)(void*,HWND);
+ViewCoordinator_IsExpanded_t ViewCoordinator_IsExpanded_Original;
+void ResumeValue(HWND window,const wchar_t* key,intptr_t value) {
+    std::wstring name=L"LeanDock.Resume.";name+=key;
+    SetPropW(window,name.c_str(),reinterpret_cast<HANDLE>(value+1));
+}
+int ReadExpandedState(HWND window,const wchar_t* key) {
+    if(g_eventStopping || !ViewCoordinator_IsExpanded_Original ||
+       GetWindowThreadProcessId(window,nullptr)!=GetCurrentThreadId())return -1;
+    const auto it=g_taskbarToViewCoordinator.find(window);
+    if(it==g_taskbarToViewCoordinator.end())return -1;
+    const bool result=ViewCoordinator_IsExpanded_Original(it->second,window);
+    ResumeValue(window,key,result);return result;
+}
+void ClearResumeState(HWND window) {
+    for(auto key:{L"ExpandedAtQuery",L"QueryAt",L"Decision",L"BeforeSync",L"AfterSync",L"SyncAt",L"AtInput",
+                  L"HostVisible",L"RootHit",L"InputClass",L"FrozenAtInput",L"InputIcon"}) {
+        std::wstring name=L"LeanDock.Resume.";name+=key;RemovePropW(window,name.c_str());
+    }
+}
+
 using ViewCoordinator_ShouldTaskbarBeExpanded_t =
     bool(WINAPI*)(void* pThis, HWND hMMTaskbarWnd, bool expanded);
 ViewCoordinator_ShouldTaskbarBeExpanded_t
@@ -683,17 +722,20 @@ bool WINAPI ViewCoordinator_ShouldTaskbarBeExpanded_Hook(void* pThis,
            (DWORD)(ULONG_PTR)hMMTaskbarWnd, expanded);
 
     g_taskbarToViewCoordinator[hMMTaskbarWnd] = pThis;
+    ResumeValue(hMMTaskbarWnd,L"ExpandedAtQuery",expanded);
+    ResumeValue(hMMTaskbarWnd,L"QueryAt",GetTickCount64());
 
     // Return true if the taskbar should be kept shown.
     for (const auto& pair : g_taskbarsKeptShown) {
         if (pair.second == hMMTaskbarWnd) {
             Wh_Log(L"Returning true for taskbar kept shown");
+            ResumeValue(hMMTaskbarWnd,L"Decision",1);
             return true;
         }
     }
 
-    return ViewCoordinator_ShouldTaskbarBeExpanded_Original(
-        pThis, hMMTaskbarWnd, expanded);
+    const bool result=ViewCoordinator_ShouldTaskbarBeExpanded_Original(pThis,hMMTaskbarWnd,expanded);
+    ResumeValue(hMMTaskbarWnd,L"Decision",result);return result;
 }
 
 using ViewCoordinator_UpdateIsExpanded_t = void(WINAPI*)(void* pThis,
@@ -708,8 +750,15 @@ void UpdateViewCoordinatorIsExpanded(HWND hWnd) {
     if (ViewCoordinator_UpdateIsExpanded_Original) {
         auto it = g_taskbarToViewCoordinator.find(hWnd);
         if (it != g_taskbarToViewCoordinator.end()) {
+            ReadExpandedState(hWnd,L"BeforeSync");
             ViewCoordinator_UpdateIsExpanded_Original(
                 it->second, hWnd, kReasonIsPointerOverTaskbarFrameChanged);
+            const int after=ReadExpandedState(hWnd,L"AfterSync");
+            // Unhide above may already have expanded the taskbar before this
+            // query. The policy transition, not a before/after inequality,
+            // owns the bounded refresh request.
+            if(after==1)LeanDockBackdrop::Notify(hWnd,LeanDockBackdrop::Reason::Expansion);
+            ResumeValue(hWnd,L"SyncAt",GetTickCount64());
         }
     }
 }
@@ -852,6 +901,7 @@ LRESULT WINAPI TrayUI_WndProc_Hook(void* pThis,
 
                 void* pTrayUI_ITrayComponentHost =
                     QueryViaVtable(pThis, TrayUI_vftable_ITrayComponentHost);
+                LeanDockBackdrop::Prepare(hWnd);
                 TrayUI_Unhide_Original(pTrayUI_ITrayComponentHost, 0, 0);
 
                 UpdateViewCoordinatorIsExpanded(hWnd);
@@ -917,6 +967,7 @@ LRESULT WINAPI CSecondaryTray_v_WndProc_Hook(void* pThis,
             if (keepShown) {
                 g_taskbarsKeptShown[pThis] = hWnd;
 
+                LeanDockBackdrop::Prepare(hWnd);
                 CSecondaryTray__Unhide_Original(pThis, 0, 0);
 
                 UpdateViewCoordinatorIsExpanded(hWnd);
@@ -948,6 +999,10 @@ void CALLBACK WinEventProc(HWINEVENTHOOK hWinEventHook,
                            DWORD dwEventThread,
                            DWORD dwmsEventTime) {
     if(g_eventStopping)return;
+    if(event==EVENT_SYSTEM_FOREGROUND){
+        ObserveBackdropForeground(hWnd);
+        if(!g_settings.foregroundWindowOnly)return;
+    }
 
     if (idObject != OBJID_WINDOW ||
         (GetWindowLong(hWnd, GWL_STYLE) & WS_CHILD) || IsTaskbarWindow(hWnd)) {
@@ -1054,6 +1109,7 @@ void CALLBACK WinEventProc(HWINEVENTHOOK hWinEventHook,
 }
 
 DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter) {
+    g_backdropWasDesktop=LeanDockBackdrop::IsDesktop(GetForegroundWindow());
     HWINEVENTHOOK winObjectEventHook1 =
         SetWinEventHook(EVENT_OBJECT_CREATE, EVENT_OBJECT_HIDE, nullptr,
                         WinEventProc, 0, 0, WINEVENT_OUTOFCONTEXT);
@@ -1076,7 +1132,7 @@ DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter) {
     }
 
     HWINEVENTHOOK winSystemEventHook1 = nullptr;
-    if (g_settings.foregroundWindowOnly) {
+    {
         winSystemEventHook1 =
             SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND,
                             nullptr, WinEventProc, 0, 0, WINEVENT_OUTOFCONTEXT);
@@ -1114,6 +1170,8 @@ DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter) {
 bool HookTaskbarViewDllSymbols(HMODULE module) {
     // Taskbar.View.dll
     WindhawkUtils::SYMBOL_HOOK symbolHooks[] = {
+        {{LR"(public: bool __cdecl winrt::Taskbar::implementation::ViewCoordinator::IsExpanded(unsigned __int64))"},
+         &ViewCoordinator_IsExpanded_Original, nullptr, true},
         {
             {LR"(public: bool __cdecl winrt::Taskbar::implementation::ViewCoordinator::ShouldTaskbarBeExpanded(unsigned __int64,bool))"},
             &ViewCoordinator_ShouldTaskbarBeExpanded_Original,
@@ -1582,8 +1640,10 @@ void HideComponentUninit() {
     StopEventThread();
     EnumWindows([](HWND window,LPARAM)->BOOL {
         DWORD owner=0;GetWindowThreadProcessId(window,&owner);
-        if(owner==GetCurrentProcessId() && IsTaskbarWindow(window))
+        if(owner==GetCurrentProcessId() && IsTaskbarWindow(window)) {
             for(auto key:{L"LeanDock.Hide.Precise",L"LeanDock.Hide.KeepShown",L"LeanDock.Hide.Decisions",L"LeanDock.Hide.Left",L"LeanDock.Hide.Top",L"LeanDock.Hide.Right",L"LeanDock.Hide.Bottom"})RemovePropW(window,key);
+            ClearResumeState(window);
+        }
         return TRUE;
     },0);
     if(g_wasAutoHideDisabled) {
@@ -1601,3 +1661,5 @@ BOOL HideComponentSettingsChanged(BOOL* bReload) {
 extern "C" BOOL Native_hide_init() { return NDHide::HideComponentInit(); }
 extern "C" void Native_hide_after() { NDHide::HideComponentAfterInit(); }
 extern "C" void Native_hide_stop() { NDHide::HideComponentUninit(); }
+
+extern "C" int Native_hide_expanded(HWND window) { return NDHide::ReadExpandedState(window,L"AtInput"); }

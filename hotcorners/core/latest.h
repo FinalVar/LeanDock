@@ -7,12 +7,17 @@ struct Rect { int left, top, right, bottom; };
 enum Action { None, TaskView, ShowDesktop, StartMenu, LockScreen };
 struct Config {
     unsigned delay = 0;
+    int cornerDelay[4] = { -1, -1, -1, -1 }; // absent override inherits delay
     unsigned cooldown = 0;
     int pixels = 3;
     int rearm = 32;
     bool primaryOnly = false;
     bool fullscreen = true;
     Action actions[4] = { None, None, StartMenu, TaskView };
+    unsigned Delay(int corner) const {
+        return corner >= 0 && corner < 4 && cornerDelay[corner] >= 0
+            ? static_cast<unsigned>(cornerDelay[corner]) : delay;
+    }
 };
 struct Target { int monitor = -1, corner = -1; };
 inline bool Equal(Target a, Target b) { return a.monitor == b.monitor && a.corner == b.corner; }
@@ -44,7 +49,7 @@ struct Engine {
         Target hit = Hit(monitors, count, p, cfg);
         if (hit.monitor < 0) { waiting = {}; due = 0; return; }
         if (blocked || (firedOnce && now - lastFire < cfg.cooldown)) { Consume(hit); return; }
-        if (!Equal(waiting, hit)) { waiting = hit; due = now + cfg.delay; }
+        if (!Equal(waiting, hit)) { waiting = hit; due = now + cfg.Delay(hit.corner); }
     }
     Action Expire(const Rect* monitors, int count, Point p, const Config& cfg, uint64_t now, bool blocked) {
         Target target = waiting;

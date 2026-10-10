@@ -1,0 +1,65 @@
+{
+  "schema": 31,
+  "recordedAtUtc": "2026-10-09T15:03:08.0342603Z",
+  "packageVersion": "0.8.5",
+  "controllerVersion": "0.3.6",
+  "backendVersion": "0.5.5",
+  "scope": "Keep one persistent widget surface across hover and wheel page changes",
+  "previousVerification": "docs/verification-v0.8.4.json",
+  "changes": [
+    "Shared theme-aware rounded surface at original hover opacity 0.12; not part of page switching",
+    "Common and power button templates have identical Normal/PointerOver/Pressed backgrounds",
+    "Media disabled content opacity 0.30 retained; decorative surface is not hit-testable",
+    "Input handlers, native power adapter, page selection and lifetimes unchanged"
+  ],
+  "tests": {
+    "Review": "Style-only XAML change; checked shared parent, explicit visible-page count, input passthrough and theme resources",
+    "Xaml": "Both raw XAML blocks parsed as well-formed XML",
+    "Regression": "No added tests mirroring this visual-only edit",
+    "Ui": "Pending actual hover/wheel/click feedback; Computer Use exposes only ChatGPT, no taskbar target",
+    "Build": "Backend compile/link passed"
+  },
+  "deployment": {
+    "state": "Applied",
+    "live": true,
+    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.5-20261009-230216577",
+    "rollbackValidation": "Passed, 10 files",
+    "uiAcceptance": "Pending continuous-wheel, hover and click feedback",
+    "configurationUnchanged": true,
+    "runtimeHashesMatch": true
+  },
+  "boundaries": [
+    "Runtime readiness does not establish continuous-wheel visual acceptance",
+    "Network unit-transition acceptance and prior battery first-click/stale-glass/right-click issues remain separate"
+  ],
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 281088,
+      "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1945600,
+      "SHA256": "C32EC82A1D0A13797406E6E3C1AD5F3AABB320D6725AC2902E990575BDFE6C90"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ],
+  "currentObservation": {
+    "Ready": 1,
+    "Errors": 0,
+    "View": 3,
+    "VisiblePages": 1,
+    "PageCount": 5,
+    "PreferencesValid": 1
+  }
+}

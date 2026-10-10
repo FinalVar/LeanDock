@@ -1,0 +1,93 @@
+{
+  "schema": 32,
+  "recordedAtUtc": "2026-10-09T15:22:08.5807982Z",
+  "packageVersion": "0.8.6",
+  "controllerVersion": "0.3.6",
+  "backendVersion": "0.5.6",
+  "scope": "Suppress mapped native battery tooltip and join network rate text",
+  "previousVerification": "docs/verification-v0.8.5.json",
+  "changes": [
+    "Join compact numeric value and unit with one space and right-align the complete string",
+    "Remove native tooltip values only in mapped ControlCenterButton subtree; preserve original values/bindings with existing restore owner",
+    "Bound traversal to 128 nodes/24 levels; reuse existing layout/PointerEntered; restore native fallback and teardown",
+    "Common steady surface, input routes, native hits and rate sampler unchanged"
+  ],
+  "tests": {
+    "PreferencesNetwork": "471 checks, 0 failures",
+    "Xaml": "Both raw XAML blocks parse as well-formed XML",
+    "Review": "Checked saved-property restoration, traversal bounds, UI thread ownership, native hit coverage and label unknown/zero/unit transitions",
+    "Ui": "User confirmed tooltip removal and joined network label are both normal on 2026-10-09.",
+    "Build": "Passed: backend 0.5.6; only existing upstream deprecation warning",
+    "Runtime": "Ready; card errors 0; power page visible; all 9 native hit points covered; 6 original tooltip owners saved, 0 remaining values, complete scan, error 0"
+  },
+  "deployment": {
+    "state": "Applied",
+    "live": true,
+    "backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.6-20261009-231743524",
+    "rollbackValidation": "Passed for exact backup, 15 files",
+    "runtimeHashes": "All 4 match built artifacts",
+    "configuration": [
+      {
+        "Name": "latest.ini",
+        "SHA256": "5D3060BEAC27A3D4BDD975FFB1C079E5D31269D63EF3C72260EF0C51346AC375",
+        "Unchanged": true
+      },
+      {
+        "Name": "hotcorners\\latest.ini",
+        "SHA256": "59E3EC5C7AEBF63816D904256908A33EB552A30A7B22F176750741198FD5446E",
+        "Unchanged": true
+      },
+      {
+        "Name": "cards\\latest.ini",
+        "SHA256": "7B5B2509F54FDAD0F16C3165EDE2AE7C95CD4F79B67E686739057FCCF4A070D4",
+        "Unchanged": true
+      }
+    ],
+    "controllerPid": 10828,
+    "explorerPid": 440,
+    "backendVersion": "0.5.6",
+    "currentCardObservation": {
+      "RecordedAtUtc": "2026-10-09T15:18:25.8761765Z",
+      "ExplorerPid": 440,
+      "Ready": 1,
+      "Errors": 0,
+      "View": 2,
+      "VisiblePages": 1,
+      "PageCount": 5,
+      "PreferencesValid": 1,
+      "NativePowerCoverage": 9,
+      "NativePowerTipOwners": 6,
+      "NativePowerTipsRemaining": 0,
+      "NativePowerTipScanComplete": 1,
+      "NativePowerTipError": 0,
+      "NativePowerHitRaw": 1
+    },
+    "uiAcceptance": "Passed for 0.8.6 battery tooltip and network spacing by direct user feedback."
+  },
+  "boundaries": [
+    "Tooltip counters confirm attached-property handling only, not visible popup absence",
+    "Prior battery first-click/stale-glass/right-click acceptance remain separate"
+  ],
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 281088,
+      "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1951744,
+      "SHA256": "C7EEE16AE21A00C40ED7FC8608E068C7444424CECA40769D74DC842652EEA4DD"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ]
+}

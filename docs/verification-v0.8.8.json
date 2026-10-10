@@ -1,0 +1,151 @@
+{
+  "schema": 34,
+  "recordedAtUtc": "2026-10-09T16:01:34.2628458Z",
+  "packageVersion": "0.8.8",
+  "controllerVersion": "0.3.6",
+  "backendVersion": "0.5.8",
+  "scope": "Bounded backdrop source resume after observed desktop and expansion transitions",
+  "previousVerification": "docs/verification-v0.8.7.json",
+  "userEvidence": [
+    "Rapid left-bottom hot-corner desktop toggling can leave the previous application backdrop",
+    "Any click or key can restore it; transient behavior is not a confirmed permanent freeze"
+  ],
+  "changes": [
+    "Retain upstream blur effect; reconnect backdrop source and request composition commit",
+    "Reuse existing hide WinEvent worker for observed desktop foreground transitions",
+    "Two UI-thread passes, generation cancellation, weak owner/root checks, disconnect and stop cleanup"
+  ],
+  "tests": {
+    "transitionPolicy": "79 checks passed, including 64-request burst and stale callbacks",
+    "eventLifecycle": "200 checks passed",
+    "build": "Backend 0.5.8 compiled; existing upstream deprecation warning only",
+    "review": "No extra thread, input synthesis, layout, tint, hit-testing or polling changes; root and shutdown lifetimes guarded",
+    "ui": "User reports brief stale backdrop remains but now recovers without further click/key.",
+    "liveComponentProbe": "One registered component resume request submitted 2 source updates. A later 32-request burst submitted only 2 more. No simulated input or desktop toggles were used.",
+    "idle": "Request count 33 and refresh count 4 remained stable for more than 30 seconds; pending 0; no synchronous backdrop error recorded.",
+    "diff": "Whitespace check passed"
+  },
+  "deployment": {
+    "state": "Applied",
+    "live": true,
+    "backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.8-20261009-235910248",
+    "original087Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.8-20261009-235538157",
+    "rollbackValidation": "Latest backup validated; use rollback in reverse update order to reach 0.8.7",
+    "runtimeHashes": [
+      {
+        "Name": "latest.exe",
+        "Match": true,
+        "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+      },
+      {
+        "Name": "latest.dll",
+        "Match": true,
+        "SHA256": "6F8BE983033504A526FCF5DEFA92D0A16EB8FD3E982B28A108041F4FE3F65A53"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Match": true,
+        "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Match": true,
+        "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+      }
+    ],
+    "configuration": [
+      {
+        "Name": "latest.ini",
+        "Unchanged": true,
+        "SHA256": "5D3060BEAC27A3D4BDD975FFB1C079E5D31269D63EF3C72260EF0C51346AC375"
+      },
+      {
+        "Name": "hotcorners\\latest.ini",
+        "Unchanged": true,
+        "SHA256": "59E3EC5C7AEBF63816D904256908A33EB552A30A7B22F176750741198FD5446E"
+      },
+      {
+        "Name": "cards\\latest.ini",
+        "Unchanged": true,
+        "SHA256": "DD755EF01ECDC9BB7E91DDF94A0C88F40191E4E6A7B71D17D5B820D8B3029B46"
+      }
+    ],
+    "controllerPid": 13340,
+    "explorerPid": 3548,
+    "backend": {
+      "protocol": 1,
+      "version": "0.5.8",
+      "explorerPid": 3548,
+      "ownerPid": 13340,
+      "state": 2,
+      "hooks": 58,
+      "styledElements": 26,
+      "failed": false
+    },
+    "currentObservation": {
+      "AtUtc": "2026-10-09T16:00:57.8919818Z",
+      "Tick": 213333812,
+      "Taskbar": 4655162,
+      "Explorer": 3548,
+      "Thread": 5440,
+      "ForegroundClass": "Progman",
+      "Frozen": 0,
+      "FreezeResult": 0,
+      "Backdrop.Requests": 33,
+      "Backdrop.Refreshes": 4,
+      "Backdrop.Pending": 0,
+      "Backdrop.Reason": 2,
+      "Backdrop.LastRequestAt": 213300140,
+      "Backdrop.LastRefreshAt": 213300328,
+      "Backdrop.Error": null,
+      "Card.Ready": 1,
+      "Card.Errors": 0,
+      "Card.View": 4,
+      "Card.VisiblePages": 1,
+      "Card.PageCount": 5,
+      "Hide.KeepShown": 1,
+      "Resume.ExpandedAtQuery": null,
+      "Resume.BeforeSync": null,
+      "Resume.AfterSync": null,
+      "Resume.SyncAt": null
+    },
+    "uiAcceptance": "Partial: user confirms self-recovery; residual frames remain. 68 real left-bottom activations observed."
+  },
+  "boundaries": [
+    "Fresh source submission is not proof of correct screen presentation",
+    "Underlying Windows compositor cause is not established",
+    "Earlier power-click acceptance did not verify stale-backdrop recovery",
+    "Light/dark contrast changes from 0.8.7 still need their own visual acceptance"
+  ],
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 281088,
+      "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1965056,
+      "SHA256": "6F8BE983033504A526FCF5DEFA92D0A16EB8FD3E982B28A108041F4FE3F65A53"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ],
+  "userAcceptance": {
+    "atUtc": "2026-10-09T16:03:55.8851164Z",
+    "statement": "会短暂残留，但能自行恢复",
+    "hotCornerActivations": 68,
+    "requests": 140,
+    "refreshes": 104,
+    "backdropErrorRecorded": false,
+    "interpretation": "Input-dependent recovery improved; visual transition not fully fixed"
+  }
+}

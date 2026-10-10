@@ -1,0 +1,51 @@
+{
+  "schema": 38,
+  "recordedAtUtc": "2026-10-10T05:43:18.9128861Z",
+  "packageVersion": "0.8.12",
+  "backendVersion": "0.5.12",
+  "scope": "Move material outside native TaskbarBackground subtree",
+  "previousVerification": "docs/verification-v0.8.11.json",
+  "previousAcceptance": "0.8.10/0.8.11 still became transparent during actual four-finger gestures; 0.8.9 hot-corner recovery remains separately accepted",
+  "changes": [
+    "Material host is a sibling of BackgroundControl; no private gesture hooks",
+    "Canvas contributes zero desired size; existing layout callback follows native size",
+    "Read-only probe outer noexcept path uses stack storage"
+  ],
+  "tests": {
+    "build": "Backend build passed; runtime hash receipt generated; one retained upstream deprecation warning",
+    "material": "32 native hidden-XAML component checks passed: actual production adapter, growing/shrinking widths, transformed bounds, native background ancestry isolation, theme resources, radius binding, no input interception, teardown/rebuild",
+    "gesture": "FAILED: user confirms 0.8.12 has the same four-finger gesture transparency (一样). Moving pigment outside native TaskbarBackground did not solve it.",
+    "backdrop": "86 transition checks, zero failures",
+    "liveSnapshot": "17/17 matched snapshots, material Ready=1 Error=0, ancestry Grid -> owned Canvas -> RootGrid; native TaskbarBackground no longer an ancestor. HostVisible=0 at capture, so this is not visible pixel validation.",
+    "negativeMarginGeometry": "Additional 32 checks passed in hidden native fixture with taskbar-style padding and negative background margins; grow/shrink and transformed bounds matched."
+  },
+  "deployment": {
+    "state": "Applied",
+    "version": "0.8.12",
+    "live": true,
+    "backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.12-20261010-134039406",
+    "rollback": "Validated 16 files",
+    "runtimeHashes": "All four runtime files match build receipt",
+    "configPreserved": true,
+    "explorer": 12996,
+    "controller": 29376,
+    "backend": "0.5.12",
+    "hooks": 58,
+    "failed": false
+  },
+  "boundaries": [
+    "No tool can simulate actual four-finger touchpad input here",
+    "Unchanged opacity getters are not final compositor pixels",
+    "Alternative native animation surface remains unproven; no hook added"
+  ],
+  "review": {
+    "maintainability": "One owned Canvas and rectangle; existing layout/lifecycle reused",
+    "boundaries": "Native template replacement, theme, auto width, shrink, transforms, unload",
+    "regression": "No change to hot corners, menus, card input, global animations"
+  },
+  "userFeedback": {
+    "at": "2026-10-10T05:59:18.6682483Z",
+    "quote": "一样",
+    "result": "Failed"
+  }
+}

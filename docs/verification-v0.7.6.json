@@ -1,0 +1,80 @@
+{
+  "schema": 24,
+  "recordedAtUtc": "2026-10-09T03:31:49.2702753Z",
+  "packageVersion": "0.7.6",
+  "controllerVersion": "0.3.5",
+  "backendVersion": "0.4.19",
+  "scope": "Full-card coverage by the native ControlCenter IconView; no synthetic click retry",
+  "previousFailure": "docs/verification-v0.7.5.json",
+  "nativeReference": "docs/power-input-native-latest.json",
+  "changes": [
+    "Preserve clean ShellHost recovery and existing flyout centering",
+    "Select one loaded IconView with a visible ancestor chain",
+    "Reuse reversible DockNormalizeIcon and original parents to cover the complete battery card",
+    "Require all nine sampled points to have a topmost hit descending from the native action receiver",
+    "Keep same-thread lifetime, revoke handled-event visual subscriptions and restore properties on Stop",
+    "Record input target ancestry and contemporaneous DWM freeze status; do not force composition redraw"
+  ],
+  "tests": {
+    "Build": "Backend compile and link passed",
+    "Cards": "104 checks, 0 failures",
+    "Imports": "All four runtime artifacts import system DLLs only",
+    "Ui": "Not yet observed"
+  },
+  "deployment": {
+    "state": "Applied",
+    "live": true,
+    "configurationPreserved": true,
+    "uiAcceptance": "No new user input during initial 60-second read-only observation. Awaiting card center/edge, desktop first-click, right-click and stale-backdrop feedback.",
+    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.7.6-20261009-112756815",
+    "rollbackValidation": "Passed, 18 files"
+  },
+  "boundaries": [
+    "0.7.5 failed click had expansion=true, XAML host visible=true, enabled hit-testing and 3 loaded IconViews; those guards did not fix the issue",
+    "The native event-path/coverage defect is identified; the user-reported stale backdrop has not been independently reproduced or explained",
+    "Topmost hit coverage and input counters do not prove flyout visibility or menu click behavior",
+    "No new compositor refresh, timers, private offsets, native hooks or processes",
+    "Multi-monitor, DPI change, sleeping/resume and long-term stability not newly validated"
+  ],
+  "preserved": {
+    "ControllerBinary": true,
+    "StartBinary": true,
+    "QuickPositionBinary": true,
+    "UnrelatedCornerSource": true
+  },
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 235520,
+      "SHA256": "89688CAA648AE3FEE7A94D9FDFE10085938D1E5DF9C5D92F95BED33BF5F10C34"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1909248,
+      "SHA256": "CDF9493661F8829915D6C4C03B81FDA8F86861556974137EB2F9C69E3564B0A7"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ],
+  "currentObservation": {
+    "At": "2026-10-09T11:29:24.0195285+08:00",
+    "BackendVersion": "0.4.19",
+    "BackendFailed": false,
+    "NativeHooks": 58,
+    "CardErrors": 0,
+    "DockCenterPhysicalPixels": 1280,
+    "VisiblePages": 1,
+    "Page": 0,
+    "InputCoverage": "Pending: 60-second observer contained no power page selection or new user clicks",
+    "Ui": "Not accepted yet; pending asynchronous user validation",
+    "QuickTheme": "Initial host discovery pending at snapshot; companion binary unchanged"
+  }
+}

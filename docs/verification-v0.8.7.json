@@ -1,0 +1,93 @@
+{
+  "schema": 33,
+  "recordedAtUtc": "2026-10-09T15:30:29.2266105Z",
+  "packageVersion": "0.8.7",
+  "controllerVersion": "0.3.6",
+  "backendVersion": "0.5.7",
+  "scope": "Theme-aware glass contrast and stable five-page card palette",
+  "previousVerification": "docs/verification-v0.8.6.json",
+  "changes": [
+    "Use existing upstream blur with neutral tint 0.32, luminosity 0.35, saturation 0.85 and blur 12",
+    "Local Light/Default/HighContrast dictionaries for persistent card surface, accents and ring track",
+    "Theme-resource gradient dividers, secondary text opacity 0.82; no input or layout changes"
+  ],
+  "tests": {
+    "Xaml": "4 raw XAML blocks are well-formed XML",
+    "Style": "Baseline JSON parses; generator completed",
+    "Diff": "Whitespace check passed",
+    "Build": "Passed; backend 0.5.7; existing upstream deprecation warning only",
+    "Review": "Reuse existing composition and XAML resource lifetimes; decorative surfaces remain non-hit-testable; native power and network labels unchanged",
+    "Ui": "Pending user light/dark visual feedback",
+    "Runtime": "Dock and cards ready; native XAML constructed; errors 0; network page is sole visible page; 5 pages available; no hook increase (58)"
+  },
+  "deployment": {
+    "state": "Applied",
+    "live": true,
+    "backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.7-20261009-232927320",
+    "rollbackValidation": "Passed, exact backup 14 files",
+    "runtimeHashes": "All 4 match built artifacts",
+    "configuration": [
+      {
+        "Name": "latest.ini",
+        "SHA256": "5D3060BEAC27A3D4BDD975FFB1C079E5D31269D63EF3C72260EF0C51346AC375",
+        "Unchanged": true
+      },
+      {
+        "Name": "hotcorners\\latest.ini",
+        "SHA256": "59E3EC5C7AEBF63816D904256908A33EB552A30A7B22F176750741198FD5446E",
+        "Unchanged": true
+      },
+      {
+        "Name": "cards\\latest.ini",
+        "SHA256": "DD755EF01ECDC9BB7E91DDF94A0C88F40191E4E6A7B71D17D5B820D8B3029B46",
+        "Unchanged": true
+      }
+    ],
+    "controllerPid": 11972,
+    "explorerPid": 15548,
+    "backendVersion": "0.5.7",
+    "currentCardObservation": {
+      "RecordedAtUtc": "2026-10-09T15:30:06.6211522Z",
+      "ExplorerPid": 15548,
+      "Ready": 1,
+      "Errors": 0,
+      "View": 4,
+      "VisiblePages": 1,
+      "PageCount": 5,
+      "PreferencesValid": 1,
+      "NativePowerCoverage": null,
+      "NativePowerTipOwners": null,
+      "NativePowerTipsRemaining": null,
+      "NativePowerTipScanComplete": null,
+      "NativePowerTipError": null
+    },
+    "uiAcceptance": "Pending user light/dark appearance and theme-switch feedback"
+  },
+  "boundaries": [
+    "XML parsing is not native XAML UI acceptance",
+    "Readiness does not prove theme switching, click behavior or subjective glass quality",
+    "No global display scale, icon coloring, application themes, card order or hover behavior changed"
+  ],
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 281088,
+      "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1951744,
+      "SHA256": "26E3362C7E25334287C86FBABF9F267EF8578718C23157EC035516B10D5154B9"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ]
+}

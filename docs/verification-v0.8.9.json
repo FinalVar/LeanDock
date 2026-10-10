@@ -1,0 +1,159 @@
+{
+  "schema": 35,
+  "recordedAtUtc": "2026-10-09T16:13:25.2380864Z",
+  "packageVersion": "0.8.9",
+  "controllerVersion": "0.3.6",
+  "backendVersion": "0.5.9",
+  "scope": "Prepare existing backdrop source before native taskbar Unhide",
+  "previousVerification": "docs/verification-v0.8.8.json",
+  "previousAcceptance": "0.8.8 user confirmed brief residual now self-recovers; no complete visual fix claimed",
+  "changes": [
+    "Same-thread synchronous backdrop preparation immediately before primary/secondary native Unhide",
+    "Cancel previous scene timers before preparation; retain bounded post-show recovery",
+    "Reuse one source-refresh method with valid owner/root/load checks and optional host-visibility requirement"
+  ],
+  "tests": {
+    "transitionAndPrepare": "86 checks passed, including same-thread synchronous dispatch and cross-thread refusal on test-owned hidden window",
+    "build": "Backend 0.5.9 passed; retained upstream deprecation warning only",
+    "review": "No new private Windows interface or thread; original Unhide remains responsible for animation and visibility; disconnected/fallback brushes left native",
+    "ui": "Passed by direct user observation: rapid left-bottom hot-corner desktop switches no longer showed stale backdrop.",
+    "componentProbe": "Real Explorer IPC: scheduled resume followed by prepare submitted one immediate source update and cancelled old timer; Prepares=1, no sync error. A natural foreground event followed during observation; hidden-host recovery skipped as designed.",
+    "idle": "No further backdrop refresh during the 45-second sample after component preparation.",
+    "diff": "Whitespace check passed"
+  },
+  "deployment": {
+    "state": "Applied",
+    "live": true,
+    "backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.9-20261010-000825689",
+    "rollbackValidation": "Passed, 17 files",
+    "runtimeHashes": [
+      {
+        "Name": "latest.exe",
+        "Match": true,
+        "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+      },
+      {
+        "Name": "latest.dll",
+        "Match": true,
+        "SHA256": "BAD71236ED38E41EDAC13A9461C5EBCE75E4DD4D14BF5374DB383EAEEE48CC7A"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Match": true,
+        "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Match": true,
+        "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+      }
+    ],
+    "configuration": [
+      {
+        "Name": "latest.ini",
+        "Unchanged": true,
+        "SHA256": "5D3060BEAC27A3D4BDD975FFB1C079E5D31269D63EF3C72260EF0C51346AC375"
+      },
+      {
+        "Name": "hotcorners\\latest.ini",
+        "Unchanged": true,
+        "SHA256": "59E3EC5C7AEBF63816D904256908A33EB552A30A7B22F176750741198FD5446E"
+      },
+      {
+        "Name": "cards\\latest.ini",
+        "Unchanged": true,
+        "SHA256": "DD755EF01ECDC9BB7E91DDF94A0C88F40191E4E6A7B71D17D5B820D8B3029B46"
+      }
+    ],
+    "backend": {
+      "protocol": 1,
+      "version": "0.5.9",
+      "explorerPid": 17192,
+      "ownerPid": 21348,
+      "state": 2,
+      "hooks": 58,
+      "styledElements": 26,
+      "failed": false
+    },
+    "controllerPid": 21348,
+    "explorerPid": 17192,
+    "lastObservation": {
+      "AtUtc": "2026-10-09T16:12:50.3828747Z",
+      "Tick": 214046296,
+      "Taskbar": 8389778,
+      "Explorer": 17192,
+      "Thread": 11520,
+      "ForegroundClass": "Chrome_WidgetWin_1",
+      "Frozen": 0,
+      "FreezeResult": 0,
+      "Backdrop.Requests": 66,
+      "Backdrop.Refreshes": 66,
+      "Backdrop.Prepares": 17,
+      "Backdrop.LastPrepareAt": 214028593,
+      "Backdrop.Pending": 0,
+      "Backdrop.Reason": 2,
+      "Backdrop.LastRequestAt": 214029406,
+      "Backdrop.LastRefreshAt": 214029437,
+      "Backdrop.Error": null,
+      "Card.Ready": 1,
+      "Card.Errors": 0,
+      "Card.View": 4,
+      "Card.VisiblePages": 1,
+      "Card.PageCount": 5,
+      "Hide.KeepShown": 0,
+      "Resume.ExpandedAtQuery": 1,
+      "Resume.BeforeSync": 1,
+      "Resume.AfterSync": 1,
+      "Resume.SyncAt": 214029406
+    },
+    "hotCornerActivations": [
+      0,
+      0,
+      27,
+      0
+    ],
+    "uiAcceptance": "Accepted on 2026-10-10 Asia/Shanghai: user replied 没有再出现 to the 0.8.9 rapid desktop-switch test."
+  },
+  "boundaries": [
+    "Compositor commit submission alone is not visual evidence; this acceptance includes the direct user observation above.",
+    "Underlying Windows stale-frame cause remains unproven.",
+    "Acceptance covers this machine and rapid left-bottom hot-corner transitions, not all hardware, display arrangements or Windows builds.",
+    "Preparation currently precedes LeanDock policy-driven native Unhide; earlier Windows-internal expansion paths may exist."
+  ],
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 281088,
+      "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1966592,
+      "SHA256": "BAD71236ED38E41EDAC13A9461C5EBCE75E4DD4D14BF5374DB383EAEEE48CC7A"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ],
+  "userAcceptance": {
+    "date": "2026-10-10",
+    "timeZone": "Asia/Shanghai",
+    "role": "user",
+    "statement": "没有再出现",
+    "scenario": "Rapid left-bottom hot-corner desktop/application switches, stopping on desktop without extra click/key",
+    "result": "No stale backdrop observed in this test",
+    "instanceHotCornerActivations": 27,
+    "hotCornerFailures": 0,
+    "backdropPending": 0,
+    "backdropErrorRecorded": false,
+    "runtimeHashes": "All four deployed runtime hashes match 0.8.9 build",
+    "limits": "Acceptance covers this current-machine scenario; no claim about all Windows builds or compositor internals"
+  }
+}

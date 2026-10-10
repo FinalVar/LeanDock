@@ -1,0 +1,29 @@
+[
+  {
+    "Path": "C:\\Windows\\System32\\twinui.pcshell.dll",
+    "SHA256": "8BA440EDED430A2417692A98B34695A12AD0EE000333DFED07E0C2723E17111C",
+    "Pdb": "twinui.pcshell.pdb",
+    "GuidAge": "9507F3DAD47F5F026569FC50273C40D71",
+    "Source": "https://msdl.microsoft.com/download/symbols/twinui.pcshell.pdb/9507F3DAD47F5F026569FC50273C40D71/twinui.pcshell.pdb",
+    "Signature": "public: long __cdecl VirtualDesktopGestureWindow::Initialize(unsigned long) __ptr64",
+    "Rva": 2503744
+  },
+  {
+    "Path": "C:\\Windows\\System32\\twinui.dll",
+    "SHA256": "B2262A842ADF22F78BF596DCF6815F1B3AEC282469995D939901E93BCF943D65",
+    "Pdb": "twinui.pdb",
+    "GuidAge": "FDDD5C12E412A64AD5FB8AA23B5029871",
+    "Source": "https://msdl.microsoft.com/download/symbols/twinui.pdb/FDDD5C12E412A64AD5FB8AA23B5029871/twinui.pdb",
+    "Signature": "public: virtual long __cdecl CDCompWindowThumbnail::Freeze(void) __ptr64",
+    "Rva": 1821424
+  },
+  {
+    "Path": "C:\\Windows\\System32\\twinui.dll",
+    "SHA256": "B2262A842ADF22F78BF596DCF6815F1B3AEC282469995D939901E93BCF943D65",
+    "Pdb": "twinui.pdb",
+    "GuidAge": "FDDD5C12E412A64AD5FB8AA23B5029871",
+    "Source": "https://msdl.microsoft.com/download/symbols/twinui.pdb/FDDD5C12E412A64AD5FB8AA23B5029871/twinui.pdb",
+    "Signature": "public: virtual struct HWND__ * __ptr64 __cdecl CDCompWindowThumbnail::GetSourceWindow(void) __ptr64",
+    "Rva": 1821856
+  }
+]

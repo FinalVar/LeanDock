@@ -4,8 +4,8 @@ $CompilerRoot=Resolve-LeanDockCompiler $CompilerRoot
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 $clang=Join-Path $CompilerRoot 'bin\clang++.exe'
-$items=@(@{Name='hotcorners-core';Source=(Join-Path $root 'hotcorners\tests\latest.cpp')},@{Name='hotcorners-host';Source=(Join-Path $PSScriptRoot 'hotcorners-host-latest.cpp')})
-if(-not $IncludeHosted){$items=@($items | Where-Object Name -eq 'hotcorners-core')}
+$items=@(@{Name='hotcorners-core';Source=(Join-Path $root 'hotcorners\tests\latest.cpp')},@{Name='hotcorners-config';Source=(Join-Path $PSScriptRoot 'hotcorners-config-latest.cpp')},@{Name='hotcorners-host';Source=(Join-Path $PSScriptRoot 'hotcorners-host-latest.cpp')})
+if(-not $IncludeHosted){$items=@($items | Where-Object Name -ne 'hotcorners-host')}
 if($IncludeHosted){
     $existing=$null
     if([Threading.Mutex]::TryOpenExisting('Local\NativeHotCorners.1.Instance',[ref]$existing)){

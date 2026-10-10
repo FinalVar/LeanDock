@@ -2,6 +2,7 @@
 #include <cwchar>
 #include <iterator>
 #include "quick-position-latest.h"
+#include "quick-lifecycle-latest.h"
 #include "verify-latest.h"
 
 namespace LeanDockQuickHost {
@@ -12,6 +13,9 @@ inline HANDLE targetProcess;
 inline DWORD owner,attemptedPid;
 inline bool supported,blocked,attaching;
 inline unsigned failures;
+inline LeanDockQuick::RestartPolicy restartPolicy;
+inline DWORD lastExitCode;
+inline bool lastExitKnown;
 inline bool Host(HWND w) {
     DWORD pid=0,session=0,ours=0;wchar_t cls[64]{};
     if(!w||GetAncestor(w,GA_ROOT)!=w||!GetClassNameW(w,cls,std::size(cls))||wcscmp(cls,L"ControlCenterWindow"))return false;
@@ -40,9 +44,16 @@ inline bool Verify() {
 }
 inline bool Attach(HWND w) {
     if(!supported||blocked||attaching||!procedure||!Host(w))return false;
-    if(targetProcess&&WaitForSingleObject(targetProcess,0)!=WAIT_TIMEOUT){blocked=true;++failures;return false;}
+    if(targetProcess&&WaitForSingleObject(targetProcess,0)!=WAIT_TIMEOUT){
+        lastExitKnown=GetExitCodeProcess(targetProcess,&lastExitCode)!=FALSE;
+        const bool recover=restartPolicy.Retired(lastExitKnown,lastExitCode,GetTickCount64());
+        CloseHandle(targetProcess);targetProcess=nullptr;target=nullptr;attemptedPid=0;
+        if(!recover){blocked=true;++failures;return false;}
+    }
     if(target==w&&Query())return true;
     DWORD pid=0;const DWORD tid=GetWindowThreadProcessId(w,&pid);
+    // Never reuse the tracked handle for another still-live host.
+    if(targetProcess&&GetProcessId(targetProcess)!=pid)return false;
     if(attemptedPid==pid)return false;
     attaching=true;
     struct Guard{~Guard(){attaching=false;}} guard;
@@ -82,6 +93,7 @@ inline void Stop() {
     }
     if(targetProcess){CloseHandle(targetProcess);targetProcess=nullptr;}
     target=nullptr;procedure=nullptr;owner=attemptedPid=0;supported=blocked=attaching=false;
+    restartPolicy={};lastExitCode=0;lastExitKnown=false;
     if(module){FreeLibrary(module);module=nullptr;}
 }
 }

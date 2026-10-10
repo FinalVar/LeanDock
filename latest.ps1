@@ -1,9 +1,13 @@
-param([ValidateSet('Status','Start','Stop','Install','Uninstall','PauseCorners','ResumeCorners','ReloadCorners','Update','Rollback','Resources')][string]$Action='Status',
+param([ValidateSet('Status','Start','Stop','Install','Uninstall','PauseCorners','ResumeCorners','ReloadCorners','Update','Rollback','Resources','Cards')][string]$Action='Status',
  [string]$PackagePath='', [string]$Destination=$PSScriptRoot,[string]$BackupPath='',[switch]$ValidateOnly,
  [ValidateSet('Observe','Visible','Hidden','Media','Battery','Native')][string]$Scenario='Observe',
  [ValidateRange(5,300)][int]$DurationSeconds=30,[string]$OutputPath='', [string]$BaselinePath='',
  [ValidateRange(0,60)][int]$NativeBaselineSeconds=0)
 $ErrorActionPreference='Stop'
+if($Action -eq 'Cards'){
+ Start-Process -FilePath (Join-Path $Destination 'latest.exe') -ArgumentList '--cards'
+ return
+}
 if($Action -in @('Update','Rollback') -or ($Action -eq 'Install' -and $PackagePath)){
  & (Join-Path $PSScriptRoot 'maintenance/latest.ps1') -Action $Action -PackagePath $PackagePath -Destination $Destination -BackupPath $BackupPath -ValidateOnly:$ValidateOnly -NativeBaselineSeconds $NativeBaselineSeconds
  return
@@ -92,7 +96,7 @@ function Get-LiveStatus {
         }
     }
     $t=Get-OwnTask
-    $quick=[pscustomobject]@{Supported=$runtime.quickPositionSupported;Active=($running -and $runtime.quickPositionActive);Blocked=$runtime.quickPositionBlocked;Failures=$runtime.quickPositionFailures;Adjustments=$runtime.quickPositionAdjustments}
+    $quick=[pscustomobject]@{Supported=$runtime.quickPositionSupported;Active=($running -and $runtime.quickPositionActive);Blocked=$runtime.quickPositionBlocked;Failures=$runtime.quickPositionFailures;Adjustments=$runtime.quickPositionAdjustments;Recoveries=$runtime.quickPositionRecoveries;LastExitCode=if($runtime.quickPositionLastExitKnown){$runtime.quickPositionLastExitCode}else{$null}}
     $theme=$null;$themeStatusPath=Join-Path $root 'panels\latest-status.json'
     if($quick.Active -and (Test-Path -LiteralPath $themeStatusPath)){
         try {

@@ -1,0 +1,39 @@
+{
+  "Module": "SystemTray.dll",
+  "SHA256": "C5F5260A2A56C4D7B0EE25978AA06C387B5DDFFC57C5FE412BE429D1289913CE",
+  "Pdb": "SystemTray.pdb",
+  "GuidAge": "2007F3890B9D4D16AF78BAFE771227281",
+  "Source": "https://msdl.microsoft.com/download/symbols/SystemTray.pdb/2007F3890B9D4D16AF78BAFE771227281/SystemTray.pdb",
+  "ReviewedSymbols": [
+    {
+      "Signature": "public: bool __cdecl winrt::SystemTray::implementation::OmniButton::ForwardClickToIconView(bool,bool) __ptr64",
+      "Rva": 417192
+    },
+    {
+      "Signature": "public: void __cdecl winrt::SystemTray::implementation::OmniButton::HandleTapped(struct winrt::Windows::Foundation::IInspectable const & __ptr64,struct winrt::Windows::UI::Xaml::Input::TappedRoutedEventArgs const & __ptr64) __ptr64",
+      "Rva": 420480
+    },
+    {
+      "Signature": "public: void winrt::SystemTray::implementation::OmniButton::HandleLoaded(IInspectable const&, RoutedEventArgs const&)",
+      "Rva": 418432
+    },
+    {
+      "Signature": "private: void winrt::SystemTray::implementation::IconView::OnTappedHandler(IInspectable const&, TappedRoutedEventArgs)",
+      "Rva": 269568
+    }
+  ],
+  "ObservedBehavior": "HandleLoaded registers the OmniButton Tapped forwarding on the NotificationCenterButton branch. ControlCenterButton uses its descendant IconView input; a hit on the outer Grid alone does not prove an action receiver.",
+  "LocalChange": "Select one loaded visible IconView, reuse reversible DockNormalizeIcon/layout to cover the full card, require topmost-target coverage at nine points",
+  "NoBinaryOrPdbDistributed": true,
+  "NoNewNativeHook": true,
+  "ExpansionGetter": {
+    "Module": "Taskbar.View.dll",
+    "SHA256": "CF7E002533DEF6628BA121481A703A06FC30ACCAA5E5CADD1A412F65F2D8BA77",
+    "Pdb": "Taskbar.View.pdb",
+    "GuidAge": "24534974E00E46A58F69F60D0CEB9BD91",
+    "Source": "https://msdl.microsoft.com/download/symbols/Taskbar.View.pdb/24534974E00E46A58F69F60D0CEB9BD91/Taskbar.View.pdb",
+    "Signature": "public: bool __cdecl winrt::Taskbar::implementation::ViewCoordinator::IsExpanded(unsigned __int64)",
+    "Rva": 262240,
+    "Use": "Read-only observation on owning taskbar thread, no hook or field offsets"
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema": 30,
+  "recordedAtUtc": "2026-10-09T14:55:19.1221818Z",
+  "packageVersion": "0.8.4",
+  "controllerVersion": "0.3.6",
+  "backendVersion": "0.5.4",
+  "scope": "Fix network suffix edge while preserving compact fixed layout",
+  "previousVerification": "docs/verification-v0.8.3.json",
+  "changes": [
+    "Fixed 60 DIP group and 26 DIP number column anchor both outer edges",
+    "Right-align B/KB/MB/GB within fixed 18 DIP unit column",
+    "Native Viewbox DownOnly fits exceptional long numbers without moving arrows or units"
+  ],
+  "tests": {
+    "Review": "Layout-only XAML change; formatter, sampling and input unchanged",
+    "Regression": "Existing formatter tests unchanged; no mirrored layout tests",
+    "Ui": "Pending real unit transitions",
+    "Build": "Backend compile/link passed"
+  },
+  "deployment": {
+    "state": "Applied",
+    "live": true,
+    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.4-20261009-225420300",
+    "rollbackValidation": "Passed, 10 files",
+    "uiAcceptance": "Pending real unit transition appearance",
+    "dockAndCornerConfigurationUnchanged": true,
+    "cardPreferences": "Runtime preferences are excluded from package; observed hash changed during work and left untouched",
+    "runtimeHashesMatch": true
+  },
+  "boundaries": [
+    "Runtime load does not establish visual edge stability",
+    "Prior battery first-click, stale glass and first-right-click acceptance remain separate"
+  ],
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 281088,
+      "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1946112,
+      "SHA256": "1B02BE4131D878E962281A8317F87B57EF92A32855CE3BF0CBEDB2ABA00F3D3E"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ],
+  "currentObservation": {
+    "Ready": 1,
+    "Errors": 0,
+    "View": 0,
+    "VisiblePages": 1,
+    "PageCount": 5,
+    "PreferencesValid": 1
+  }
+}

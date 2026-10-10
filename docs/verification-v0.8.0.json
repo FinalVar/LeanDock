@@ -1,0 +1,102 @@
+{
+  "schema": 26,
+  "recordedAtUtc": "2026-10-09T10:00:59.4116344Z",
+  "packageVersion": "0.8.0",
+  "controllerVersion": "0.3.6",
+  "backendVersion": "0.5.0",
+  "scope": "Single fixed card preferences, remembered selection, click actions and physical network rates",
+  "previousVerification": "docs/verification-v0.7.7.json",
+  "changes": [
+    "Clock first-use default; ordered enabled pages; remembered manual selection",
+    "Short-lived native settings window via middle click or Cards management action",
+    "Whole-card clock / metrics / network click targets",
+    "Physical Ethernet/Wi-Fi upload/download, one asynchronous read at a time, only while visible",
+    "Existing ContextRequested ownership and native battery mapping preserved"
+  ],
+  "tests": {
+    "LiveNetwork": "1 active physical interface, 1.377 ms one-time query; no traffic generated",
+    "Cards": "107 checks, 0 failures",
+    "Build": "Controller and backend passed",
+    "SettingsUI": "Actual window and five page controls enumerated; screenshot showed locked desktop, no click/visual acceptance",
+    "Geometry": "199 checks, 0 failures",
+    "ShellActions": "92 checks, 0 failures, no input sent",
+    "PreferencesAndNetwork": "465 checks, 0 failures",
+    "Imports": "Four artifacts, system DLLs only"
+  },
+  "deployment": {
+    "state": "Applied",
+    "live": true,
+    "runtimeBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.0-20261009-175908695",
+    "configurationPreserved": true,
+    "rollbackValidation": "Passed, 28 files",
+    "uiAcceptance": "Pending unlocked desktop"
+  },
+  "boundaries": [
+    "Desktop was locked during attempted Computer Use; do not infer visible layout/click success from accessibility tree",
+    "Earlier first battery click, stale glass and first right-click remain pending actual acceptance",
+    "Calendar opens native Win+N panel; no new panel repositioning",
+    "Network includes LAN traffic and excludes virtual/tunnel adapters; not an Internet speed test",
+    "Multi-monitor / DPI / suspend not exercised in this turn"
+  ],
+  "preserved": {
+    "ExistingConfig": true,
+    "UnrelatedCornerSource": true,
+    "QuickPositionBinary": true,
+    "StartBinary": true
+  },
+  "artifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 281088,
+      "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 1943552,
+      "SHA256": "F586C64325445E3DF83F132E08D97F6BD1F93E95C8DACAF1BEE58B1A3ED16535"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ],
+  "currentObservation": {
+    "controllerPid": 27184,
+    "explorerPid": 33480,
+    "backend": {
+      "protocol": 1,
+      "version": "0.5.0",
+      "explorerPid": 33480,
+      "ownerPid": 27184,
+      "state": 2,
+      "hooks": 58,
+      "styledElements": 26,
+      "failed": false
+    },
+    "cards": {
+      "Ready": 1,
+      "Visible": 1,
+      "Errors": 0,
+      "View": 3,
+      "VisiblePages": 1,
+      "PageCount": 5,
+      "PreferencesValid": 1,
+      "ClockActive": 1,
+      "ClockHourMinute": 1800,
+      "ClockMonthDay": 1009,
+      "ClockUpdates": 3,
+      "Sampling": 0,
+      "NetworkActive": 0,
+      "NetworkSamples": 0
+    },
+    "runtimeHashes": "All four match build receipt",
+    "settingsProcess": "Closed after lock-screen capture; not resident",
+    "clockSampling": "Visible minute updates observed; CPU and network sampling inactive on clock page"
+  }
+}
