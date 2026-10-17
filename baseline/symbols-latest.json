@@ -6,13 +6,13 @@
   },
   {
     "Mod": "local@taskbar-notification-icon-spacing-merged",
-    "Key": "pdb_0A5DD95BEF53208B28B2F3D8586E64261",
-    "Value": "1#taskbar.dll#3907302353-3178496#public: virtual class std::shared_ptr<class TaskbarHost> __cdecl CTaskBand::GetTaskbarHost(void)const #1094944#public: int __cdecl TaskbarHost::FrameHeight(void)const #565500#public: void __cdecl std::_Ref_count_base::_Decref(void)#162688#const CTaskBand::`vftable'{for `ITaskListWndSite'}#1897136"
+    "Key": "pdb_DAB69A79FEE033F0D81E023FBF172B511",
+    "Value": "1#taskbar.dll#1989904251-3178496#public: virtual class std::shared_ptr<class TaskbarHost> __cdecl CTaskBand::GetTaskbarHost(void)const #1094976#public: int __cdecl TaskbarHost::FrameHeight(void)const #565532#public: void __cdecl std::_Ref_count_base::_Decref(void)#162720#const CTaskBand::`vftable'{for `ITaskListWndSite'}#1896648"
   },
   {
     "Mod": "taskbar-icon-size",
-    "Key": "pdb_0A5DD95BEF53208B28B2F3D8586E64261",
-    "Value": "1#taskbar.dll#3907302353-3178496#void __cdecl IconUtils::GetIconSize(bool,enum IconUtils::IconType,struct tagSIZE *)#188924#public: virtual bool __cdecl IconContainer::IsStorageRecreationRequired(class CCoSimpleArray<unsigned int,4294967294,class CSimpleArrayStandardCompareHelper<unsigned int> > const &,enum IconContainerFlags)#522112#public: virtual void __cdecl TrayUI::GetMinSize(struct HMONITOR__ *,struct tagSIZE *)#473952#public: __cdecl winrt::impl::consume_WindowsUdk_UI_Shell_ITaskbarSettings<struct winrt::WindowsUdk::UI::Shell::ITaskbarSettings>::Size(void)const #936272#public: virtual unsigned __int64 __cdecl CIconLoadingFunctions::GetClassLongPtrW(struct HWND__ *,int)#463024#public: virtual int __cdecl CIconLoadingFunctions::SendMessageCallbackW(struct HWND__ *,unsigned int,unsigned __int64,__int64,void (__cdecl*)(struct HWND__ *,unsigned int,unsigned __int64,__int64),unsigned __int64)#407552#static  ShellIconLoaderV2::LoadAsyncIcon$_ResumeCoro$1()#661184#public: void __cdecl TrayUI::_StuckTrayChange(void)#474476#public: void __cdecl TrayUI::_HandleSettingChange(struct HWND__ *,unsigned int,unsigned __int64,__int64)#345680"
+    "Key": "pdb_DAB69A79FEE033F0D81E023FBF172B511",
+    "Value": "1#taskbar.dll#1989904251-3178496#void __cdecl IconUtils::GetIconSize(bool,enum IconUtils::IconType,struct tagSIZE *)#188956#public: virtual bool __cdecl IconContainer::IsStorageRecreationRequired(class CCoSimpleArray<unsigned int,4294967294,class CSimpleArrayStandardCompareHelper<unsigned int> > const &,enum IconContainerFlags)#522144#public: virtual void __cdecl TrayUI::GetMinSize(struct HMONITOR__ *,struct tagSIZE *)#473984#public: __cdecl winrt::impl::consume_WindowsUdk_UI_Shell_ITaskbarSettings<struct winrt::WindowsUdk::UI::Shell::ITaskbarSettings>::Size(void)const #936304#public: virtual unsigned __int64 __cdecl CIconLoadingFunctions::GetClassLongPtrW(struct HWND__ *,int)#463056#public: virtual int __cdecl CIconLoadingFunctions::SendMessageCallbackW(struct HWND__ *,unsigned int,unsigned __int64,__int64,void (__cdecl*)(struct HWND__ *,unsigned int,unsigned __int64,__int64),unsigned __int64)#407584#static  ShellIconLoaderV2::LoadAsyncIcon$_ResumeCoro$1()#661216#public: void __cdecl TrayUI::_StuckTrayChange(void)#474508#public: void __cdecl TrayUI::_HandleSettingChange(struct HWND__ *,unsigned int,unsigned __int64,__int64)#345712"
   },
   {
     "Mod": "taskbar-icon-size",
@@ -31,8 +31,8 @@
   },
   {
     "Mod": "taskbar-auto-hide-when-maximized",
-    "Key": "pdb_0A5DD95BEF53208B28B2F3D8586E64261",
-    "Value": "1#taskbar.dll#3907302353-3178496#const TrayUI::`vftable'{for `IInspectable'}#1891232#const TrayUI::`vftable'{for `ITrayComponentHost'}#1891288#const CSecondaryTray::`vftable'{for `ISecondaryTray'}#1872184#public: virtual struct HMONITOR__ * __cdecl TrayUI::GetStuckMonitor(void)#501840#public: virtual struct HMONITOR__ * __cdecl CSecondaryTray::GetMonitor(void)#515248#public: virtual bool __cdecl TrayUI::GetStuckRectForMonitor(struct HMONITOR__ *,struct tagRECT *)#366336#public: void __cdecl TrayUI::_Hide(void)#606272#private: void __cdecl CSecondaryTray::_AutoHide(bool)#1360508#public: virtual void __cdecl TrayUI::Unhide(enum TrayCommon::TrayUnhideFlags,enum TrayCommon::UnhideRequest)#599232#private: void __cdecl CSecondaryTray::_Unhide(enum TrayCommon::TrayUnhideFlags,enum TrayCommon::UnhideRequest)#1363160#public: virtual __int64 __cdecl TrayUI::WndProc(struct HWND__ *,unsigned int,unsigned __int64,__int64,bool *)#600000#private: virtual __int64 __cdecl CSecondaryTray::v_WndProc(struct HWND__ *,unsigned int,unsigned __int64,__int64)#140128#public: virtual struct tagRECT __cdecl TrayUI::GetStuckRectForMonitor(struct HMONITOR__ *)#"
+    "Key": "pdb_DAB69A79FEE033F0D81E023FBF172B511",
+    "Value": "1#taskbar.dll#1989904251-3178496#const TrayUI::`vftable'{for `IInspectable'}#1892344#const TrayUI::`vftable'{for `ITrayComponentHost'}#1891048#const CSecondaryTray::`vftable'{for `ISecondaryTray'}#1872056#public: virtual struct HMONITOR__ * __cdecl TrayUI::GetStuckMonitor(void)#501872#public: virtual struct HMONITOR__ * __cdecl CSecondaryTray::GetMonitor(void)#515280#public: virtual bool __cdecl TrayUI::GetStuckRectForMonitor(struct HMONITOR__ *,struct tagRECT *)#366368#public: void __cdecl TrayUI::_Hide(void)#606304#private: void __cdecl CSecondaryTray::_AutoHide(bool)#1360492#public: virtual void __cdecl TrayUI::Unhide(enum TrayCommon::TrayUnhideFlags,enum TrayCommon::UnhideRequest)#599264#private: void __cdecl CSecondaryTray::_Unhide(enum TrayCommon::TrayUnhideFlags,enum TrayCommon::UnhideRequest)#1363144#public: virtual __int64 __cdecl TrayUI::WndProc(struct HWND__ *,unsigned int,unsigned __int64,__int64,bool *)#600032#private: virtual __int64 __cdecl CSecondaryTray::v_WndProc(struct HWND__ *,unsigned int,unsigned __int64,__int64)#140160#public: virtual struct tagRECT __cdecl TrayUI::GetStuckRectForMonitor(struct HMONITOR__ *)#"
   },
   {
     "Mod": "LeanDock native XAML menu anchor",
@@ -43,5 +43,10 @@
     "Mod": "LeanDock pointer menu focus",
     "Key": "pdb_24534974E00E46A58F69F60D0CEB9BD91",
     "Value": "1#taskbar.view.dll#1789085818-10055680#winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync$_ResumeCoro$1#8118960#`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`63'::<lambda_7>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>#8106040#`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`68'::<lambda_8>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>#8106704#public: __cdecl winrt::impl::consume_Windows_UI_Xaml_Controls_Primitives_IFlyoutBase5<struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutBase>::ShowAt(struct winrt::Windows::UI::Xaml::DependencyObject const &,struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutShowOptions const &)const#2962068"
+  },
+  {
+    "Mod": "LeanDock attention-only hide",
+    "Key": "pdb_DAB69A79FEE033F0D81E023FBF172B511",
+    "Value": "1#taskbar.dll#1989904251-3178496#public: virtual int __cdecl CTaskListWnd::PermitAutoHide(void)#399648#public: virtual int __cdecl CTaskBtnGroup::IsFlashing(void)#375328"
   }
 ]

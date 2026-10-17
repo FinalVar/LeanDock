@@ -13,15 +13,16 @@
 #include <winrt/Windows.UI.Xaml.Media.h>
 #include <winrt/Windows.UI.Xaml.h>
 #include <winrt/base.h>
+#include "tray-grid-latest.h"
 #include <memory>
 #include <vector>
 #include <string>
 #include <winrt/Windows.UI.Xaml.Data.h>
+#include <winrt/Windows.UI.Xaml.Automation.h>
 #include "shell-menu-latest.h"
 #include "cards-core-latest.h"
 #include "power-target-latest.h"
 #include <winrt/Windows.UI.Xaml.Input.h>
-#include <winrt/Windows.UI.Xaml.Automation.h>
 namespace NDTray {
 
 
@@ -290,17 +291,6 @@ void ApplyNotifyIconViewStyle(FrameworkElement notifyIconViewElement,
 }
 
 
-// Column-first ordering, shared by application icons, battery and input method.
-// This is a layout policy, not a second notification host.
-namespace DockGrid {
-struct Group { int columns; int overlapColumns; };
-constexpr Group PlaceGroup(int before, int count) {
-    return count <= 0 ? Group{0, 0} : Group{(before % 2 + count + 1) / 2, before % 2};
-}
-constexpr int Column(int before, int index) { return (before % 2 + index) / 2; }
-constexpr int Row(int before, int index) { return (before + index) % 2; }
-constexpr int TotalColumns(int count) { return (count + 1) / 2; }
-}
 
 // Local extension to the upstream tray grid. No reparenting, proxy icons,
 // additional hooks, timers or input injection. Move the native hit targets.
@@ -489,6 +479,91 @@ std::wstring DockTree(FrameworkElement item,FrameworkElement root,int depth=0) {
     EnumChildElements(item,[&](FrameworkElement child){value+=DockTree(child,root,depth+1);return false;});
     return value;
 }
+// Native MainStack joins the existing app tray. Keep native models, parents,
+// visibility decisions, tooltips and click/context handlers. No status monitor
+// or synthesized privacy indicator is introduced.
+
+bool DockExcludedInput(FrameworkElement const& element,unsigned depth=0) {
+    if(!element||depth>14)return false;
+    const auto type=winrt::get_class_name(element);
+    if(type==L"SystemTray.InkWorkspaceButton"||type==L"SystemTray.InputIndicatorButton"||
+       type==L"SystemTray.IMEButton"||type==L"SystemTray.LanguageTextIconContent"||
+       type==L"SystemTray.LanguageImageIconContent")return true;
+    // These model class names are present in the pinned SystemTray.dll. Unlike
+    // localized accessible names, they don't depend on Windows display language.
+    if(auto model=element.DataContext()){
+        const auto modelType=winrt::get_class_name(model);
+        if(modelType==L"SystemTray.TouchKeyboardSystemTrayIconDataModel"||
+           modelType==L"SystemTray.InkWorkspaceSystemTrayIconDataModel"||
+           modelType==L"SystemTray.VirtualTouchpadSystemTrayIconDataModel"||
+           modelType==L"SystemTray.EmojiAndMoreSystemTrayIconDataModel"||
+           modelType==L"SystemTray.LanguageSystemTrayIconDataModel"||
+           modelType==L"SystemTray.ImeSystemTrayIconDataModel")return true;
+    }
+    bool excluded=false;
+    EnumChildElements(element,[&](FrameworkElement child){
+        excluded=DockExcludedInput(child,depth+1);return excluded;
+    });
+    return excluded;
+}
+
+void DockRestoreProperty(FrameworkElement const& element,DependencyProperty const& property) {
+    auto& saved=g_dockUnified->saved;
+    const auto it=std::find_if(saved.begin(),saved.end(),[&](auto const& entry){
+        return entry.element.get()==element&&entry.property==property;
+    });
+    if(it==saved.end())return;
+    if(it->binding)Data::BindingOperations::SetBinding(element,property,it->binding);
+    else if(it->value==DependencyProperty::UnsetValue())element.ClearValue(property);
+    else element.SetValue(property,it->value);
+    saved.erase(it);
+}
+
+DockGroup DockCollectSystem(FrameworkElement const& root) {
+    DockGroup result;
+    result.container=FindChildByName(root,L"MainStack");
+    if(!result.container)return result;
+    auto content=FindChildByName(result.container,L"Content");
+    auto items=content?FindChildByName(content,L"IconStack"):nullptr;
+    result.panel=DockItemsPanel(items);
+    if(!result.panel)return result;
+    EnumChildElements(result.panel,[&](FrameworkElement child){
+        auto icon=FindChildByName(child,L"SystemTrayIcon");
+        if(!icon)return false;
+        if(DockExcludedInput(icon)){
+            DockSet(child,UIElement::VisibilityProperty(),Visibility::Collapsed);
+            return false;
+        }
+        // A native presenter can be reused with a different model. Release only
+        // our exclusion before respecting Windows' current visibility binding.
+        DockRestoreProperty(child,UIElement::VisibilityProperty());
+        if(result.container.Visibility()==Visibility::Visible&&
+           child.Visibility()==Visibility::Visible&&icon.Visibility()==Visibility::Visible){
+            result.presenters.push_back(child);result.icons.push_back(icon);
+        }
+        return false;
+    });
+    return result;
+}
+
+void DockCenterFinal(DockGroup& group,int before,int total,double cell,double pitch,double row){
+    if(!(total%2)||group.icons.empty()||before+int(group.icons.size())!=total)return;
+    const int i=int(group.icons.size())-1;
+    DockTranslate(group.presenters[i],pitch*DockGrid::Column(before,i)-cell*i+(pitch-cell)/2,
+                  row*DockGrid::RowOffset(before,i,total));
+}
+
+std::wstring DockSystemTypes(FrameworkElement const& element,unsigned depth=0){
+    if(!element||depth>14)return L"";
+    std::wstring text=std::wstring(winrt::get_class_name(element));
+    if(auto model=element.DataContext())text+=L"("+std::wstring(winrt::get_class_name(model))+L")";
+    // Class names only: don't persist app names, permission users or tooltips.
+    EnumChildElements(element,[&](FrameworkElement child){
+        text+=L"/"+DockSystemTypes(child,depth+1);return false;
+    });
+    return text;
+}
+
 void UpdateLegacyUnifiedDockGrid() {
     if (!g_dockUnified || g_dockUnified->updating || g_unloading ||
         g_dockUnified->threadId!=GetCurrentThreadId()) return;
@@ -499,6 +574,7 @@ void UpdateLegacyUnifiedDockGrid() {
     try {
         auto apps=DockCollect(root,true);
         auto input=DockCollect(root,false);
+        auto system=DockCollectSystem(root);
         auto battery=FindChildByName(root,L"ControlCenterButton");
         if (!apps.panel || !battery || battery.Visibility()!=Visibility::Visible) return;
         // Only compact the battery-only Quick Settings button. If another
@@ -521,14 +597,15 @@ void UpdateLegacyUnifiedDockGrid() {
         const double cell=g_settings.notificationIconWidth; // 24 in this profile
         const double pitch=cell+4;
         const double row=24;
-        const int appCount=int(apps.icons.size());
+        const int appCount=int(apps.icons.size())+int(system.icons.size());
         const int count=appCount+1+int(input.icons.size());
         const int totalColumns=DockGrid::TotalColumns(count);
         const bool stackRoot=!!root.try_as<Controls::StackPanel>();
         DockArrangeGroup(apps,0,1,cell,pitch,row);
+        DockArrangeGroup(system,int(apps.icons.size()),2,cell,pitch,row);
         auto batteryGeometry=DockGrid::PlaceGroup(appCount,1);
         DockBox(battery,pitch,row,HorizontalAlignment::Left,false);
-        DockSet(battery,Controls::Grid::ColumnProperty(),2);
+        DockSet(battery,Controls::Grid::ColumnProperty(),3);
         DockSet(battery,FrameworkElement::MarginProperty(),Thickness{-(stackRoot?1:batteryGeometry.overlapColumns)*pitch,0,0,0});
         const double batteryX=stackRoot?(appCount/2-(totalColumns-1))*pitch:0;
         // Center a lone final item in the full two-row height. Move the
@@ -544,14 +621,16 @@ void UpdateLegacyUnifiedDockGrid() {
             // the entire Quick Settings hit target back to its flow slot.
             // This preserves native parents and works on both odd/even counts.
             const int remaining=totalColumns-DockGrid::TotalColumns(appCount);
-            DockArrangeGroup(input,appCount+1,3,cell,pitch,row,remaining,true);
-        } else DockArrangeGroup(input,appCount+1,3,cell,pitch,row);
-        std::wstring state=L"{\"active\":true,\"apps\":"+std::to_wstring(appCount)+
+            DockArrangeGroup(input,appCount+1,4,cell,pitch,row,remaining,true);
+        } else DockArrangeGroup(input,appCount+1,4,cell,pitch,row);
+        std::wstring state=L"{\"active\":true,\"apps\":"+std::to_wstring(apps.icons.size())+
+            L",\"system\":"+std::to_wstring(system.icons.size())+
             L",\"battery\":1,\"input\":"+std::to_wstring(input.icons.size())+
             L",\"total\":"+std::to_wstring(count)+L",\"columns\":"+std::to_wstring(DockGrid::TotalColumns(count))+
             L",\"cellWidth\":"+std::to_wstring(int(cell))+L",\"rowHeight\":24,\"cells\":[";
         bool first=true;
         for (auto& item:apps.icons) {if(!first)state+=L",";first=false;state+=DockRect(item,root);}
+        for(auto& item:system.icons){if(!first)state+=L",";first=false;state+=DockRect(item,root);}
         if(!first)state+=L",";
         state+=DockRect(batteryGrid,root);
         for (auto& item:input.icons) state+=L","+DockRect(item,root);
@@ -823,6 +902,7 @@ void UpdateUnifiedDockGrid() {
         }
         struct Guard{bool& flag;Guard(bool& f):flag(f){flag=true;}~Guard(){flag=false;}}guard(g_dockUnified->updating);
         auto apps=DockCollect(root,true);if(!apps.container||!apps.panel)return;
+        auto system=DockCollectSystem(root);
         const bool powerActive=reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Card.PowerActive"))==2;
         // A failed map retains the working Invoke/keyboard fallback on the card.
         if(!powerActive){
@@ -834,15 +914,21 @@ void UpdateUnifiedDockGrid() {
         }
         DockSet(input,UIElement::VisibilityProperty(),Visibility::Collapsed);
         const double cell=g_settings.notificationIconWidth,pitch=cell+4,row=24;
-        const int count=int(apps.icons.size());
+        const int appCount=int(apps.icons.size()),systemCount=int(system.icons.size());
+        const int count=appCount+systemCount;
         DockArrangeGroup(apps,0,1,cell,pitch,row);
-        if(count%2){const int i=count-1;
-            DockTranslate(apps.presenters[i],pitch*(i/2)-cell*i+(pitch-cell)/2,0);
-        }
-        std::wstring state=L"{\"active\":true,\"apps\":"+std::to_wstring(count)+
+        DockArrangeGroup(system,appCount,2,cell,pitch,row);
+        DockCenterFinal(apps,0,count,cell,pitch,row);
+        DockCenterFinal(system,appCount,count,cell,pitch,row);
+        std::wstring state=L"{\"active\":true,\"apps\":"+std::to_wstring(appCount)+
+            L",\"system\":"+std::to_wstring(systemCount)+
             L",\"battery\":0,\"input\":0,\"total\":"+std::to_wstring(count)+
             L",\"columns\":"+std::to_wstring(DockGrid::TotalColumns(count))+L",\"cells\":[";
-        bool first=true;for(auto const& item:apps.icons){if(!first)state+=L",";first=false;state+=DockRect(item,root);}state+=L"]}";
+        bool first=true;for(auto const& item:apps.icons){if(!first)state+=L",";first=false;state+=DockRect(item,root);}
+        for(auto const& item:system.icons){if(!first)state+=L",";first=false;state+=DockRect(item,root);}
+        state+=L"],\"systemTypes\":[";first=true;
+        for(auto const& item:system.icons){if(!first)state+=L",";first=false;state+=L"\""+DockSystemTypes(item)+L"\"";}
+        state+=L"]}";
         if(state!=g_dockUnified->lastState){Wh_SetStringValue(L"mergedGridState",state.c_str());g_dockUnified->lastState=std::move(state);
             auto& saved=g_dockUnified->saved;saved.erase(std::remove_if(saved.begin(),saved.end(),[](auto& x){return !x.element.get();}),saved.end());}
     }catch(...){Wh_Log(L"Card tray update error %08X",winrt::to_hresult());}

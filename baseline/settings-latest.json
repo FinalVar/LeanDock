@@ -41,7 +41,7 @@
       "controlStyles[7].target": "Taskbar.TaskbarFrame > Grid#RootGrid > Microsoft.UI.Xaml.Controls.ItemsRepeater#TaskbarFrameRepeater",
       "controlStyles[7].styles[0]": "Width=Auto",
       "controlStyles[7].styles[1]": "HorizontalAlignment=Left",
-      "controlStyles[8].target": "SystemTray.Stack#MainStack, SystemTray.OmniButton#NotificationCenterButton, SystemTray.Stack#SecondaryClockStack, SystemTray.Stack#ShowDesktopStack",
+      "controlStyles[8].target": "SystemTray.OmniButton#NotificationCenterButton, SystemTray.Stack#SecondaryClockStack, SystemTray.Stack#ShowDesktopStack",
       "controlStyles[8].styles[0]": "Width=0",
       "controlStyles[8].styles[1]": "MinWidth=0",
       "controlStyles[8].styles[2]": "MaxWidth=0",

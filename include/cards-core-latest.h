@@ -141,6 +141,18 @@ inline int WheelStep(int delta,int& remainder) {
     if(remainder<=-120){remainder+=120;return 1;}
     return 0;
 }
+struct CardWheel {
+    int vertical{},horizontal{};uint64_t last{};bool active=false;
+    void Reset(){vertical=horizontal=0;last=0;active=false;}
+    int Step(int delta,bool sideways,uint64_t now){
+        if(!delta)return 0;
+        if(active&&(now<last||now-last>500))Reset();
+        active=true;last=now;
+        // Never add a horizontal fraction to a vertical fraction. A positive
+        // horizontal wheel delta scrolls right (next), unlike positive vertical.
+        return sideways?-WheelStep(delta,horizontal):WheelStep(delta,vertical);
+    }
+};
 struct Battery {
     int percent=-1;
     bool present=false,presentKnown=false,charging=false,plugged=false,supplyKnown=false,low=false,critical=false;

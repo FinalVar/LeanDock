@@ -117,6 +117,7 @@ def main():
         source = read(ROOT / "upstream" / (name + ".cpp"))
         source = source[source.index("#include"):]
         if name == "styler":
+            source = '#include "clip-ownership-latest.h"\n' + source
             source = source.replace("#include <winrt/Windows.UI.Xaml.h>", "#include <winrt/Windows.UI.Xaml.h>\n#include <winrt/Windows.UI.Xaml.Controls.Primitives.h>\n#include <winrt/Windows.UI.Xaml.Input.h>\n#include <winrt/Windows.UI.Xaml.Data.h>", 1)
             a = source.index("const Theme g_themeTranslucentTaskbar")
             b = source.index("// An InstanceHandle", a)
@@ -186,6 +187,40 @@ def main():
     bool cardsClosing=false;""")
             source = replace_once(source, "void UpdateClickThroughRegion(ClickThroughTaskbarState& state) {",
                 '#include "surface-latest.inc"\nvoid UpdateClickThroughRegion(ClickThroughTaskbarState& state) {')
+            source = replace_once(source, """    RECT currentRgnBox;
+    bool hasRgn = GetWindowRgnBox(topLevelWnd, &currentRgnBox) != ERROR;
+    auto appliedRgnBoxIt = g_clickThroughAppliedRgnBoxes.find(topLevelWnd);
+    bool rgnIsOurs = hasRgn &&
+                     appliedRgnBoxIt != g_clickThroughAppliedRgnBoxes.end() &&
+                     EqualRect(&currentRgnBox, &appliedRgnBoxIt->second);""", """    RECT currentRgnBox{};
+    const int currentRgnKind = GetWindowRgnBox(topLevelWnd, &currentRgnBox);
+    bool hasRgn = currentRgnKind != ERROR;
+    auto appliedRgnBoxIt = g_clickThroughAppliedRgnBoxes.find(topLevelWnd);
+    const bool rgnMatchesApplied = hasRgn &&
+                     appliedRgnBoxIt != g_clickThroughAppliedRgnBoxes.end() &&
+                     EqualRect(&currentRgnBox, &appliedRgnBoxIt->second);
+    const bool rgnIsShifted = appliedRgnBoxIt != g_clickThroughAppliedRgnBoxes.end() &&
+        LeanDockClipOwnership::ShiftedFullHeight(currentRgnKind,currentRgnBox,
+            appliedRgnBoxIt->second,tlWidth,tlHeight);
+    // A translated copy of our full-height clip is still ours to repair.
+    // Genuine native fold clips and unknown owners retain the upstream guard.
+    const bool rgnIsOurs = rgnMatchesApplied || rgnIsShifted;""")
+            source = replace_once(source,
+                "if (signature == state.lastRegionSignature && rgnIsOurs) {",
+                "if (signature == state.lastRegionSignature && rgnMatchesApplied) {")
+            source = replace_once(source, """        RECT currentRgnBox;
+        if (GetWindowRgnBox(topLevelWnd, &currentRgnBox) == ERROR ||
+            !EqualRect(&currentRgnBox, &appliedRgnBox)) {
+            continue;
+        }""", """        RECT currentRgnBox{},windowRect{};
+        const int kind=GetWindowRgnBox(topLevelWnd,&currentRgnBox);
+        if(kind==ERROR)continue;
+        if(!EqualRect(&currentRgnBox,&appliedRgnBox) &&
+           (!GetWindowRect(topLevelWnd,&windowRect) ||
+            !LeanDockClipOwnership::ShiftedFullHeight(kind,currentRgnBox,appliedRgnBox,
+                windowRect.right-windowRect.left,windowRect.bottom-windowRect.top))) {
+            continue;
+        }""")
             source = replace_once(source, 'BOOL Wh_ModInit() {', 'BOOL Wh_ModInit() {\n    InstallLeanDockMenuHook();')
             signature = "LRESULT CALLBACK ClickThroughTaskbarSubclassProc("
             start = source.index(signature)
@@ -213,7 +248,20 @@ def main():
         if(state.islandHwnd)LeanDockGeometry::Clear(GetAncestor(state.islandHwnd,GA_ROOT));
     }""")
         if name == "hide":
-            source = '#include "dock-geometry-latest.h"\n#include "event-loop-latest.h"\n#include "backdrop-resume-latest.h"\n#include <stdexcept>\n' + source
+            source = '#include "dock-geometry-latest.h"\n#include "event-loop-latest.h"\n#include "backdrop-resume-latest.h"\n#include "attention-policy-latest.h"\n#include <stdexcept>\n' + source
+            source = replace_once(source, "CSecondaryTray__Unhide_t CSecondaryTray__Unhide_Original;",
+                "CSecondaryTray__Unhide_t CSecondaryTray__Unhide_Original;\n\n" +
+                read(ROOT / "src" / "hide-attention-latest.inc"))
+            source = replace_once(source, "            &TrayUI_Unhide_Original,\n        },",
+                "            &TrayUI_Unhide_Original,\n            TrayUI_Unhide_Hook,\n        },")
+            source = replace_once(source, "            &CSecondaryTray__Unhide_Original,\n        },",
+                "            &CSecondaryTray__Unhide_Original,\n            CSecondaryTray__Unhide_Hook,\n        },")
+            source = replace_once(source, "    // Taskbar.dll, explorer.exe\n    WindhawkUtils::SYMBOL_HOOK symbolHooks[] = {", """    // Taskbar.dll, explorer.exe
+    WindhawkUtils::SYMBOL_HOOK symbolHooks[] = {
+        {{LR"(public: virtual int __cdecl CTaskListWnd::PermitAutoHide(void))"},
+         &CTaskListWnd_PermitAutoHide_Original, CTaskListWnd_PermitAutoHide_Hook},
+        {{LR"(public: virtual int __cdecl CTaskBtnGroup::IsFlashing(void))"},
+         &CTaskBtnGroup_IsFlashing_Original, CTaskBtnGroup_IsFlashing_Hook},""")
             source = replace_once(source, "using ViewCoordinator_ShouldTaskbarBeExpanded_t =",
                 read(ROOT / "src" / "hide-state-latest.inc") + "\nusing ViewCoordinator_ShouldTaskbarBeExpanded_t =")
             source = replace_once(source, "    g_taskbarToViewCoordinator[hMMTaskbarWnd] = pThis;", """    g_taskbarToViewCoordinator[hMMTaskbarWnd] = pThis;
@@ -348,6 +396,9 @@ void StopEventThread() {
             source = replace_function(source, "HMODULE GetSearchUxUiModuleHandle()",
                                       "    return nullptr; // Search is disabled in the dedicated Dock profile.")
         if name == "tray":
+            start = source.index("// Column-first ordering, shared by application icons")
+            end = source.index("// Local extension to the upstream tray grid.", start)
+            source = source[:start] + '#include "tray-grid-latest.h"\n\n' + source[end:]
             source = replace_once(
                 source,
                 "    if (!result.panel) return result;\n    EnumChildElements(result.panel,[&](FrameworkElement child) {",
@@ -370,6 +421,22 @@ void StopEventThread() {
             ? 0.0 : row*(DockGrid::Row(appCount,0)-0.5);
         DockTranslate(battery,batteryX,batteryY);""")
             source = replace_once(source, "void UpdateUnifiedDockGrid() {", "void UpdateLegacyUnifiedDockGrid() {")
+            source = replace_once(source, "void UpdateLegacyUnifiedDockGrid() {",
+                read(ROOT / "src" / "tray-system-latest.inc") + "\nvoid UpdateLegacyUnifiedDockGrid() {")
+            source = replace_once(source, "        auto input=DockCollect(root,false);",
+                "        auto input=DockCollect(root,false);\n        auto system=DockCollectSystem(root);")
+            source = replace_once(source, "        const int appCount=int(apps.icons.size());",
+                "        const int appCount=int(apps.icons.size())+int(system.icons.size());")
+            source = replace_once(source, "        DockArrangeGroup(apps,0,1,cell,pitch,row);",
+                "        DockArrangeGroup(apps,0,1,cell,pitch,row);\n        DockArrangeGroup(system,int(apps.icons.size()),2,cell,pitch,row);")
+            source = replace_once(source, "DockSet(battery,Controls::Grid::ColumnProperty(),2);",
+                "DockSet(battery,Controls::Grid::ColumnProperty(),3);")
+            source = source.replace("DockArrangeGroup(input,appCount+1,3,cell,pitch,row",
+                "DockArrangeGroup(input,appCount+1,4,cell,pitch,row")
+            source = replace_once(source, 'std::to_wstring(appCount)+\n            L",\\\"battery\\\":1',
+                'std::to_wstring(apps.icons.size())+\n            L",\\\"system\\\":"+std::to_wstring(system.icons.size())+\n            L",\\\"battery\\\":1')
+            source = replace_once(source, '        if(!first)state+=L",";\n        state+=DockRect(batteryGrid,root);',
+                '        for(auto& item:system.icons){if(!first)state+=L",";first=false;state+=DockRect(item,root);}\n        if(!first)state+=L",";\n        state+=DockRect(batteryGrid,root);')
             source = replace_once(source, "void StopUnifiedDockGrid() {", "void ClearNativePowerHit();\nvoid StopUnifiedDockGrid() {\n    ClearNativePowerHit();")
             source = replace_once(source, "bool TryUnifiedDockGrid(FrameworkElement element) try {",
                 read(ROOT / "src" / "tray-cards-latest.inc") + "\nbool TryUnifiedDockGrid(FrameworkElement element) try {")
@@ -401,6 +468,15 @@ void StopEventThread() {
             source += '\nextern "C" void Native_tray_refresh_cards() { NDTray::UpdateUnifiedDockGrid(); }\n'
         if name == "hide":
             source += '\nextern "C" int Native_hide_expanded(HWND window) { return NDHide::ReadExpandedState(window,L"AtInput"); }\n'
+            source += '''\nextern "C" unsigned long long Native_hide_attention(unsigned key) {
+    switch(key) {
+        case 0:return !NDHide::g_eventStopping.load();
+        case 1:return NDHide::g_attentionBlockedReveals.load();
+        case 2:return NDHide::g_attentionIgnoredFlashing.load();
+        case 3:return NDHide::g_attentionPassedReveals.load();
+        default:return 0;
+    }
+}\n'''
         # Full origin/license information remains in upstream and NOTICE.
         source = "// Derived from the preserved GPL-3.0 upstream; see NOTICE.md.\n" + source
         emit(ROOT / "src" / (name + "-latest.cpp"), source)
@@ -463,6 +539,19 @@ void StopEventThread() {
          "static const NativeSymbol NativeSymbols[] = {\n" + "\n".join(lines) + "\n};\n")
     emit(ROOT / "build" / "sources-latest.json",
          json.dumps({"components": sources, "symbolCount": len(symbols), "pinnedModules": len(modules)}, indent=2))
+    # Optional card adapter: an unknown input build must not disable core Dock.
+    input_module = json.loads(read(ROOT / "baseline" / "cards-input-latest.json"))
+    data = Path(input_module["Path"]).read_bytes()
+    assert hashlib.sha256(data).hexdigest().upper() == input_module["Sha256"]
+    pe = struct.unpack_from("<I", data, 0x3C)[0]
+    timestamp = struct.unpack_from("<I", data, pe + 8)[0]
+    image_size = struct.unpack_from("<I", data, pe + 24 + 56)[0]
+    assert image_size == input_module["ImageBytes"]
+    emit(include / "cards-input-pin-generated.h",
+         '#pragma once\n#include "symbols-generated.h"\n'
+         'static const NativeModulePin NativeCardsInputModule = {' + ', '.join([
+             wide(input_module["Name"].lower()), wide(input_module["Path"]), wide(input_module["Sha256"]),
+             str(timestamp) + 'u', str(image_size) + 'u']) + '};\n')
     print(json.dumps({"components": len(sources), "symbols": len(symbols), "pinnedModules": len(modules)}))
 
 

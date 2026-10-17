@@ -4,6 +4,7 @@ param([ValidateSet('Status','Start','Stop','Install','Uninstall','PauseCorners',
  [ValidateRange(5,300)][int]$DurationSeconds=30,[string]$OutputPath='', [string]$BaselinePath='',
  [ValidateRange(0,60)][int]$NativeBaselineSeconds=0)
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'maintenance/files-latest.ps1')
 if($Action -eq 'Cards'){
  Start-Process -FilePath (Join-Path $Destination 'latest.exe') -ArgumentList '--cards'
  return
@@ -108,7 +109,10 @@ function Get-LiveStatus {
             }
         } catch {$theme=$null}
     }
-    [pscustomobject]@{Live=$live;Running=$running;DockReady=$dockReady;HotCornersReady=$cornerReady;DockSupported=$runtime.dockSupported;QuickSettingsPosition=$quick;QuickTheme=$theme;StartLayoutReady=$startReady;StartLayoutSupported=$runtime.startLayoutSupported;StartLayoutBlocked=$runtime.startLayoutBlocked;StartLayout=$startLayout;Elevated=$runtime.elevated;HotCorners=$corners;Controller=@($processes | Select-Object ProcessId,ExecutablePath);ExplorerPid=$shell.ProcessId;Backend=$backend;LoadedComponents=$modules;Task=if($t){[pscustomobject]@{Name=$t.TaskName;State=[string]$t.State;RunLevel=[string]$t.Principal.RunLevel;LogonType=[string]$t.Principal.LogonType}}else{$null};WindhawkService=[string](Get-Service Windhawk -ErrorAction SilentlyContinue).Status}
+    $status=[pscustomobject]@{Live=$live;Running=$running;DockReady=$dockReady;HotCornersReady=$cornerReady;DockSupported=$runtime.dockSupported;QuickSettingsPosition=$quick;QuickTheme=$theme;StartLayoutReady=$startReady;StartLayoutActive=($running -and $runtime.startLayoutActive);StartLayoutSupported=$runtime.startLayoutSupported;StartLayoutBlocked=$runtime.startLayoutBlocked;StartLayout=$startLayout;Elevated=$runtime.elevated;HotCorners=$corners;Controller=@($processes | Select-Object ProcessId,ExecutablePath);ExplorerPid=$shell.ProcessId;Backend=$backend;LoadedComponents=$modules;Task=if($t){[pscustomobject]@{Name=$t.TaskName;State=[string]$t.State;RunLevel=[string]$t.Principal.RunLevel;LogonType=[string]$t.Principal.LogonType}}else{$null};WindhawkService=[string](Get-Service Windhawk -ErrorAction SilentlyContinue).Status}
+    $status|Add-Member -NotePropertyName StartAttachment -NotePropertyValue ([pscustomobject]@{Attempts=$runtime.startLayoutInitAttempts;Recoveries=$runtime.startLayoutInitRecoveries;RetryScheduled=$runtime.startLayoutRetryScheduled;Receipt=$runtime.startLayoutAttachReceipt;Error=$runtime.startLayoutAttachError;Failures=$runtime.startLayoutFailures;HostRecoveries=$runtime.startLayoutRecoveries;LastExitCode=if($runtime.startLayoutLastExitKnown){$runtime.startLayoutLastExitCode}else{$null}})
+    $status|Add-Member -NotePropertyName ComponentHealth -NotePropertyValue (Get-LeanDockComponentHealth $status)
+    $status
 }
 function Stop-Native {
     $code=Invoke-Control '--stop'

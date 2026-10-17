@@ -1,6 +1,10 @@
 #include "cards-network-latest.h"
 #include "cards-latest.h"
 #include "cards-core-latest.h"
+#include "cards-input-latest.h"
+#include "cards-manipulation-latest.h"
+#include "cards-input-pin-generated.h"
+#include "verify-latest.h"
 #include "cards-preferences-latest.h"
 #include "shell-actions-latest.h"
 #include "shell-menu-latest.h"
@@ -35,8 +39,38 @@ extern "C" void Native_tray_refresh_cards();
 extern "C" int Native_hide_expanded(HWND window);
 extern "C" BOOL InternalWh_SetStringValue(void*,PCWSTR,PCWSTR);
 extern "C" size_t InternalWh_GetModStoragePath(void*,PWSTR,size_t);
+extern "C" BOOL InternalWh_SetFunctionHook(void*,void*,void*,void**);
+extern "C" BOOL InternalWh_ApplyHookOperations(void*);
 
 namespace LeanDockCards {
+static bool InstallInputProcedure(WNDPROC candidate,WNDPROC hook,WNDPROC* original) noexcept {
+    // Share the runtime's hook chain, shutdown gate and process-long trampoline.
+    // Bind runs on a taskbar XAML thread, so installation must be idempotent
+    // across secondary taskbars and later recreation of a Board.
+    static std::mutex mutex;static WNDPROC target{};
+    static bool checked=false,valid=false,registered=false,applied=false;
+    std::lock_guard guard(mutex);
+    if(target&&target!=candidate)return false;
+    if(!checked){
+        target=candidate;checked=true;
+        MEMORY_BASIC_INFORMATION region{};HMODULE module{};wchar_t path[32768]{},hash[65]{};
+        if(!VirtualQuery(reinterpret_cast<void*>(candidate),&region,sizeof(region))||region.Type!=MEM_IMAGE)return false;
+        const auto access=region.Protect&0xff;
+        if(access!=PAGE_EXECUTE&&access!=PAGE_EXECUTE_READ&&access!=PAGE_EXECUTE_READWRITE&&access!=PAGE_EXECUTE_WRITECOPY)return false;
+        if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            reinterpret_cast<PCWSTR>(candidate),&module)||region.AllocationBase!=module||
+            !GetModuleFileNameW(module,path,std::size(path))||_wcsicmp(path,NativeCardsInputModule.path)||
+            !NativeValidModule(module,NativeCardsInputModule)||!NativeHashFile(path,hash)||_wcsicmp(hash,NativeCardsInputModule.sha256))return false;
+        // Keep the system module mapped for exactly as long as our trampoline.
+        if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,reinterpret_cast<PCWSTR>(candidate),&module))return false;
+        valid=true;
+    }
+    if(!valid)return false;
+    if(!registered)registered=InternalWh_SetFunctionHook(nullptr,reinterpret_cast<void*>(candidate),
+        reinterpret_cast<void*>(hook),reinterpret_cast<void**>(original));
+    if(registered&&!applied)applied=InternalWh_ApplyHookOperations(nullptr);
+    return applied;
+}
 namespace x=winrt::Windows::UI::Xaml;
 namespace c=x::Controls;
 namespace m=winrt::Windows::Media::Control;
@@ -61,7 +95,7 @@ static constexpr const wchar_t* Props[]={L"LeanDock.Card.Ready",L"LeanDock.Card.
     L"LeanDock.Card.TitleHeight100",L"LeanDock.Card.TitleRowHeight100",L"LeanDock.Card.TitleTop100",L"LeanDock.Card.TitleBottom100",
     L"LeanDock.Card.ClockActive",L"LeanDock.Card.ClockHourMinute",L"LeanDock.Card.ClockMonthDay",L"LeanDock.Card.ClockUpdates",
     L"LeanDock.Card.AppWidth100",L"LeanDock.Card.RootWidth100",L"LeanDock.Card.RootMinWidth100",L"LeanDock.Card.FrameMinWidth100",L"LeanDock.Card.MediaPlaying",
-    L"LeanDock.Card.NetworkActive",L"LeanDock.Card.NetworkSamples",L"LeanDock.Card.NetworkReceive",L"LeanDock.Card.NetworkSend",L"LeanDock.Card.PageCount",L"LeanDock.Card.PreferencesValid"};
+    L"LeanDock.Card.NetworkActive",L"LeanDock.Card.NetworkSamples",L"LeanDock.Card.NetworkReceive",L"LeanDock.Card.NetworkSend",L"LeanDock.Card.PageCount",L"LeanDock.Card.PreferencesValid",L"LeanDock.Card.NetworkInterfaces"};
 static uint64_t Bits(FILETIME t){return (uint64_t(t.dwHighDateTime)<<32)|t.dwLowDateTime;}
 // Bounded, read-only diagnostics for genuine gestures inside the power card.
 // No global input observation, coordinates outside this card, or titles.
@@ -74,6 +108,12 @@ static constexpr const wchar_t* InputProps[]={
     L"LeanDock.Card.Input.TapEnabled"};
 static void InputValue(HWND w,unsigned index,intptr_t value){if(w)SetPropW(w,InputProps[index],reinterpret_cast<HANDLE>(value+1));}
 static void InputCount(HWND w,unsigned index){if(w)InputValue(w,index,std::max<intptr_t>(1,reinterpret_cast<intptr_t>(GetPropW(w,InputProps[index]))));}
+static constexpr const wchar_t* WheelProps[]={L"LeanDock.Card.Wheel.Ready",L"LeanDock.Card.Wheel.Native",
+    L"LeanDock.Card.Wheel.Xaml",L"LeanDock.Card.Wheel.TouchpadStarts",L"LeanDock.Card.Wheel.Fallbacks",L"LeanDock.Card.Wheel.Axis",
+    L"LeanDock.Card.Wheel.DMReady",L"LeanDock.Card.Wheel.DMContacts",L"LeanDock.Card.Wheel.DMActive",
+    L"LeanDock.Card.Wheel.DMUpdates",L"LeanDock.Card.Wheel.DMState",L"LeanDock.Card.Wheel.DMError",
+    L"LeanDock.Card.Wheel.DMSwitches",L"LeanDock.Card.Wheel.DMFrames"};
+static void WheelCount(HWND w,unsigned index){if(w)SetPropW(w,WheelProps[index],reinterpret_cast<HANDLE>(reinterpret_cast<uintptr_t>(GetPropW(w,WheelProps[index]))+1));}
 static std::optional<CpuTimes> Times(){
     // This API is group-local on machines with more than 64 processors. Do
     // not label that partial value as whole-machine CPU utilization.
@@ -142,7 +182,8 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     NetworkSampler network;bool networking=false,networkPending=false,middleArmed=false;
     unsigned networkGeneration=0,networkSamples=0;bool preferencesValid=true;
     unsigned generation=0,samples=0,errors=0,commands=0,powerUpdates=0,switches=0,clockUpdates=0;
-    int wheelRemainder=0;
+    CardWheel wheel;CardInputRoute inputRoute;CardManipulation manipulation;
+    winrt::event_token gestureRendering{};bool gestureFrames=false;uint64_t gestureDeadline{};HWND preparedInput{};
     std::atomic<bool> refreshQueued=false;
     std::atomic<bool> powerQueued=false;
     Battery battery;
@@ -318,19 +359,25 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         wheelHandler=winrt::box_value(x::Input::PointerEventHandler([weak](IInspectable const&,x::Input::PointerRoutedEventArgs const& e){
             if(auto p=weak.lock();p&&!p->stopped&&p->fits&&p->Visible())try{
                 auto point=e.GetCurrentPoint(p->card);auto pos=point.Position();
-                if(pos.X<0||pos.Y<0||pos.X>=p->card.ActualWidth()||pos.Y>=p->card.ActualHeight()||
-                   point.Properties().IsHorizontalMouseWheel())return;
-                if(auto step=WheelStep(point.Properties().MouseWheelDelta(),p->wheelRemainder)){
-                    auto selected=p->order.Step(p->page,step);
-                    if(selected!=p->page){p->page=selected;++p->switches;
-                        if(!SaveSelection(p->directory,p->page))p->Fail();}
-                    if(p->page==Page::Power)p->ReadPower();
-                    p->Render();
-                }
+                if(pos.X<0||pos.Y<0||pos.X>=p->card.ActualWidth()||pos.Y>=p->card.ActualHeight()){p->wheel.Reset();return;}
+                if((e.KeyModifiers()&winrt::Windows::System::VirtualKeyModifiers::Control)!=winrt::Windows::System::VirtualKeyModifiers::None)return;
+                WheelCount(p->hwnd,2);
+                p->Scroll(point.Properties().MouseWheelDelta(),point.Properties().IsHorizontalMouseWheel());
                 e.Handled(true);
             }catch(...){p->Fail();}
         }));
         wheelRoot.AddHandler(x::UIElement::PointerWheelChangedEvent(),wheelHandler,true);
+        if(!inputRoute.Start(this,[](void* owner,HWND target,POINT point) noexcept{
+            auto p=static_cast<Board*>(owner)->weak_from_this().lock();
+            return p&&p->InputHit(target,point);
+        },[](void* owner,int delta,bool horizontal) noexcept{
+            if(auto p=static_cast<Board*>(owner)->weak_from_this().lock();p&&!p->stopped)try{
+                WheelCount(p->hwnd,1);p->Scroll(delta,horizontal);
+            }catch(...){p->Fail();}
+        },[](void* owner,HWND target,UINT32 pointer) noexcept{
+            auto p=static_cast<Board*>(owner)->weak_from_this().lock();
+            return p&&!p->stopped&&p->BeginTouchpad(target,pointer);
+        }))Fail();
         auto tracePointer=[weak](unsigned kind,x::Input::PointerRoutedEventArgs const& e){
             if(auto p=weak.lock();p&&!p->stopped)try{
                 auto point=e.GetCurrentPoint(p->card);auto pos=point.Position();
@@ -368,6 +415,75 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         Render();Request(weak);
     }
     void Fail() noexcept{++errors;Put(hwnd,8,errors);}
+    bool InputHit(HWND target,POINT point) noexcept {
+        if(stopped||!fits||!Visible()||GetAncestor(target,GA_ROOT)!=hwnd)return false;
+        wchar_t cls[64]{};if(!GetClassNameW(target,cls,std::size(cls))||wcscmp(cls,L"Windows.UI.Input.InputSite.WindowClass"))return false;
+        try{
+            auto xr=root.XamlRoot();const auto scale=xr.RasterizationScale();
+            if(!xr.IsHostVisible()||scale<=0||!ScreenToClient(target,&point))return false;
+            auto local=xr.Content().TransformToVisual(card).TransformPoint({float(point.x/scale),float(point.y/scale)});
+            return local.X>=0&&local.Y>=0&&local.X<card.ActualWidth()&&local.Y<card.ActualHeight();
+        }catch(...){return false;}
+    }
+    void GestureFrames(bool active) noexcept {
+        if(active&&stopped)return;
+        if(active==gestureFrames)return;
+        try {
+            if(active){
+                auto weak=weak_from_this();
+                gestureRendering=x::Media::CompositionTarget::Rendering([weak](auto&&,auto&&){
+                    if(auto p=weak.lock();p&&!p->stopped){
+                        if(!p->fits||!p->Visible()||GetTickCount64()>p->gestureDeadline){p->manipulation.Cancel();return;}
+                        p->manipulation.Update();
+                    }
+                });
+            }else x::Media::CompositionTarget::Rendering(gestureRendering);
+            gestureFrames=active;
+            if(hwnd)SetPropW(hwnd,WheelProps[8],reinterpret_cast<HANDLE>(active?1:0));
+        }catch(...){Fail();}
+    }
+    HRESULT PrepareTouchpad(HWND target,RECT& rect,float& dpi) noexcept {
+        try {
+            const auto xr=root.XamlRoot();dpi=float(xr.RasterizationScale());
+            auto origin=card.TransformToVisual(xr.Content()).TransformPoint({0,0});
+            rect={LONG(std::floor(origin.X*dpi)),LONG(std::floor(origin.Y*dpi)),
+                LONG(std::ceil((origin.X+card.ActualWidth())*dpi)),LONG(std::ceil((origin.Y+card.ActualHeight())*dpi))};
+            auto weak=weak_from_this();
+            auto hr=manipulation.Init(target,rect,[weak](int delta,bool horizontal){
+                if(auto p=weak.lock();p&&!p->stopped)try{
+                    auto before=p->switches;p->Scroll(delta,horizontal);
+                    if(before!=p->switches)WheelCount(p->hwnd,12);
+                }catch(...){p->Fail();}
+            },[weak](bool active){if(auto p=weak.lock())p->GestureFrames(active);},
+            [weak](unsigned index,intptr_t value){if(auto p=weak.lock();p&&!p->stopped){
+                if(index==9)p->gestureDeadline=GetTickCount64()+30000;
+                if(index==9||index==13)WheelCount(p->hwnd,index);
+                else if(p->hwnd)SetPropW(p->hwnd,WheelProps[index],reinterpret_cast<HANDLE>(value));
+            }});
+            SetPropW(hwnd,WheelProps[6],reinterpret_cast<HANDLE>(SUCCEEDED(hr)?1:0));
+            return hr;
+        }catch(...){return winrt::to_hresult();}
+    }
+    bool BeginTouchpad(HWND target,UINT32 pointer) noexcept {
+        try {
+            WheelCount(hwnd,3);gestureDeadline=GetTickCount64()+30000;
+            RECT rect{};float dpi{};auto hr=PrepareTouchpad(target,rect,dpi);
+            if(SUCCEEDED(hr)){if(!gestureFrames)wheel.Reset();hr=manipulation.Begin(pointer,rect,dpi);}
+            SetPropW(hwnd,WheelProps[11],reinterpret_cast<HANDLE>(intptr_t(hr)));
+            if(FAILED(hr))return false;
+            WheelCount(hwnd,7);return true;
+        }catch(...){Fail();return false;}
+    }
+    void Scroll(int delta,bool horizontal) {
+        if(stopped||!fits||!Visible()){wheel.Reset();return;}
+        if(hwnd)SetPropW(hwnd,WheelProps[5],reinterpret_cast<HANDLE>(horizontal?2:1));
+        if(auto step=wheel.Step(delta,horizontal,GetTickCount64())){
+            auto selected=order.Step(page,step);
+            if(selected!=page){page=selected;++switches;if(!SaveSelection(directory,page))Fail();}
+            if(page==Page::Power)ReadPower();
+            Render();
+        }
+    }
     bool Visible()const {
         if(!hwnd || !fits || !IsWindowVisible(hwnd) || IsIconic(hwnd))return false;
         RECT r{};MONITORINFO mi{sizeof(mi)};
@@ -381,6 +497,8 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         busy=true;
         try{
             hwnd=taskbar;
+            inputRoute.Bind(hwnd,InstallInputProcedure);
+            SetPropW(hwnd,WheelProps[0],reinterpret_cast<HANDLE>(inputRoute.Ready()?1:0));
             const double appWidth=std::max(double(apps.ActualWidth()),double(apps.DesiredSize().Width));
             Put(hwnd,52,std::lround(apps.ActualWidth()*100));Put(hwnd,53,std::lround(root.ActualWidth()*100));
             Put(hwnd,54,std::lround(root.MinWidth()*100));
@@ -393,7 +511,13 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
             if(fits!=nextFits){fits=nextFits;card.Visibility(fits?x::Visibility::Visible:x::Visibility::Collapsed);divider.Visibility(card.Visibility());}
             auto lineShift=divider.RenderTransform().as<x::Media::TranslateTransform>();if(lineShift.X()!=12+slot)lineShift.X(12+slot);
             const bool wasShown=shown;shown=Visible();if(shown&&!wasShown)ReadPower();Sampling();Put(hwnd,0,1);Put(hwnd,1,shown);Publish();
+            if(!shown){wheel.Reset();if(gestureFrames)manipulation.Cancel();}
             PublishSlot();
+            if(inputRoute.Ready()&&preparedInput!=inputRoute.Window()&&card.ActualWidth()>0&&card.ActualHeight()>0){
+                preparedInput=inputRoute.Window();RECT rect{};float dpi{};
+                auto hr=PrepareTouchpad(preparedInput,rect,dpi);
+                SetPropW(hwnd,WheelProps[11],reinterpret_cast<HANDLE>(intptr_t(hr)));
+            }
             if(fits&&page==Page::Power){auto p=powerCard.TransformToVisual(root.XamlRoot().Content()).TransformPoint({0,0});
                 Put(hwnd,28,std::lround(p.X*100));Put(hwnd,29,std::lround((p.X+powerCard.ActualWidth())*100));
                 Put(hwnd,30,std::lround(p.Y*100));Put(hwnd,31,std::lround((p.Y+powerCard.ActualHeight())*100));
@@ -445,7 +569,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
             if(auto p=weak.lock();p&&!p->stopped)try{
                 PageOrder order;Page selected=p->page;
                 if(!(p->preferencesValid=ReadPreferences(p->directory,order,selected))){p->Fail();p->Publish();return;}
-                p->order=std::move(order);p->page=p->order.Select(p->page);p->wheelRemainder=0;
+                p->order=std::move(order);p->page=p->order.Select(p->page);p->wheel.Reset();
                 if(p->page==Page::Power)p->ReadPower();p->Render();
             }catch(...){p->Fail();}
         });}catch(...){}
@@ -465,8 +589,9 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         auto rx=FormatRate(network.value?std::optional(network.value->received):std::nullopt);
         auto tx=FormatRate(network.value?std::optional(network.value->sent):std::nullopt);
         networkReceive.Text(rx.CompactText());networkSend.Text(tx.CompactText());
-        x::Automation::AutomationProperties::SetName(networkCard,L"上传 "+tx.PerSecondText()+L"，下载 "+rx.PerSecondText()+L"，打开网络设置");
+        x::Automation::AutomationProperties::SetName(networkCard,L"网络总发送 "+tx.PerSecondText()+L"，总接收 "+rx.PerSecondText()+L"，打开网络设置");
         Put(hwnd,57,networking);Put(hwnd,58,networkSamples);
+        Put(hwnd,63,network.baseline?network.baseline->size():0);
         if(network.value){Put(hwnd,59,uintptr_t(std::min(network.value->received,double(UINT32_MAX))));Put(hwnd,60,uintptr_t(std::min(network.value->sent,double(UINT32_MAX))));}
         else if(hwnd){RemovePropW(hwnd,Props[59]);RemovePropW(hwnd,Props[60]);}
     }
@@ -735,6 +860,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
     }
     void Stop() noexcept override {
         if(stopped)return;stopped=true;++generation;++networkGeneration;
+        inputRoute.Stop();manipulation.Stop();GestureFrames(false);wheel.Reset();
         CancelCommand();
         try{if(timer)timer.Stop();}catch(...){}
         try{if(request)request.Cancel();if(metadata)metadata.Cancel();}catch(...){}
@@ -752,6 +878,7 @@ struct Board final:Host,std::enable_shared_from_this<Board> {
         try{if(background){if(oldMargin==x::DependencyProperty::UnsetValue())background.ClearValue(x::FrameworkElement::MarginProperty());else background.SetValue(x::FrameworkElement::MarginProperty(),oldMargin);}}catch(...){}
         for(auto key:Props)if(hwnd)RemovePropW(hwnd,key);
         for(auto key:InputProps)if(hwnd)RemovePropW(hwnd,key);
+        for(auto key:WheelProps)if(hwnd)RemovePropW(hwnd,key);
         if(hwnd)for(auto name:{L"LeanDock.Shell.LastRequest",L"LeanDock.Shell.LastAction",L"LeanDock.Shell.LastResult",L"LeanDock.Shell.PowerUser",L"LeanDock.Shell.QuickSettings",L"LeanDock.Shell.Notifications"})RemovePropW(hwnd,name);
         session=nullptr;manager=nullptr;
     }

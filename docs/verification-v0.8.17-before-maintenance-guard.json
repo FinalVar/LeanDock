@@ -1,0 +1,62 @@
+{
+  "schema": 43,
+  "recordedAt": "2026-10-11T15:33:02.3824996+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.17",
+  "backendVersion": "0.5.17",
+  "scope": "Native system status icons join the existing mixed tray; quick settings group remains hidden",
+  "previousVerification": "docs/verification-v0.8.16.json",
+  "tests": {
+    "privacyScenarios": "No active native system status icon observed; current layout has 3 apps, 0 system icons, 2 columns; not end-to-end acceptance",
+    "build": "Passed; one inherited upstream deprecation warning",
+    "testExecutable": "Blocked by Windows application control; no security policy modification",
+    "mixedGeometry": "Compile-time assertions passed: 65 app counts x 13 system counts, parity, extents, final-item centering",
+    "runtime": "Backend 0.5.17 loaded in Explorer, 58 hooks, no backend fault; QuickPosition active; StartLayout unsupported/inactive because Smart App Control rejected its existing DLL",
+    "input": "Not verified; further executable fixtures stopped after application-control denial"
+  },
+  "deployment": {
+    "blockedAt": "2026-10-11T15:30:06+08:00",
+    "codeIntegrityEvent": 3077,
+    "controllerPid": 21304,
+    "configurationPreserved": true,
+    "blockedStartDllSHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB",
+    "policyState": 1,
+    "policy": "VerifiedAndReputableDesktop",
+    "startDllChanged": false,
+    "version": "0.8.17",
+    "backup": "before-0.8.17-20261011-152958701",
+    "backend": "0.5.17",
+    "explorerPid": 33720,
+    "securitySettingsChanged": false,
+    "state": "AppliedWithBlockedStartLayout"
+  },
+  "boundaries": [
+    "No new privacy state inference or synthesized icons",
+    "Original Wi-Fi/volume/power group stays hidden",
+    "Four-finger transparency remains unresolved; 0.8.16 cleanup is included",
+    "Settings window persistence fix and its local documentation are preserved",
+    "No new Git commit or push"
+  ],
+  "runtimeArtifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 281088,
+      "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2016256,
+      "SHA256": "3C5595F8E3E97BDBEDD4589BE99F134FD09CF07A1B81B20C3F0DD47E1C45BB41"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ]
+}

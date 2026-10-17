@@ -6,6 +6,7 @@
 #include <cwchar>
 #include <iterator>
 #include "verify-latest.h"
+#include "theme-notify-latest.h"
 
 // The system theme manager ABI is private. It is called only in a short-lived
 // --theme worker, with the implementation hash pinned, never inside Explorer
@@ -42,6 +43,7 @@ struct Manager: IUnknown {
     virtual HRESULT STDMETHODCALLTYPE ApplyTheme(BSTR)=0;
 };
 inline DWORD WINAPI NotifyVisible(void*) {
+    NotifyTaskbars();
     const auto started=GetTickCount64();
     EnumWindows([](HWND window,LPARAM context)->BOOL {
         if(GetTickCount64()-*reinterpret_cast<const ULONGLONG*>(context)>=75)return FALSE;
@@ -58,8 +60,9 @@ inline bool WriteMode(const wchar_t* name,DWORD value) {
 }
 // Make the real appearance preference available immediately. A bounded helper
 // notifies visible windows in parallel with full theme application; the system
-// theme manager still applies wallpaper, styles, sounds and its normal global
-// notifications. No optimistic success, timer, or resident helper is involved.
+// theme manager still applies wallpaper, styles and sounds. A full native
+// appearance broadcast follows verified completion, including hidden listeners
+// skipped here. No optimistic success, timer, or resident helper is involved.
 struct Appearance {
     DWORD apps=2,system=2,target=2;bool changed=false;HANDLE notify=nullptr;
     wchar_t previousTheme[32768]{};
@@ -80,7 +83,7 @@ struct Appearance {
         if(ReadModes(currentApps,currentSystem)&&currentApps==target&&currentSystem==target&&
            RegGetValueW(HKEY_CURRENT_USER,Themes,L"CurrentTheme",RRF_RT_REG_SZ,nullptr,currentTheme,&size)==ERROR_SUCCESS&&
            !_wcsicmp(currentTheme,previousTheme)){
-            WriteMode(L"AppsUseLightTheme",apps);WriteMode(L"SystemUsesLightTheme",system);NotifyVisible(nullptr);
+            WriteMode(L"AppsUseLightTheme",apps);WriteMode(L"SystemUsesLightTheme",system);BroadcastAppearance();
         }
     }
     ~Appearance(){Join();}
@@ -110,8 +113,17 @@ inline int Apply(bool dark) {
     hr=manager->ApplyTheme(path);SysFreeString(path);manager->Release();
     if(FAILED(hr)){appearance.RestoreOnFailure();return 78;}
     // A bounded completion check for the one requested transition, not a
-    // resident monitor. Theme application broadcasts its own system updates.
-    for(int i=0;i<40;++i){if(Verified(dark,theme,wallpaper))return 0;Sleep(50);}
+    // resident monitor. Pre-applying mode values can make the theme manager
+    // skip a redundant appearance broadcast. Resync ALL top-level listeners
+    // AFTER the full theme is committed and the fast pass has finished. Hidden
+    // shell/app listener windows must not retain the previous appearance; a
+    // taskbar-only refresh was observed to recover and then revert to Dark.
+    for(int i=0;i<40;++i){
+        if(Verified(dark,theme,wallpaper)){
+            appearance.Join();BroadcastAppearance();return 0;
+        }
+        Sleep(50);
+    }
     return 79;
 }
 }

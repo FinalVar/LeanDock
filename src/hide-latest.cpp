@@ -5,6 +5,7 @@
 #include "dock-geometry-latest.h"
 #include "event-loop-latest.h"
 #include "backdrop-resume-latest.h"
+#include "attention-policy-latest.h"
 #include <stdexcept>
 #include <windhawk_utils.h>
 #include <dwmapi.h>
@@ -822,6 +823,55 @@ using CSecondaryTray__Unhide_t = void(WINAPI*)(void* pThis,
                                                int unhideRequest);
 CSecondaryTray__Unhide_t CSecondaryTray__Unhide_Original;
 
+// Selective attention policy adapted from Taskbar Auto-Hide Motion 1.0.8
+// (jinSeong-P, GPL-3.0, pinned source and differences in NOTICE.md).
+// Scope the IsFlashing override to native auto-hide permission queries;
+// never clear a task item, intercept notification delivery, or alter drawing.
+using CTaskListWnd_PermitAutoHide_t = BOOL(WINAPI*)(void*);
+CTaskListWnd_PermitAutoHide_t CTaskListWnd_PermitAutoHide_Original;
+using CTaskBtnGroup_IsFlashing_t = BOOL(WINAPI*)(void*);
+CTaskBtnGroup_IsFlashing_t CTaskBtnGroup_IsFlashing_Original;
+thread_local bool g_attentionPermissionQuery = false;
+std::atomic<unsigned long long> g_attentionBlockedReveals{0};
+std::atomic<unsigned long long> g_attentionIgnoredFlashing{0};
+std::atomic<unsigned long long> g_attentionPassedReveals{0};
+
+BOOL WINAPI CTaskListWnd_PermitAutoHide_Hook(void* self) {
+    LeanDockAttention::PermissionScope scope(g_attentionPermissionQuery,
+                                            !g_eventStopping.load());
+    // Keep every native inhibitor (menus, pointer, drag, focus, etc.).
+    return CTaskListWnd_PermitAutoHide_Original(self);
+}
+
+BOOL WINAPI CTaskBtnGroup_IsFlashing_Hook(void* self) {
+    const BOOL flashing = CTaskBtnGroup_IsFlashing_Original(self);
+    if (flashing && g_attentionPermissionQuery && !g_eventStopping.load()) {
+        ++g_attentionIgnoredFlashing;
+        return FALSE;
+    }
+    return flashing;
+}
+
+bool BlockAttentionReveal(int request) {
+    if (!g_eventStopping.load() && request == LeanDockAttention::AttentionRequest) {
+        ++g_attentionBlockedReveals;
+        return true;
+    }
+    ++g_attentionPassedReveals;
+    return false;
+}
+
+void WINAPI TrayUI_Unhide_Hook(void* self, int flags, int request) {
+    if (!BlockAttentionReveal(request))
+        TrayUI_Unhide_Original(self, flags, request);
+}
+
+void WINAPI CSecondaryTray__Unhide_Hook(void* self, int flags, int request) {
+    if (!BlockAttentionReveal(request))
+        CSecondaryTray__Unhide_Original(self, flags, request);
+}
+
+
 using TrayUI_WndProc_t = LRESULT(WINAPI*)(void* pThis,
                                           HWND hWnd,
                                           UINT Msg,
@@ -1431,6 +1481,10 @@ bool HookTaskbarSymbols() {
 
     // Taskbar.dll, explorer.exe
     WindhawkUtils::SYMBOL_HOOK symbolHooks[] = {
+        {{LR"(public: virtual int __cdecl CTaskListWnd::PermitAutoHide(void))"},
+         &CTaskListWnd_PermitAutoHide_Original, CTaskListWnd_PermitAutoHide_Hook},
+        {{LR"(public: virtual int __cdecl CTaskBtnGroup::IsFlashing(void))"},
+         &CTaskBtnGroup_IsFlashing_Original, CTaskBtnGroup_IsFlashing_Hook},
         {
             {
                 // Windows 11.
@@ -1482,10 +1536,12 @@ bool HookTaskbarSymbols() {
         {
             {LR"(public: virtual void __cdecl TrayUI::Unhide(enum TrayCommon::TrayUnhideFlags,enum TrayCommon::UnhideRequest))"},
             &TrayUI_Unhide_Original,
+            TrayUI_Unhide_Hook,
         },
         {
             {LR"(private: void __cdecl CSecondaryTray::_Unhide(enum TrayCommon::TrayUnhideFlags,enum TrayCommon::UnhideRequest))"},
             &CSecondaryTray__Unhide_Original,
+            CSecondaryTray__Unhide_Hook,
         },
         {
             {LR"(public: virtual __int64 __cdecl TrayUI::WndProc(struct HWND__ *,unsigned int,unsigned __int64,__int64,bool *))"},
@@ -1663,3 +1719,13 @@ extern "C" void Native_hide_after() { NDHide::HideComponentAfterInit(); }
 extern "C" void Native_hide_stop() { NDHide::HideComponentUninit(); }
 
 extern "C" int Native_hide_expanded(HWND window) { return NDHide::ReadExpandedState(window,L"AtInput"); }
+
+extern "C" unsigned long long Native_hide_attention(unsigned key) {
+    switch(key) {
+        case 0:return !NDHide::g_eventStopping.load();
+        case 1:return NDHide::g_attentionBlockedReveals.load();
+        case 2:return NDHide::g_attentionIgnoredFlashing.load();
+        case 3:return NDHide::g_attentionPassedReveals.load();
+        default:return 0;
+    }
+}

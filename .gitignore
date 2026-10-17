@@ -33,3 +33,6 @@ maintenance/*.json
 .local/
 .env
 .env.*
+# Local investigation files and the independent ChatGPT startup experiment.
+/work/
+/integrations/chatgpt-admin-startup/

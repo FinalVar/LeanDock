@@ -1,0 +1,1067 @@
+{
+  "schema": 56,
+  "recordedAt": "2026-10-12T16:53:05.9981445+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.26",
+  "backendVersion": "0.5.23",
+  "scope": "Move native running indicator dots down by a total of 3 DIP following user spacing feedback",
+  "previousVerification": "docs/verification-v0.8.25-before-extra-offset.json",
+  "tests": {
+    "networkRegression": {
+      "checks": 492,
+      "failures": 0,
+      "includes": "Forwarding RX/TX, filtered adapter metadata, hotspot disconnect/reconnect, large lifetime counts and reordered LUIDs"
+    },
+    "build": "Passed; one inherited upstream deprecation warning",
+    "liveRead": {
+      "activeInterfaces": 2,
+      "milliseconds": 1.839,
+      "hotspotObserved": true,
+      "generatedTraffic": false
+    },
+    "nativeHotspotAcceptance": "Observed actual hotspot traffic and two visible Dock network samples containing both physical Wi-Fi and hotspot; no interface-count mismatches. Different sample windows prevent exact instantaneous-rate equality claims.",
+    "nativeInputAcceptance": "After enforced-policy cold reload the user confirmed Start compact layout, application launch and battery Quick Settings opening; other card inputs not re-tested",
+    "hotspotObservation": {
+      "At": "2026-10-11T17:23:50.5654151+08:00",
+      "DurationSeconds": 30.4837634,
+      "VisibleSamples": 2,
+      "Interfaces": 2,
+      "InterfaceCountMismatches": 0,
+      "CardSamples": [
+        {
+          "DockInterfaces": 2,
+          "DockReceivedBytesPerSecond": 9250991,
+          "DockSentBytesPerSecond": 8033562
+        },
+        {
+          "DockInterfaces": 2,
+          "DockReceivedBytesPerSecond": 14536428,
+          "DockSentBytesPerSecond": 12352561
+        }
+      ],
+      "HiddenSamplingStopsObserved": true,
+      "ScreenshotAcceptance": false,
+      "ActualHotspotReconnectTest": false
+    },
+    "enforcedReload": {
+      "At": "2026-10-11T17:34:41.1324619+08:00",
+      "CompletedAt": "2026-10-11T17:34:59.3134773+08:00",
+      "ProtectionBefore": {
+        "SmartAppControl": "On",
+        "PolicyEnforced": true,
+        "RealTimeProtection": true
+      },
+      "ProtectionAfter": {
+        "SmartAppControl": "On",
+        "PolicyEnforced": true,
+        "RealTimeProtection": true
+      },
+      "OrdinaryLoaderAdmission": [
+        {
+          "File": "latest.dll",
+          "Passed": true,
+          "Win32Error": 0
+        },
+        {
+          "File": "start/latest.dll",
+          "Passed": true,
+          "Win32Error": 0
+        },
+        {
+          "File": "panels/latest.dll",
+          "Passed": true,
+          "Win32Error": 0
+        }
+      ],
+      "FreshController": true,
+      "FreshNativeHosts": [
+        {
+          "Host": "Explorer",
+          "Before": 15800,
+          "After": 33984
+        },
+        {
+          "Host": "StartMenuExperienceHost",
+          "Before": 29236,
+          "After": 17424
+        },
+        {
+          "Host": "ShellHost",
+          "Before": 33876,
+          "After": 4668
+        }
+      ],
+      "StartLayout": {
+        "Columns": 8,
+        "Items": 45,
+        "Rows": 6,
+        "LockedSelectors": 1,
+        "Failures": 0
+      },
+      "ComponentHealth": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "RuntimeHashesUnchanged": true,
+      "MatchingDenialsSinceReload": 0,
+      "CodeIntegrityObservationEnds": "2026-10-11T17:36:05.0194121+08:00",
+      "NativeInputAcceptance": "User confirmed all requested interactions normal after enforced-policy fresh-host reload",
+      "SecuritySettingsChangedByAgent": false,
+      "UpdateSignatureGateChanged": false,
+      "AcceptanceScope": "Current exact file hashes, Windows build and enforced policy; no claim of permanent reputation/signing or acceptance of future builds",
+      "NativeUserConfirmation": {
+        "RecordedAt": "2026-10-11T17:38:44.6074145+08:00",
+        "Reply": "都正常",
+        "Scope": [
+          "Start menu compact layout",
+          "Application launch from Start",
+          "Battery card opens Quick Settings"
+        ],
+        "ComponentHealth": {
+          "State": "Ready",
+          "Unavailable": [],
+          "Pending": []
+        },
+        "StartLayoutFailures": 0,
+        "QuickSettingsAdjustments": 1,
+        "QuickThemeButtonReady": true,
+        "QuickThemeFailures": 0,
+        "ThemeSwitchRetested": false
+      }
+    }
+  },
+  "deployment": {
+    "state": "Applied",
+    "securityState": "User re-enabled SAC; On, actual VerifiedAndReputableDesktop policy enforced and Defender real-time protection enabled before and after fresh native-host reload",
+    "securitySettingsChangedByAgent": false,
+    "finalSACOnAcceptance": "Passed for current exact runtime hashes: enforced policy, fresh controller and all three native hosts, then user-confirmed Start layout/application launch and battery/Quick Settings input",
+    "backup": "before-0.8.18-20261011-172033725",
+    "componentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "runtimeHashesMatch": true
+  },
+  "boundaries": [
+    "Link totals intentionally count each side of hotspot forwarding; not deduplicated Internet throughput",
+    "Only network adapter filtering, accessible label and numeric interface-count diagnostic changed in this runtime patch",
+    "Controller, Start and Quick Settings DLLs unchanged",
+    "Previously added native system-status tray integration retained; no current active privacy icon to validate",
+    "Four-finger gesture transparency remains unresolved and work on it remains stopped",
+    "No new Git commit or push"
+  ],
+  "runtimeArtifacts": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 281088,
+      "SHA256": "56474BC6B844C959479047052410ECFC57BF8425135A41737CDBC58D923B0342"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2016768,
+      "SHA256": "D72BE6B2D2C84809EC21165403E6FBB829E11511C0C838D7552502980C4580A2"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 396288,
+      "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3"
+    }
+  ],
+  "maximizedClientEdge": {
+    "ObservedAt": "2026-10-11T18:21:16.2455697+08:00",
+    "DeployedPackage": "0.8.18",
+    "DeployedController": "0.3.6",
+    "RuntimeFilesUnchanged": true,
+    "Diagnosis": "Maximized packaged ChatGPT covered the native two-pixel reveal strip; client won bottom hit testing while taskbar was non-topmost.",
+    "CurrentWindowRepair": {
+      "Time": "2026-10-11T18:10:30.9193387+08:00",
+      "Image": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.2314.0_x64__2p2nqsd0c76g0\\app\\ChatGPT.exe",
+      "ProcessStarted": "2026-10-11T18:01:30.3465101+08:00",
+      "Result": {
+        "Window": 198004,
+        "ProcessId": 24148,
+        "PreviousNonRude": 0,
+        "CurrentNonRude": 1,
+        "Before": {
+          "Left": 0,
+          "Top": 0,
+          "Right": 2560,
+          "Bottom": 1600
+        },
+        "After": {
+          "Left": 0,
+          "Top": 0,
+          "Right": 2560,
+          "Bottom": 1600
+        },
+        "StillMaximized": true,
+        "Taskbar": 65818,
+        "TaskbarExStyleBefore": 128,
+        "TaskbarExStyleAfter": 136,
+        "Applied": true
+      },
+      "Scope": "Current HWND only; not a persistent installation or GUI acceptance."
+    },
+    "UserAcceptance": {
+      "Confirmed": true,
+      "Feedback": "两种情况下都能正常唤出",
+      "Scope": "Current maximized window, then restore and maximize again",
+      "ClientRestartTested": false
+    },
+    "NativeHitTest": {
+      "Before": "ChatGPT in and outside the Dock span",
+      "After": "Shell_TrayWnd within the Dock span, ChatGPT outside",
+      "GeometryUnchanged": true,
+      "Source": "work/edge-reveal/inspect-after-compat.json"
+    },
+    "PersistentCandidate": {
+      "SourceVersion": "0.8.19",
+      "ControllerVersion": "0.3.7",
+      "Compilation": "Succeeded",
+      "SHA256": "90F3235AE0A0C36AD0FD0EC2FF34DA66A3445F49CA373BAE68B7F9C8D9660391",
+      "Executed": false,
+      "Deployed": false,
+      "UnitChecksExecuted": 0,
+      "TestCompilation": "Succeeded",
+      "TestExecution": "Blocked by Windows Code Integrity policy",
+      "CodeIntegrityEvent": 3077,
+      "PolicyId": "{0283ac0f-fff1-49ae-ada1-8a933130cad6}",
+      "Admission": {
+        "Stage": "ReadOnlyAdmission",
+        "Allowed": false,
+        "Reason": "Smart App Control is enabled and runtime signature readiness is unverified: latest.exe, latest.dll, start/latest.dll, panels/latest.dll. Restart refused before this stage changes live components. Use a trusted signed package; this tool never changes application-control policy.",
+        "Files": [
+          {
+            "Name": "latest.exe",
+            "SHA256": "90F3235AE0A0C36AD0FD0EC2FF34DA66A3445F49CA373BAE68B7F9C8D9660391",
+            "Signature": "NotSigned"
+          },
+          {
+            "Name": "latest.dll",
+            "SHA256": "D72BE6B2D2C84809EC21165403E6FBB829E11511C0C838D7552502980C4580A2",
+            "Signature": "NotSigned"
+          },
+          {
+            "Name": "start/latest.dll",
+            "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB",
+            "Signature": "NotSigned"
+          },
+          {
+            "Name": "panels/latest.dll",
+            "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3",
+            "Signature": "NotSigned"
+          }
+        ]
+      },
+      "Remaining": [
+        "Native fixture execution",
+        "Full update and protected cold-load acceptance",
+        "Application recreation/restart",
+        "True fullscreen transition",
+        "Other applications",
+        "Explorer restart",
+        "Multiple monitors",
+        "Owned-property cleanup"
+      ]
+    },
+    "FinalPolicy": {
+      "SmartAppControlState": "On",
+      "RealTimeProtectionEnabled": true
+    },
+    "FinalComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    }
+  },
+  "dockClipRecovery": {
+    "ObservedAt": "2026-10-11T21:40:14.7440733+08:00",
+    "Diagnosis": "The last full-height simple clip remained vertically translated by -7 px; the unchanged horizontal clip lagged behind content width. The upstream foreign-owner guard prevented further updates.",
+    "Before": {
+      "Region": [
+        972,
+        -7,
+        1588,
+        89
+      ],
+      "ExpandedWindow": [
+        0,
+        1504,
+        2560,
+        1600
+      ],
+      "LaterContentSpan": [
+        912,
+        1648
+      ],
+      "OriginalTranslationCaller": "Not traced"
+    },
+    "Recovery": {
+      "At": "2026-10-11T21:42:26.7246713+08:00",
+      "Action": "Clear the exact recorded stale region once; the already-loaded styler regenerated its clip synchronously",
+      "AfterRegion": [
+        933,
+        0,
+        1627,
+        96
+      ],
+      "RuntimeReloaded": false,
+      "RuntimeFilesUnchanged": true,
+      "ExplorerPid": 8600,
+      "ControllerPid": 12124
+    },
+    "CurrentAcceptance": {
+      "UserProvidedScreenshot": "codex-clipboard-bdc1c7f3-1bf9-488b-9359-71dbee9393a4.png",
+      "AssistantVisualAssessment": "Both rounded ends, application icons and bottom edge are complete",
+      "UserExplicitAcceptance": false,
+      "Geometry": {
+        "Samples": 539,
+        "BadVertical": 0,
+        "HorizontalMismatch": 0,
+        "Widths": [
+          {
+            "Name": "616",
+            "Count": 325
+          },
+          {
+            "Name": "694",
+            "Count": 214
+          }
+        ],
+        "First": "2026-10-11T21:43:11.9051559+08:00",
+        "Last": "2026-10-11T21:44:11.8497773+08:00"
+      }
+    },
+    "SourceCandidate": {
+      "PackageVersion": "0.8.19",
+      "BackendVersion": "0.5.19",
+      "Deployed": false,
+      "Policy": "Only recover an upward translation of the last known full-height simple rectangle with identical horizontal boundaries",
+      "CompileTimeAssertions": 19,
+      "AssertionResult": "Passed",
+      "FullStylerTranslationUnit": "Clang C++23 syntax check passed",
+      "RuntimeTestExecutablesProduced": 0,
+      "RuntimeTestExecutablesExecuted": 0,
+      "NativeLifecycleTested": false
+    },
+    "Security": {
+      "SmartAppControl": "On",
+      "RealtimeProtection": true,
+      "RejectedProgramRetried": false,
+      "PolicyChanged": false
+    },
+    "Limitations": [
+      "Current-window recovery only, not a deployed persistent fix",
+      "The initial source of the -7 px translation is unconfirmed",
+      "Tablet folding, monitor/DPI changes, restart and long-term candidate runtime acceptance remain untested"
+    ]
+  },
+  "startHostRecovery": {
+    "Diagnosis": "Old controller unconditionally latched Start recovery off when its previous host exited, without inspecting the exit code",
+    "ExplorerRestartedAt": "2026-10-12T00:51:20.6485271+08:00",
+    "OldStartPid": 9728,
+    "ReplacementStartPid": 30456,
+    "OriginalExitCodeKnown": false,
+    "CurrentRecovery": {
+      "At": "2026-10-12T01:00:28.8292491+08:00",
+      "Result": {
+        "Status": "CompanionReattached",
+        "Host": 30456,
+        "Window": 131940,
+        "Owner": 12124,
+        "SignalReturned": true,
+        "ImageLoadAttempted": true,
+        "Active": true,
+        "ControllerRestarted": false,
+        "ControllerLatchUnchanged": true
+      }
+    },
+    "ActualComponent": {
+      "Start": {
+        "version": "0.1.3",
+        "pid": 30456,
+        "ownerPid": 12124,
+        "active": true,
+        "lists": 1,
+        "items": 43,
+        "sourceGroups": 30,
+        "lockedSelectors": 1,
+        "columns": 8,
+        "rows": 6,
+        "panelWidth": 834.0,
+        "panelHeight": 670.0,
+        "passes": 19,
+        "failures": 0,
+        "watchMode": "events"
+      },
+      "Process": {
+        "Id": 30456,
+        "Name": "StartMenuExperienceHost",
+        "Started": "2026-10-12T00:51:22.2793519+08:00",
+        "Modules": [
+          {
+            "FileName": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\start\\latest.dll"
+          }
+        ]
+      },
+      "Protection": {
+        "SmartAppControlState": "On",
+        "RealTimeProtectionEnabled": true
+      },
+      "NewCodeIntegrityEvents": []
+    },
+    "UserAcceptance": {
+      "Confirmed": true,
+      "Feedback": "紧凑布局和点击都恢复正常",
+      "Scope": "Current Start layout, hidden view selector, application/folder click",
+      "ExplorerRestartWithCandidateTested": false
+    },
+    "ControllerLatchStillBlocked": true,
+    "ControllerRestarted": false,
+    "RuntimeFilesChanged": false,
+    "FutureCandidate": {
+      "PackageVersion": "0.8.20",
+      "ControllerVersion": "0.3.8",
+      "BackendVersion": "0.5.19",
+      "CompilerAndLinker": "Passed",
+      "SHA256": "725A5F6BC9B1890DAB65453FD641D5B9DAFD0E00D22309FCD5E1EEBF891E1B05",
+      "Policy": "Reuse existing Quick RestartPolicy: known zero exit only, at most 2 retirements per 60 seconds",
+      "CompileTimeAssertions": 8,
+      "AssertionFailures": 0,
+      "Executed": false,
+      "Deployed": false,
+      "NativeLifecycleAcceptance": false,
+      "Admission": {
+        "At": "2026-10-12T01:05:29.7916564+08:00",
+        "Stage": "ReadOnlyAdmission",
+        "Policy": "On",
+        "Allowed": false,
+        "Reason": "Smart App Control is enabled and runtime signature readiness is unverified: latest.exe, latest.dll, start/latest.dll, panels/latest.dll. Restart refused before this stage changes live components. Use a trusted signed package; this tool never changes application-control policy.",
+        "Files": [
+          {
+            "Name": "latest.exe",
+            "SHA256": "725A5F6BC9B1890DAB65453FD641D5B9DAFD0E00D22309FCD5E1EEBF891E1B05",
+            "Signature": "NotSigned"
+          },
+          {
+            "Name": "latest.dll",
+            "SHA256": "D72BE6B2D2C84809EC21165403E6FBB829E11511C0C838D7552502980C4580A2",
+            "Signature": "NotSigned"
+          },
+          {
+            "Name": "start/latest.dll",
+            "SHA256": "1C837F0663F1238C1986AF0EBFBB6C5C863E00E4A90FA6BDB9D2592028EFF3BB",
+            "Signature": "NotSigned"
+          },
+          {
+            "Name": "panels/latest.dll",
+            "SHA256": "51B934DF905EF3A9A2F369B56CD68EE07E779481B70E45792B7B6817F767C5C3",
+            "Signature": "NotSigned"
+          }
+        ],
+        "RuntimeStopped": false,
+        "CandidateExecuted": false
+      }
+    },
+    "Limitations": [
+      "Old controller remains 0.3.6 and may lose compact layout on the next Start host replacement",
+      "Its stale aggregate flags do not describe the manually reattached component; preserve both states",
+      "New image admission and actual restart lifecycle remain unverified"
+    ]
+  },
+  "attentionHide": {
+    "CandidateVersion": "0.8.21",
+    "BackendVersion": "0.5.20",
+    "ControllerVersion": "0.3.8",
+    "State": "Deployed",
+    "UserRequest": "Retain native app attention indication without force-revealing or pinning the Dock",
+    "Reuse": {
+      "Project": "jinSeong-P/windhawk-floating-dock",
+      "Commit": "69eaa5c818311715ba1c433c6c3372f642c03022",
+      "Version": "1.0.8",
+      "License": "GPL-3.0",
+      "SourceSha256": "A05EEF89E7133A63112D46380F0B94F1ED49A1BED58BB37F881E4DE07B034338"
+    },
+    "Validation": {
+      "ActualHookUnitRegression": "Passed",
+      "RuntimeChecks": 91,
+      "ClientEdgeChecks": 38,
+      "GeometryChecks": 199,
+      "MaintenanceChecks": 46,
+      "QuickLifecycleChecks": 22,
+      "StartCompileAssertions": 8,
+      "ClipCompileAssertions": 19,
+      "Failures": 0,
+      "NativeNotificationAcceptance": {
+        "keepShownBefore": 0,
+        "visibleHeightBefore": 2,
+        "pointerOverTaskbar": false,
+        "flashRequests": 3,
+        "samples": 109,
+        "expandedSamples": 0,
+        "foregroundChangedSamples": 0,
+        "ownedWindowRemoved": true,
+        "visibleHeightAfter": 2
+      },
+      "GuiInputAutomationUsed": false,
+      "BlockedRevealDelta": 8,
+      "NativeComponents": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "WeChatVisualAcceptance": {
+        "Confirmed": true,
+        "UserFeedback": "两点都正常",
+        "Scope": "Real WeChat notification does not reveal Dock; manual reveal still shows red attention indication"
+      },
+      "Remaining": "Native re-hide while a live menu is open; secondary monitor; future Windows builds; admission under SAC On is not tested for this build"
+    },
+    "Security": {
+      "SmartAppControl": "Off - user explicitly chose to keep it off for this update",
+      "RealtimeProtection": true,
+      "AgentChangedPolicy": false,
+      "UserDecision": "这次先保持关闭"
+    },
+    "Deployment": {
+      "State": "Applied",
+      "Version": "0.8.21",
+      "Live": true,
+      "ComponentHealth": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.21-20261012-150709254",
+      "ChangedFiles": 43,
+      "ConfigPreserved": true
+    },
+    "IncludesPreviouslyPending": [
+      "Start clean-host retirement recovery",
+      "Scoped app edge fullscreen classification repair",
+      "Owned shifted clipping region recovery"
+    ]
+  },
+  "attentionDot": {
+    "State": "Deployed",
+    "UserRequest": "只保留红点行吗",
+    "PackageVersion": "0.8.22",
+    "BackendVersion": "0.5.21",
+    "Changes": "Six CommonStates backgrounds and 4-DIP attention indicator width only",
+    "NativeFillAndAttentionStatePreserved": true,
+    "HidePolicyUnchanged": true,
+    "GuiAutomationUsed": false,
+    "VisualAcceptance": {
+      "Confirmed": true,
+      "Feedback": "只剩红点，隐藏也正常",
+      "At": "2026-10-12T15:30:25.4639288+08:00",
+      "Scope": "Attention background removed; native red dot remains; notification does not reveal Dock"
+    },
+    "Security": "SAC remains Off at user request; realtime protection On; no policy changes",
+    "Validation": {
+      "BackendBuild": "Passed",
+      "AttentionHooks": "Passed actual hook regression",
+      "DiffCheck": "Passed",
+      "OnlyRuntimeChange": "latest.dll",
+      "ControllerStartAndQuickHashesUnchanged": true,
+      "VisualAcceptance": {
+        "Confirmed": true,
+        "Feedback": "只剩红点，隐藏也正常",
+        "At": "2026-10-12T15:30:25.4639288+08:00",
+        "Scope": "Attention background removed; native red dot remains; notification does not reveal Dock"
+      },
+      "RuntimeHashesMatchBuild": true,
+      "ComponentHealth": "Ready",
+      "NativeBackend": {
+        "protocol": 1,
+        "version": "0.5.21",
+        "explorerPid": 28412,
+        "ownerPid": 25444,
+        "state": 2,
+        "hooks": 62,
+        "styledElements": 31,
+        "failed": false,
+        "attentionPolicy": {
+          "active": true,
+          "blockedReveals": 8,
+          "ignoredFlashingChecks": 0,
+          "passedReveals": 7
+        }
+      }
+    },
+    "Deployment": {
+      "State": "Applied",
+      "Version": "0.8.22",
+      "Live": true,
+      "ComponentHealth": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.22-20261012-152743489",
+      "ChangedFiles": 12,
+      "ConfigPreserved": true
+    }
+  },
+  "themeRefresh": {
+    "State": "SupersededAfterUserRecurrence",
+    "ControllerVersion": "0.3.9",
+    "NativeBeforeAndAfter": {
+      "At": "2026-10-12T15:36:18.3432756+08:00",
+      "ExplorerPid": 28412,
+      "SystemLight": 1,
+      "AppsLight": 1,
+      "Before": {
+        "Delivered": true,
+        "Ready": 1,
+        "Theme": 2,
+        "Argb": 3005557816,
+        "HostVisible": 0,
+        "Error": 0,
+        "ArgbHex": "B3252C38"
+      },
+      "Notified": true,
+      "After": {
+        "Delivered": true,
+        "Ready": 1,
+        "Theme": 1,
+        "Argb": 2663961054,
+        "HostVisible": 0,
+        "Error": 0,
+        "ArgbHex": "9EC8D1DE"
+      },
+      "ForegroundUnchanged": true
+    },
+    "Validation": {
+      "Build": "Passed",
+      "HiddenWindowMessageChecks": 16,
+      "QuickLifecycleChecks": 22,
+      "NativeRoundTrips": {
+        "Success": true,
+        "GuiAutomationUsed": false,
+        "OriginalMode": "light",
+        "Rows": [
+          {
+            "Round": 1,
+            "Target": "dark",
+            "WorkerExit": 0,
+            "Milliseconds": 691,
+            "AppsLight": 0,
+            "SystemLight": 0,
+            "ActualTheme": 2,
+            "Material": "B3252C38",
+            "HostVisible": 0,
+            "Passed": true
+          },
+          {
+            "Round": 1,
+            "Target": "light",
+            "WorkerExit": 0,
+            "Milliseconds": 629,
+            "AppsLight": 1,
+            "SystemLight": 1,
+            "ActualTheme": 1,
+            "Material": "9EC8D1DE",
+            "HostVisible": 0,
+            "Passed": true
+          },
+          {
+            "Round": 2,
+            "Target": "dark",
+            "WorkerExit": 0,
+            "Milliseconds": 699,
+            "AppsLight": 0,
+            "SystemLight": 0,
+            "ActualTheme": 2,
+            "Material": "B3252C38",
+            "HostVisible": 0,
+            "Passed": true
+          },
+          {
+            "Round": 2,
+            "Target": "light",
+            "WorkerExit": 0,
+            "Milliseconds": 665,
+            "AppsLight": 1,
+            "SystemLight": 1,
+            "ActualTheme": 1,
+            "Material": "9EC8D1DE",
+            "HostVisible": 0,
+            "Passed": true
+          }
+        ]
+      },
+      "GuiAutomationUsed": false,
+      "VisualAcceptance": "Failed: initial recovery superseded by user reports 还是不行 and 现在又黑了"
+    },
+    "Cause": "Scoped taskbar notification repaired the immediate state but did not prevent recurrence. Exact late reverting listener is untraced.",
+    "Deployment": {
+      "State": "Applied",
+      "Version": "0.8.23",
+      "Live": true,
+      "ComponentHealth": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.23-20261012-154556129",
+      "ChangedFiles": 15,
+      "ConfigPreserved": true
+    },
+    "Remaining": "Visual quick-settings round trip, physical secondary displays and lock/sleep or hung shell",
+    "Recurrence": {
+      "At": "2026-10-12T15:51:30.0189809+08:00",
+      "ExplorerPid": 11484,
+      "SystemLight": 1,
+      "AppsLight": 1,
+      "Before": {
+        "Delivered": true,
+        "Ready": 1,
+        "Theme": 2,
+        "Argb": 3005557816,
+        "HostVisible": 1,
+        "Error": 0,
+        "ArgbHex": "B3252C38"
+      },
+      "Notified": false,
+      "After": {
+        "Delivered": true,
+        "Ready": 1,
+        "Theme": 2,
+        "Argb": 3005557816,
+        "HostVisible": 1,
+        "Error": 0,
+        "ArgbHex": "B3252C38"
+      },
+      "ForegroundUnchanged": true
+    }
+  },
+  "themeCompletion": {
+    "State": "DeployedAndUserAccepted",
+    "ControllerVersion": "0.3.10",
+    "UpstreamContract": "Auto Theme Switcher 1.3.2 ApplyAppearance HWND_BROADCAST WM_SETTINGCHANGE ImmersiveColorSet",
+    "RepairObservation": {
+      "Samples": 155,
+      "VisibleSamples": 155,
+      "Mismatches": 0,
+      "Seconds": 40,
+      "BroadcastMs": 147,
+      "ForegroundUnchanged": true
+    },
+    "Validation": {
+      "Build": "Passed",
+      "HiddenWindowBroadcastChecks": 22,
+      "QuickLifecycleChecks": 22,
+      "RoundTrips": [
+        {
+          "Round": 1,
+          "Target": "dark",
+          "FirstMatchingMs": 215,
+          "WorkerExitMs": 1112,
+          "AppsLight": 0,
+          "SystemLight": 0,
+          "AfterExitSamples": 46,
+          "Mismatches": 0,
+          "DwellSeconds": 5
+        },
+        {
+          "Round": 1,
+          "Target": "light",
+          "FirstMatchingMs": 125,
+          "WorkerExitMs": 783,
+          "AppsLight": 1,
+          "SystemLight": 1,
+          "AfterExitSamples": 47,
+          "Mismatches": 0,
+          "DwellSeconds": 5
+        },
+        {
+          "Round": 2,
+          "Target": "dark",
+          "FirstMatchingMs": 124,
+          "WorkerExitMs": 777,
+          "AppsLight": 0,
+          "SystemLight": 0,
+          "AfterExitSamples": 46,
+          "Mismatches": 0,
+          "DwellSeconds": 5
+        },
+        {
+          "Round": 2,
+          "Target": "light",
+          "FirstMatchingMs": 123,
+          "WorkerExitMs": 802,
+          "AppsLight": 1,
+          "SystemLight": 1,
+          "AfterExitSamples": 47,
+          "Mismatches": 0,
+          "DwellSeconds": 5
+        },
+        {
+          "Round": 3,
+          "Target": "dark",
+          "FirstMatchingMs": 129,
+          "WorkerExitMs": 804,
+          "AppsLight": 0,
+          "SystemLight": 0,
+          "AfterExitSamples": 46,
+          "Mismatches": 0,
+          "DwellSeconds": 5
+        },
+        {
+          "Round": 3,
+          "Target": "light",
+          "FirstMatchingMs": 130,
+          "WorkerExitMs": 802,
+          "AppsLight": 1,
+          "SystemLight": 1,
+          "AfterExitSamples": 180,
+          "Mismatches": 0,
+          "DwellSeconds": 20
+        }
+      ],
+      "NativeSamples": 456,
+      "HostVisibility": [
+        0
+      ],
+      "PostCompletionMismatches": 0,
+      "GuiAutomationUsed": false,
+      "VisualAcceptance": {
+        "At": "2026-10-12T16:07:28.3525922+08:00",
+        "Feedback": "没有再变黑",
+        "Scope": "Real Quick Settings dark/light switching, ordinary window switching, Dock reveal/hide",
+        "QuickThemeRequests": 12,
+        "WorkerFailures": 0,
+        "LastWorkerExit": 0
+      },
+      "PassiveAfterDeployment": {
+        "Seconds": 90,
+        "Samples": 335,
+        "ReadOnly": true,
+        "HostVisibility": [
+          0,
+          1
+        ],
+        "MismatchesAfterOneSecond": 0,
+        "TransitionMismatchSamples": 25,
+        "LongestMismatchModeStableMs": 691.0,
+        "QuickTheme": {
+          "version": "0.2.0",
+          "pid": 18072,
+          "ownerPid": 23516,
+          "active": true,
+          "rootReady": true,
+          "tileInstalled": true,
+          "buttonReady": true,
+          "busy": false,
+          "workerPid": 0,
+          "dark": false,
+          "stateKnown": true,
+          "discoveries": 2,
+          "switches": 12,
+          "failures": 0,
+          "lastExit": 0,
+          "discoveryResult": 0,
+          "watchMode": "events"
+        }
+      },
+      "FinalNativeRead": {
+        "At": "2026-10-12T16:05:58.803933+08:00",
+        "ExplorerPid": 8352,
+        "SystemLight": 1,
+        "AppsLight": 1,
+        "Before": {
+          "Delivered": true,
+          "Ready": 1,
+          "Theme": 1,
+          "Argb": 2663961054,
+          "HostVisible": 0,
+          "Error": 0,
+          "ArgbHex": "9EC8D1DE"
+        },
+        "Notified": false,
+        "After": {
+          "Delivered": true,
+          "Ready": 1,
+          "Theme": 1,
+          "Argb": 2663961054,
+          "HostVisible": 0,
+          "Error": 0,
+          "ArgbHex": "9EC8D1DE"
+        },
+        "ForegroundUnchanged": true
+      }
+    },
+    "ExactLateRevertingListener": "Not independently traced",
+    "Deployment": {
+      "State": "Applied",
+      "Version": "0.8.24",
+      "Live": true,
+      "ComponentHealth": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.24-20261012-160225991",
+      "ChangedFiles": 14,
+      "ConfigPreserved": true
+    },
+    "Remaining": [
+      "Long-term use beyond this session",
+      "Physical secondary displays",
+      "Lock/sleep",
+      "Hung shell and unresponsive apps"
+    ],
+    "DeployedHashes": [
+      {
+        "Name": "latest.exe",
+        "SHA256": "DB4020EA9E4C7B3A9C186B068779A306DBBF6565AF4B56E18BC765B4F63B02DE",
+        "Match": true
+      },
+      {
+        "Name": "latest.dll",
+        "SHA256": "663E1DA2A76DE5A4EF20D11193E90D9EEF6B63CDE45AB920554C8C89E03DEAB8",
+        "Match": true
+      },
+      {
+        "Name": "start\\latest.dll",
+        "SHA256": "F28D2E0F2CC83B36F5754D83CF2D4CE21D13B7ACA3F76E5360520D3928CFFA40",
+        "Match": true
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "Match": true
+      }
+    ],
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    }
+  },
+  "indicatorSpacing": {
+    "State": "DeployedAndUserAccepted",
+    "BackendVersion": "0.5.23",
+    "OffsetDIP": 3,
+    "SizeDIP": 4,
+    "Rule": "RenderTransform:=<TranslateTransform Y=\"3\" />",
+    "StyleChanges": [
+      {
+        "Key": "controlStyles[12].styles[8]",
+        "Before": "RenderTransform:=<TranslateTransform Y=\"2\" />",
+        "After": "RenderTransform:=<TranslateTransform Y=\"3\" />"
+      }
+    ],
+    "Mechanism": "Existing upstream Styler XAML property customization and original-value restoration",
+    "NativeColorAndStatePreserved": true,
+    "ControllerThemeFix": "0.3.10 unchanged",
+    "Validation": {
+      "StyleDelta": "Only existing TranslateTransform Y value changed, 2 to 3",
+      "GeneratedSource": "Only existing RunningIndicator rule changed",
+      "NewTestsAdded": false,
+      "Build": "Passed",
+      "GuiAutomationUsed": false,
+      "VisualAcceptance": {
+        "At": "2026-10-12T16:53:05.9981445+08:00",
+        "Feedback": "好极了看起来还行",
+        "OffsetDIP": 3,
+        "Scope": "User visual spacing confirmation after extra 1 DIP adjustment"
+      },
+      "RuntimeChanged": [
+        "latest.dll"
+      ],
+      "DiffWhitespace": "Passed"
+    },
+    "Deployment": {
+      "State": "Applied",
+      "Version": "0.8.26",
+      "Live": true,
+      "ComponentHealth": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.26-20261012-165115247",
+      "ChangedFiles": 11,
+      "ConfigPreserved": true
+    },
+    "RuntimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 289280,
+        "SHA256": "DB4020EA9E4C7B3A9C186B068779A306DBBF6565AF4B56E18BC765B4F63B02DE"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2020864,
+        "SHA256": "43C79FCB69637C8F7AD1C3D618BBD0991FC6ABFCBD601F8839F4D655B6632C11"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 396288,
+        "SHA256": "F28D2E0F2CC83B36F5754D83CF2D4CE21D13B7ACA3F76E5360520D3928CFFA40"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ],
+    "PreviousFeedback": {
+      "Version": "0.8.25",
+      "OffsetDIP": 2,
+      "User": "还可以再往下一点"
+    },
+    "DeployedHashes": [
+      {
+        "Name": "latest.exe",
+        "SHA256": "DB4020EA9E4C7B3A9C186B068779A306DBBF6565AF4B56E18BC765B4F63B02DE",
+        "Match": true
+      },
+      {
+        "Name": "latest.dll",
+        "SHA256": "43C79FCB69637C8F7AD1C3D618BBD0991FC6ABFCBD601F8839F4D655B6632C11",
+        "Match": true
+      },
+      {
+        "Name": "start\\latest.dll",
+        "SHA256": "F28D2E0F2CC83B36F5754D83CF2D4CE21D13B7ACA3F76E5360520D3928CFFA40",
+        "Match": true
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "Match": true
+      }
+    ],
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backend": {
+      "protocol": 1,
+      "version": "0.5.23",
+      "explorerPid": 27668,
+      "ownerPid": 4736,
+      "state": 2,
+      "hooks": 62,
+      "styledElements": 29,
+      "failed": false,
+      "attentionPolicy": {
+        "active": true,
+        "blockedReveals": 0,
+        "ignoredFlashingChecks": 0,
+        "passedReveals": 11
+      }
+    }
+  }
+}

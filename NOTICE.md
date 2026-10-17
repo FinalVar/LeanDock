@@ -2,6 +2,44 @@
 
 LeanDock (legacy NativeTaskbarDock). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release. Current package and component versions are recorded in build/latest.json and docs/verification-latest.json.
 
+The 0.8.31 card-input adapter adapts InputSite window discovery and function
+hook placement from Taskbar Volume Control 1.3.1 by m417z (GPL-3.0), commit
+131f90d6611b96811af101f4b8177dd24e40ed13, retrieved 2026-10-17:
+https://github.com/ramensoftware/windhawk-mods/blob/131f90d6611b96811af101f4b8177dd24e40ed13/mods/taskbar-volume-control.wh.cpp
+The complete reference source and GPL license are retained in
+upstream/cards-input. Source SHA256:
+8101289C27E08FC6748A44814762C12E4DDB1D01E4D771E3F13F5F22943619F7.
+The mod explains why InputSite must not be subclassed. Local adaptation uses
+the existing LeanDock shared hook runtime and validates the actual InputHost
+module path/hash/PE identity. Card bounds, DM_POINTERHITTEST admission,
+default touchpad recognition, horizontal wheel handling and Board lifetime
+are local additions. No volume behavior, SendInput, focus changes, or shell
+registration changes were imported. The ineffective 0.8.30 WH_GETMESSAGE
+attempt has been removed. Contract and real-hardware limits are documented
+in docs/cards-input-latest.md.
+The 0.8.21 attention-only hide policy adapts the scoped `IsFlashing` query
+and attention `UnhideRequest` filtering in Taskbar Auto-Hide Motion 1.0.8,
+by jinSeong-P, GPL-3.0, commit 69eaa5c818311715ba1c433c6c3372f642c03022:
+https://github.com/jinSeong-P/windhawk-floating-dock/blob/69eaa5c818311715ba1c433c6c3372f642c03022/mods/taskbar-autohide-motion.wh.cpp
+The complete reference source and its license are retained under
+upstream/attention. This is a small source adaptation, not an import of that
+project's animation, edge polling, notification timers or runtime. LeanDock
+omits attention reveals altogether, scopes the flashing override to the
+native CTaskListWnd::PermitAutoHide query shared by primary/secondary lists,
+uses a thread-local RAII scope for reentrancy, and passes through on Stop.
+The button's flashing state is never cleared or overridden for drawing.
+Cirn09's Better Taskbar Autohide 1.2 was also reviewed for PermitAutoHide;
+its unconditional permission override and hard-coded registered message
+number were not adopted.
+
+The 0.8.22 attention-dot styling extends the existing Taskbar Styler 1.10
+CommonStates / RunningIndicatorStates rules. The six attention-state names
+and selectors were checked against the retained Plasma theme (Sand216) in
+upstream/styler.cpp and its published styling guide. Local differences are
+transparent attention backgrounds, the existing neutral hover/press feedback,
+and a 4 DIP native running indicator. Native attention colors, timing and
+clearing remain untouched; no notification monitor or drawing hook is added.
+
 Preserved GPL-3.0 upstream sources by m417z and their credited contributors:
 
 - Windows 11 Taskbar Styler 1.10: https://github.com/ramensoftware/windhawk-mods/blob/main/mods/windows-11-taskbar-styler.wh.cpp
@@ -11,6 +49,12 @@ Preserved GPL-3.0 upstream sources by m417z and their credited contributors:
 - Taskbar notification icon spacing 1.4 plus the user's locally verified contiguous grid 1.4.2: https://github.com/ramensoftware/windhawk-mods/blob/main/mods/taskbar-notification-icon-spacing.wh.cpp
 
 The retained build inputs, including authorship, license statements and original metadata, are under upstream. The tray input already includes the locally maintained 1.4.2 grid; it is not an untouched upstream release. Hashes are recorded in build/sources-latest.json. Windhawk SDK interface headers are retained for reviewable adaptation, with a component-local identity and project-owned implementations. No Windhawk engine is linked or needed at runtime. Mature WinRT/XAML lifecycle and restoration code is intentionally retained.
+
+The 0.8.17 mixed-system-tray adaptation extends that existing grid and its
+binding-aware property restoration to MainStack. Native icons, models and
+event routes remain owned by Windows. No external permission monitor, new
+privacy detection implementation, replacement tray host or status artwork was
+imported. The system-specific adapter is local GPL-3.0 code.
 
 The local controller, pinned-symbol resolver, hook-chain adapter and maintenance scripts combine this functionality for one validated configuration. Theme catalog and statistics timer are removed; network content API is disabled. Styles and settings derive from the existing locally accepted TaskbarDock profile. NextKDE informed earlier spacing and layout choices; this Windows implementation does not run KDE code or components.
 
@@ -146,6 +190,13 @@ isolated short-lived worker, same-session mutex, visible-window notification
 budget, conditional appearance rollback, and complete-state verification.
 It does not use that mod's scheduler, location lookup or Windhawk engine.
 
+The 0.8.23 taskbar-only notification attempt subsequently recurred. In 0.8.24,
+completion and conditional rollback restore the upstream HWND_BROADCAST /
+ImmersiveColorSet contract, including hidden non-taskbar listeners. The local
+adaptation adds SMTO_ERRORONEXIT, keeps the 100 ms per-window timeout, and orders
+completion after the parallel fast pass. The visible-app 75 ms fast path,
+early shell-owned taskbar notification and theme-manager hash pin remain.
+
 The quick-theme companion uses the XAML diagnostics IObjectWithSite pattern
 already preserved in upstream/styler.cpp, originally derived from TranslucentTB
 ExplorerTAP and adapted by m417z. The minimal pattern was also checked against:
@@ -180,6 +231,18 @@ https://learn.microsoft.com/en-us/windows/win32/api/netioapi/nf-netioapi-getifta
 https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_row2
 No TrafficMonitor, network driver, polling service or third-party runtime is added.
 
+The 0.8.18 network aggregation change was checked against zhongyang219's
+TrafficMonitor at commit 930f17533d6098989ebad62f210aa97d75ef174b (Anti 996
+License v1.0 Draft): AdapterCommon.cpp and TrafficMonitorDlg.cpp, especially
+the all-connections sum, elapsed-time conversion and connection-change reset.
+https://github.com/zhongyang219/TrafficMonitor/tree/930f17533d6098989ebad62f210aa97d75ef174b
+This is a behavioral/source review, not copied implementation code. LeanDock
+retains its existing 64-bit IP Helper sampler, per-LUID baseline and background
+lifetime guards. The local adaptation includes active virtual wireless ports
+with NDIS wireless physical-medium metadata, while excluding Ethernet-shaped
+virtual adapters, tunnels, endpoints and filters. RX/TX link sums intentionally
+include both sides of hotspot forwarding; no packet deduplication is claimed.
+
 ### 0.8.7 material and theme palette
 
 The glass contrast adjustment reuses the existing upstream WindhawkBlur composition effect and theme-color resolution without replacing their implementation. Light/Dark/HighContrast card resources and gradient dividers use Windows XAML theme resources. The palette is a local design adjustment, not copied NextKDE rendering code.
@@ -212,3 +275,71 @@ runtime dependency. The existing source attribution above remains applicable.
 ### 无效手势实验撤回（0.8.16）
 
 0.8.15 的 Freeze 跳过已被实际四指手势否定。0.8.16 不再编入或安装该适配器；上面的来源和实验源码仅作历史复核材料，不能当作可用修复或当前运行依赖。底层成熟 Mod 的作者、许可和已验收恢复逻辑保持不变。
+
+### Maximized client edge compatibility (0.8.19 source, not yet deployed)
+
+The NonRudeHWND / ITaskbarList2::MarkFullscreenWindow contract comes from
+Microsoft's public API documentation:
+https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist2-markfullscreenwindow
+The same application symptom and per-window workaround were reviewed in
+https://github.com/openai/codex/issues/45369 . The local event/ownership adapter
+is independently written; no OpenAI or Microsoft implementation was copied.
+Taskbar Z-Order Override by meteoni, v0.8.1, was reviewed at
+https://github.com/ramensoftware/windhawk-mods/blob/main/mods/taskbar-z-order-override.wh.cpp
+for taskbar lifecycle and z-order behavior. Its global always-on-top policy,
+SetWindowPos/SetWindowBand hooks and implementation are not copied or enabled.
+LeanDock instead limits the documented shell correction to the verified
+OpenAI.Codex package's resizable maximized ChatGPT window. The WinEvent lifetime,
+property ownership guards and fixtures are local adaptation; runtime acceptance
+of this new controller is pending application-control admission.
+
+### Shifted Dock clip ownership (0.8.19 source, not yet deployed)
+
+The implementation continues to reuse the retained Windows 11 Taskbar Styler
+region calculation, layout callbacks, window subclass and cleanup. The local
+generator adds a narrow ownership predicate for an observed upward translation
+of the last full-height simple rectangle, preserving the upstream native fold
+and foreign-region protections. This predicate and its compile-time fixtures
+are local adaptation, not an upstream fix. The retained upstream source hash is
+88d2d43768a2e8d92522f9c1615bcd2b6c209dd32e1610426738e4c5af40d592.
+The original copyright, license and version attribution above remains valid.
+Current-window recovery and pending source deployment are documented separately
+in docs/clip-recovery-latest.md.
+
+### Start host retirement recovery (0.8.20 source, not yet deployed)
+
+Start now reuses LeanDock's existing Quick Settings RestartPolicy verbatim:
+known zero-code retirement may recover within its existing bounded budget;
+unknown or nonzero exits still stop recovery. Only constexpr qualification was
+added to that shared method for compile-time fixtures; its runtime algorithm
+is unchanged. Host discovery, pinned identities, thread-specific hook and
+the existing Start DLL remain in use. This is local lifecycle adaptation, not
+a copied third-party restart engine or a Windows security-policy modification.
+The existing upstream Compact Start Menu attribution continues to apply to
+the unchanged layout component. See docs/start-recovery-latest.md.
+
+## GPT maximized hot-corner compatibility (2026-10-13)
+NativeHotCorners remains the retained implementation. The integration now shares the existing client-edge package identity and maximization policy; it does not add another runtime or copy additional third-party code. The generator adds a narrowly scoped fullscreen exception and reason-level diagnostics. Public contracts: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iszoomed and https://learn.microsoft.com/en-us/windows/win32/winmsg/window-styles .
+
+### Card gesture recognition (0.8.32)
+The 0.8.31 DefWindowProc conversion was tested and rejected: 13 admitted
+DM_POINTERHITTEST messages produced no pointer/wheel stream. That path is
+removed. The adapter now reuses the DirectManipulation manager/viewport
+setup, SetContact, transform callbacks, READY reset and interaction lifetime
+from Chromium's DirectManipulationHelper and DirectManipulationEventHandler:
+Copyright 2015, 2019 The Chromium Authors, BSD-3-Clause, commit
+abc2ec4376609fa5df49daee6d57edaa10bea83f. Preserved source and license are in
+upstream/cards-input. The helper .cc SHA256 is
+7B90A56C4C269EEF64406FB8272E7D4A594EF00BCC46615E0BB254B26265A5D6;
+event handler .cc SHA256 is
+D06EDD4AF908AD260A9073547339AFC596C1D2647BAD9FA759F40F908986E64F.
+Local adaptation replaces Chromium compositor observation with the existing
+XAML Rendering event, uses weak Board/state ownership, limits contact to the
+measured card, disables translation inertia and maps 48 DIP dominant-axis
+motion to paging, with one page per contact sequence since 0.8.33. Version 0.8.34
+corrects the content-space reset origin and rejects asynchronous reset callbacks
+outside an admitted contact; the original Chromium reset lifecycle remains the
+reference and both callback and real Windows COM regressions are retained.
+Pinch rejection, per-gesture paging, lifecycle bounds and diagnostics are
+local integration. No Chromium browser event injection or taskbar-volume
+SendInput/focus behavior is included. Real hardware acceptance is separate.

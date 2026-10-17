@@ -1,5 +1,6 @@
 #include "cards-network-latest.h"
 #include "cards-preferences-latest.h"
+#include <array>
 #include <cstdio>
 #include <limits>
 int wmain(int argc,wchar_t** argv){
@@ -18,6 +19,64 @@ int wmain(int argc,wchar_t** argv){
             check(subset.Has(subset.Select(page)),"removed last page falls back to enabled page");
             if(subset.Has(page))check(subset.Step(next,-1)==page,"backward reverses forward");}
     }
+    // Model the real host: physical WLAN, Wi-Fi Direct, another physical
+    // Ethernet port, TUN and an Ethernet-shaped WAN miniport. Large lifetime
+    // counters on the ignored interfaces must never leak into the totals.
+    auto adapter=[](uint64_t id,IFTYPE type,bool hardware,NDIS_PHYSICAL_MEDIUM medium){
+        MIB_IF_ROW2 row{};row.InterfaceLuid.Value=id;row.Type=type;
+        row.InterfaceAndOperStatusFlags.HardwareInterface=hardware;
+        row.OperStatus=IfOperStatusUp;row.PhysicalMediumType=medium;return row;
+    };
+    auto wifi=adapter(1,IF_TYPE_IEEE80211,true,NdisPhysicalMediumNative802_11);
+    auto hotspot=adapter(2,IF_TYPE_IEEE80211,false,NdisPhysicalMediumNative802_11);
+    auto ethernet=adapter(3,IF_TYPE_ETHERNET_CSMACD,true,NdisPhysicalMedium802_3);
+    auto tun=adapter(4,IF_TYPE_PROP_VIRTUAL,false,NdisPhysicalMediumUnspecified);
+    auto wan=adapter(5,IF_TYPE_ETHERNET_CSMACD,false,NdisPhysicalMediumUnspecified);
+    auto tap=wan;tap.PhysicalMediumType=NdisPhysicalMedium802_3;
+    check(IncludeNetworkInterface(wifi)&&IncludeNetworkInterface(ethernet),"physical WLAN and Ethernet stay included");
+    check(IncludeNetworkInterface(hotspot),"active virtual native-wireless hotspot is included");
+    auto wireless=hotspot;wireless.PhysicalMediumType=NdisPhysicalMediumWirelessLan;
+    check(IncludeNetworkInterface(wireless),"wireless-LAN physical-medium variant is supported");
+    check(!IncludeNetworkInterface(tun)&&!IncludeNetworkInterface(wan)&&!IncludeNetworkInterface(tap),"TUN, WAN miniport and TAP do not add intermediate traffic");
+    auto fakeWireless=hotspot;fakeWireless.PhysicalMediumType=NdisPhysicalMediumUnspecified;
+    check(!IncludeNetworkInterface(fakeWireless),"virtual interface needs genuine wireless-medium metadata");
+    auto tunnel=hotspot;tunnel.TunnelType=TUNNEL_TYPE_OTHER;
+    check(!IncludeNetworkInterface(tunnel),"tunnel metadata is excluded even on wireless-shaped row");
+    auto loop=adapter(6,IF_TYPE_SOFTWARE_LOOPBACK,true,NdisPhysicalMediumUnspecified);
+    check(!IncludeNetworkInterface(loop),"loopback is excluded");
+    for(auto status:{IfOperStatusDown,IfOperStatusTesting,IfOperStatusUnknown,IfOperStatusDormant,IfOperStatusNotPresent,IfOperStatusLowerLayerDown}){
+        auto inactive=hotspot;inactive.OperStatus=status;
+        check(!IncludeNetworkInterface(inactive),"inactive hotspot is not counted");
+    }
+    for(auto base:{wifi,hotspot}){
+        auto filter=base;filter.InterfaceAndOperStatusFlags.FilterInterface=true;
+        auto endpoint=base;endpoint.InterfaceAndOperStatusFlags.EndPointInterface=true;
+        auto disconnected=base;disconnected.InterfaceAndOperStatusFlags.NotMediaConnected=true;
+        auto paused=base;paused.InterfaceAndOperStatusFlags.Paused=true;
+        check(!IncludeNetworkInterface(filter)&&!IncludeNetworkInterface(endpoint)&&
+              !IncludeNetworkInterface(disconnected)&&!IncludeNetworkInterface(paused),"filtered, endpoint, disconnected and paused layers stay excluded");
+    }
+    std::array rows{wifi,hotspot,ethernet,tun,wan};
+    rows[0].InOctets=100000000000ull;rows[1].OutOctets=90000000000ull;
+    rows[3].InOctets=rows[4].OutOctets=800000000000ull;
+    NetworkSampler combined;
+    auto initial=NetworkCounters(rows);
+    check(initial.size()==3,"only physical and hotspot links enter combined snapshot");
+    check(!combined.Sample(initial,1000)&&!combined.value,"combined counters need a real baseline");
+    rows[0].InOctets+=10000000;rows[1].OutOctets+=10000000;
+    rows[2].InOctets+=250000;rows[2].OutOctets+=125000;
+    rows[3].InOctets+=10000000;rows[4].OutOctets+=10000000;
+    combined.Sample(NetworkCounters(rows),2000);
+    check(combined.value&&combined.value->received==10250000&&combined.value->sent==10125000,"forwarded hotspot RX and TX plus separate Ethernet are aggregated, tunnels excluded");
+    rows[1].OperStatus=IfOperStatusDown;rows[0].InOctets+=500000;
+    combined.Sample(NetworkCounters(rows),3000);
+    check(combined.value&&combined.value->received==500000&&combined.value->sent==0,"hotspot disconnect keeps surviving link rate without subtraction spike");
+    rows[1].OperStatus=IfOperStatusUp;rows[1].OutOctets=400000000000ull;
+    combined.Sample(NetworkCounters(rows),4000);
+    check(!combined.value,"hotspot reconnect cannot expose lifetime bytes");
+    rows[0].InOctets+=100000;rows[1].OutOctets+=200000;
+    std::reverse(rows.begin(),rows.end());combined.Sample(NetworkCounters(rows),4200);
+    check(combined.value&&combined.value->received==500000&&combined.value->sent==1000000,"reordered interfaces match stable LUID after hotspot warmup");
     NetworkSampler sample;
     check(!sample.Sample(NetworkSnapshot{{1,1000,2000}},1000)&&!sample.value,"first network sample is baseline");
     check(!sample.Sample(NetworkSnapshot{{1,1100,2100}},1100)&&!sample.value,"reject early tick");
@@ -62,7 +121,7 @@ int wmain(int argc,wchar_t** argv){
     check(!SaveSelection(root,Page::Count),"invalid selected page cannot be written");
     LARGE_INTEGER f{},a{},b{};QueryPerformanceFrequency(&f);QueryPerformanceCounter(&a);
     auto real=ReadNetwork();QueryPerformanceCounter(&b);
-    check(bool(real),"current physical counter API succeeds");
-    std::printf("Live network query: %zu active physical interfaces, %.3f ms (no traffic generated)\n",real?real->size():0,1000.0*(b.QuadPart-a.QuadPart)/f.QuadPart);
+    check(bool(real),"current physical and hotspot counter API succeeds");
+    std::printf("Live network query: %zu active physical/hotspot interfaces, %.3f ms (no traffic generated)\n",real?real->size():0,1000.0*(b.QuadPart-a.QuadPart)/f.QuadPart);
     std::printf("Card preferences/network: %d checks, %d failures\n",count,failures);return failures?1:0;
 }

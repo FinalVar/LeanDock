@@ -258,6 +258,7 @@ void UpdateUnifiedDockGrid() {
         }
         struct Guard{bool& flag;Guard(bool& f):flag(f){flag=true;}~Guard(){flag=false;}}guard(g_dockUnified->updating);
         auto apps=DockCollect(root,true);if(!apps.container||!apps.panel)return;
+        auto system=DockCollectSystem(root);
         const bool powerActive=reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Card.PowerActive"))==2;
         // A failed map retains the working Invoke/keyboard fallback on the card.
         if(!powerActive){
@@ -269,15 +270,21 @@ void UpdateUnifiedDockGrid() {
         }
         DockSet(input,UIElement::VisibilityProperty(),Visibility::Collapsed);
         const double cell=g_settings.notificationIconWidth,pitch=cell+4,row=24;
-        const int count=int(apps.icons.size());
+        const int appCount=int(apps.icons.size()),systemCount=int(system.icons.size());
+        const int count=appCount+systemCount;
         DockArrangeGroup(apps,0,1,cell,pitch,row);
-        if(count%2){const int i=count-1;
-            DockTranslate(apps.presenters[i],pitch*(i/2)-cell*i+(pitch-cell)/2,0);
-        }
-        std::wstring state=L"{\"active\":true,\"apps\":"+std::to_wstring(count)+
+        DockArrangeGroup(system,appCount,2,cell,pitch,row);
+        DockCenterFinal(apps,0,count,cell,pitch,row);
+        DockCenterFinal(system,appCount,count,cell,pitch,row);
+        std::wstring state=L"{\"active\":true,\"apps\":"+std::to_wstring(appCount)+
+            L",\"system\":"+std::to_wstring(systemCount)+
             L",\"battery\":0,\"input\":0,\"total\":"+std::to_wstring(count)+
             L",\"columns\":"+std::to_wstring(DockGrid::TotalColumns(count))+L",\"cells\":[";
-        bool first=true;for(auto const& item:apps.icons){if(!first)state+=L",";first=false;state+=DockRect(item,root);}state+=L"]}";
+        bool first=true;for(auto const& item:apps.icons){if(!first)state+=L",";first=false;state+=DockRect(item,root);}
+        for(auto const& item:system.icons){if(!first)state+=L",";first=false;state+=DockRect(item,root);}
+        state+=L"],\"systemTypes\":[";first=true;
+        for(auto const& item:system.icons){if(!first)state+=L",";first=false;state+=L"\""+DockSystemTypes(item)+L"\"";}
+        state+=L"]}";
         if(state!=g_dockUnified->lastState){Wh_SetStringValue(L"mergedGridState",state.c_str());g_dockUnified->lastState=std::move(state);
             auto& saved=g_dockUnified->saved;saved.erase(std::remove_if(saved.begin(),saved.end(),[](auto& x){return !x.element.get();}),saved.end());}
     }catch(...){Wh_Log(L"Card tray update error %08X",winrt::to_hresult());}

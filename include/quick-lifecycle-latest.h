@@ -10,7 +10,7 @@ struct RestartPolicy {
     std::uint64_t windowStart{};
     unsigned recent{},recoveries{};
     bool blocked{};
-    bool Retired(bool exitKnown,std::uint32_t exitCode,std::uint64_t now) {
+    constexpr bool Retired(bool exitKnown,std::uint32_t exitCode,std::uint64_t now) {
         if(blocked)return false;
         if(!exitKnown||exitCode!=0){blocked=true;return false;}
         if(!recent||now-windowStart>=WindowMs){windowStart=now;recent=0;}

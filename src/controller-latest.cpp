@@ -11,6 +11,7 @@
 #include "hotcorners-latest.h"
 #include "shell-panels-latest.h"
 #include "theme-latest.h"
+#include "client-edge-latest.h"
 
 static HINSTANCE g_instance;
 static HWND g_window;
@@ -42,8 +43,14 @@ static void SaveStatus() {
     char json[2400],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
     // Error messages are fixed internal labels, never window titles or application text.
     int size=snprintf(json,sizeof(json),
-        "{\"version\":\"0.3.6\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
-        GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockStart::target,LeanDockStartProtocol::Adjustments))),static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),LeanDockPanels::failures,LeanDockStart::supported?"true":"false",(LeanDockStart::target && LeanDockStart::Query(LeanDockStart::target))?"true":"false",LeanDockStart::blocked?"true":"false",LeanDockStart::failures,error);
+        "{\"version\":\"0.3.13\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
+        GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockStart::target,LeanDockStartProtocol::Adjustments))),static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),LeanDockPanels::failures,LeanDockStart::supported?"true":"false",(LeanDockStart::target && LeanDockStart::Query(LeanDockStart::target))?"true":"false",(LeanDockStart::blocked || LeanDockStart::attachPolicy.stopped)?"true":"false",LeanDockStart::failures,error);
+    size+=snprintf(json+size,sizeof(json)-size,"\"startLayoutRecoveries\":%u,\"startLayoutLastExitKnown\":%s,\"startLayoutLastExitCode\":%lu,",
+        LeanDockStart::restartPolicy.recoveries,LeanDockStart::lastExitKnown?"true":"false",LeanDockStart::lastExitCode);
+    size+=snprintf(json+size,sizeof(json)-size,"\"startLayoutInitAttempts\":%u,\"startLayoutInitRecoveries\":%u,\"startLayoutRetryScheduled\":%s,\"startLayoutAttachReceipt\":%s,\"startLayoutAttachError\":%lu,",
+        LeanDockStart::attachPolicy.attempts,LeanDockStart::attachPolicy.recoveries,LeanDockStart::retryTimer?"true":"false",LeanDockStart::attachReceipt?"true":"false",LeanDockStart::lastAttachError);
+    size+=snprintf(json+size,sizeof(json)-size,"\"clientEdgeReady\":%s,\"clientEdgeRepairs\":%u,\"clientEdgeFailures\":%u,",
+        LeanDockClientEdge::active?"true":"false",LeanDockClientEdge::repairs,LeanDockClientEdge::failures);
     size+=snprintf(json+size,sizeof(json)-size,"\"quickPositionSupported\":%s,\"quickPositionActive\":%s,\"quickPositionBlocked\":%s,\"quickPositionFailures\":%u,\"quickPositionAdjustments\":%llu,\"quickPositionWindow\":%llu,\"quickPositionRecoveries\":%u,\"quickPositionLastExitKnown\":%s,\"quickPositionLastExitCode\":%lu}\n",
         LeanDockQuickHost::supported?"true":"false",LeanDockQuickHost::Query()?"true":"false",LeanDockQuickHost::blocked?"true":"false",LeanDockQuickHost::failures,
         static_cast<unsigned long long>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),
@@ -159,6 +166,7 @@ static void CancelHelper() {
 static void StopDock() {
     if(g_stopping)return;
     g_stopping=true;KillTimer(g_window,1);CancelHelper();
+    LeanDockClientEdge::Stop();
     LeanDockPanels::Stop();g_panelsReady=false;
     LeanDockStart::Stop();
     LeanDockQuickHost::Stop();
@@ -179,7 +187,7 @@ static bool TryConnect() {
             if(state==NativeActive){
                 DWORD_PTR acquired=NativeFailed;
                 if(!SendMessageTimeoutW(backend,NativeStart,GetCurrentProcessId(),0,SMTO_ABORTIFHUNG|SMTO_BLOCK,3000,&acquired) || acquired!=NativeActive)return false;
-                g_state=state;g_error[0]=0;SaveStatus();CancelHelper();return true;
+                g_state=state;g_error[0]=0;LeanDockClientEdge::Queue();SaveStatus();CancelHelper();return true;
             }
             if(state==NativeFailed){wcscpy_s(g_error,L"Native backend failed; automatic retry stopped");g_exitCode=4;PostMessageW(g_window,WM_CLOSE,0,0);return false;}
             if(state==NativeStopped)PostMessageW(backend,NativeStart,GetCurrentProcessId(),0);
@@ -205,6 +213,7 @@ static bool TryConnect() {
     g_helper=child.hProcess;CloseHandle(child.hThread);return false;
 }
 static LRESULT CALLBACK ControllerProc(HWND w,UINT message,WPARAM p,LPARAM l) {
+    if(LeanDockClientEdge::Dispatch(message))return 0;
     LRESULT cornerResult=0;
     if(NativeCorners::Dispatch(w,message,p,l,cornerResult))return cornerResult;
     if(message==WM_CREATE){g_window=w;PostMessageW(w,NativeReconnect,0,0);return 0;}
@@ -214,7 +223,7 @@ static LRESULT CALLBACK ControllerProc(HWND w,UINT message,WPARAM p,LPARAM l) {
     if(message==NativeQuery){SaveStatus();return g_state;}
     if(message==NativeReconnect || message==g_taskbarCreated ||
        message==WM_DISPLAYCHANGE || (message==WM_POWERBROADCAST && p==PBT_APMRESUMEAUTOMATIC)) {
-        if(!g_stopping && g_dockSupported){g_attempts=0;g_state=NativeStarting;SetTimer(w,1,750,nullptr);}
+        if(!g_stopping && g_dockSupported){LeanDockClientEdge::Queue();g_attempts=0;g_state=NativeStarting;SetTimer(w,1,750,nullptr);}
         return TRUE;
     }
     if(message==WM_TIMER && p==1) {
@@ -323,8 +332,9 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     if(g_dockSupported)LeanDockQuickHost::Start(g_directory);
     g_panelsReady=g_dockSupported && LeanDockPanels::Start(g_window);
     if(!g_panelsReady)LeanDockPanels::Stop();
+    if(g_dockSupported)LeanDockClientEdge::Start(g_window);
     SaveStatus();
     MSG message;
     while(GetMessageW(&message,nullptr,0,0)>0){TranslateMessage(&message);DispatchMessageW(&message);}
-    NativeCorners::Shutdown();CancelHelper();ClearExplorer();ReleaseMutex(mutex);CloseHandle(mutex);return g_exitCode;
+    LeanDockClientEdge::Stop();NativeCorners::Shutdown();CancelHelper();ClearExplorer();ReleaseMutex(mutex);CloseHandle(mutex);return g_exitCode;
 }

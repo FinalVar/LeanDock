@@ -11,6 +11,7 @@
 #include "../hotcorners/core/latest.h"
 #include "../hotcorners/actions/latest.h"
 #include "hotcorners-latest.h"
+#include "../hotcorners/fullscreen/latest.h"
 
 namespace NativeCorners {
 static const wchar_t* kClass = L"NativeHotCorners.1.Window";
@@ -28,6 +29,31 @@ static bool paused, locked, evalPending, rawRegistered, timerArmed;
 static uint64_t timerDue, started, rawEvents, mouseEvaluations, activations[4], failures, blockedEntries;
 static wchar_t folder[MAX_PATH], iniPath[MAX_PATH], logPath[MAX_PATH], statusPath[MAX_PATH];
 static DWORD lastErrorCode;
+enum class BlockReason { None, Paused, Locked, InputHeld, Desktop, Fullscreen };
+static uint64_t blockReasons[6]{},maximizedClientEntries,lastBlockAt;
+static BlockReason lastBlockReason=BlockReason::None;
+static DWORD lastBlockPid;
+static int lastBlockCorner=-1;
+static bool maximizedClientAllowed,lastBlockMaximized;
+static unsigned long lastBlockStyle;
+static const char* BlockName(BlockReason reason) {
+    switch(reason) {
+    case BlockReason::Paused:return "paused";
+    case BlockReason::Locked:return "locked";
+    case BlockReason::InputHeld:return "input-held";
+    case BlockReason::Desktop:return "input-desktop";
+    case BlockReason::Fullscreen:return "fullscreen";
+    default:return "none";
+    }
+}
+static void RecordBlock(BlockReason reason,int corner) {
+    ++blockedEntries;++blockReasons[static_cast<unsigned>(reason)];
+    lastBlockReason=reason;lastBlockCorner=corner;lastBlockAt=GetTickCount64();
+    HWND foreground=GetForegroundWindow();lastBlockPid=0;
+    GetWindowThreadProcessId(foreground,&lastBlockPid);
+    lastBlockMaximized=IsZoomed(foreground)!=FALSE;
+    lastBlockStyle=static_cast<unsigned long>(GetWindowLongPtrW(foreground,GWL_STYLE));
+}
 
 static void MakePath(wchar_t* result, const wchar_t* name) { swprintf(result, MAX_PATH, L"%ls\\%ls", folder, name); }
 static void Log(const char* event, DWORD code = 0) {
@@ -124,16 +150,28 @@ static bool Fullscreen(HMONITOR target) {
         !wcscmp(name, L"Shell_TrayWnd") || !wcscmp(name, L"Shell_SecondaryTrayWnd") ||
         !wcscmp(name, L"MultitaskingViewFrame") || !wcscmp(name, L"XamlExplorerHostIslandWindow")) return false;
     if (MonitorFromWindow(foreground, MONITOR_DEFAULTTONULL) != target) return false;
-    if ((GetWindowLongPtrW(foreground, GWL_STYLE) & WS_CAPTION) == WS_CAPTION) return false;
+    const LONG_PTR style=GetWindowLongPtrW(foreground,GWL_STYLE);
+    if ((style & WS_CAPTION) == WS_CAPTION) return false;
     MONITORINFO mi = { sizeof(mi) }; RECT rect;
     if (!GetMonitorInfoW(target, &mi)) return false;
     if (FAILED(DwmGetWindowAttribute(foreground, DWMWA_EXTENDED_FRAME_BOUNDS, &rect, sizeof(rect))) && !GetWindowRect(foreground, &rect)) return false;
-    return rect.left <= mi.rcMonitor.left && rect.top <= mi.rcMonitor.top &&
-           rect.right >= mi.rcMonitor.right && rect.bottom >= mi.rcMonitor.bottom;
+    // Resolve identity only for an actual screen-covering candidate. Do not
+    // depend on asynchronous NonRudeHWND acquisition or clear fullscreen
+    // suppression for every maximized game/browser.
+    if(!nhc::SuppressFullscreen(style,rect,mi.rcMonitor,false,false))return false;
+    const bool maximized=IsZoomed(foreground)!=FALSE;
+    const bool client=maximized && (style&WS_THICKFRAME) &&
+        LeanDockClientEdgePolicy::ClientWindow(foreground);
+    const bool suppress=nhc::SuppressFullscreen(style,rect,mi.rcMonitor,maximized,client);
+    maximizedClientAllowed=!suppress;return suppress;
 }
-static bool Blocked(nhc::Target target) {
-    if (paused || locked || ModifierOrButton() || !DefaultInputDesktop()) return true;
-    return target.monitor >= 0 && target.monitor < monitorCount && Fullscreen(monitorIds[target.monitor]);
+static BlockReason Blocked(nhc::Target target) {
+    if(paused)return BlockReason::Paused;
+    if(locked)return BlockReason::Locked;
+    if(ModifierOrButton())return BlockReason::InputHeld;
+    if(!DefaultInputDesktop())return BlockReason::Desktop;
+    return target.monitor >= 0 && target.monitor < monitorCount && Fullscreen(monitorIds[target.monitor])
+        ? BlockReason::Fullscreen : BlockReason::None;
 }
 static void SyncTimer() {
     if (engine.waiting.monitor < 0) {
@@ -173,11 +211,15 @@ static void Evaluate(bool expiry) {
     nhc::Point p = { point.x, point.y };
     nhc::Target hit = nhc::Hit(monitors, monitorCount, p, config);
     // Stay inexpensive outside corners: no foreground/desktop queries there.
-    bool blocked = hit.monitor >= 0 && Blocked(hit);
+    maximizedClientAllowed=false;
+    const BlockReason reason=hit.monitor>=0 ? Blocked(hit) : BlockReason::None;
+    const bool blocked=reason!=BlockReason::None;
+    if(maximizedClientAllowed && !nhc::Equal(engine.latched,hit) && !nhc::Equal(engine.waiting,hit))
+        ++maximizedClientEntries;
     if (!expiry) {
         bool newBlock = blocked && !nhc::Equal(engine.latched, hit);
         engine.Observe(monitors, monitorCount, p, config, GetTickCount64(), blocked);
-        if (newBlock) ++blockedEntries;
+        if (newBlock) RecordBlock(reason,hit.corner);
     }
     // A zero delay executes in this input-event dispatch. Do not route it
     // through SetTimer, whose minimum interval would add an artificial delay.
@@ -192,21 +234,27 @@ static void Evaluate(bool expiry) {
     SyncTimer();
 }
 static bool WriteStatus(bool running = true) {
-    char data[2048];
+    char data[4096];
     int n = snprintf(data, sizeof(data),
-        "{\n  \"version\":\"1.0.3-integrated\",\"hosted\":true,\"pid\":%lu,\"running\":%s,\"paused\":%s,\"locked\":%s,\n"
+        "{\n  \"version\":\"1.0.4-integrated\",\"hosted\":true,\"pid\":%lu,\"running\":%s,\"paused\":%s,\"locked\":%s,\n"
         "  \"inputMode\":\"raw-input-events\",\"rawInputRegistered\":%s,\"inputDesktopAvailable\":%s,\"periodicPolling\":false,\"timerArmed\":%s,\n"
         "  \"uptimeMs\":%llu,\"rawEvents\":%llu,\"evaluations\":%llu,\"monitors\":%d,\n"
         "  \"delayMs\":%u,\"cornerDelayMs\":{\"topLeft\":%u,\"topRight\":%u,\"bottomLeft\":%u,\"bottomRight\":%u},\"cooldownMs\":%u,\"cornerPixels\":%d,\"rearmPixels\":%d,\"fullscreenSuppression\":%s,\n"
         "  \"actions\":[\"%s\",\"%s\",\"%s\",\"%s\"],\"activations\":[%llu,%llu,%llu,%llu],\n"
-        "  \"blockedEntries\":%llu,\"failures\":%llu,\"lastError\":%lu\n}\n",
+        "  \"blockedEntries\":%llu,\"failures\":%llu,\"lastError\":%lu,\n  \"maximizedClientEntries\":%llu,\"blockReasons\":{\"paused\":%llu,\"locked\":%llu,\"inputHeld\":%llu,\"inputDesktop\":%llu,\"fullscreen\":%llu},\n  \"lastBlock\":{\"reason\":\"%s\",\"pid\":%lu,\"corner\":%d,\"tick\":%llu,\"maximized\":%s,\"style\":%lu}\n}\n",
         (unsigned long)GetCurrentProcessId(), running ? "true" : "false", paused ? "true" : "false", locked ? "true" : "false",
         rawRegistered ? "true" : "false", DefaultInputDesktop() ? "true" : "false", timerArmed ? "true" : "false",
         (unsigned long long)(GetTickCount64() - started), (unsigned long long)rawEvents, (unsigned long long)mouseEvaluations, monitorCount,
         config.delay, config.Delay(0), config.Delay(1), config.Delay(2), config.Delay(3), config.cooldown, config.pixels, config.rearm, config.fullscreen ? "true" : "false",
         ActionName(config.actions[0]), ActionName(config.actions[1]), ActionName(config.actions[2]), ActionName(config.actions[3]),
         (unsigned long long)activations[0], (unsigned long long)activations[1], (unsigned long long)activations[2], (unsigned long long)activations[3],
-        (unsigned long long)blockedEntries, (unsigned long long)failures, (unsigned long)lastErrorCode);
+        (unsigned long long)blockedEntries, (unsigned long long)failures, (unsigned long)lastErrorCode,
+        (unsigned long long)maximizedClientEntries,
+        (unsigned long long)blockReasons[1],(unsigned long long)blockReasons[2],
+        (unsigned long long)blockReasons[3],(unsigned long long)blockReasons[4],(unsigned long long)blockReasons[5],
+        BlockName(lastBlockReason),(unsigned long)lastBlockPid,lastBlockCorner,(unsigned long long)lastBlockAt,
+        lastBlockMaximized ? "true" : "false",lastBlockStyle);
+    if(n<0 || static_cast<size_t>(n)>=sizeof(data))return false;
     wchar_t temp[MAX_PATH]; MakePath(temp, L"latest-status.tmp");
     HANDLE file = CreateFileW(temp, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file == INVALID_HANDLE_VALUE) return false;

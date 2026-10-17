@@ -1,5 +1,6 @@
 #include "../core/latest.h"
 #include "../actions/latest.h"
+#include "../fullscreen/latest.h"
 #include <stdio.h>
 using namespace nhc;
 static int checks, failed;
@@ -115,5 +116,34 @@ int main() {
     Check(input[1].ki.wVk==VK_TAB && input[1].ki.dwFlags==0 && input[2].ki.wVk==VK_TAB && input[2].ki.dwFlags==KEYEVENTF_KEYUP,"Tab is paired and not an extended key");
     Check(input[3].ki.wVk==VK_LWIN && input[3].ki.dwFlags==(KEYEVENTF_EXTENDEDKEY|KEYEVENTF_KEYUP),"Task View releases extended Windows key last");
     Check(BuildActionInput(ShowDesktop,input)==4 && input[1].ki.wVk=='D',"optional Show Desktop uses Win D");
+    const RECT monitor{0,0,2560,1600},full=monitor,gap{0,0,2560,1598};
+    const LONG_PTR gptStyle=0x15070000; // live maximized frameless GPT window
+    Check(!SuppressFullscreen(gptStyle,full,monitor,true,true),"verified GPT maximization remains usable when DWM reaches screen edge");
+    Check(!SuppressFullscreen(gptStyle,gap,monitor,true,true),"two pixel DWM gap does not change GPT corner behavior");
+    Check(SuppressFullscreen(gptStyle,full,monitor,true,false),"identity failure/unrelated maximized fullscreen retains suppression");
+    Check(SuppressFullscreen(gptStyle,full,monitor,false,true),"GPT non-maximized fullscreen retains suppression");
+    Check(SuppressFullscreen(gptStyle & ~WS_THICKFRAME,full,monitor,true,true),"fullscreen with stale maximized flag but no sizing frame is blocked");
+    Check(SuppressFullscreen(WS_POPUP,full,monitor,false,false),"borderless fullscreen application remains blocked");
+    Check(!SuppressFullscreen(WS_CAPTION|WS_THICKFRAME,full,monitor,true,false),"captioned application keeps previous exemption");
+    Check(!SuppressFullscreen(gptStyle,gap,monitor,false,false),"unrelated application exposing monitor edge is not fullscreen");
+    Check(!SuppressFullscreen(gptStyle,full,RECT{0,0,0,0},true,true),"invalid monitor cannot classify as fullscreen");
+    const RECT negative{-2560,-1600,0,0};
+    Check(!SuppressFullscreen(gptStyle,negative,negative,true,true),"verified client supports negative monitor coordinates");
+    Check(SuppressFullscreen(WS_POPUP,negative,negative,false,false),"fullscreen protection supports negative coordinates");
+    Config maxConfig;maxConfig.actions[2]=ShowDesktop;Engine maxEngine;
+    const Rect maxMonitor[]{ {0,0,2560,1600} };
+    for(int corner=2;corner<=3;++corner) {
+        const Point cornerPoint{corner==2?0:2559,1599};
+        maxEngine={};
+        bool suppress=SuppressFullscreen(gptStyle,full,monitor,true,true);
+        maxEngine.Observe(maxMonitor,1,cornerPoint,maxConfig,17000,suppress);
+        Check(maxEngine.Expire(maxMonitor,1,cornerPoint,maxConfig,17000,suppress)==maxConfig.actions[corner],"screen-covering GPT corner fires immediately");
+        maxEngine.Observe(maxMonitor,1,cornerPoint,maxConfig,17001,suppress);
+        Check(maxEngine.Expire(maxMonitor,1,cornerPoint,maxConfig,17001,suppress)==None,"new exemption still requires spatial rearm");
+        maxEngine.Observe(maxMonitor,1,{1280,800},maxConfig,17002,false);
+        suppress=SuppressFullscreen(gptStyle,gap,monitor,true,true);
+        maxEngine.Observe(maxMonitor,1,cornerPoint,maxConfig,17003,suppress);
+        Check(maxEngine.Expire(maxMonitor,1,cornerPoint,maxConfig,17003,suppress)==maxConfig.actions[corner],"DWM gap transition keeps reentered corner immediate");
+    }
     printf("%d checks, %d failures\n",checks,failed); return failed?1:0;
 }

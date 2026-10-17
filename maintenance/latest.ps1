@@ -19,6 +19,18 @@ function Read-OwnedTask {
 }
 function Save-Plan($Plan){$Plan|ConvertTo-Json -Depth 12|Set-Content -LiteralPath (Join-Path $BackupPath 'transaction-latest.json')}
 function Native-Status {& (Join-Path $Destination 'latest.ps1') -Action Status|ConvertFrom-Json}
+function Confirm-Readiness($State,[string[]]$Required){
+ # Native hosts can attach after the core Dock. Preserve the old feature set,
+ # with a bounded wait, rather than committing on Live (Dock + corners) alone.
+ $deadline=[datetime]::UtcNow.AddSeconds(15)
+ do {
+  $missing=@(Get-LeanDockReadinessFailures $State $Required)
+  if(-not $missing.Count){return $State}
+  if([datetime]::UtcNow -ge $deadline){throw ('Components did not recover: '+($missing -join ', '))}
+  Start-Sleep -Milliseconds 500
+  $State=Native-Status
+ }while($true)
+}
 function Get-PinnedHosts([string[]]$Changed){
  $state=Native-Status
  $candidates=[Collections.Generic.List[object]]::new()
@@ -57,6 +69,9 @@ function Restore-Transaction($Plan){
  Test-LeanDockRestore $Plan $BackupPath
  # Stop the exact current controller and unload only components being restored.
  $runtime=@($Plan.Files.Name|Where-Object {$_ -in @('latest.exe','latest.dll','start/latest.dll','panels/latest.dll')})
+ if($runtime.Count -and $Plan.WasRunning){
+  Assert-LeanDockRuntimeTrust (Get-LeanDockRuntimeTrust $Destination $Plan $BackupPath) (Get-LeanDockApplicationControlState)
+ }
  # A failed first install can have only a partial payload and no management
  # script yet. Until its task exists, no installed runtime needs stopping.
  if($runtime.Count -and ($Plan.TaskExisted -or (Read-OwnedTask)) -and (Test-Path -LiteralPath (Join-Path $Destination 'latest.exe'))){Quiesce $runtime}
@@ -65,7 +80,8 @@ function Restore-Transaction($Plan){
   if(Read-OwnedTask){Unregister-ScheduledTask -TaskName NativeTaskbarDock -Confirm:$false}
  }elseif($Plan.WasRunning -and $runtime.Count){
   $live=& (Join-Path $Destination 'latest.ps1') -Action Start|ConvertFrom-Json
-  if(-not $live.Live){throw 'Restored Dock not live'}
+  $required=if($Plan.PSObject.Properties['RequiredComponents']){@($Plan.RequiredComponents)}else{@('Live')}
+  $null=Confirm-Readiness $live $required
  }
  $Plan.State='RolledBack';$Plan.CompletedAt=(Get-Date -Format o);Save-Plan $Plan
  New-Item -ItemType File -Path (Join-Path $BackupPath 'restored') -Force|Out-Null
@@ -106,9 +122,6 @@ try{
   if($task -or ((Test-Path $Destination) -and @(Get-ChildItem -LiteralPath $Destination -Force).Count)){throw 'Install requires an empty destination and no existing LeanDock task; use Update for an installed copy'}
  }else{if(-not $task -or -not(Test-Path (Join-Path $Destination 'latest.exe'))){throw 'Update requires the exact existing deployment'}}
  if((Get-Service Windhawk -ErrorAction SilentlyContinue).Status -eq 'Running'){throw 'Windhawk must be migrated separately before LeanDock maintenance'}
- $probe=Start-Process -FilePath (Join-Path $PackagePath 'latest.exe') -ArgumentList '--verify' -WindowStyle Hidden -PassThru
- if(-not $probe.WaitForExit(20000)){$probe.Kill();[void]$probe.WaitForExit(3000);throw 'Compatibility check timed out; exact probe terminated'}
- if($probe.ExitCode -ne 0){throw 'Package does not support this Windows component set'}
  $changes=@(foreach($f in $manifest.Files){
   $dst=Resolve-LeanDockChild $Destination $f.Name
   if($f.Name -in $script:LeanDockConfigFiles -and (Test-Path $dst)){continue}
@@ -116,7 +129,21 @@ try{
   $oldHash=if($existed){(Get-FileHash -LiteralPath $dst).Hash}else{$null}
   if($oldHash -ine $f.SHA256){[pscustomobject]@{Name=$f.Name;Existed=$existed;PreviousHash=$oldHash;NewHash=$f.SHA256}}
  })
- if($ValidateOnly){[pscustomobject]@{Action=$Action;Version=$manifest.Version;Destination=$Destination;ChangedFiles=$changes.Count;RuntimeChanged=@($changes.Name|Where-Object {$_ -in @('latest.exe','latest.dll','start/latest.dll','panels/latest.dll')});PreserveConfiguration=$true}|ConvertTo-Json;return}
+ $runtimeChanged=@($changes.Name|Where-Object {$_ -in $script:LeanDockRuntimeFiles})
+ if($runtimeChanged.Count){
+  # All four files are reloaded by this controller lifecycle, even if only one
+  # hash changed. Check the incoming set and existing recovery set before Stop
+  # or executing the compatibility helper. Never probe a known unsigned denial.
+  $policy=Get-LeanDockApplicationControlState
+  Assert-LeanDockRuntimeTrust (Get-LeanDockRuntimeTrust $PackagePath) $policy
+  if($Action -eq 'Update'){Assert-LeanDockRuntimeTrust (Get-LeanDockRuntimeTrust $Destination) $policy}
+  $probe=Start-Process -FilePath (Join-Path $PackagePath 'latest.exe') -ArgumentList '--verify' -WindowStyle Hidden -PassThru
+  try{
+   if(-not $probe.WaitForExit(20000)){$probe.Kill();[void]$probe.WaitForExit(3000);throw 'Compatibility check timed out; exact probe terminated'}
+   if($probe.ExitCode -ne 0){throw 'Package does not support this Windows component set'}
+  }finally{$probe.Dispose()}
+ }
+ if($ValidateOnly){[pscustomobject]@{Action=$Action;Version=$manifest.Version;Destination=$Destination;ChangedFiles=$changes.Count;RuntimeChanged=$runtimeChanged;PreserveConfiguration=$true}|ConvertTo-Json;return}
  if(-not $changes.Count){[pscustomobject]@{State='AlreadyCurrent';Version=$manifest.Version}|ConvertTo-Json;return}
  $before=if($Action -eq 'Update'){Native-Status}else{$null}
  $oldReceipt=Join-Path $Destination 'latest.json'
@@ -126,7 +153,8 @@ try{
  New-Item -ItemType Directory -Path $BackupPath -Force|Out-Null
  foreach($f in $changes|Where-Object Existed){Copy-LeanDockFile $Destination (Join-Path $BackupPath 'original') $f.Name $f.PreviousHash}
  $protected=@(foreach($name in $script:LeanDockConfigFiles){$p=Join-Path $Destination $name;if(Test-Path $p){[pscustomobject]@{Name=$name;SHA256=(Get-FileHash $p).Hash}}})
- $plan=[pscustomobject]@{Schema=1;Action=$Action;State='Prepared';Destination=$Destination;PackagePath=$PackagePath;Version=$manifest.Version;Session=$session;TaskExisted=[bool]$task;WasRunning=[bool]$before.Running;At=(Get-Date -Format o);CompletedAt=$null;Files=$changes;Protected=$protected;Error=$null}
+ $required=if($Action -eq 'Install'){@('Live','StartLayoutSupported','QuickPositionSupported')}else{@(Get-LeanDockReadinessRequirements $before)}
+ $plan=[pscustomobject]@{Schema=1;Action=$Action;State='Prepared';Destination=$Destination;PackagePath=$PackagePath;Version=$manifest.Version;Session=$session;TaskExisted=[bool]$task;WasRunning=[bool]$before.Running;RequiredComponents=$required;At=(Get-Date -Format o);CompletedAt=$null;Files=$changes;Protected=$protected;Error=$null}
  Save-Plan $plan
  $engine=Join-Path $BackupPath 'engine';New-Item -ItemType Directory -Path $engine|Out-Null
  foreach($name in @('latest.ps1','files-latest.ps1')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $engine $name)}
@@ -134,7 +162,6 @@ try{
  $guard=Start-Process -FilePath (Get-Process -Id $PID).Path -ArgumentList $arguments -WindowStyle Hidden -PassThru
  $mutated=$false
  try{
-  $runtimeChanged=@($changes.Name|Where-Object {$_ -in @('latest.exe','latest.dll','start/latest.dll','panels/latest.dll')})
   # Quiesce itself changes live state; recover even if it fails partway through.
   if($Action -eq 'Update' -and $runtimeChanged.Count){$mutated=$true;Quiesce $runtimeChanged}
   $plan.State='Applying';Save-Plan $plan
@@ -147,15 +174,16 @@ try{
    catch{[pscustomobject]@{Measured=$false;Error=$_.Exception.Message}|ConvertTo-Json|Set-Content (Join-Path $BackupPath 'resources-native-unavailable.json')}
   }
   $state=if($Action -eq 'Install' -or ($plan.WasRunning -and $runtimeChanged.Count)){& (Join-Path $Destination 'latest.ps1') -Action Start|ConvertFrom-Json}else{Native-Status}
-  if(($Action -eq 'Install' -or $plan.WasRunning) -and -not $state.Live){throw 'Updated Dock failed readiness'}
+  $state=Confirm-Readiness $state $required
+  $health=Get-LeanDockComponentHealth $state
   $receipt=if($receiptExisted){Get-Content -LiteralPath (Join-Path $BackupPath 'original/latest.json') -Raw|ConvertFrom-Json}else{[pscustomobject]@{}}
   $nativeBaseline=Join-Path $BackupPath 'resources-native-latest.json'
-  foreach($kv in @{Version=$manifest.Version;UpdatedAt=(Get-Date -Format o);RuntimeFiles=$manifest.RuntimeFiles;Backup=$BackupPath;RollbackScript=(Join-Path $Destination 'maintenance/latest.ps1');Maintenance=[ordered]@{State='Applied';UnifiedEntry=$true;ConfigPreserved=$true;PackageFiles=$manifest.Files.Count;ChangedFiles=$changes.Count;NativeBaseline=if(Test-Path -LiteralPath $nativeBaseline){$nativeBaseline}else{$null}};SourcePublication=[ordered]@{State='local-package';Scope=$manifest.SourcePolicy}}.GetEnumerator()){$receipt|Add-Member -Force NoteProperty $kv.Key $kv.Value}
+  foreach($kv in @{Version=$manifest.Version;UpdatedAt=(Get-Date -Format o);RuntimeFiles=$manifest.RuntimeFiles;Backup=$BackupPath;RollbackScript=(Join-Path $Destination 'maintenance/latest.ps1');Maintenance=[ordered]@{State='Applied';UnifiedEntry=$true;ConfigPreserved=$true;PackageFiles=$manifest.Files.Count;ChangedFiles=$changes.Count;RequiredComponents=$required;ComponentHealth=$health;NativeBaseline=if(Test-Path -LiteralPath $nativeBaseline){$nativeBaseline}else{$null}};SourcePublication=[ordered]@{State='local-package';Scope=$manifest.SourcePolicy}}.GetEnumerator()){$receipt|Add-Member -Force NoteProperty $kv.Key $kv.Value}
   $receipt|ConvertTo-Json -Depth 24|Set-Content -LiteralPath $oldReceipt
   ($plan.Files|Where-Object Name -EQ 'latest.json').NewHash=(Get-FileHash $oldReceipt).Hash
   $plan.State='Applied';$plan.CompletedAt=(Get-Date -Format o);Save-Plan $plan
   New-Item -ItemType File -Path (Join-Path $BackupPath 'committed')|Out-Null
-  [pscustomobject]@{State='Applied';Version=$manifest.Version;Live=$state.Live;Backup=$BackupPath;ChangedFiles=$changes.Count;ConfigPreserved=$true}|ConvertTo-Json
+  [pscustomobject]@{State='Applied';Version=$manifest.Version;Live=$state.Live;ComponentHealth=$health;Backup=$BackupPath;ChangedFiles=$changes.Count;ConfigPreserved=$true}|ConvertTo-Json -Depth 6
  }catch{
   $failure=$_;$plan.Error=$failure.Exception.Message;Save-Plan $plan
   try{if($mutated){Restore-Transaction $plan}else{New-Item -ItemType File -Path (Join-Path $BackupPath 'restored') -Force|Out-Null}}catch{

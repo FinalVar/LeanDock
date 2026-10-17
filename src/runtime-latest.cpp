@@ -243,6 +243,7 @@ extern "C" void Native_size_before();
 extern "C" void Native_tray_resume();
 extern "C" void Native_size_resume();
 extern "C" unsigned Native_styler_count();
+extern "C" unsigned long long Native_hide_attention(unsigned key);
 static bool g_initializedCore[5]{};
 
 static void SaveState() {
@@ -251,8 +252,11 @@ static void SaveState() {
     size_t hooks;{std::lock_guard guard(g_hookMutex);hooks=g_hooks.size();}
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.5.16\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s}\n",
-        GetCurrentProcessId(),g_ownerPid,g_state.load(),hooks,elements,g_fault?"true":"false");
+        "{\"protocol\":1,\"version\":\"0.5.29\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s,"
+        "\"attentionPolicy\":{\"active\":%s,\"blockedReveals\":%llu,\"ignoredFlashingChecks\":%llu,\"passedReveals\":%llu}}\n",
+        GetCurrentProcessId(),g_ownerPid,g_state.load(),hooks,elements,g_fault?"true":"false",
+        Native_hide_attention(0)?"true":"false",Native_hide_attention(1),
+        Native_hide_attention(2),Native_hide_attention(3));
     HANDLE file=CreateFileW(FilePath(L"latest-backend.json").c_str(),GENERIC_WRITE,
         FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,json,size,&written,nullptr);CloseHandle(file);}

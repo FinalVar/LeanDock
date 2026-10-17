@@ -1,0 +1,421 @@
+{
+  "schema": 1,
+  "recordedAt": "2026-10-14T16:42:24.494702+08:00",
+  "packageVersion": "0.8.29",
+  "systemBuild": "26300.9711",
+  "cause": "Scheduled controller started; NativeVerifySystem rejected changed Taskbar.dll before any Dock attach attempt. StartDocked independently changed. Hot corners remained active.",
+  "pdb": {
+    "pdb": "C:\\Users\\x\\Documents\\Codex\\2026-10-07\\referenced-chatgpt-conversation-this-is-an\\work\\windows-update-20261014\\symbols\\DAB69A79FEE033F0D81E023FBF172B511\\Taskbar.pdb",
+    "guid": "DAB69A79FEE033F0D81E023FBF172B51",
+    "age": 1,
+    "url": "https://msdl.microsoft.com/download/symbols/Taskbar.pdb/DAB69A79FEE033F0D81E023FBF172B511/Taskbar.pdb",
+    "bytes": 7606272,
+    "sha256": "20069F339A72CC1857F57E9CF612F8431E9742E018944EE020889EB38DEAD652"
+  },
+  "symbols": [
+    {
+      "name": "public: virtual class std::shared_ptr<class TaskbarHost> __cdecl CTaskBand::GetTaskbarHost(void)const ",
+      "oldRva": 1094944,
+      "newRva": 1094976,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 40,
+      "codeBytesNew": 40,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: int __cdecl TaskbarHost::FrameHeight(void)const ",
+      "oldRva": 565500,
+      "newRva": 565532,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 32,
+      "codeBytesNew": 32,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: void __cdecl std::_Ref_count_base::_Decref(void)",
+      "oldRva": 162688,
+      "newRva": 162720,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 113,
+      "codeBytesNew": 113,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "const CTaskBand::`vftable'{for `ITaskListWndSite'}",
+      "oldRva": 1897136,
+      "newRva": 1896648,
+      "delta": -488,
+      "kind": "vtable",
+      "codeBytesOld": null,
+      "codeBytesNew": null,
+      "normalizedInstructionShapeEqual": null
+    },
+    {
+      "name": "void __cdecl IconUtils::GetIconSize(bool,enum IconUtils::IconType,struct tagSIZE *)",
+      "oldRva": 188924,
+      "newRva": 188956,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 730,
+      "codeBytesNew": 730,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: virtual bool __cdecl IconContainer::IsStorageRecreationRequired(class CCoSimpleArray<unsigned int,4294967294,class CSimpleArrayStandardCompareHelper<unsigned int> > const &,enum IconContainerFlags)",
+      "oldRva": 522112,
+      "newRva": 522144,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 110,
+      "codeBytesNew": 110,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: virtual void __cdecl TrayUI::GetMinSize(struct HMONITOR__ *,struct tagSIZE *)",
+      "oldRva": 473952,
+      "newRva": 473984,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 143,
+      "codeBytesNew": 143,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: __cdecl winrt::impl::consume_WindowsUdk_UI_Shell_ITaskbarSettings<struct winrt::WindowsUdk::UI::Shell::ITaskbarSettings>::Size(void)const ",
+      "oldRva": 936272,
+      "newRva": 936304,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 97,
+      "codeBytesNew": 97,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: virtual unsigned __int64 __cdecl CIconLoadingFunctions::GetClassLongPtrW(struct HWND__ *,int)",
+      "oldRva": 463024,
+      "newRva": 463056,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 13,
+      "codeBytesNew": 13,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: virtual int __cdecl CIconLoadingFunctions::SendMessageCallbackW(struct HWND__ *,unsigned int,unsigned __int64,__int64,void (__cdecl*)(struct HWND__ *,unsigned int,unsigned __int64,__int64),unsigned __int64)",
+      "oldRva": 407552,
+      "newRva": 407584,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 58,
+      "codeBytesNew": 58,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "static  ShellIconLoaderV2::LoadAsyncIcon$_ResumeCoro$1()",
+      "oldRva": 661184,
+      "newRva": 661216,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 1404,
+      "codeBytesNew": 1404,
+      "normalizedInstructionShapeEqual": false,
+      "relocatedJumpTableVerified": true,
+      "details": "334 executable instructions: only image-relative jump-table displacement +32; all nine jump targets retain identical function-relative offsets. Inline table bytes are data, not executable instructions."
+    },
+    {
+      "name": "public: void __cdecl TrayUI::_StuckTrayChange(void)",
+      "oldRva": 474476,
+      "newRva": 474508,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 131,
+      "codeBytesNew": 131,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: void __cdecl TrayUI::_HandleSettingChange(struct HWND__ *,unsigned int,unsigned __int64,__int64)",
+      "oldRva": 345680,
+      "newRva": 345712,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 595,
+      "codeBytesNew": 595,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "const TrayUI::`vftable'{for `IInspectable'}",
+      "oldRva": 1891232,
+      "newRva": 1892344,
+      "delta": 1112,
+      "kind": "vtable",
+      "codeBytesOld": null,
+      "codeBytesNew": null,
+      "normalizedInstructionShapeEqual": null
+    },
+    {
+      "name": "const TrayUI::`vftable'{for `ITrayComponentHost'}",
+      "oldRva": 1891288,
+      "newRva": 1891048,
+      "delta": -240,
+      "kind": "vtable",
+      "codeBytesOld": null,
+      "codeBytesNew": null,
+      "normalizedInstructionShapeEqual": null
+    },
+    {
+      "name": "const CSecondaryTray::`vftable'{for `ISecondaryTray'}",
+      "oldRva": 1872184,
+      "newRva": 1872056,
+      "delta": -128,
+      "kind": "vtable",
+      "codeBytesOld": null,
+      "codeBytesNew": null,
+      "normalizedInstructionShapeEqual": null
+    },
+    {
+      "name": "public: virtual struct HMONITOR__ * __cdecl TrayUI::GetStuckMonitor(void)",
+      "oldRva": 501840,
+      "newRva": 501872,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 8,
+      "codeBytesNew": 8,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: virtual struct HMONITOR__ * __cdecl CSecondaryTray::GetMonitor(void)",
+      "oldRva": 515248,
+      "newRva": 515280,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 5,
+      "codeBytesNew": 5,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: virtual bool __cdecl TrayUI::GetStuckRectForMonitor(struct HMONITOR__ *,struct tagRECT *)",
+      "oldRva": 366336,
+      "newRva": 366368,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 299,
+      "codeBytesNew": 299,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: void __cdecl TrayUI::_Hide(void)",
+      "oldRva": 606272,
+      "newRva": 606304,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 443,
+      "codeBytesNew": 443,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "private: void __cdecl CSecondaryTray::_AutoHide(bool)",
+      "oldRva": 1360508,
+      "newRva": 1360492,
+      "delta": -16,
+      "kind": "function",
+      "codeBytesOld": 323,
+      "codeBytesNew": 323,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: virtual void __cdecl TrayUI::Unhide(enum TrayCommon::TrayUnhideFlags,enum TrayCommon::UnhideRequest)",
+      "oldRva": 599232,
+      "newRva": 599264,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 480,
+      "codeBytesNew": 480,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "private: void __cdecl CSecondaryTray::_Unhide(enum TrayCommon::TrayUnhideFlags,enum TrayCommon::UnhideRequest)",
+      "oldRva": 1363160,
+      "newRva": 1363144,
+      "delta": -16,
+      "kind": "function",
+      "codeBytesOld": 461,
+      "codeBytesNew": 461,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: virtual __int64 __cdecl TrayUI::WndProc(struct HWND__ *,unsigned int,unsigned __int64,__int64,bool *)",
+      "oldRva": 600000,
+      "newRva": 600032,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 5400,
+      "codeBytesNew": 5400,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "private: virtual __int64 __cdecl CSecondaryTray::v_WndProc(struct HWND__ *,unsigned int,unsigned __int64,__int64)",
+      "oldRva": 140128,
+      "newRva": 140160,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 1586,
+      "codeBytesNew": 1586,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: virtual struct tagRECT __cdecl TrayUI::GetStuckRectForMonitor(struct HMONITOR__ *)",
+      "optional": true,
+      "newCandidates": []
+    },
+    {
+      "name": "public: virtual int __cdecl CTaskListWnd::PermitAutoHide(void)",
+      "oldRva": 399616,
+      "newRva": 399648,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 620,
+      "codeBytesNew": 620,
+      "normalizedInstructionShapeEqual": true
+    },
+    {
+      "name": "public: virtual int __cdecl CTaskBtnGroup::IsFlashing(void)",
+      "oldRva": 375296,
+      "newRva": 375328,
+      "delta": 32,
+      "kind": "function",
+      "codeBytesOld": 139,
+      "codeBytesNew": 139,
+      "normalizedInstructionShapeEqual": true
+    }
+  ],
+  "contracts": {
+    "xaml": {
+      "exportPresent": true,
+      "removedExports": [],
+      "addedExports": []
+    },
+    "start": {
+      "beforeHash": "1EEF242E7E0AABC8ED4F2F3A3365CB7B6E13E58636BBF67D9841CBD852178A6F",
+      "afterHash": "8359E3BF5F3F58944F300B9A2D3E1B1FACD4CE8FC7813C799402DA7816874EB9",
+      "binaryUtf16Names": [
+        {
+          "name": "AllAppsGrid",
+          "before": true,
+          "after": true
+        },
+        {
+          "name": "ViewSelectionButton",
+          "before": false,
+          "after": false
+        },
+        {
+          "name": "FrameRoot",
+          "before": false,
+          "after": false
+        },
+        {
+          "name": "MainMenu",
+          "before": false,
+          "after": false
+        },
+        {
+          "name": "MaxHeightEnforcer",
+          "before": false,
+          "after": false
+        },
+        {
+          "name": "TopLevelHeader",
+          "before": false,
+          "after": false
+        },
+        {
+          "name": "AllListHeading",
+          "before": false,
+          "after": false
+        },
+        {
+          "name": "StartMenuPinnedList",
+          "before": false,
+          "after": false
+        },
+        {
+          "name": "MainContent",
+          "before": false,
+          "after": false
+        },
+        {
+          "name": "StartMenu.AllAppsTileViewModel",
+          "before": false,
+          "after": false
+        },
+        {
+          "name": "StartMenu.AllAppsSuiteViewModel",
+          "before": false,
+          "after": false
+        }
+      ]
+    },
+    "boundary": "Static export/name evidence only. Actual XAML structure, collection contract and rendered layout require runtime verification; Start uses checked WinRT interfaces and no private RVAs."
+  },
+  "securityGateRemoved": false,
+  "runtimeAcceptance": "Pending deployment",
+  "preservedBehavior": "Only validated module identities, Taskbar symbol RVAs and version reporting changed; previous layout and input fixes retained.",
+  "SystemSignatures": [
+    {
+      "File": "taskbar.dll",
+      "Status": "Valid",
+      "Signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+      "SHA256": "CA1E335AC1FAE5FF57519035302A2F365C4620D3A230F31F1231AF7331760741"
+    },
+    {
+      "File": "Windows.UI.Xaml.dll",
+      "Status": "Valid",
+      "Signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+      "SHA256": "67D90AD2F75BBD50607BFD7C3D73694E948EB993C135B6BB23D4965287CA4BAD"
+    },
+    {
+      "File": "StartDocked.dll",
+      "Status": "Valid",
+      "Signer": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+      "SHA256": "8359E3BF5F3F58944F300B9A2D3E1B1FACD4CE8FC7813C799402DA7816874EB9"
+    }
+  ],
+  "Regression": {
+    "RuntimeChecks": 91,
+    "HotCornerChecks": 83,
+    "HotCornerConfigurationChecks": 26,
+    "StartLifecycleAssertions": 14,
+    "Failures": 0,
+    "InputRegisteredOrSent": false
+  },
+  "Build": {
+    "Version": "0.8.29",
+    "BuiltAt": "2026-10-14T16:44:38.6530828+08:00",
+    "RuntimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 292352,
+        "SHA256": "3EBAE5829C94E93730051BAE310D5645A7DA9617FFF6EF6E0EE6A14464D7DADA"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2020864,
+        "SHA256": "CECD755C2342DF1851F0A88B25BEF56C93F7A9636AD31E22C7E1F4B04F0AD292"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 397312,
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ],
+    "CompanionPreservation": "Rebuilt Start and Panels are byte-identical to 0.8.28 except PE link timestamp; retain exact prior DLLs and hashes. Controller and backend rebuilt for updated pins."
+  }
+}

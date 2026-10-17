@@ -1,6 +1,71 @@
-# Shared, side-effect-free validation plus exact-file copy/restore operations.
+# Shared validation, exact-file copy/restore and maintenance readiness guards.
 $ErrorActionPreference='Stop'
 $script:LeanDockConfigFiles=@('latest.ini','hotcorners/latest.ini')
+$script:LeanDockRuntimeFiles=@('latest.exe','latest.dll','start/latest.dll','panels/latest.dll')
+function Get-LeanDockApplicationControlState {
+ # Read only. Absence/read failure is unknown, not permission to restart code.
+ try {
+  $value=Get-ItemPropertyValue -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -Name VerifiedAndReputablePolicyState -ErrorAction Stop
+  switch($value){0{'Off'} 1{'On'} 2{'Evaluation'} default{'Unknown'}}
+ } catch {'Unknown'}
+}
+function Get-LeanDockRuntimeTrust([string]$Root,$RestorePlan=$null,[string]$BackupRoot=''){
+ @(foreach($name in $script:LeanDockRuntimeFiles){
+  $file=if($RestorePlan){@($RestorePlan.Files|Where-Object Name -EQ $name)}else{@()}
+  $path=if($file.Count -and $file[0].Existed){Resolve-LeanDockChild $BackupRoot ('original/'+$name)}else{Resolve-LeanDockChild $Root $name}
+  if(-not(Test-Path -LiteralPath $path -PathType Leaf)){throw "Missing runtime dependency: $name"}
+  $signature=Get-AuthenticodeSignature -LiteralPath $path
+  [pscustomobject]@{Name=$name;SHA256=(Get-FileHash -LiteralPath $path).Hash;Signature=[string]$signature.Status}
+ })
+}
+function Assert-LeanDockRuntimeTrust($Artifacts,[string]$Policy){
+ if($Policy -notin @('Off','Evaluation','On')){throw 'Smart App Control state is unknown; runtime restart was not attempted.'}
+ foreach($name in $script:LeanDockRuntimeFiles){if(@($Artifacts|Where-Object Name -EQ $name).Count -ne 1){throw "Runtime trust inventory is incomplete or duplicated: $name"}}
+ if($Policy -ne 'On'){return}
+ # Conservative maintenance gate, not an imitation of Windows cloud reputation.
+ # Previously loaded unsigned code is not evidence it will be admitted again.
+ $unsafe=@($Artifacts|Where-Object Signature -NE 'Valid')
+ if($unsafe.Count){throw ('Smart App Control is enabled and runtime signature readiness is unverified: '+($unsafe.Name -join ', ')+'. Restart refused before this stage changes live components. Use a trusted signed package; this tool never changes application-control policy.')}
+}
+function Get-LeanDockReadinessRequirements($Before){
+ if(-not $Before.Running){return}
+ 'Live'
+ if($Before.StartLayoutSupported){'StartLayoutSupported'}
+ if($Before.StartLayoutActive -or $Before.StartLayoutReady){'StartLayoutActive'}
+ if($Before.StartLayoutReady){'StartLayoutReady'}
+ if($Before.QuickSettingsPosition.Supported){'QuickPositionSupported'}
+ if($Before.QuickSettingsPosition.Active){'QuickPositionActive'}
+ if($Before.QuickTheme.active){'QuickThemeReady'}
+}
+function Get-LeanDockReadinessFailures($State,[string[]]$Required){
+ foreach($name in $Required){
+  $ok=switch($name){
+   'Live' {[bool]$State.Live}
+   'StartLayoutSupported' {$State.StartLayoutSupported -and -not $State.StartLayoutBlocked}
+   'StartLayoutActive' {($State.StartLayoutActive -or $State.StartLayoutReady) -and -not $State.StartLayoutBlocked}
+   'StartLayoutReady' {$State.StartLayoutReady -and -not $State.StartLayoutBlocked}
+   'QuickPositionSupported' {$State.QuickSettingsPosition.Supported -and -not $State.QuickSettingsPosition.Blocked}
+   'QuickPositionActive' {$State.QuickSettingsPosition.Active -and -not $State.QuickSettingsPosition.Blocked}
+   'QuickThemeReady' {[bool]$State.QuickTheme.active}
+   default {throw "Unknown readiness requirement: $name"}
+  }
+  if(-not $ok){$name}
+ }
+}
+function Get-LeanDockComponentHealth($State){
+ if(-not $State.Running){return [pscustomobject]@{State='Stopped';Unavailable=@();Pending=@()}}
+ $unavailable=@(
+  if(-not $State.DockReady){'Dock'}
+  if(-not $State.HotCornersReady){'HotCorners'}
+  if(-not $State.StartLayoutSupported -or $State.StartLayoutBlocked){'StartLayout'}
+  if(-not $State.QuickSettingsPosition.Supported -or $State.QuickSettingsPosition.Blocked){'QuickSettings'}
+ )
+ $pending=@(
+  if('StartLayout' -notin $unavailable -and -not $State.StartLayoutReady){'StartLayout'}
+  if('QuickSettings' -notin $unavailable -and (-not $State.QuickSettingsPosition.Active -or -not $State.QuickTheme.active)){'QuickSettings'}
+ )
+ [pscustomobject]@{State=if($unavailable.Count){'Degraded'}elseif($pending.Count){'WaitingForHost'}else{'Ready'};Unavailable=$unavailable;Pending=$pending}
+}
 function Resolve-LeanDockChild([string]$Root,[string]$Relative){
  if([string]::IsNullOrWhiteSpace($Relative) -or [IO.Path]::IsPathRooted($Relative) -or $Relative -match '(^|[\\/])\.\.?([\\/]|$)|[:*?"<>|]' -or $Relative -match '(^|[\\/])[^\\/]*[. ]([\\/]|$)'){throw 'Unsafe relative package path'}
  if($Relative -match '[\\/]{2}|(^|[\\/])(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|[\\/]|$)'){throw 'Reserved or ambiguous package path'}

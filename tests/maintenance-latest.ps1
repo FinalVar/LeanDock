@@ -55,6 +55,53 @@ Copy-LeanDockFile $source $Destination 'latest.exe' $exe.SHA256
 $partial=[pscustomobject]@{Destination=$Destination;TaskExisted=$false;WasRunning=$false;State='Applying';CompletedAt=$null;Files=@([pscustomobject]@{Name='latest.exe';Existed=$false;PreviousHash=$null;NewHash=$exe.SHA256})}
 Restore-Transaction $partial
 Check ($partial.State -eq 'RolledBack' -and -not(Test-Path (Join-Path $Destination 'latest.exe'))) 'partial first-install recovery without shell changes'
+# A one-file Dock update restarts the shared controller. Admission checks must
+# therefore include unchanged companions, before any runtime helper or Stop.
+$unsigned=@(foreach($name in $script:LeanDockRuntimeFiles){[pscustomobject]@{Name=$name;Signature='NotSigned'}})
+Reject {Assert-LeanDockRuntimeTrust $unsigned 'On'} 'active SAC blocks unsigned restart'
+Assert-LeanDockRuntimeTrust $unsigned 'Off';Check $true 'off policy permits ordinary local build'
+Assert-LeanDockRuntimeTrust $unsigned 'Evaluation';Check $true 'evaluation is distinguished from enforcement'
+Reject {Assert-LeanDockRuntimeTrust $unsigned 'Unknown'} 'unknown policy does not silently allow restart'
+Reject {Assert-LeanDockRuntimeTrust @() 'On'} 'empty trust inventory cannot pass'
+$signed=@(foreach($name in $script:LeanDockRuntimeFiles){[pscustomobject]@{Name=$name;Signature='Valid'}})
+Assert-LeanDockRuntimeTrust $signed 'On';Check $true 'signed inventory can proceed to real load/readiness checks'
+$signed[2].Signature='NotSigned'
+Reject {Assert-LeanDockRuntimeTrust $signed 'On'} 'unchanged unsigned Start companion prevents reload'
+$signed[2].Signature='HashMismatch'
+Reject {Assert-LeanDockRuntimeTrust $signed 'On'} 'invalid signature is not trusted'
+# Same basename in different folders must never substitute a different runtime.
+$trust=@(Get-LeanDockRuntimeTrust $source)
+Check ($trust.Count -eq 4 -and ($trust|Where-Object Name -EQ 'start/latest.dll').SHA256 -eq ($files|Where-Object Name -EQ 'start/latest.dll').SHA256) 'exact four-file trust inventory'
+$restoreTrust=@(Get-LeanDockRuntimeTrust $source $plan $backup)
+Check (($restoreTrust|Where-Object Name -EQ 'latest.dll').SHA256 -eq $oldHash) 'rollback checks old bytes, not new payload'
+$before=[pscustomobject]@{Running=$true;Live=$true;DockReady=$true;HotCornersReady=$true;StartLayoutSupported=$true;StartLayoutActive=$true;StartLayoutReady=$true;StartLayoutBlocked=$false;QuickSettingsPosition=[pscustomobject]@{Supported=$true;Active=$true;Blocked=$false};QuickTheme=[pscustomobject]@{active=$true}}
+$required=@(Get-LeanDockReadinessRequirements $before)
+Check ($required.Count -eq 7) 'snapshot all previously ready components'
+$after=$before|ConvertTo-Json -Depth 5|ConvertFrom-Json
+Check (@(Get-LeanDockReadinessFailures $after $required).Count -eq 0) 'same feature set passes'
+$after.StartLayoutSupported=$false;$after.StartLayoutActive=$false;$after.StartLayoutReady=$false
+Check (@(Get-LeanDockReadinessFailures $after $required).Count -eq 3) 'Live true cannot conceal lost Start layout'
+Check ((Get-LeanDockComponentHealth $after).State -eq 'Degraded' -and 'StartLayout' -in (Get-LeanDockComponentHealth $after).Unavailable) 'report current Start regression explicitly'
+$after=$before|ConvertTo-Json -Depth 5|ConvertFrom-Json
+$after.QuickSettingsPosition.Active=$false;$after.QuickTheme=$null
+Check (@(Get-LeanDockReadinessFailures $after $required).Count -eq 2) 'detect lost quick settings and theme'
+Check ((Get-LeanDockComponentHealth $after).State -eq 'WaitingForHost') 'supported dormant host is pending, not failed'
+$after=$before|ConvertTo-Json -Depth 5|ConvertFrom-Json
+$after.StartLayoutBlocked=$true
+Check (@(Get-LeanDockReadinessFailures $after $required).Count -eq 3) 'blocked host overrides stale active flags'
+Check (@(Get-LeanDockReadinessRequirements ([pscustomobject]@{Running=$false})).Count -eq 0) 'stopped installation has no live baseline'
+Reject {Get-LeanDockReadinessFailures $before @('MisspelledComponent')} 'unknown requirements cannot silently pass'
+# Replay the actual bounded readiness function with observations, no real waits
+# or desktop calls. First sample has a delayed companion, the next is healthy.
+$confirm=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Confirm-Readiness'},$false)
+. ([scriptblock]::Create($confirm.Extent.Text))
+function Start-Sleep {}
+$script:statusReads=0
+function Native-Status {$script:statusReads++;$before}
+$pending=$before|ConvertTo-Json -Depth 5|ConvertFrom-Json
+$pending.StartLayoutReady=$false
+$confirmed=Confirm-Readiness $pending $required
+Check ($confirmed.StartLayoutReady -and $script:statusReads -eq 1) 'wait for companion after core readiness'
 # Retain bounded fixtures for diagnosis. No recursive deletion in tests.
 $result=[pscustomobject]@{Checks=$checks;Failures=0;WindowsMutations=$false;Fixture=$work}
 $result|ConvertTo-Json|Tee-Object -FilePath (Join-Path $PSScriptRoot 'maintenance-latest.json')

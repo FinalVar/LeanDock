@@ -70,8 +70,11 @@ struct Property {
 };
 struct State {
  HWND host{};DWORD owner{};HANDLE ownerProcess{};PTP_WAIT ownerWait{};
- x::Window window{nullptr};winrt::event_token activated{},visible{};
- bool active{},mutating{},queued{};unsigned generation{},passes{},failures{};
+  x::Window window{nullptr};winrt::event_token activated{},visible{};
+  bool activatedSubscribed{},visibleSubscribed{};
+  bool active{},mutating{},queued{};unsigned generation{},passes{},failures{},initFailures{};
+  HRESULT initResult{S_OK};
+  const char* initStage{"idle"};
  std::vector<std::unique_ptr<Flat>> lists;
  std::vector<Wrap> wraps;
  std::vector<Selector> selectors;
@@ -93,8 +96,8 @@ static void WriteStatus() noexcept {
   unsigned items=0,groups=0;size_t applied=0;
   for(auto const& entry:state->lists)if(auto target=entry->target.get())if(target.ItemsSource()==entry->view){++applied;items+=entry->count;groups+=entry->groups;}
   char text[900];auto bytes=snprintf(text,sizeof(text),
-    "{\"version\":\"0.1.3\",\"pid\":%lu,\"ownerPid\":%lu,\"active\":%s,\"lists\":%zu,\"items\":%u,\"sourceGroups\":%u,\"lockedSelectors\":%zu,\"columns\":%u,\"rows\":%u,\"panelWidth\":%.3f,\"panelHeight\":%.3f,\"passes\":%u,\"failures\":%u,\"watchMode\":\"events\"}\n",
-    GetCurrentProcessId(),state->owner,state->active?"true":"false",applied,items,groups,state->selectors.size(),state->columns,state->rows,state->panelWidth,state->panelHeight,state->passes,state->failures);
+    "{\"version\":\"0.1.4\",\"pid\":%lu,\"ownerPid\":%lu,\"active\":%s,\"lists\":%zu,\"items\":%u,\"sourceGroups\":%u,\"lockedSelectors\":%zu,\"columns\":%u,\"rows\":%u,\"panelWidth\":%.3f,\"panelHeight\":%.3f,\"passes\":%u,\"failures\":%u,\"initFailures\":%u,\"initResult\":%ld,\"initStage\":\"%s\",\"watchMode\":\"events\"}\n",
+    GetCurrentProcessId(),state->owner,state->active?"true":"false",applied,items,groups,state->selectors.size(),state->columns,state->rows,state->panelWidth,state->panelHeight,state->passes,state->failures,state->initFailures,state->initResult,state->initStage);
   HANDLE file=CreateFileW(path,GENERIC_WRITE,FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
   if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,text,bytes,&written,nullptr);CloseHandle(file);}
  }catch(...){}
@@ -365,7 +368,9 @@ static void Restore(bool position) {
  state->moved=false;
  if(state->ownerWait){SetThreadpoolWait(state->ownerWait,nullptr,nullptr);WaitForThreadpoolWaitCallbacks(state->ownerWait,TRUE);CloseThreadpoolWait(state->ownerWait);state->ownerWait=nullptr;}
  if(state->ownerProcess){CloseHandle(state->ownerProcess);state->ownerProcess=nullptr;}
- try{state->window.Activated(state->activated);state->window.VisibilityChanged(state->visible);}catch(...){}
+  if(state->activatedSubscribed)try{state->window.Activated(state->activated);}catch(...){}
+  if(state->visibleSubscribed)try{state->window.VisibilityChanged(state->visible);}catch(...){}
+  state->activatedSubscribed=false;state->visibleSubscribed=false;
  RestoreSizing();
  for(auto& entry:state->lists) {
   Unsubscribe(*entry);
@@ -424,43 +429,57 @@ static LRESULT CALLBACK WindowProc(HWND w,UINT message,WPARAM p,LPARAM l,UINT_PT
  if(state && state->active && (message==WM_SHOWWINDOW || message==WM_SIZE || message==WM_WINDOWPOSCHANGED))Schedule();
  return result;
 }
-static bool Start(HWND host,DWORD owner) {
- if(!ValidOwner(owner))return false;
+static HRESULT Start(HWND host,DWORD owner) {
+  if(!ValidOwner(owner))return E_ACCESSDENIED;
  if(state && state->active) {
-  if(state->owner==owner){Schedule();return true;}
+   if(state->owner==owner){Schedule();return S_OK;}
   // The old controller may exit while Start is suspended. Restore its state
   // here before accepting a new owner, even if OwnerGone is still queued.
-  if(!state->ownerProcess || WaitForSingleObject(state->ownerProcess,0)!=WAIT_OBJECT_0)return false;
+   if(!state->ownerProcess || WaitForSingleObject(state->ownerProcess,0)!=WAIT_OBJECT_0)return E_ACCESSDENIED;
   Restore();
  }
- auto window=x::Window::Current();if(!window)return false;
- if(!state)state=new State();
  // Keep executable callbacks mapped until the system Start process exits.
  HMODULE pinned=nullptr;
- if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,reinterpret_cast<PCWSTR>(WindowProc),&pinned))return false;
- if(!SetWindowSubclass(host,WindowProc,1,0))return false;
+  if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,reinterpret_cast<PCWSTR>(WindowProc),&pinned))return E_FAIL;
+  if(!state)state=new State();
+  state->owner=owner;state->initStage="xaml-window";
+  auto window=x::Window::Current();if(!window)return E_PENDING;
+  state->initStage="window-subclass";
+  if(!SetWindowSubclass(host,WindowProc,1,0))return E_FAIL;
  state->host=host;state->owner=owner;state->window=window;state->active=true;++state->generation;
  state->moved=false;state->moves=0;state->fitRetries=0;
- state->ownerProcess=OpenProcess(SYNCHRONIZE,FALSE,owner);
+  state->initStage="owner-watch";
+  state->ownerProcess=OpenProcess(SYNCHRONIZE,FALSE,owner);
  state->ownerWait=CreateThreadpoolWait(OwnerExited,host,nullptr);
- if(!state->ownerProcess || !state->ownerWait){Restore();return false;}
+  if(!state->ownerProcess || !state->ownerWait){Restore();return E_FAIL;}
  SetThreadpoolWait(state->ownerWait,state->ownerProcess,nullptr);
- state->activated=window.Activated([](auto const&,auto const& args){if(args.WindowActivationState()!=core::CoreWindowActivationState::Deactivated)Schedule();});
+  state->initStage="xaml-events";
+  state->activated=window.Activated([](auto const&,auto const& args){if(args.WindowActivationState()!=core::CoreWindowActivationState::Deactivated)Schedule();});
+  state->activatedSubscribed=true;
  state->visible=window.VisibilityChanged([](auto const&,auto const& args){if(args.Visible())Schedule();});
+  state->visibleSubscribed=true;
  SetPropW(host,LeanDockStartProtocol::Owner,reinterpret_cast<HANDLE>(static_cast<ULONG_PTR>(owner)));
  SetPropW(host,LeanDockStartProtocol::Active,reinterpret_cast<HANDLE>(1));
  RECT current{};if(GetWindowRect(host,&current))SetWindowPos(host,nullptr,current.left,current.top,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOOWNERZORDER);
- Apply();return true;
+  Apply();state->initStage="ready";return S_OK;
 }
 extern "C" __declspec(dllexport) LRESULT CALLBACK LeanDockStartHook(int code,WPARAM p,LPARAM l) {
  if(code==HC_ACTION) {
   auto call=reinterpret_cast<CWPSTRUCT*>(l);
   if(call->message==Signal() && call->wParam==Enable) {
+   HRESULT result=E_FAIL;
    try {
     wchar_t own[32768],expected[32768];GetModuleFileNameW(nullptr,own,std::size(own));GetWindowsDirectoryW(expected,std::size(expected));
     wcscat_s(expected,L"\\SystemApps\\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\\StartMenuExperienceHost.exe");
-    if(!_wcsicmp(own,expected))Start(call->hwnd,DWORD(call->lParam));
-   }catch(...){if(state){++state->failures;Restore();}}
+    if(_wcsicmp(own,expected) || !ValidOwner(DWORD(call->lParam)))return CallNextHookEx(nullptr,code,p,l);
+    result=Start(call->hwnd,DWORD(call->lParam));
+   }catch(winrt::hresult_error const& e){result=e.code();Restore();}
+    catch(...){result=E_FAIL;Restore();}
+   // Publish only after initialization has finished or restoration completed.
+   // A failed image load or a hung UI thread cannot manufacture this receipt.
+   SetPropW(call->hwnd,LeanDockStartProtocol::InitResult,reinterpret_cast<HANDLE>(static_cast<ULONG_PTR>(static_cast<DWORD>(result))));
+   SetPropW(call->hwnd,LeanDockStartProtocol::AttemptOwner,reinterpret_cast<HANDLE>(static_cast<ULONG_PTR>(DWORD(call->lParam))));
+   if(state){state->initResult=result;if(FAILED(result))++state->initFailures;WriteStatus();}
   }
  }
  return CallNextHookEx(nullptr,code,p,l);
