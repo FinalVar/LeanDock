@@ -1,0 +1,312 @@
+{
+  "Schema": 1,
+  "At": "2026-10-21T13:13:18.2550073+08:00",
+  "Version": "0.9.2",
+  "Architecture": "capsule",
+  "State": "DeployedPendingUserAcceptance",
+  "Scope": [
+    "Sharper application icon rasterization at accepted geometry",
+    "Keep Dock visible while clock-opened Start is shown",
+    "Dismiss Start before hot-corner actions"
+  ],
+  "PriorUserFeedback": {
+    "RejectedIconClarity": "图标模糊，和之前完全不一样",
+    "StartOpening": "能打开了",
+    "Version": "0.9.1",
+    "Requested": [
+      "开始菜单打开后 Dock 不隐藏",
+      "开始菜单显示时触发角正常"
+    ]
+  },
+  "CurrentUserFeedback": {
+    "StartMenu": "Overlaps Dock; needs upward placement",
+    "Icons": "Second icon has a bright rough outer fringe; screenshot provided",
+    "Corners": "User clarified right bottom reacts, left bottom does not; actual foreground was SearchHost.exe",
+    "At": "2026-10-21T13:23:00.7222430+08:00"
+  },
+  "Geometry": {
+    "HeightDip": 60,
+    "RadiusDip": 30,
+    "IconSizeDip": 40.0,
+    "AppPitchDip": 52,
+    "ActualMinimumSourcePixels": 256
+  },
+  "IconPolicy": {
+    "Resampling": "WIC Fant once at final optical physical dimensions, then 1:1 upload",
+    "VisualAccepted": false,
+    "ForcedSharpening": false,
+    "PhysicalRasterRows": 30,
+    "SourceTierRequest": 256,
+    "DpiChecked": [
+      100,
+      125,
+      150,
+      175,
+      200
+    ],
+    "NativeGlyphPreserved": true,
+    "ObservedApps": 6,
+    "ActualSourceMinimum": 256,
+    "PixelMappingPassed": true,
+    "OpticalMaxScale": 1.35
+  },
+  "StartPolicy": {
+    "Command": "SC_TASKLIST to verified Explorer",
+    "UserAccepted": false,
+    "ObservedVisibility": "Trusted Start host, WS_VISIBLE and not DWM cloaked",
+    "NoWinKeyInjectionOnClock": true,
+    "PendingTimeoutMs": 1500,
+    "ClosesReturnToNormalHide": true
+  },
+  "CornerPolicy": {
+    "TransientTimerMs": 15,
+    "StartForeground": "Escape pair, wait for hidden/cloaked and foreground release, then original action",
+    "NoIdleTimerAdded": true,
+    "UserAccepted": false,
+    "OriginalFailureTrace": "No complete trace; prior last fullscreen block was LockApp, not Start. Fullscreen suppression is not established as the original cause.",
+    "TimeoutMs": 700,
+    "Version": "1.0.13-integrated",
+    "CancelsOn": [
+      "held user input",
+      "drag",
+      "session change",
+      "missing host",
+      "timeout",
+      "stop"
+    ]
+  },
+  "Checks": {
+    "DockPolicy": 115,
+    "TrayProtocol": 25,
+    "RealTrayRegistration": true,
+    "VisualState": "PendingUserAcceptance",
+    "RealIconResourceProbe": true,
+    "PostInstallStopStart": "Not rerun",
+    "HotCornerConfiguration": 33,
+    "GuardBudget": true,
+    "HotCornerCore": 146,
+    "OrdinaryUserHiddenComposition": true
+  },
+  "Install": {
+    "All47PackageHashesMatch": true,
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\capsule-20261021-130927",
+    "UIHash": "21DE848726292B2C56999F8C7A552273B7E2851ED94EDD5863B35E270C291AFC",
+    "ComponentFailures": [],
+    "Receipt": "2026-10-21T13:09:46.6405205+08:00",
+    "PermissionBoundaryValid": true,
+    "ProtectedFilesUnchanged": true,
+    "TaskUnchanged": true,
+    "PinsUnchanged": true
+  },
+  "Runtime": {
+    "Live": true,
+    "Running": true,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "DockSupported": true,
+    "QuickSettingsPosition": {
+      "Supported": true,
+      "Active": true,
+      "Blocked": false,
+      "Failures": 0,
+      "Adjustments": 0,
+      "Recoveries": 0,
+      "LastExitCode": null
+    },
+    "QuickTheme": {
+      "version": "0.2.0",
+      "pid": 22036,
+      "ownerPid": 22140,
+      "active": true,
+      "rootReady": false,
+      "tileInstalled": false,
+      "buttonReady": false,
+      "busy": false,
+      "workerPid": 0,
+      "dark": false,
+      "stateKnown": true,
+      "discoveries": 2,
+      "switches": 0,
+      "failures": 1,
+      "lastExit": 0,
+      "discoveryResult": 0,
+      "watchMode": "events"
+    },
+    "StartLayoutReady": true,
+    "StartLayoutActive": true,
+    "StartLayoutSupported": true,
+    "StartLayoutBlocked": false,
+    "StartLayout": {
+      "version": "0.1.4",
+      "pid": 1188,
+      "ownerPid": 22140,
+      "active": true,
+      "lists": 1,
+      "items": 54,
+      "sourceGroups": 30,
+      "lockedSelectors": 1,
+      "columns": 8,
+      "rows": 7,
+      "panelWidth": 834.0,
+      "panelHeight": 754.0,
+      "passes": 2,
+      "failures": 0,
+      "initFailures": 0,
+      "initResult": 0,
+      "initStage": "ready",
+      "watchMode": "events"
+    },
+    "Elevated": true,
+    "HotCorners": {
+      "version": "1.0.13-integrated",
+      "hosted": true,
+      "pid": 22140,
+      "running": true,
+      "paused": false,
+      "locked": false,
+      "inputMode": "raw-input-events",
+      "rawInputRegistered": true,
+      "inputDesktopAvailable": true,
+      "periodicPolling": false,
+      "timerArmed": false,
+      "uptimeMs": 22734,
+      "rawEvents": 0,
+      "evaluations": 0,
+      "monitors": 1,
+      "delayMs": 0,
+      "cornerDelayMs": {
+        "topLeft": 500,
+        "topRight": 0,
+        "bottomLeft": 0,
+        "bottomRight": 0
+      },
+      "cooldownMs": 0,
+      "cornerPixels": 3,
+      "rearmPixels": 32,
+      "fullscreenSuppression": true,
+      "actions": [
+        "lock-screen",
+        "none",
+        "show-desktop",
+        "app-switcher"
+      ],
+      "activations": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "switcherToggle": {
+        "openRequests": 0,
+        "closeRequests": 0,
+        "stateChanged": 0
+      },
+      "blockedEntries": 0,
+      "failures": 0,
+      "lastError": 0,
+      "maximizedClientEntries": 0,
+      "blockReasons": {
+        "paused": 0,
+        "locked": 0,
+        "inputHeld": 0,
+        "inputDesktop": 0,
+        "fullscreen": 0
+      },
+      "lastBlock": {
+        "reason": "none",
+        "pid": 0,
+        "corner": -1,
+        "tick": 0,
+        "maximized": false,
+        "style": 0
+      }
+    },
+    "Controller": [
+      {
+        "ProcessId": 22140,
+        "ExecutablePath": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\latest.exe"
+      }
+    ],
+    "ExplorerPid": 2148,
+    "Backend": {
+      "protocol": 1,
+      "version": "0.6.0-capsule",
+      "explorerPid": 2148,
+      "ownerPid": 22140,
+      "state": 2,
+      "hooks": 13,
+      "styledElements": 0,
+      "failed": false,
+      "attentionPolicy": {
+        "active": false,
+        "blockedReveals": 0,
+        "ignoredFlashingChecks": 0,
+        "passedReveals": 0
+      }
+    },
+    "LoadedComponents": [
+      {
+        "ModuleName": "latest.dll",
+        "FileName": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\latest.dll"
+      }
+    ],
+    "Task": {
+      "Name": "NativeTaskbarDock",
+      "State": "Running",
+      "RunLevel": "Highest",
+      "LogonType": "Interactive"
+    },
+    "WindhawkService": "",
+    "StartAttachment": {
+      "Attempts": 0,
+      "Recoveries": 0,
+      "RetryScheduled": false,
+      "Receipt": true,
+      "Error": 0,
+      "Failures": 0,
+      "HostRecoveries": 0,
+      "LastExitCode": null
+    },
+    "ClientEdge": {
+      "Supported": true,
+      "Ready": true,
+      "Stage": "ready",
+      "Error": 0,
+      "Attempts": 1,
+      "Recoveries": 0,
+      "RetryScheduled": false,
+      "Repairs": 0,
+      "GenericRepairs": 0,
+      "Failures": 0
+    },
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Capsule": {
+      "schema": 1,
+      "architecture": "capsule",
+      "guardPid": 22280,
+      "uiPid": 11916,
+      "ready": true,
+      "trayReady": true,
+      "normalUser": true,
+      "pinWrites": false
+    },
+    "architecture": "capsule"
+  },
+  "Limits": [
+    "Actual icon clarity and Start-open interactions pending user feedback",
+    "Offline DPI pixel mapping is not multi-monitor visual acceptance",
+    "Existing QuickTheme root/tile/button not acquired and discovery failure=1 was preserved; no claim of theme tile UI acceptance",
+    "No new total memory/GPU/power benchmark",
+    "No computer use or synthetic validation input"
+  ],
+  "Source": {
+    "Pushed": false,
+    "PreexistingChangesPreserved": true,
+    "Committed": false,
+    "LocalEdits": true
+  }
+}

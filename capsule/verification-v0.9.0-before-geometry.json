@@ -1,0 +1,259 @@
+{
+  "Schema": 1,
+  "At": "2026-10-21T02:16:10.2743191+08:00",
+  "Version": "0.9.0",
+  "Architecture": "capsule",
+  "State": "DeployedPendingInteractiveAcceptance",
+  "UserDecisions": [
+    "Use desktop handoff PLAN.md v1",
+    "Preserve hot corners, Ctrl+Alt+Tab, compact Start and existing shell companions",
+    "Windows remains the sole pin/order store; defer unsupported writes",
+    "Proceed while user is away; authorized routine reload"
+  ],
+  "Deployment": {
+    "Success": true,
+    "InstalledAt": "2026-10-21T02:13:05.13492+08:00",
+    "Path": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock",
+    "PayloadCount": 45,
+    "AllPayloadHashesMatch": true,
+    "UiSHA256": "A796C2A1935F886C16D0FF1372CC02F87BB4F45A04498073FC16B8F6B621267C",
+    "ControllerSHA256": "EA8BE2EFB5E3E6F7247F184544808F90BEE4CB044EAC04BC31799C44820B1568",
+    "BackendSHA256": "4F39B72177499A1137594771A4D30F58F6A12569D9088A8823D2A2B39965BD79",
+    "LatestRollback": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\capsule-20261021-021248",
+    "Legacy078Rollback": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\capsule-20261021-020020",
+    "FullLegacyRollbackExecuted": false
+  },
+  "Preserved": {
+    "TaskUnchanged": true,
+    "TaskSHA256": "B32FC0B5831EAC3B9C4AC915162CC2B4DC250BC39B07BB887C79ECF3406C423A",
+    "NativePinsUnchanged": true,
+    "ProtectedFiles": [
+      {
+        "Name": "latest.ini",
+        "SHA256": "5D3060BEAC27A3D4BDD975FFB1C079E5D31269D63EF3C72260EF0C51346AC375",
+        "Unchanged": true
+      },
+      {
+        "Name": "hotcorners/latest.ini",
+        "SHA256": "C26DF2EF906CE5EF93BF91B1C3526BED376C9CB8D8EE1C4247F6CB48671D169C",
+        "Unchanged": true
+      },
+      {
+        "Name": "start/latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "Unchanged": true
+      },
+      {
+        "Name": "panels/latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "Unchanged": true
+      }
+    ],
+    "RequiredComponents": [
+      "Live",
+      "StartLayoutSupported",
+      "StartLayoutActive",
+      "StartLayoutReady",
+      "QuickPositionSupported",
+      "QuickPositionActive",
+      "QuickThemeReady",
+      "ClientEdgeReady"
+    ],
+    "MissingComponents": []
+  },
+  "PermissionBoundary": {
+    "Verified": true,
+    "Processes": [
+      {
+        "Role": "Controller",
+        "ProcessId": 17824,
+        "ParentId": 1808,
+        "Path": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\latest.exe",
+        "CommandLine": "\"C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\latest.exe\"",
+        "Session": 1,
+        "Elevated": true,
+        "IntegrityRid": 12288,
+        "PrivateMiB": 2.43,
+        "WorkingSetMiB": 12.36,
+        "StartTime": "2026-10-21T02:13:01.4240309+08:00"
+      },
+      {
+        "Role": "Guard",
+        "ProcessId": 6700,
+        "ParentId": 13472,
+        "Path": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\capsule\\latest.exe",
+        "CommandLine": "\"C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\capsule\\latest.exe\" --companion-guard 17824",
+        "Session": 1,
+        "Elevated": false,
+        "IntegrityRid": 8192,
+        "PrivateMiB": 1.91,
+        "WorkingSetMiB": 10.13,
+        "StartTime": "2026-10-21T02:13:02.9981263+08:00"
+      },
+      {
+        "Role": "UI",
+        "ProcessId": 18104,
+        "ParentId": 6700,
+        "Path": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\capsule\\latest.exe",
+        "CommandLine": "\"C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\capsule\\latest.exe\" --ui 6700 1",
+        "Session": 1,
+        "Elevated": false,
+        "IntegrityRid": 8192,
+        "PrivateMiB": 17.32,
+        "WorkingSetMiB": 45.46,
+        "StartTime": "2026-10-21T02:13:03.0150473+08:00"
+      }
+    ]
+  },
+  "Checks": {
+    "Policy": 55,
+    "TrayProtocol": 25,
+    "ExistingMaintenance": 51,
+    "CapsuleMaintenance": 15,
+    "TechnicalPassed": true,
+    "HiddenCompositionInitialization": true,
+    "NativeTray": {
+      "add": true,
+      "version": true,
+      "receivedFixture": true,
+      "capturedIcons": 3,
+      "removed": true,
+      "fixtureAbsent": true,
+      "nativeReceiverRestored": true,
+      "foregroundPreserved": true,
+      "appMouseCallbacksExercised": false
+    },
+    "FailureBudget": {
+      "childStarts": 4,
+      "restoreBranches": 5,
+      "exitCode": 22,
+      "actualTaskbarMutations": false
+    },
+    "ActualLifecycle": {
+      "At": "2026-10-21T02:10:04.5663699+08:00",
+      "BeforeExplorer": 2956,
+      "ExpectedAppBarState": 1,
+      "Error": null,
+      "RestartError": null,
+      "Passed": true,
+      "ControllerStopped": true,
+      "UiAndGuardStopped": true,
+      "NativeWindowFound": true,
+      "NativeWindowVisible": true,
+      "GeometryOwnerCleared": true,
+      "RestoredAppBarState": 1,
+      "AfterExplorer": 9636,
+      "RequiredComponentFailures": [],
+      "VisualAcceptance": false
+    },
+    "HealthyStartIdempotent": {
+      "At": "2026-10-21T02:14:58.9691591+08:00",
+      "SameController": true,
+      "SameExplorer": true,
+      "SameUi": true,
+      "Live": true
+    }
+  },
+  "Runtime": {
+    "At": "2026-10-21T02:14:56.0829093+08:00",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "StartLayout": {
+      "version": "0.1.4",
+      "pid": 18236,
+      "ownerPid": 17824,
+      "active": true,
+      "lists": 1,
+      "items": 54,
+      "sourceGroups": 30,
+      "lockedSelectors": 1,
+      "columns": 0,
+      "rows": 0,
+      "panelWidth": 0.0,
+      "panelHeight": 0.0,
+      "passes": 3,
+      "failures": 0,
+      "initFailures": 0,
+      "initResult": 0,
+      "initStage": "ready",
+      "watchMode": "events"
+    },
+    "StartAttachment": {
+      "Attempts": 0,
+      "Recoveries": 0,
+      "RetryScheduled": false,
+      "Receipt": true,
+      "Error": 0,
+      "Failures": 0,
+      "HostRecoveries": 0,
+      "LastExitCode": null
+    },
+    "QuickTheme": {
+      "version": "0.2.0",
+      "pid": 7300,
+      "ownerPid": 17824,
+      "active": true,
+      "rootReady": false,
+      "tileInstalled": false,
+      "buttonReady": false,
+      "busy": false,
+      "workerPid": 0,
+      "dark": false,
+      "stateKnown": true,
+      "discoveries": 7,
+      "switches": 0,
+      "failures": 1,
+      "lastExit": 0,
+      "discoveryResult": 0,
+      "watchMode": "events"
+    },
+    "WtsSession": {
+      "Id": 1,
+      "ConnectState": 0,
+      "SessionFlags": 0,
+      "Locked": true
+    }
+  },
+  "Boundaries": {
+    "UserInteractionAccepted": false,
+    "VisualState": "PendingInteractiveDesktop",
+    "OldWallpaperOnlyImagesAccepted": false,
+    "ThirdPartyTrayMouseCallbacksAccepted": false,
+    "SleepResumeAccepted": false,
+    "DpiMatrixAccepted": false,
+    "GpuEnergyMeasured": false,
+    "NewVsOldTotalMemoryMeasured": false,
+    "MemoryScope": "Single snapshot of controller, guard and UI; excludes Explorer/Start/Quick host increments, GPU and power cost",
+    "NoPollingClaim": false,
+    "NativePinWritesAvailable": false,
+    "PinReorderAvailable": false,
+    "TrueRefractionImplemented": false
+  },
+  "Corrections": [
+    "Linked token is Identification: switched to documented verified Explorer parent creation and checked actual Medium child before resume",
+    "First same-Explorer Stop/Start failed with XAML E_UNEXPECTED: preserve evidence, reload exact retained host, verify every required component",
+    "Locked desktop detected explicitly: no wallpaper-only images treated as UI proof"
+  ],
+  "Evidence": [
+    "build/deployment-before-latest.json",
+    "build/deployment-after-latest.json",
+    "build/lifecycle-v0.9.0-inplace-restart-failed.json",
+    "build/lifecycle-latest.json",
+    "build/idempotent-start-latest.json",
+    "build/validation-latest.json",
+    "build/install-latest.json",
+    "build/maintenance-tests-latest.json",
+    "build/manual-entry-latest.json"
+  ],
+  "Source": {
+    "Committed": false,
+    "Pushed": false,
+    "ExistingUncommittedChangesPreserved": true,
+    "Isolation": "capsule subtree plus maintenance adapter, decisions and README routing",
+    "Report": "latest.md"
+  }
+}

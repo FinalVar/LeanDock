@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>胶囊任务栏原型 3</title>
+<style>
+/* 布局：整个浏览器窗口就是“屏幕”；平时屏幕上什么都没有，碰到底边时整条 Dock 从底下升起并向左展开 */
+:root{
+  --ink:#15171B; --muted:#5E6571; --hair:rgba(20,24,32,.10); --hover:rgba(20,24,32,.07);
+  --glass:rgba(246,247,250,.62); --glass-strong:rgba(248,249,251,.84); --glass-line:rgba(255,255,255,.6);
+  --shadow:0 10px 30px rgba(15,20,30,.20),0 1px 3px rgba(15,20,30,.12);
+  --warn:#B97708; --bad:#D23C33; --acc:#0A7470;
+  --wall:radial-gradient(120% 90% at 15% 10%,#B9CCE4 0%,transparent 60%),radial-gradient(90% 80% at 90% 90%,#E9C7AE 0%,transparent 60%),linear-gradient(160deg,#C9D6E6,#E8DCD2);
+  --win-bg:#F6F6F7; --win-title:#E7E8EB; --win-side:#EEEFF1; --win-act:#E2E4E8; --win-status:#E4E6EA;
+  --code-a:#C6CBD4; --code-b:#9DB6DA; --code-c:#D8B48E; --code-d:#A9C9A4;
+  --spring:cubic-bezier(.34,1.42,.55,1);
+  --sink:cubic-bezier(.5,0,.75,0);
+  --sans:"MiSans","HarmonyOS Sans SC","Microsoft YaHei UI","Segoe UI Variable Text","Segoe UI","PingFang SC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ink:#ECEEF2; --muted:#9EA5B1; --hair:rgba(255,255,255,.10); --hover:rgba(255,255,255,.08);
+  --glass:rgba(30,32,38,.58); --glass-strong:rgba(34,36,42,.86); --glass-line:rgba(255,255,255,.09);
+  --shadow:0 10px 30px rgba(0,0,0,.45),0 1px 3px rgba(0,0,0,.35);
+  --warn:#E6A23A; --bad:#F06A60; --acc:#3CC2B7;
+  --wall:radial-gradient(120% 90% at 15% 10%,#2C3C58 0%,transparent 60%),radial-gradient(90% 80% at 90% 90%,#4A3446 0%,transparent 60%),linear-gradient(160deg,#151B26,#221C26);
+  --win-bg:#1E1F22; --win-title:#191A1D; --win-side:#1B1C1F; --win-act:#17181B; --win-status:#18191C;
+  --code-a:#3E434C; --code-b:#3D5A82; --code-c:#7A5C3E; --code-d:#45624A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --ink:#ECEEF2; --muted:#9EA5B1; --hair:rgba(255,255,255,.10); --hover:rgba(255,255,255,.08);
+  --glass:rgba(30,32,38,.58); --glass-strong:rgba(34,36,42,.86); --glass-line:rgba(255,255,255,.09);
+  --shadow:0 10px 30px rgba(0,0,0,.45),0 1px 3px rgba(0,0,0,.35);
+  --warn:#E6A23A; --bad:#F06A60; --acc:#3CC2B7;
+  --wall:radial-gradient(120% 90% at 15% 10%,#2C3C58 0%,transparent 60%),radial-gradient(90% 80% at 90% 90%,#4A3446 0%,transparent 60%),linear-gradient(160deg,#151B26,#221C26);
+  --win-bg:#1E1F22; --win-title:#191A1D; --win-side:#1B1C1F; --win-act:#17181B; --win-status:#18191C;
+  --code-a:#3E434C; --code-b:#3D5A82; --code-c:#7A5C3E; --code-d:#45624A; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
+body{font-family:var(--sans);color:var(--ink);background:var(--win-bg);-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit}
+
+/* 背景：壁纸或最大化的编辑器窗口 */
+#wall{position:fixed;inset:0;background:var(--wall)}
+#win{position:fixed;inset:0;display:grid;grid-template-rows:32px 1fr 22px;grid-template-columns:48px 240px 1fr;background:var(--win-bg)}
+body.bg-wall #win{display:none}
+.w-title{grid-column:1/-1;background:var(--win-title);display:flex;align-items:center;justify-content:center;position:relative}
+.w-cmd{width:min(420px,40vw);height:22px;border-radius:6px;background:var(--win-bg);border:1px solid var(--hair);display:grid;place-items:center;font-size:12px;color:var(--muted)}
+.w-ctl{position:absolute;right:0;top:0;bottom:0;display:flex}
+.w-ctl i{width:46px;display:grid;place-items:center}
+.w-ctl i::before{content:"";width:10px;height:10px;border:1px solid var(--muted);opacity:.6}
+.w-ctl i:first-child::before{height:0;border-width:1px 0 0}
+.w-act{background:var(--win-act)}
+.w-side{background:var(--win-side);padding:14px 16px;display:grid;align-content:start;gap:9px}
+.w-editor{padding:16px 28px;display:grid;align-content:start;gap:9px;overflow:hidden}
+.ln{display:flex;gap:7px;height:9px;align-items:center}
+.ln i{display:block;height:8px;border-radius:3px}
+.w-status{grid-column:1/-1;background:var(--win-status);display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:12px;color:var(--muted);border-top:1px solid var(--hair);white-space:nowrap;overflow:hidden;gap:16px}
+.w-status span+span{margin-left:14px}
+@media (max-width:800px){#win{grid-template-columns:48px 0 1fr}.w-side{display:none}}
+
+#fsLayer{position:fixed;inset:0;background:#000;color:#777;display:grid;place-items:center;font-size:14px;z-index:15}
+
+.glass{background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--shadow);
+  -webkit-backdrop-filter:blur(22px) saturate(1.6);backdrop-filter:blur(22px) saturate(1.6)}
+.glass-pop{background:var(--glass-strong);border:1px solid var(--glass-line);box-shadow:var(--shadow);
+  -webkit-backdrop-filter:blur(26px) saturate(1.6);backdrop-filter:blur(26px) saturate(1.6)}
+
+/* Dock：藏起来时沉到底边以下；升起用回弹，收起用加速下沉 */
+#dock{position:fixed;bottom:8px;right:40%;height:44px;display:flex;align-items:center;padding:0 12px;border-radius:999px;
+  font-size:13px;user-select:none;z-index:20;
+  opacity:0;transform:translateY(calc(100% + 16px)) scale(.96);pointer-events:none;
+  transition:transform .26s var(--sink),opacity .18s .08s}
+#dock.open{opacity:1;transform:none;pointer-events:auto;transition:transform .42s var(--spring),opacity .14s}
+#apps{display:flex;align-items:center;gap:8px;width:0;align-self:stretch;overflow:hidden;margin-right:0;
+  transition:width .26s var(--sink),margin .26s var(--sink)}
+#dock.open #apps{width:var(--apps-w,0px);margin-right:12px;transition:width .46s var(--spring) .04s,margin .46s var(--spring) .04s}
+.app{flex:none;position:relative;width:30px;height:30px;border:0;padding:0;border-radius:8px;display:grid;place-items:center;
+  background:var(--c);color:#fff;font-size:13px;font-weight:600;cursor:pointer;
+  opacity:0;transform:scale(.55);transition:opacity .2s,transform .3s var(--spring)}
+#dock.open .app{opacity:1;transform:none;transition-delay:calc(60ms + var(--i) * 16ms)}
+#dock.open .app:hover{transform:translateY(-2px);transition-delay:0s}
+.app:focus-visible,.tray-i:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.app::after{content:"";position:absolute;left:50%;bottom:-6px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--ink);opacity:0;transition:opacity .3s}
+.app.run::after{opacity:.55}
+.app.bounce{animation:bounce .7s var(--spring)}
+@keyframes bounce{0%,100%{translate:0 0}30%{translate:0 -9px}55%{translate:0 0}75%{translate:0 -4px}}
+.sep{flex:none;width:1px;height:22px;background:var(--hair)}
+
+#info{display:flex;align-items:center;gap:10px;align-self:stretch;white-space:nowrap;font-variant-numeric:tabular-nums;cursor:default}
+/* 时间兼开始按钮：放在 Dock 最右端，做成和胶囊同心的小胶囊，34px 高 */
+#tTime{order:3;height:34px;display:flex;align-items:center;padding:0 14px;margin-right:-7px;border:0;border-radius:999px;
+  background:var(--hover);font-size:15px;font-weight:600;letter-spacing:.01em;font-variant-numeric:tabular-nums;cursor:pointer;
+  transition:background .15s,transform .2s var(--spring)}
+#tTime:hover{background:var(--hair)}
+#tTime:active{transform:scale(.95)}
+#tTime:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+#tDate{order:1;color:var(--muted)}
+#tBatt{order:2}
+#tBatt{display:flex;align-items:center;gap:3px}
+#tBatt.warn{color:var(--warn)}
+#tBatt.bad{color:var(--bad)}
+#tBatt svg{width:9px;height:12px;fill:currentColor}
+
+/* 详情卡 */
+#card{position:fixed;right:40%;bottom:62px;width:300px;border-radius:14px;padding:12px 14px 13px;font-size:13px;z-index:22;
+  font-variant-numeric:tabular-nums;opacity:0;transform:translateY(8px) scale(.97);transform-origin:bottom right;pointer-events:none;
+  transition:opacity .2s,transform .32s var(--spring)}
+#card.show{opacity:1;transform:none;pointer-events:auto}
+.c-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding-bottom:9px;margin-bottom:9px;border-bottom:1px solid var(--hair)}
+.c-sec{font-size:20px;font-weight:600;letter-spacing:.01em}
+.c-day{color:var(--muted);text-align:right;line-height:1.35}
+.c-grid{display:grid;grid-template-columns:2.6em 1fr;gap:6px 8px;align-items:center;margin:0}
+.c-grid dt{color:var(--muted)}
+.c-grid dd{margin:0;display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.c-grid dd span{white-space:nowrap}
+.c-grid dd .sub{color:var(--muted)}
+.c-grid .hr{grid-column:1/-1;height:1px;background:var(--hair);margin:3px 0}
+.warn{color:var(--warn)}
+#spark{width:84px;height:16px;flex:none}
+#spark polyline{fill:none;stroke:var(--acc);stroke-width:1.5;stroke-linejoin:round}
+#spark polygon{fill:var(--acc);opacity:.15}
+.vol{flex:none;width:84px;height:4px;border-radius:2px;background:var(--hair);overflow:hidden}
+.vol i{display:block;height:100%;width:60%;background:var(--muted)}
+.song{overflow:hidden;text-overflow:ellipsis}
+.tray{display:flex;gap:8px}
+.tray-i{width:22px;height:22px;border:0;padding:0;border-radius:6px;background:var(--c);color:#fff;font-size:11px;font-weight:600;cursor:pointer;transition:transform .2s var(--spring)}
+.tray-i:hover{transform:translateY(-1px)}
+
+/* 菜单、开始菜单、提示 */
+.menu{position:fixed;min-width:190px;border-radius:10px;padding:5px;font-size:13px;z-index:30;
+  opacity:0;transform:translateY(6px) scale(.98);pointer-events:none;transition:opacity .15s,transform .26s var(--spring)}
+.menu.show{opacity:1;transform:none;pointer-events:auto}
+.menu button{display:flex;justify-content:space-between;width:100%;text-align:left;padding:5px 10px;border:0;border-radius:6px;background:none;cursor:pointer}
+.menu button:hover,.menu button:focus-visible{background:var(--hover);outline:none}
+.menu .hd{padding:5px 10px 6px;color:var(--muted);font-size:13px}
+.menu hr{border:0;border-top:1px solid var(--hair);margin:4px 6px}
+.menu .danger{color:var(--bad)}
+#start{position:fixed;left:50%;bottom:62px;width:min(560px,94vw);border-radius:16px;padding:22px 24px 16px;z-index:30;
+  opacity:0;transform:translate(-50%,14px) scale(.98);pointer-events:none;transition:opacity .2s,transform .34s var(--spring)}
+#start.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.s-search{height:34px;border-radius:999px;border:1px solid var(--hair);background:var(--hover);display:flex;align-items:center;padding:0 14px;color:var(--muted);font-size:13px}
+.s-h{font-size:13px;font-weight:600;margin:18px 0 10px}
+.s-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:10px 6px}
+.s-tile{display:grid;justify-items:center;gap:6px;padding:8px 4px;border-radius:8px;border:0;background:none;cursor:pointer;font-size:12px}
+.s-tile:hover{background:var(--hover)}
+.s-tile i{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--c);color:#fff;font-style:normal;font-weight:600;font-size:14px}
+.s-foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--hair);font-size:13px;color:var(--muted)}
+#toast{position:fixed;top:44px;left:50%;transform:translate(-50%,-10px);padding:8px 14px;border-radius:10px;font-size:13px;z-index:40;opacity:0;pointer-events:none;transition:opacity .2s,transform .3s var(--spring);white-space:nowrap}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* 说明面板 */
+#help{position:fixed;top:44px;left:16px;width:340px;max-width:calc(100vw - 32px);border-radius:14px;padding:14px 16px;font-size:13px;line-height:1.55;z-index:25}
+#help h1{font-size:15px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center}
+#help h2{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.04em;margin:12px 0 6px}
+#help ol{margin:0;padding-left:1.3em;display:grid;gap:2px}
+#help b{font-weight:600}
+.x{border:0;background:none;cursor:pointer;width:24px;height:24px;border-radius:6px;color:var(--muted);font-size:16px;line-height:1}
+.x:hover{background:var(--hover);color:var(--ink)}
+.segs{display:inline-flex;flex-wrap:wrap;border:1px solid var(--hair);border-radius:8px;overflow:hidden}
+.segs button{border:0;background:none;padding:4px 10px;cursor:pointer;font-size:12.5px}
+.segs button+button{border-left:1px solid var(--hair)}
+.segs button[aria-pressed="true"]{background:var(--acc);color:#fff}
+.ctl{display:flex;align-items:center;gap:10px;margin-top:8px}
+.ctl>span{color:var(--muted);width:2.6em;flex:none}
+.toggles{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.tg{border:1px solid var(--hair);background:none;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12.5px}
+.tg[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:#fff}
+.tg:focus-visible,.segs button:focus-visible,.x:focus-visible,#helpBtn:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.foot{color:var(--muted);font-size:12px;margin:10px 0 0}
+kbd{font:inherit;font-size:12px;padding:0 5px;border:1px solid var(--hair);border-radius:4px}
+#helpBtn{position:fixed;top:44px;left:16px;width:30px;height:30px;border-radius:50%;cursor:pointer;z-index:25;font-weight:600}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0s!important;transition-delay:0s!important;animation:none!important}}
+</style>
+</head>
+<body class="bg-win">
+
+<div id="wall"></div>
+<div id="win" aria-hidden="true">
+  <div class="w-title"><div class="w-cmd">搜索</div><div class="w-ctl"><i></i><i></i><i></i></div></div>
+  <div class="w-act"></div>
+  <div class="w-side" id="wSide"></div>
+  <div class="w-editor" id="wEditor"></div>
+  <div class="w-status">
+    <div><span>main</span><span>0 错误</span><span>0 警告</span></div>
+    <div><span>行 12，列 4</span><span>空格: 2</span><span>UTF-8</span><span>CRLF</span><span>Markdown</span></div>
+  </div>
+</div>
+<div id="fsLayer" hidden>全屏视频（演示）· 碰底边不会弹出 Dock · 按 Esc 退出</div>
+
+<div id="dock" class="glass" role="toolbar" aria-label="任务栏">
+  <div id="apps"></div>
+  <div id="info">
+    <button type="button" id="tTime" title="左键：开始菜单　右键：开始右键菜单">--:--</button>
+    <span id="tDate">--/--</span>
+    <span id="tBatt"><span id="tBattNum">100%</span><svg id="tBolt" viewBox="0 0 9 12" aria-label="插电"><path d="M5.6 0 0 6.9h3.4L2.9 12 9 4.8H5.4z"/></svg></span>
+  </div>
+</div>
+
+<div id="card" class="glass-pop" role="tooltip">
+  <div class="c-head"><span class="c-sec" id="cSec">--:--:--</span><span class="c-day"><span id="cDate"></span><br><span id="cLunar"></span></span></div>
+  <dl class="c-grid">
+    <dt>CPU</dt><dd><span id="cCpu">14%</span><svg id="spark" viewBox="0 0 84 16" preserveAspectRatio="none" aria-hidden="true"><polygon id="sparkFill" points=""></polygon><polyline id="sparkLine" points=""></polyline></svg></dd>
+    <dt>内存</dt><dd><span id="cMem" class="warn">92%</span><span class="sub" id="cMemGb">14.6 / 15.8 GB</span></dd>
+    <dt>显卡</dt><dd><span id="cGpu">8%</span><span class="sub">集成显卡</span></dd>
+    <dt>温度</dt><dd><span id="cTemp">CPU 61°　GPU 54°</span></dd>
+    <dt>网速</dt><dd><span id="cNet">↓ 8.9 MB/s　↑ 101 KB/s</span></dd>
+    <dt>磁盘</dt><dd><span>C 120 GB　D 340 GB</span><span class="sub">可用</span></dd>
+    <div class="hr"></div>
+    <dt>续航</dt><dd><span id="cRun">插电中</span></dd>
+    <dt>音量</dt><dd><span>60</span><span class="vol"><i></i></span></dd>
+    <dt>播放</dt><dd><span class="song">▶ 晴天 — 周杰伦</span></dd>
+    <div class="hr"></div>
+    <dt>后台</dt><dd><span class="tray" id="tray"></span><span class="sub">托盘</span></dd>
+  </dl>
+</div>
+
+<div id="winx" class="menu glass-pop" role="menu"></div>
+<div id="ctxMenu" class="menu glass-pop" role="menu"></div>
+<div id="start" class="glass-pop" role="dialog" aria-label="开始菜单（演示）">
+  <div class="s-search">搜索应用、设置和文档</div>
+  <div class="s-h">已固定</div>
+  <div class="s-grid" id="sGrid"></div>
+  <div class="s-foot"><span>开始菜单（演示，真实版本打开 Windows 自己的开始菜单）</span><span>⏻</span></div>
+</div>
+<div id="toast" class="glass-pop" role="status"></div>
+
+<section id="help" class="glass-pop" aria-label="说明">
+  <h1>胶囊任务栏 · 原型 3<button type="button" class="x" id="helpClose" aria-label="收起说明">×</button></h1>
+  <h2>怎么用</h2>
+  <ol>
+    <li>鼠标<b>碰到屏幕最底边</b>（左右任意位置）：Dock 升起来；鼠标离开底部 0.5 秒后沉下去</li>
+    <li>按 <kbd>T</kbd>：模拟用快捷键呼出，再按一次收起</li>
+    <li>鼠标<b>停在时间电量上</b>：弹出详情卡，最下面一排是托盘</li>
+    <li>Dock 最右端的<b>时间按钮</b>：左键开始菜单，右键开始右键菜单</li>
+    <li><b>右键应用或托盘图标</b>：各自的菜单</li>
+  </ol>
+  <h2>环境</h2>
+  <div class="ctl"><span>主题</span><div class="segs" id="themeSeg"><button type="button" data-v="auto" aria-pressed="true">跟随系统</button><button type="button" data-v="light" aria-pressed="false">浅色</button><button type="button" data-v="dark" aria-pressed="false">深色</button></div></div>
+  <div class="ctl"><span>背景</span><div class="segs" id="bgSeg"><button type="button" data-v="win" aria-pressed="true">最大化窗口</button><button type="button" data-v="wall" aria-pressed="false">壁纸</button></div></div>
+  <div class="toggles">
+    <button type="button" class="tg" id="tgFs" aria-pressed="false">模拟全屏视频</button>
+    <button type="button" class="tg" id="tgLow" aria-pressed="false">模拟低电量</button>
+  </div>
+  <p class="foot">试之前先退出你现在那条任务栏，不然它挡在屏幕底边，会把鼠标抢走。按 F11 全屏看最接近真实；按 H 收起或打开这张说明。时间、日期、农历、电量是真的，其余数字是假的。</p>
+</section>
+<button type="button" id="helpBtn" class="glass-pop" hidden aria-label="打开说明">?</button>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const dock = $('#dock'), apps = $('#apps'), info = $('#info'), card = $('#card');
+  const root = document.documentElement, body = document.body;
+
+  /* 背景里的编辑器窗口 */
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const CODE = ['var(--code-a)','var(--code-b)','var(--code-c)','var(--code-d)'];
+  const line = (max, indentMax) => {
+    const parts = [];
+    const indent = Math.floor(rnd() * indentMax) * 18;
+    if (indent) parts.push(`<i style="width:${indent}px;background:transparent"></i>`);
+    const n = 1 + Math.floor(rnd() * 4);
+    for (let k = 0; k < n; k++) parts.push(`<i style="width:${20 + Math.floor(rnd() * max)}px;background:${CODE[Math.floor(rnd() * 4)]}"></i>`);
+    return `<div class="ln">${parts.join('')}</div>`;
+  };
+  $('#wSide').innerHTML = Array.from({length:22}, () => line(90, 3)).join('');
+  $('#wEditor').innerHTML = Array.from({length:70}, () => rnd() < .12 ? '<div class="ln"></div>' : line(150, 4)).join('');
+
+  /* 应用和托盘图标 */
+  const APPS = [
+    {n:'Edge', g:'e', c:'#1672C6', run:true},
+    {n:'记事本', g:'记', c:'#8A7449', run:false},
+    {n:'头像 App', g:'头', c:'#6A5A93', run:true},
+    {n:'DeepSeek', g:'D', c:'#4D6BFE', run:false},
+    {n:'P App', g:'P', c:'#58616E', run:false},
+    {n:'ChatGPT', g:'G', c:'#10A37F', run:true},
+    {n:'微信', g:'微', c:'#07C160', run:true},
+    {n:'文件资源管理器', g:'文', c:'#D9971A', run:true},
+    {n:'Word', g:'W', c:'#2B579A', run:true},
+    {n:'VS Code', g:'V', c:'#0E7FD0', run:true},
+    {n:'画图', g:'画', c:'#C2410C', run:true, unpinned:true}
+  ];
+  const TRAY = [{n:'QQ', g:'Q', c:'#12A6E8'}, {n:'微信', g:'微', c:'#07C160'}, {n:'ChatGPT', g:'G', c:'#10A37F'}];
+  function renderApps(){
+    const pinned = APPS.filter(a => !a.unpinned), extra = APPS.filter(a => a.unpinned && a.run);
+    const list = extra.length ? [...pinned, null, ...extra] : pinned;
+    const total = list.length;
+    apps.innerHTML = list.map((a, i) => a === null ? '<span class="sep" aria-hidden="true"></span>' :
+      `<button type="button" class="app${a.run ? ' run' : ''}" style="--c:${a.c};--i:${total - i}" data-k="${APPS.indexOf(a)}" title="${a.n}" aria-label="${a.n}">${a.g}</button>`).join('');
+  }
+  renderApps();
+  $('#tray').innerHTML = TRAY.map((t, i) => `<button type="button" class="tray-i" style="--c:${t.c}" data-t="${i}" title="${t.n}" aria-label="${t.n}">${t.g}</button>`).join('');
+  $('#sGrid').innerHTML = APPS.filter(a => !a.unpinned).map(a => `<button type="button" class="s-tile" data-n="${a.n}"><i style="--c:${a.c}">${a.g}</i>${a.n}</button>`).join('');
+
+  /* 位置：展开后整条 Dock 居中；右端固定，所以应用图标向左长出来 */
+  let right = 0;
+  function layout(){
+    const appsW = apps.scrollWidth;
+    root.style.setProperty('--apps-w', appsW + 'px');
+    right = Math.max(16, Math.round((innerWidth - (12 + appsW + 12 + info.offsetWidth + 12 + 2)) / 2));
+    dock.style.right = right + 'px';
+    card.style.right = Math.max(8, right) + 'px';
+  }
+
+  /* 时间、日期、农历 */
+  const pad = n => String(n).padStart(2, '0');
+  const DIG = ['','一','二','三','四','五','六','七','八','九'];
+  function dayName(n){
+    if (n === 10) return '初十';
+    if (n === 20) return '二十';
+    if (n === 30) return '三十';
+    return ['初','十','廿','三'][Math.floor(n / 10)] + DIG[n % 10];
+  }
+  function lunar(d){
+    try {
+      const parts = new Intl.DateTimeFormat('zh-CN-u-ca-chinese', {month:'long', day:'numeric'}).formatToParts(d);
+      const m = parts.find(p => p.type === 'month'), day = parts.find(p => p.type === 'day');
+      if (!m || !day) return '';
+      const n = parseInt(day.value, 10);
+      return '农历' + m.value + (isNaN(n) ? day.value : dayName(n));
+    } catch(e){ return ''; }
+  }
+  const WEEK = ['周日','周一','周二','周三','周四','周五','周六'];
+
+  /* 电量：能读到真实电池就用真的 */
+  const batt = {level:100, charging:true, dis:Infinity, chg:0};
+  let lowSim = false;
+  function fmtDur(s){
+    const h = Math.floor(s / 3600), m = Math.round(s % 3600 / 60);
+    return h ? `${h} 小时 ${m} 分` : `${m} 分钟`;
+  }
+  function battView(){
+    const b = lowSim ? {level:15, charging:false, dis:38 * 60, chg:0} : batt;
+    const low = !b.charging && b.level < 20, crit = !b.charging && b.level < 10;
+    $('#tBattNum').textContent = b.level + '%';
+    $('#tBolt').style.display = b.charging ? '' : 'none';
+    $('#tBatt').classList.toggle('warn', low && !crit);
+    $('#tBatt').classList.toggle('bad', crit);
+    let run;
+    if (b.charging) run = b.level >= 100 ? '插电中，已充满' : (isFinite(b.chg) && b.chg > 0 ? `插电中，约 ${fmtDur(b.chg)}充满` : '插电中');
+    else run = isFinite(b.dis) && b.dis > 0 ? `约 ${fmtDur(b.dis)}` : '正在估算';
+    $('#cRun').textContent = run;
+    $('#cRun').className = low ? 'warn' : '';
+  }
+  try {
+    if (navigator.getBattery) navigator.getBattery().then(b => {
+      const sync = () => {
+        batt.level = Math.round(b.level * 100); batt.charging = b.charging;
+        batt.dis = b.dischargingTime; batt.chg = b.chargingTime;
+        battView(); layout();
+      };
+      sync();
+      ['levelchange','chargingchange','dischargingtimechange','chargingtimechange'].forEach(ev => b.addEventListener(ev, sync));
+    }).catch(() => {});
+  } catch(e){}
+
+  /* 假的负载数据，每秒变一下 */
+  const cpuHist = Array.from({length:30}, () => 8 + Math.random() * 10);
+  let cpu = 14, mem = 92, gpu = 8, tC = 61, tG = 54;
+  const walk = (v, lo, hi, step) => Math.min(hi, Math.max(lo, v + (Math.random() - .5) * step));
+  const fmtSpeed = kb => kb >= 1024 ? (kb / 1024).toFixed(1) + ' MB/s' : Math.round(kb) + ' KB/s';
+  function tick(){
+    const d = new Date();
+    $('#tTime').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    $('#tDate').textContent = (d.getMonth() + 1) + '/' + d.getDate();
+    $('#cSec').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    $('#cDate').textContent = `${d.getMonth() + 1}月${d.getDate()}日 ${WEEK[d.getDay()]}`;
+    $('#cLunar').textContent = lunar(d);
+    cpu = Math.random() < .08 ? 30 + Math.random() * 25 : walk(cpu > 30 ? cpu * .6 : cpu, 4, 40, 8);
+    cpuHist.push(cpu); cpuHist.shift();
+    mem = walk(mem, 88, 94, .8); gpu = walk(gpu, 2, 18, 4); tC = walk(tC, 52, 72, 3); tG = walk(tG, 45, 62, 2);
+    const down = Math.random() < .3 ? 2000 + Math.random() * 9000 : Math.random() * 300, up = 20 + Math.random() * 180;
+    $('#cCpu').textContent = Math.round(cpu) + '%';
+    $('#cMem').textContent = Math.round(mem) + '%';
+    $('#cMem').className = mem >= 90 ? 'warn' : '';
+    $('#cMemGb').textContent = (mem / 100 * 15.8).toFixed(1) + ' / 15.8 GB';
+    $('#cGpu').textContent = Math.round(gpu) + '%';
+    $('#cTemp').textContent = `CPU ${Math.round(tC)}°　GPU ${Math.round(tG)}°`;
+    $('#cNet').textContent = `↓ ${fmtSpeed(down)}　↑ ${fmtSpeed(up)}`;
+    const pts = cpuHist.map((v, i) => `${(i * 84 / (cpuHist.length - 1)).toFixed(1)},${(15 - v / 60 * 14).toFixed(1)}`);
+    $('#sparkLine').setAttribute('points', pts.join(' '));
+    $('#sparkFill').setAttribute('points', '0,16 ' + pts.join(' ') + ' 84,16');
+  }
+
+  /* 升起、沉下 */
+  let open = false, pinned = false, fs = false, collapseT = null;
+  const ctxMenu = $('#ctxMenu'), winx = $('#winx'), start = $('#start');
+  const menuOpen = () => winx.classList.contains('show') || ctxMenu.classList.contains('show') || start.classList.contains('show');
+  function expand(){
+    if (fs) return;
+    clearTimeout(collapseT); collapseT = null;
+    if (open) return;
+    open = true; dock.classList.add('open');
+  }
+  function collapse(force){
+    collapseT = null;
+    if (!open || (!force && (menuOpen() || pinned))) return;
+    open = false; pinned = false;
+    dock.classList.remove('open');
+    hideCard(true);
+  }
+  const inRect = (x, y, r, m) => x >= r.left - m && x <= r.right + m && y >= r.top - m && y <= r.bottom + m;
+  /* 碰到底边任意位置就升起；只要鼠标还在底部这一条横带里（不管左右）就不收 */
+  document.addEventListener('mousemove', e => {
+    if (fs) return;
+    if (e.clientY >= innerHeight - 4){ expand(); return; }
+    if (!open) return;
+    const keep = pinned || menuOpen() || e.clientY >= innerHeight - 8 - 44 - 40 ||
+      (card.classList.contains('show') && inRect(e.clientX, e.clientY, card.getBoundingClientRect(), 8));
+    if (keep){ clearTimeout(collapseT); collapseT = null; }
+    else if (!collapseT) collapseT = setTimeout(collapse, 500);
+  });
+  document.addEventListener('mouseout', e => { if (!e.relatedTarget && e.clientY >= innerHeight - 20) expand(); });
+
+  /* 详情卡：停 0.4 秒出现 */
+  let showT = null, hideT = null, overInfo = false, overCard = false;
+  function showCard(){ if (open && !menuOpen() && !fs) card.classList.add('show'); }
+  function hideCard(force){
+    if (!force && ctxMenu.classList.contains('show') && ctxMenu.dataset.src === 'tray') return;
+    card.classList.remove('show');
+  }
+  info.addEventListener('mouseenter', () => { overInfo = true; clearTimeout(hideT); showT = setTimeout(showCard, 400); });
+  info.addEventListener('mouseleave', () => { overInfo = false; clearTimeout(showT); hideT = setTimeout(hideCard, 250); });
+  card.addEventListener('mouseenter', () => { overCard = true; clearTimeout(hideT); });
+  card.addEventListener('mouseleave', () => { overCard = false; hideT = setTimeout(hideCard, 250); });
+
+  /* 菜单 */
+  function closeMenus(){
+    const trayWasOpen = ctxMenu.classList.contains('show') && ctxMenu.dataset.src === 'tray';
+    [winx, ctxMenu, start].forEach(m => m.classList.remove('show'));
+    if (trayWasOpen && !overInfo && !overCard) hideCard(true);
+  }
+  const WINX = [['已安装的应用','移动中心','电源选项','事件查看器','系统','设备管理器','网络连接','磁盘管理','计算机管理','终端','终端管理员'],
+                ['任务管理器','设置','文件资源管理器','搜索','运行'], ['关机或注销 ›','桌面']];
+  winx.innerHTML = WINX.map(g => g.map(t => `<button type="button" role="menuitem" data-n="${t.replace(' ›','')}">${t}</button>`).join('')).join('<hr>');
+
+  function showWinx(){
+    closeMenus(); hideCard(true); clearTimeout(showT);
+    winx.style.right = Math.max(8, right) + 'px';
+    winx.style.bottom = (8 + 44 + 8) + 'px';
+    winx.classList.add('show');
+  }
+  function showStart(){
+    const was = start.classList.contains('show');
+    closeMenus(); hideCard(true); clearTimeout(showT);
+    if (!was) start.classList.add('show');
+  }
+  $('#tTime').addEventListener('click', e => { e.stopPropagation(); showStart(); });
+  $('#tTime').addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); showWinx(); });
+  info.addEventListener('contextmenu', e => { e.preventDefault(); showWinx(); });
+
+  function showCtx(btn, html, src, k){
+    ctxMenu.innerHTML = html;
+    ctxMenu.dataset.src = src; ctxMenu.dataset.k = k;
+    ctxMenu.classList.add('show');
+    const r = btn.getBoundingClientRect(), w = ctxMenu.offsetWidth;
+    ctxMenu.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+    ctxMenu.style.bottom = (src === 'app' ? 8 + 44 + 8 : innerHeight - r.top + 6) + 'px';
+  }
+  apps.addEventListener('contextmenu', e => {
+    const b = e.target.closest('.app'); if (!b) return;
+    e.preventDefault();
+    const a = APPS[+b.dataset.k];
+    closeMenus(); hideCard(true);
+    showCtx(b, `<div class="hd">${a.n}</div><button type="button" role="menuitem" data-act="new">打开新窗口</button>` +
+      `<button type="button" role="menuitem" data-act="pin">${a.unpinned ? '固定到任务栏' : '从任务栏取消固定'}</button>` +
+      (a.run ? `<hr><button type="button" role="menuitem" data-act="close">关闭窗口</button><button type="button" role="menuitem" class="danger" data-act="kill">结束任务</button>` : ''),
+      'app', b.dataset.k);
+  });
+  $('#tray').addEventListener('contextmenu', e => {
+    const b = e.target.closest('.tray-i'); if (!b) return;
+    e.preventDefault();
+    const t = TRAY[+b.dataset.t];
+    [winx, start].forEach(m => m.classList.remove('show'));
+    showCtx(b, `<div class="hd">${t.n}</div><button type="button" role="menuitem" data-act="open">打开 ${t.n}</button>` +
+      `<button type="button" role="menuitem" data-act="settings">设置</button><hr><button type="button" role="menuitem" class="danger" data-act="quit">退出</button>`,
+      'tray', b.dataset.t);
+  });
+  $('#tray').addEventListener('click', e => {
+    const b = e.target.closest('.tray-i'); if (!b) return;
+    toast(`演示：打开 ${TRAY[+b.dataset.t].n} 主窗口`);
+  });
+  apps.addEventListener('click', e => {
+    const b = e.target.closest('.app'); if (!b) return;
+    const a = APPS[+b.dataset.k];
+    closeMenus();
+    if (a.run){ toast(`演示：切到 ${a.n}`); return; }
+    a.run = true; b.classList.add('run', 'bounce');
+    b.addEventListener('animationend', () => b.classList.remove('bounce'), {once:true});
+    toast(`演示：打开 ${a.n}`);
+  });
+  ctxMenu.addEventListener('click', e => {
+    const it = e.target.closest('[data-act]'); if (!it) return;
+    const act = it.dataset.act, src = ctxMenu.dataset.src, k = +ctxMenu.dataset.k;
+    if (src === 'tray'){
+      const t = TRAY[k];
+      ctxMenu.classList.remove('show');
+      hideCard(true);
+      toast(act === 'quit' ? `演示：退出 ${t.n}` : act === 'settings' ? `演示：打开 ${t.n} 设置` : `演示：打开 ${t.n} 主窗口`);
+      return;
+    }
+    const a = APPS[k];
+    closeMenus();
+    if (act === 'kill' || act === 'close'){
+      a.run = false;
+      toast(act === 'kill' ? `演示：已结束 ${a.n} 的所有进程` : `演示：关闭 ${a.n}`);
+    } else if (act === 'pin'){
+      a.unpinned = !a.unpinned;
+      toast(a.unpinned ? `演示：${a.n} 已取消固定` : `演示：${a.n} 已固定`);
+    } else toast(`演示：${a.n} 打开新窗口`);
+    renderApps(); layout();
+  });
+  winx.addEventListener('click', e => { const it = e.target.closest('[data-n]'); if (it){ closeMenus(); toast(`演示：打开“${it.dataset.n}”`); } });
+  start.addEventListener('click', e => { const it = e.target.closest('[data-n]'); if (it){ closeMenus(); toast(`演示：打开 ${it.dataset.n}`); } });
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('.menu,#start,#tTime')) closeMenus();
+    if (pinned && !e.target.closest('#dock,#card,.menu,#start,#help,#helpBtn')){ pinned = false; collapse(); }
+  });
+
+  let toastT;
+  function toast(t){
+    const el = $('#toast');
+    el.textContent = t; el.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 1800);
+  }
+
+  /* 说明面板和开关 */
+  function setHelp(show){ $('#help').hidden = !show; $('#helpBtn').hidden = show; }
+  $('#helpClose').addEventListener('click', () => setHelp(false));
+  $('#helpBtn').addEventListener('click', () => setHelp(true));
+  function seg(id, fn){
+    const box = $(id);
+    box.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      box.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+      fn(b.dataset.v);
+    });
+  }
+  seg('#themeSeg', v => { if (v === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', v); });
+  seg('#bgSeg', v => { body.classList.toggle('bg-wall', v === 'wall'); body.classList.toggle('bg-win', v === 'win'); });
+  function setFs(on){
+    fs = on;
+    $('#fsLayer').hidden = !on;
+    $('#tgFs').setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (on){ closeMenus(); collapse(true); setHelp(false); }
+    else setHelp(true);
+  }
+  $('#tgFs').addEventListener('click', () => setFs(!fs));
+  $('#tgLow').addEventListener('click', e => {
+    lowSim = !lowSim;
+    e.currentTarget.setAttribute('aria-pressed', lowSim ? 'true' : 'false');
+    battView(); layout();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.key === 'Escape'){ if (fs) setFs(false); closeMenus(); collapse(true); }
+    if (e.key === 'h' || e.key === 'H') setHelp($('#help').hidden);
+    if ((e.key === 't' || e.key === 'T') && !fs){
+      if (open){ closeMenus(); collapse(true); }
+      else { expand(); pinned = true; }
+    }
+  });
+
+  addEventListener('resize', layout);
+  tick(); battView(); layout();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>

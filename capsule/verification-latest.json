@@ -1,0 +1,155 @@
+{
+  "At": "2026-10-22T13:43:58.232097+08:00",
+  "Version": "0.9.8",
+  "State": "DeployedThemeAcceptedHotspotPending",
+  "UiSHA256": "D8EE9896D140FB9791B14D5B08D202F7EB7FC2595DC780C79EEC8B409167A6A6",
+  "Runtime": {
+    "UiPid": 4388,
+    "Dpi": 144,
+    "Version": 1,
+    "WidthDip": 72,
+    "HeightDip": 46,
+    "SystemBatteryPercent": 96,
+    "RenderedBatteryPercent": 96,
+    "ControlPanelVersion": 3
+  },
+  "PackageFilesChecked": 60,
+  "PackageMismatches": null,
+  "Configuration": [
+    {
+      "Name": "latest.ini",
+      "Unchanged": true
+    },
+    {
+      "Name": "hotcorners/latest.ini",
+      "Unchanged": true
+    }
+  ],
+  "TaskXmlUnchanged": true,
+  "NativeCompanionBinaries": [
+    {
+      "Name": "latest.dll",
+      "Unchanged": true
+    },
+    {
+      "Name": "latest.exe",
+      "Unchanged": true
+    },
+    {
+      "Name": "panels/latest.dll",
+      "Unchanged": true
+    },
+    {
+      "Name": "start/latest.dll",
+      "Unchanged": true
+    }
+  ],
+  "ComponentHealth": {
+    "State": "Ready",
+    "Unavailable": [],
+    "Pending": []
+  },
+  "StartReady": true,
+  "SearchPosition": true,
+  "QuickSettingsPosition": true,
+  "HotCornersReady": true,
+  "ClientEdgeReady": true,
+  "KnownPriorLimitation": {
+    "QuickThemeButtonReady": false,
+    "QuickThemeRootReady": false,
+    "QuickThemeTileInstalled": false
+  },
+  "OffscreenRendering": {
+    "productionPainter": true,
+    "desktopCapture": false,
+    "renders": 90,
+    "dpiPercent": [
+      100,
+      125,
+      150,
+      175,
+      200
+    ],
+    "states": [
+      -1,
+      0,
+      18,
+      72,
+      97,
+      100
+    ],
+    "widthDip": 72,
+    "heightDip": 46
+  },
+  "OffscreenImagesReviewed": [
+    100,
+    150
+  ],
+  "ControlPanelScalesRendered": [
+    100,
+    125,
+    150,
+    200
+  ],
+  "ControlsReadOnlyProbe": {
+    "policyChecks": 123,
+    "normalUser": true,
+    "volume": 16,
+    "mute": false,
+    "brightness": 100,
+    "wifi": 1,
+    "bluetooth": 0,
+    "reads": 2,
+    "writes": 0,
+    "hiddenReadsUnchanged": true,
+    "readOnly": true,
+    "stopMs": 0,
+    "visibleWindows": false,
+    "actualControlWritesTested": false,
+    "darkTheme": 0,
+    "hotspot": 0,
+    "hotspotCapability": 0,
+    "hotspotClients": 0,
+    "themePolicyChecks": 23
+  },
+  "PriorVersionAcceptance": {
+    "VolumeSlider": true,
+    "Version": "0.9.6",
+    "MuteToggle": true,
+    "DragPanelHold": true,
+    "BrightnessSlider": true
+  },
+  "ActualControlWritesAccepted": false,
+  "UserVisualAndInteractionAccepted": false,
+  "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\capsule-20261022-134319",
+  "AppliedAt": "2026-10-22T13:43:40.6471181+08:00",
+  "UserCorrection": "Requested old Dock dark/light complete theme; Windows warm-color Night Light interpretation rejected.",
+  "ThemeWorkerCompatibility": {
+    "ControllerPinMatches": true,
+    "ThemeUiPinMatches": true,
+    "OldThemeWorkerReused": true,
+    "RuntimeThemeWritesTested": false
+  },
+  "AppearancePreserved": {
+    "ThemeAndWallpaperUnchanged": true,
+    "NightLightStateAndSettingsUnchanged": true
+  },
+  "NativeTrayRetry": {
+    "RetestPassed": true,
+    "FirstFocusChanged": true,
+    "CauseUnproven": true
+  },
+  "PendingUserAcceptance": "Hotspot real Start/Stop and client Internet sharing remain unverified; no repeat theme acceptance required.",
+  "ThemeUserAcceptance": {
+    "RecordedAt": "2026-10-22T14:01:00.8790977+08:00",
+    "Evidence": "Current direct user reply",
+    "QuestionCallId": "call_b173d88903e74c879da431a5f009608a",
+    "Question": "0.9.8 已加载，悬停面板现在是“深色主题”。方便时点一次切到深色，再点一次切回浅色：是否恢复了旧 Dock 的配色与壁纸切换效果，Dock 自身也能跟着恢复？",
+    "Answer": "深浅切换和 Dock 恢复都正常",
+    "DarkLightRoundTrip": true,
+    "OldThemeAndWallpaperBehavior": true,
+    "DockPaletteRecovery": true,
+    "HotspotAccepted": false
+  },
+  "AcceptanceScope": "Theme and Dock appearance round trip accepted by user; overall control coverage booleans remain false because hotspot and other untested paths are not included."
+}

@@ -1,0 +1,231 @@
+{
+  "Schema": 1,
+  "At": "2026-10-21T10:11:47.0267922+08:00",
+  "Version": "0.9.1",
+  "Architecture": "capsule",
+  "State": "StartOpeningAcceptedOtherRegressionsReported",
+  "Scope": [
+    "Restore accepted 0.8.78 Dock proportions while retaining the capsule refactor",
+    "Replace clock Win-key injection with native Start system command"
+  ],
+  "PriorUserFeedback": {
+    "Version": "0.9.0",
+    "Text": "整体实现得很好，就是dock宽高圆角和应用大图标应该抄之前的作业，那是调好最舒服的",
+    "Scope": "Overall positive assessment; not an exhaustive interaction acceptance"
+  },
+  "CurrentUserFeedback": {
+    "At": "2026-10-21T13:08:44.9227381+08:00",
+    "StartFromMaximized": "能打开了",
+    "IconClarity": "图标模糊，和之前完全不一样",
+    "RequestedBehavior": [
+      "点击呼出开始菜单时 Dock 不隐藏",
+      "开始菜单呼出时触发角也能使用"
+    ]
+  },
+  "Geometry": {
+    "HeightDip": 60,
+    "RadiusDip": 30,
+    "IconSizeDip": 40.0,
+    "AppPitchDip": 52,
+    "RequestedSourcePixels": 120
+  },
+  "GeometrySource": [
+    "baseline/settings-latest.json",
+    "baseline/styles-latest.json"
+  ],
+  "IconPolicy": {
+    "DisplayDips": 40,
+    "NormalButtonPitchDips": 52,
+    "SourceRequestScale": 2,
+    "OpticalMaxScale": 1.35,
+    "Source": "include/icon-optics-latest.h",
+    "ForcedRoundedCrop": false,
+    "RequestedPixelsAreNotGuaranteedSourcePixels": true
+  },
+  "StartFix": {
+    "Mechanism": "WM_SYSCOMMAND / SC_TASKLIST to path-verified real Explorer primary taskbar",
+    "NoSyntheticWinKey": true,
+    "NoUiElevation": true,
+    "Cause": "UIPI was a supported hypothesis, not a captured failing-input trace",
+    "Runtime": {
+      "Requests": 0,
+      "LastDispatch": 0,
+      "LastError": 0,
+      "ActualMenuAcceptance": false
+    },
+    "ActualUserAcceptance": false
+  },
+  "Deployment": {
+    "Success": true,
+    "InstalledAt": "2026-10-21T10:09:15.957135+08:00",
+    "Path": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock",
+    "UiSHA256": "26ED58CE6E8A35459675FBB421FF79B855249C1A1E17FC94B677EC61EB0A5389",
+    "PayloadCount": 46,
+    "AllPayloadHashesMatch": true,
+    "LatestRollback": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\capsule-20261021-100858",
+    "ControllerAndBackendChanged": false,
+    "RequiredComponents": [
+      "Live",
+      "StartLayoutSupported",
+      "StartLayoutActive",
+      "StartLayoutReady",
+      "QuickPositionSupported",
+      "QuickPositionActive",
+      "QuickThemeReady",
+      "ClientEdgeReady"
+    ],
+    "MissingComponents": []
+  },
+  "Preserved": {
+    "ProtectedFiles": [
+      {
+        "Name": "latest.ini",
+        "SHA256": "5D3060BEAC27A3D4BDD975FFB1C079E5D31269D63EF3C72260EF0C51346AC375",
+        "Unchanged": true
+      },
+      {
+        "Name": "hotcorners/latest.ini",
+        "SHA256": "C26DF2EF906CE5EF93BF91B1C3526BED376C9CB8D8EE1C4247F6CB48671D169C",
+        "Unchanged": true
+      },
+      {
+        "Name": "start/latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "Unchanged": true
+      },
+      {
+        "Name": "panels/latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "Unchanged": true
+      }
+    ],
+    "ProtectedFilesUnchanged": true,
+    "TaskUnchanged": true,
+    "NativePinsUnchanged": true,
+    "PermissionBoundaryValid": true
+  },
+  "Technical": {
+    "PolicyChecks": 102,
+    "IconOpticsChecks": 38,
+    "ProtocolChecks": 25,
+    "HiddenComposition": true,
+    "AppEnumeration": true,
+    "DataProbe": true,
+    "RealGuardRestartProbe": true,
+    "NativeTrayProbe": {
+      "add": true,
+      "version": true,
+      "receivedFixture": true,
+      "capturedIcons": 1,
+      "removed": true,
+      "fixtureAbsent": true,
+      "originalReceiverRestored": true,
+      "foregroundPreserved": true,
+      "originalReceiverPid": 18104,
+      "restoredReceiverPid": 18104,
+      "appMouseCallbacksExercised": false
+    },
+    "VisualState": "PendingUserAcceptance",
+    "VisualDeferredReason": "No desktop automation; the user will observe the authorized deployed update during normal use",
+    "InitialTrayProbe": "Failed because it expected Explorer instead of the pre-existing capsule receiver; exact original HWND/PID restoration was then checked and passed",
+    "DesktopInputAutomation": false,
+    "VisualProbeRun": false,
+    "CurrentVersionFullStopStartTest": false,
+    "PriorVersionStopStartEvidence": "build/lifecycle-latest.json (0.9.0); not relabelled as a 0.9.1 test"
+  },
+  "Snapshot": {
+    "Processes": [
+      {
+        "Role": "Controller",
+        "ProcessId": 16768,
+        "ParentId": 1808,
+        "Path": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\latest.exe",
+        "CommandLine": "\"C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\latest.exe\"",
+        "Session": 1,
+        "Elevated": true,
+        "IntegrityRid": 12288,
+        "PrivateMiB": 2.52,
+        "WorkingSetMiB": 12.41,
+        "StartTime": "2026-10-21T10:09:12.3737183+08:00"
+      },
+      {
+        "Role": "Guard",
+        "ProcessId": 19496,
+        "ParentId": 10044,
+        "Path": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\capsule\\latest.exe",
+        "CommandLine": "\"C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\capsule\\latest.exe\" --companion-guard 16768",
+        "Session": 1,
+        "Elevated": false,
+        "IntegrityRid": 8192,
+        "PrivateMiB": 1.93,
+        "WorkingSetMiB": 10.13,
+        "StartTime": "2026-10-21T10:09:13.9771301+08:00"
+      },
+      {
+        "Role": "UI",
+        "ProcessId": 9092,
+        "ParentId": 19496,
+        "Path": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\capsule\\latest.exe",
+        "CommandLine": "\"C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\capsule\\latest.exe\" --ui 19496 1",
+        "Session": 1,
+        "Elevated": false,
+        "IntegrityRid": 8192,
+        "PrivateMiB": 20.53,
+        "WorkingSetMiB": 47.88,
+        "StartTime": "2026-10-21T10:09:13.9953835+08:00"
+      }
+    ],
+    "WtsSession": {
+      "Id": 1,
+      "ConnectState": 0,
+      "SessionFlags": 0,
+      "Locked": true
+    },
+    "StartLayout": {
+      "version": "0.1.4",
+      "pid": 8480,
+      "ownerPid": 16768,
+      "active": true,
+      "lists": 1,
+      "items": 54,
+      "sourceGroups": 30,
+      "lockedSelectors": 1,
+      "columns": 8,
+      "rows": 7,
+      "panelWidth": 834.0,
+      "panelHeight": 754.0,
+      "passes": 2,
+      "failures": 0,
+      "initFailures": 0,
+      "initResult": 0,
+      "initStage": "ready",
+      "watchMode": "events"
+    },
+    "QuickTheme": {
+      "version": "0.2.0",
+      "pid": 7300,
+      "ownerPid": 16768,
+      "active": true,
+      "rootReady": false,
+      "tileInstalled": false,
+      "buttonReady": false,
+      "busy": false,
+      "workerPid": 0,
+      "dark": false,
+      "stateKnown": true,
+      "discoveries": 8,
+      "switches": 0,
+      "failures": 1,
+      "lastExit": 0,
+      "discoveryResult": 0,
+      "watchMode": "events"
+    },
+    "MemoryScope": "Single snapshot of controller, guard and UI; excludes Explorer/Start/Quick host increments, GPU and power cost"
+  },
+  "Pending": [
+    "Clock click while an application is maximized; actual Start visibility/focus",
+    "Visible proportions, optical size/centering, icon sharpness, menu/detail positions",
+    "DPI and monitor changes, sleep/wake, total GPU and power cost"
+  ],
+  "SourcePublication": "Local working tree and installed package only; no commit or push"
+}
