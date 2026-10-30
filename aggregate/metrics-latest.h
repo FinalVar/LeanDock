@@ -2,12 +2,10 @@
 #include "platform-latest.h"
 #include "controls-latest.h"
 #include "metrics-policy-latest.h"
+#include "gpu-latest.h"
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Media.Control.h>
 #include <winrt/Windows.Devices.Power.h>
-#include <dxgi.h>
-#include <pdh.h>
-#include <pdhmsg.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <netioapi.h>
@@ -87,11 +85,11 @@ class Metrics {
     HWND notify{};
     uint64_t idle=0,kernel=0,user=0;
     bool cpuReady=false;
-    PDH_HQUERY query{};
-    PDH_HCOUNTER counter{};
+    std::atomic<bool> urgent=false;
     uint64_t adaptersAt=0,disksAt=0;
-    std::vector<GpuSample> gpuCatalogue;
-    std::set<uint64_t> renderAdapters;
+    std::vector<Kmt::Adapter> gpuCatalogue;
+    std::map<std::pair<uint64_t,ULONG>,int64_t> gpuPrevious;
+    LARGE_INTEGER gpuAt{};
     std::map<uint64_t,std::pair<uint64_t,uint64_t>> networkPrevious;
     uint64_t networkAt=0;
     using Manager=winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
@@ -139,50 +137,20 @@ class Metrics {
     }
     void Gpu(Sample& s) {
         const auto now=GetTickCount64();
-        if(!adaptersAt||now-adaptersAt>=10000){
-            adaptersAt=now;
-            winrt::com_ptr<IDXGIFactory1> factory;
-            if(SUCCEEDED(CreateDXGIFactory1(__uuidof(IDXGIFactory1),factory.put_void()))){
-                std::vector<GpuSample> adapters;
-                for(UINT i=0;i<16;++i){
-                    winrt::com_ptr<IDXGIAdapter1> adapter;
-                    if(FAILED(factory->EnumAdapters1(i,adapter.put())))break;
-                    DXGI_ADAPTER_DESC1 desc{};
-                    if(FAILED(adapter->GetDesc1(&desc))||(desc.Flags&(DXGI_ADAPTER_FLAG_SOFTWARE|DXGI_ADAPTER_FLAG_REMOTE)))continue;
-                    const auto luid=(uint64_t(uint32_t(desc.AdapterLuid.HighPart))<<32)|desc.AdapterLuid.LowPart;
-                    adapters.push_back({luid,desc.Description,-1});
-                }
-                gpuCatalogue=std::move(adapters);
+        if(!adaptersAt||now-adaptersAt>=10000){adaptersAt=now;gpuCatalogue=Kmt::RenderAdapters();}
+        LARGE_INTEGER at{},frequency{};QueryPerformanceCounter(&at);QueryPerformanceFrequency(&frequency);
+        const double elapsed=gpuAt.QuadPart&&frequency.QuadPart?double(at.QuadPart-gpuAt.QuadPart)*1e7/double(frequency.QuadPart):0;
+        std::map<std::pair<uint64_t,ULONG>,int64_t> next;s.gpus.clear();
+        for(auto const& adapter:gpuCatalogue){
+            GpuBusy busy;
+            for(auto node:adapter.nodes){
+                int64_t running=0;if(!Kmt::NodeRunning(adapter.luid,node,running))continue;
+                const std::pair key{adapter.luid,node};next[key]=running;
+                if(auto p=gpuPrevious.find(key);p!=gpuPrevious.end())busy.Add(NodeBusy(p->second,running,elapsed));
             }
+            s.gpus.push_back({adapter.luid,adapter.name,busy.Percent()});
         }
-        for(auto& gpu:s.gpus)gpu.percent=-1;
-        if(!query){
-            if(PdhOpenQueryW(nullptr,0,&query)!=ERROR_SUCCESS)return;
-            if(PdhAddEnglishCounterW(query,L"\\GPU Engine(*engtype_3D)\\Utilization Percentage",0,&counter)!=ERROR_SUCCESS){
-                PdhCloseQuery(query);query=nullptr;return;
-            }
-        }
-        if(PdhCollectQueryData(query)!=ERROR_SUCCESS)return;
-        DWORD size=0,count=0;
-        if(PdhGetFormattedCounterArrayW(counter,PDH_FMT_DOUBLE,&size,&count,nullptr)==PDH_MORE_DATA&&size<16*1024*1024){
-            std::vector<BYTE> bytes(size);
-            auto items=reinterpret_cast<PDH_FMT_COUNTERVALUE_ITEM_W*>(bytes.data());
-            if(PdhGetFormattedCounterArrayW(counter,PDH_FMT_DOUBLE,&size,&count,items)==ERROR_SUCCESS){
-                GpuLoads loads;
-                for(DWORD i=0;i<count;i++){
-                    if(auto engine=ParseGpuEngine(items[i].szName))renderAdapters.insert(engine->Adapter());
-                    if(items[i].FmtValue.CStatus==PDH_CSTATUS_VALID_DATA||items[i].FmtValue.CStatus==PDH_CSTATUS_NEW_DATA)
-                        loads.Add(items[i].szName,items[i].FmtValue.doubleValue);
-                }
-                // Display-only/remote adapters can appear in DXGI without a
-                // renderer. Require a matching 3D counter identity, retain that
-                // identity through later idle/missing samples, never guess by name.
-                s.gpus.clear();
-                for(auto gpu:gpuCatalogue)if(renderAdapters.contains(gpu.luid)){
-                    gpu.percent=loads.ForAdapter(gpu.luid);s.gpus.push_back(std::move(gpu));
-                }
-            }
-        }
+        gpuPrevious=std::move(next);gpuAt=at;
     }
     void Network(Sample& s) {
         PMIB_IF_TABLE2 table=nullptr;const auto now=GetTickCount64();
@@ -201,14 +169,14 @@ class Metrics {
         if(networkAt&&now>networkAt)s.network=L"↓ "+Rate(down*1000/(now-networkAt))+L"　↑ "+Rate(up*1000/(now-networkAt));
         networkPrevious=std::move(next);networkAt=now;
     }
-    void Details(Sample& s,bool gpu=true) {
+    void Details(Sample& s) {
         ++s.detailReads;
         MEMORYSTATUSEX mem{sizeof(mem)};
         if(GlobalMemoryStatusEx(&mem)){
             s.memory=mem.dwMemoryLoad;s.capacity=Fixed(double(mem.ullTotalPhys-mem.ullAvailPhys)/1073741824)+
                 L" / "+Fixed(double(mem.ullTotalPhys)/1073741824)+L" GB";
         }
-        if(gpu)Gpu(s);
+        Gpu(s);
         Network(s);
         const auto now=GetTickCount64();
         if(!disksAt||now-disksAt>=10000){
@@ -249,8 +217,9 @@ class Metrics {
         MediaRead(s);
     }
     // A hover panel is read in its first second. Rates (CPU, network, GPU)
-    // need two samples, so the first interval after opening is shorter.
-    static constexpr uint64_t WarmupMs=300;
+    // need two samples, so the first interval after opening is shorter. The
+    // reveal may cut it further, but never below RevealMs of real interval.
+    static constexpr uint64_t WarmupMs=300,RevealMs=100;
     void Publish(Sample& s){
         s.at=GetTickCount64();{std::lock_guard lock(mutex);data=s;}
         if(visible&&notify)PostMessageW(notify,WM_APP+28,0,0);
@@ -259,7 +228,7 @@ class Metrics {
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
         workerThread=GetCurrentThreadId();CoEnableCallCancellation(nullptr);
         auto controls=std::make_unique<ControlBackend>();
-        uint64_t nextSample=0,nextDetails=0;unsigned samples=0,details=0;bool opened=false,slow=false;
+        uint64_t nextSample=0,nextDetails=0,sampledAt=0,detailedAt=0;unsigned samples=0,details=0;bool opened=false,slow=false;
         while(!stop.stop_requested()){
             Sample s;{std::lock_guard lock(mutex);s=data;}
             std::vector<ControlCommand> pending;
@@ -268,10 +237,16 @@ class Metrics {
             const auto now=GetTickCount64();const bool show=visible;
             if(refresh&&opened){controls->Close(s);opened=false;}
             if(show&&!opened){controls->Open();opened=true;nextDetails=nextSample=0;samples=details=0;cpuReady=false;s.history.clear();}
+            // The panel became visible while warming up hidden: read the rates
+            // over the standby interval now rather than at the warm-up tick.
+            if(urgent.exchange(false)&&show){
+                if(samples)nextSample=std::min(nextSample,std::max(now,sampledAt+RevealMs));
+                if(details)nextDetails=std::min(nextDetails,std::max(now,detailedAt+RevealMs));
+            }
             bool publish=false;
             // Commands wake this thread, but must not increase CPU/history or
             // network sampling frequency beyond one second after the warm-up.
-            if(show&&now>=nextSample){nextSample=now+(samples++?1000:WarmupMs);
+            if(show&&now>=nextSample){nextSample=now+(samples++?1000:WarmupMs);sampledAt=now;
             FILETIME i{},k{},u{};
             if(GetActiveProcessorCount(ALL_PROCESSOR_GROUPS)<=64&&GetSystemTimes(&i,&k,&u)){
                 auto ii=Ticks(i),kk=Ticks(k),uu=Ticks(u);
@@ -280,25 +255,23 @@ class Metrics {
                 idle=ii;kernel=kk;user=uu;cpuReady=true;
             }
             publish=true;}
-            if(show&&now>=nextDetails){nextDetails=now+(details++?1000:WarmupMs);
-                // Opening PDH (~0.3 s) and WMI waits until the first values are shown.
+            if(show&&now>=nextDetails){nextDetails=now+(details++?1000:WarmupMs);detailedAt=now;
+                // WMI brightness waits until the first values are published.
                 slow=details==1;
-                try{Details(s,!slow);controls->Read(s,!slow);}catch(...){Log(L"detail-sample-error");}publish=true;}
+                try{Details(s);controls->Read(s,!slow);}catch(...){Log(L"detail-sample-error");}publish=true;}
             for(auto& command:pending){if(stop.stop_requested())break;controls->Apply(std::move(command),s);publish=true;}
             if(!stop.stop_requested()&&controls->Pending()){controls->Pump(s);publish=true;}
             if(!show&&opened){
                 controls->Close(s);opened=false;publish=true;slow=false;
                 networkPrevious.clear();networkAt=0;s.network=L"—";
-                if(query){PdhCloseQuery(query);query=nullptr;counter=nullptr;}
+                gpuPrevious.clear();gpuAt={};
                 if(metadata){try{metadata.Cancel();}catch(...){}metadata=nullptr;}
                 if(request){try{request.Cancel();}catch(...){}request=nullptr;}
             }
             if(publish)Publish(s);
             if(slow&&show&&!stop.stop_requested()){
                 slow=false;
-                try{Gpu(s);controls->ReadBrightness(s);}catch(...){Log(L"detail-sample-error");}
-                // A GPU rate needs a real interval after PDH's first collection.
-                nextDetails=GetTickCount64()+WarmupMs;
+                try{controls->ReadBrightness(s);}catch(...){Log(L"detail-sample-error");}
                 Publish(s);
             }
             auto delay=std::max<int64_t>(1,int64_t(nextSample)-int64_t(GetTickCount64()));
@@ -312,13 +285,14 @@ class Metrics {
         if(metadata)try{metadata.Cancel();}catch(...){}
         if(request)try{request.Cancel();}catch(...){}
         metadata=nullptr;request=nullptr;manager=nullptr;
-        if(query)PdhCloseQuery(query);query=nullptr;
         workerThread=0;CoDisableCallCancellation(nullptr);
         winrt::uninit_apartment();
     }
 public:
     void Start(HWND hwnd){notify=hwnd;worker=std::jthread([this](std::stop_token s){Run(s);});}
     void Visible(bool value){if(visible.exchange(value)!=value){std::lock_guard lock(waitMutex);changed=true;wake.notify_all();}}
+    // Once per panel, when the warmed-up hidden window is revealed.
+    void Urgent(){urgent=true;std::lock_guard lock(waitMutex);changed=true;wake.notify_all();}
     void RefreshControls(){std::lock_guard lock(waitMutex);refreshControls=changed=true;wake.notify_all();}
     // Called only from a genuine panel gesture. Consent may be shown by
     // Windows, so request it on the UI thread, never while probing/read-only.

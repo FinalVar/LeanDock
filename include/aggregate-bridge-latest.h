@@ -10,6 +10,10 @@ inline constexpr wchar_t WindowProp[]=L"LeanDock.Aggregate.PanelWindow";
 inline constexpr wchar_t ControlProp[]=L"LeanDock.Aggregate.ControlWindow";
 inline constexpr wchar_t CookieProp[]=L"LeanDock.Aggregate.Cookie";
 inline constexpr wchar_t PendingProp[]=L"LeanDock.Aggregate.PendingUntil";
+// The child starts warming up while the pointer rests on the key and stays
+// hidden until the owner publishes this cookie at the real hover delay.
+inline constexpr wchar_t RevealProp[]=L"LeanDock.Aggregate.Reveal";
+inline constexpr UINT RevealMessage=WM_APP+29;
 inline constexpr wchar_t BoundsProps[][36]={L"LeanDock.Aggregate.Left",L"LeanDock.Aggregate.Top",L"LeanDock.Aggregate.Right",L"LeanDock.Aggregate.Bottom"};
 inline UINT RefreshMessage(){return RegisterWindowMessageW(L"Windhawk_UpdateTaskbarState_NativeTaskbarDock");}
 inline void Refresh(HWND bar){if(bar)PostMessageW(bar,RefreshMessage(),0,0);}
@@ -18,6 +22,9 @@ inline bool Owned(HWND bar,HWND window,const wchar_t* expected){
     DWORD pid=0;GetWindowThreadProcessId(window,&pid);
     if(!pid||pid!=DWORD(reinterpret_cast<uintptr_t>(GetPropW(bar,PidProp))))return false;
     wchar_t cls[96]{};GetClassNameW(window,cls,96);return !wcscmp(cls,expected);
+}
+inline bool Revealed(HWND bar,uintptr_t cookie){
+    return cookie&&GetPropW(bar,CookieProp)==HANDLE(cookie)&&GetPropW(bar,RevealProp)==HANDLE(cookie);
 }
 inline bool Holding(HWND bar){
     if(!GetPropW(bar,CookieProp))return false;

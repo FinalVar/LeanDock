@@ -11,19 +11,35 @@ namespace Bridge=LeanDockAggregate;
 struct Panel {
     HWND bar{},control{};HANDLE owner{};uintptr_t cookie{};
     Drawing draw;Popup popup;Metrics metrics;Power power;
-    PanelGesture gesture;PanelPart hover=PanelPart::None;
+    PanelGesture gesture;PanelPart hover=PanelPart::None;PanelMotion motion;
     PanelValueRequest volumeRequest,brightnessRequest;
-    uint64_t outside=0;bool closing=false,started=false;float dpi=1;
+    uint64_t outside=0,startedAt=0;bool closing=false,started=false,revealed=false,animating=false;float dpi=1;
     int paintedSecond=-1,calendarDay=-1;
     std::wstring calendarDate,calendarLunar;
+    // Control-window timers: the visible-only 50 ms tick, frames while a
+    // painted transition runs, and the end of the leave animation.
+    enum Timer:UINT_PTR{TickTimer=1,FrameTimer=2,LeaveTimer=3};
+    // A hidden standby that is never revealed (owner gone quiet) gives up.
+    static constexpr uint64_t StandbyLimit=4000;
     ~Panel(){Close();if(owner)CloseHandle(owner);}
     bool Valid()const{return bar&&IsWindow(bar)&&GetPropW(bar,Bridge::CookieProp)==HANDLE(cookie)&&
         GetPropW(bar,Bridge::PidProp)==HANDLE(uintptr_t(GetCurrentProcessId()))&&
         owner&&WaitForSingleObject(owner,0)==WAIT_TIMEOUT;}
     void Cancel(){gesture.Cancel();hover=PanelPart::None;}
-    void Quit(){if(closing)return;closing=true;if(popup.window)popup.Hide();PostQuitMessage(0);}
+    // animate: a dismissal the user caused, faded out unless motion is off.
+    // Lock, suspend, owner loss and WM_CLOSE end at once.
+    void Quit(bool animate=false){
+        if(closing)return;closing=true;
+        // Withdraw the control window first: the owner reveals only a child
+        // whose control window is still published, never a leaving one.
+        if(Valid()&&GetPropW(bar,Bridge::ControlProp)==control)RemovePropW(bar,Bridge::ControlProp);
+        const int delay=animate&&revealed&&popup.visible&&control?popup.Leave():0;
+        if(delay>0&&SetTimer(control,LeaveTimer,UINT(delay),nullptr))return;
+        Finish();
+    }
+    void Finish(){if(control)KillTimer(control,LeaveTimer);if(popup.window)popup.Hide();PostQuitMessage(0);}
     void Close(){
-        closing=true;if(control)KillTimer(control,1);
+        closing=true;if(control)for(auto timer:{TickTimer,FrameTimer,LeaveTimer})KillTimer(control,timer);
         popup.Hide();metrics.Visible(false);metrics.Stop();
         if(Valid()){
             for(auto name:{Bridge::WindowProp,Bridge::ControlProp,Bridge::PendingProp})RemovePropW(bar,name);
@@ -56,16 +72,33 @@ struct Panel {
         auto display=data;const auto now=GetTickCount64();
         display.volume=volumeRequest.Display(data.volume,data.completed[unsigned(Control::Volume)],now);
         display.brightness=brightnessRequest.Display(data.brightness,data.completed[unsigned(Control::Brightness)],now);
-        popup.Paint([&](ID2D1DeviceContext* dc){PaintControlPanel(draw,dc,display,power,clock,calendarDate,calendarLunar,layout,hover,gesture);});
+        motion.Update(display,hover,gesture,now,revealed&&Animations());
+        popup.Paint([&](ID2D1DeviceContext* dc){PaintControlPanel(draw,dc,display,power,clock,calendarDate,calendarLunar,layout,hover,gesture,motion,now);},
+            layout.Cuts());
+        // Frames run only while a hover, toggle or slider transition does.
+        if(const bool active=motion.Active(now);active!=animating&&control){
+            animating=active;if(active)SetTimer(control,FrameTimer,16,nullptr);else KillTimer(control,FrameTimer);
+        }
+    }
+    void Light(POINT p){popup.scene.Light(float((p.x-popup.rect.x)/dpi),float((p.y-popup.rect.y)/dpi));}
+    // Shown only once the owner publishes this cookie as revealed: the real
+    // hover delay has passed on the key. Values sampled hidden are ready.
+    void Reveal(){
+        if(revealed||closing||!popup.window||!Valid()||!Bridge::Revealed(bar,cookie))return;
+        revealed=true;metrics.Urgent();Paint();if(closing)return;
+        POINT cursor{};if(GetCursorPos(&cursor))Light(cursor);
+        popup.Show(true);RemovePropW(bar,Bridge::PendingProp);Bridge::Refresh(bar);
+        Log(L"panel-open");
     }
     void Set(Control target,int value){
         const auto serial=metrics.Set(target,value);
         if(serial)(target==Control::Volume?volumeRequest:brightnessRequest)={serial,GetTickCount64(),value};
     }
-    void Open(wchar_t const* uri){ShellExecuteW(popup.window,L"open",uri,nullptr,nullptr,SW_SHOWNORMAL);Quit();}
+    void Open(wchar_t const* uri){ShellExecuteW(popup.window,L"open",uri,nullptr,nullptr,SW_SHOWNORMAL);Quit(true);}
     void Input(UINT message,float x,float y){
         const auto hit=PanelHit(x,y);const auto data=metrics.Read();
         if(message==WM_MOUSEMOVE){
+            popup.scene.Light(x,y);
             if(gesture.Dragging()){
                 if(gesture.Send(x,GetTickCount64()))Set(gesture.pressed==PanelPart::Volume?Control::Volume:Control::Brightness,gesture.preview);
                 Paint();
@@ -95,16 +128,24 @@ struct Panel {
         Cancel();if(GetCapture()==popup.window)ReleaseCapture();Paint();
     }
     void Tick(){
+        if(closing)return;
         if(!Valid()||!IsWindowVisible(bar)||std::abs(GetDpiForWindow(bar)/96.f-dpi)>.01f){Quit();return;}
-        if(GetAsyncKeyState(VK_ESCAPE)&0x8000){Quit();return;}
+        if(GetAsyncKeyState(VK_ESCAPE)&0x8000){Quit(true);return;}
+        if(!revealed){
+            if(Bridge::Revealed(bar,cookie))Reveal();
+            else if(GetTickCount64()-startedAt>=StandbyLimit){Quit();return;}
+        }
         RECT anchor{};POINT cursor{};
         if(!Bridge::Anchor(bar,anchor)||!GetCursorPos(&cursor)){Quit();return;}
         Position();popup.Hover(cursor);
+        // Inside the panel WM_MOUSEMOVE moves the light more finely.
+        if(!popup.Hit(cursor.x,cursor.y))Light(cursor);
+        // Before the reveal only the key counts: a pass-over ends the standby.
         const bool inside=PtInRect(&anchor,cursor)||popup.Hit(cursor.x,cursor.y)||GetCapture()==popup.window;
         if(inside)outside=0;
-        else if(GetAsyncKeyState(VK_LBUTTON)&0x8000||GetAsyncKeyState(VK_RBUTTON)&0x8000){Quit();return;}
+        else if(GetAsyncKeyState(VK_LBUTTON)&0x8000||GetAsyncKeyState(VK_RBUTTON)&0x8000){Quit(true);return;}
         else if(!outside)outside=GetTickCount64();
-        else if(GetTickCount64()-outside>=250)Quit();
+        else if(GetTickCount64()-outside>=250)Quit(true);
         // Clock remains live even when a device query is slow. Reuse this
         // existing visible-only timer; never add a resident background clock.
         SYSTEMTIME time{};GetLocalTime(&time);
@@ -115,8 +156,12 @@ struct Panel {
         if(message==WM_NCCREATE){self=static_cast<Panel*>(reinterpret_cast<CREATESTRUCTW*>(b)->lpCreateParams);SetWindowLongPtrW(window,GWLP_USERDATA,LONG_PTR(self));}
         if(self)try{
             if(message==WM_CLOSE){self->Quit();return 0;}
-            if(message==WM_TIMER){self->Tick();return 0;}
+            if(message==WM_TIMER){
+                if(a==LeaveTimer)self->Finish();else if(a==FrameTimer)self->Paint();else self->Tick();
+                return 0;
+            }
             if(message==WM_APP+28){self->Paint();return 0;}
+            if(message==Bridge::RevealMessage){self->Reveal();return 0;}
             if(message==WM_SETTINGCHANGE||message==WM_THEMECHANGED){self->draw.colors.Refresh();self->popup.scene.Theme();self->Paint();return 0;}
             if(message==WM_WTSSESSION_CHANGE&&a==WTS_SESSION_LOCK){self->Quit();return 0;}
             if(message==WM_POWERBROADCAST&&a==PBT_APMSUSPEND){self->Quit();return TRUE;}
@@ -135,15 +180,19 @@ struct Panel {
         control=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_NOACTIVATE,c.lpszClassName,L"",WS_POPUP,0,0,0,0,nullptr,nullptr,c.hInstance,this);
         if(!control)winrt::throw_last_error();
         WTSRegisterSessionNotification(control,NOTIFY_FOR_THIS_SESSION);
+        // Sampling starts before any graphics setup: the pointer is resting
+        // on the key and the owner reveals this window at the hover delay.
+        startedAt=GetTickCount64();metrics.Start(control);metrics.Visible(true);started=true;
         popup.Init(draw,dpi,PanelWidth,408,14,false);
         popup.click=[this](UINT m,float x,float y){Input(m,x,y);};
         popup.pointerCancel=[this]{Cancel();};popup.cancel=[this]{Quit();};
         if(!Valid())return 22;
         SetPropW(bar,Bridge::ControlProp,control);SetPropW(bar,Bridge::WindowProp,popup.window);
-        metrics.Start(control);metrics.Visible(true);started=true;Paint();if(closing)return 23;
-        popup.Show(true);RemovePropW(bar,Bridge::PendingProp);Bridge::Refresh(bar);
-        if(!SetTimer(control,1,50,nullptr))winrt::throw_last_error();
-        Log(L"panel-open");MSG msg{};
+        Paint();if(closing)return 23;
+        if(!SetTimer(control,TickTimer,50,nullptr))winrt::throw_last_error();
+        // The owner sets the reveal property before looking for this control
+        // window, so checking after publishing it cannot miss a reveal.
+        Reveal();MSG msg{};
         while(GetMessageW(&msg,nullptr,0,0)>0){TranslateMessage(&msg);DispatchMessageW(&msg);}
         WTSUnRegisterSessionNotification(control);Close();Log(L"panel-closed");return 0;
     }
@@ -157,6 +206,8 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
             LocalFree(args);winrt::init_apartment(winrt::apartment_type::single_threaded);
             {Capsule::Drawing draw;Capsule::Popup popup;popup.Init(draw,1,300,408,14,false);
              Capsule::RenderControlPanel(draw);
+             // Visual fixture only; a host without visual capture still passes.
+             try{Capsule::RenderMaterial(draw,popup.scene);}catch(...){Capsule::Log(L"material-probe-failed",winrt::to_hresult());}
              if(IsWindowVisible(popup.window))winrt::throw_hresult(E_UNEXPECTED);
              popup.Destroy();}
             winrt::uninit_apartment();return Capsule::ControlsProbe();

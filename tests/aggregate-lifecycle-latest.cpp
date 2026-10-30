@@ -71,6 +71,41 @@ void PanelCases(){
     if(bar)DestroyWindow(bar);DestroyWindow(replacement);
     Check(OwnPanelWindows()==0,"no owned panel/control HWND remains");
 }
+bool DrainQuit(uint64_t limit){
+    MSG m{};const auto deadline=GetTickCount64()+limit;
+    do{
+        while(PeekMessageW(&m,nullptr,0,0,PM_REMOVE)){if(m.message==WM_QUIT)return true;TranslateMessage(&m);DispatchMessageW(&m);}
+        Sleep(1);
+    }while(GetTickCount64()<deadline);
+    return false;
+}
+void RevealCases(){
+    // The standby gate: a hidden child shows only for the owner's reveal of
+    // its own cookie. A matching reveal would show a window, which this
+    // fixture never does, so only the property match is checked for it.
+    auto bar=Hidden();const uintptr_t token=900;
+    Panel panel;Attach(panel,bar,token);
+    panel.control=Hidden(Bridge::ControlClass,&panel);
+    panel.popup.Init(panel.draw,1,PanelWidth,408,14,false);
+    auto popup=panel.popup.window;Publish(bar,token,popup,panel.control);
+    Check(!Bridge::Revealed(bar,token),"no reveal before the owner publishes one");
+    for(auto value:{uintptr_t(0),token+1}){
+        if(value)SetPropW(bar,Bridge::RevealProp,HANDLE(value));
+        panel.Reveal();SendMessageW(panel.control,Bridge::RevealMessage,0,0);
+        Check(!panel.revealed&&!IsWindowVisible(popup),"standby stays hidden without its own reveal");
+    }
+    SetPropW(bar,Bridge::RevealProp,HANDLE(token));Check(Bridge::Revealed(bar,token)&&!Bridge::Revealed(bar,0),"owner reveal matches only its cookie");
+    SetPropW(bar,Bridge::CookieProp,HANDLE(token+1));
+    Check(!Bridge::Revealed(bar,token)&&!Bridge::Revealed(bar,token+1),"a reveal for a replaced child is stale");
+    panel.Reveal();Check(!panel.revealed&&!IsWindowVisible(popup),"stale reveal does not show the old child");
+    // Leaving during standby ends at once: no leave animation for a hidden panel.
+    SetPropW(bar,Bridge::CookieProp,HANDLE(token));RemovePropW(bar,Bridge::RevealProp);
+    panel.Quit(true);Check(panel.closing&&!GetPropW(bar,Bridge::ControlProp),"standby quit withdraws the control window");
+    Check(DrainQuit(100),"standby quit ends without a leave delay");
+    panel.Close();++closeCycles;
+    Check(!IsWindow(popup)&&!GetPropW(bar,Bridge::WindowProp)&&!GetPropW(bar,Bridge::PendingProp),"standby cleanup removes own windows");
+    DestroyWindow(bar);Check(OwnPanelWindows()==0,"reveal cases leave no panel HWND");
+}
 void QuitCases(){
     // Deliver notifications only to our own hidden fixture HWNDs. This does not
     // lock/suspend Windows, restart Explorer, or prove resume behavior.
@@ -126,7 +161,7 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
         GetProcessHandleCount(GetCurrentProcess(),&beforeHandles);
         Handles("cold");
         for(unsigned cycle=0;cycle<3;++cycle){PanelCases();Handles("panel-batch-"+std::to_string(cycle));}
-        QuitCases();Handles("notifications");WorkerCases();Handles("workers-stopped");
+        RevealCases();Handles("reveal");QuitCases();Handles("notifications");WorkerCases();Handles("workers-stopped");
         Check(OwnPanelWindows()==0,"all test panel windows released");
         GetProcessHandleCount(GetCurrentProcess(),&afterHandles);
     }catch(...){result=1;if(failure.empty())failure="unexpected fixture exception";}

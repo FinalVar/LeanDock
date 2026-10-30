@@ -1,5 +1,14 @@
 #pragma once
 #include "control-panel-latest.h"
+#include <winrt/Windows.Graphics.Capture.h>
+#include <winrt/Windows.Graphics.DirectX.Direct3D11.h>
+
+// windows.graphics.directx.direct3d11.interop.h; MinGW lacks the header.
+struct CapsuleDxgiAccess : IUnknown {
+    virtual HRESULT STDMETHODCALLTYPE GetInterface(REFIID,void**)=0;
+};
+template<> inline constexpr winrt::guid winrt::impl::guid_v<CapsuleDxgiAccess>{
+    0xA9B3D012,0x3DF2,0x4EE3,{0xB8,0xD1,0x86,0x95,0xF4,0x57,0xD3,0xC1}};
 
 
 namespace Capsule {
@@ -17,18 +26,14 @@ inline unsigned VerifyMetricModel(){
     check(points.size()==59&&points.back().x-points[points.size()-2].x>2.8f);
     AppendCpu(history,200000,10);check(history.size()==1);
     check(CpuTrend(history,84,16).front().x==84); // No invented pre-open history.
-    GpuLoads loads;
-    loads.Add(L"pid_10_luid_0x00000000_0x00001234_phys_0_eng_0_engtype_3D",30);
-    loads.Add(L"pid_20_luid_0x00000000_0x00001234_phys_0_eng_0_engtype_3D",20);
-    loads.Add(L"pid_10_luid_0x00000000_0x00001234_phys_0_eng_1_engtype_3D",40);
-    loads.Add(L"pid_30_luid_0x00000000_0x00005678_phys_0_eng_0_engtype_3D",90);
-    check(loads.ForAdapter(0x1234)==50); // Sum processes per engine; not 30+20+40+90.
-    check(loads.ForAdapter(0x5678)==90);check(loads.ForAdapter(0x9999)==-1);
-    loads.Add(L"pid_20_luid_0x00000000_0x00001234_phys_0_eng_2_engtype_3D",150);
-    check(loads.ForAdapter(0x1234)==100);
-    check(!ParseGpuEngine(L"pid_1_luid_0x0_0x1_phys_0_eng_0_engtype_Copy"));
-    check(!ParseGpuEngine(L"pid_1_luid_0x0_0x1_phys_0_eng_0_engtype_3DCompute"));
-    check(!ParseGpuEngine(nullptr));check(!ParseGpuEngine(L"malformed"));
+    // Adapter type words observed on the reference machine: AMD iGPU,
+    // NVIDIA dGPU, an indirect-display alias of the iGPU, Basic Render.
+    check(GpuRenders(0x232B));check(GpuRenders(0x2311));check(!GpuRenders(0x342));check(!GpuRenders(0x105));check(!GpuRenders(0));
+    check(NodeBusy(100,600,1000)==50);check(NodeBusy(0,0,1000)==0);check(NodeBusy(0,5000,1000)==100);
+    check(NodeBusy(600,100,1000)<0);check(NodeBusy(0,100,0)<0);check(NodeBusy(0,100,-1)<0);
+    GpuBusy busy;check(busy.Percent()==-1);busy.Add(-1);check(busy.Percent()==-1);
+    busy.Add(30);busy.Add(49.6);busy.Add(20);check(busy.Percent()==50); // Busiest node, not a sum.
+    busy.Add(NAN);check(busy.Percent()==50);busy.Add(0);check(busy.Percent()==50);
     Sample s;s.gpus={{1,L"AMD Radeon(TM) Graphics",7}};
     PanelLayout one(s,0);s.gpus.push_back({2,L"NVIDIA GeForce GTX 1650",0});PanelLayout two(s,0);
     check(two.height-one.height==22&&two.gpuY==one.gpuY);
@@ -95,7 +100,18 @@ inline unsigned VerifyControlModel(){
     PanelValueRequest desired{100,1000,81};
     check(desired.Display(50,99,1100)==81);check(desired.Display(79,100,1200)==79);
     check(desired.Display(-1,100,1200)==-1);check(desired.Display(50,99,5000)==50);
+    PanelMotion motion;Controls live;live.wifi=1;live.volume=20;PanelGesture idle;
+    motion.Update(live,PanelPart::Wifi,idle,1000,true);
+    check(motion.on[0].At(1000)==1&&motion.hover[unsigned(PanelPart::Wifi)].At(1000)==1&&!motion.Active(1000)); // First frame is settled.
+    live.wifi=0;live.volume=80;motion.Update(live,PanelPart::None,idle,2000,true);
+    check(motion.Active(2000)&&motion.on[0].At(2000)==1&&motion.on[0].At(2090)>0&&motion.on[0].At(2090)<1);
+    check(motion.volume.At(2120)>20&&motion.volume.At(2120)<80&&motion.volume.At(2240)==80&&!motion.Active(2240));
+    PanelGesture drag;drag.Begin(PanelPart::Volume,SliderLeft);motion.Update(live,PanelPart::Volume,drag,3000,true);
+    check(motion.volume.At(3000)==0&&!motion.volume.Active(3000)); // A drag is never eased.
+    live.volume=-1;motion.Update(live,PanelPart::None,idle,4000,true);check(motion.volume.At(4000)==0);
+    live.volume=50;motion.Update(live,PanelPart::None,idle,5000,false);check(motion.volume.At(5000)==50&&!motion.Active(5000));
     Sample s;PanelLayout empty(s,0);check(empty.mediaY<0&&empty.temperatureY<0&&empty.trayY<0);
+    auto cuts=empty.Cuts();check(cuts.front()==0&&cuts.back()==empty.height&&std::is_sorted(cuts.begin(),cuts.end()));
     s.media=L"▶ 测试标题";s.error=L"设备已断开";PanelLayout content(s,7);
     check(content.mediaY>=0&&content.errorY>content.mediaY&&content.trayY>content.errorY);
     check(content.height>empty.height&&content.trayY+52<content.height);
@@ -134,6 +150,30 @@ inline int ControlsProbe(){
     winrt::uninit_apartment();
     return readonly&&noHiddenReads&&data.reads>=2&&stopMs<2000?0:1;
 }
+inline Sample FixtureSample(int column){
+    Sample s;s.volume=column?-1:42;s.brightness=column?-1:78;s.wifi=column?3:1;s.bluetooth=column?-1:0;
+    s.darkTheme=column?-1:1;s.themeAvailable=!column;s.hotspot=column?-1:1;s.hotspotLabel=column?L"未连接网络":L"2 台已连接";
+    s.cpu=24;s.memory=67;s.capacity=L"10.4 / 15.4 GB";
+    s.gpus={{1,L"AMD Radeon(TM) Graphics",15},{2,L"NVIDIA GeForce GTX 1650",column?-1:0}};
+    for(unsigned i=0;i<60;++i)AppendCpu(s.history,1000+i*1000,10+35*std::abs(std::sin(i/6.)));
+    s.network=L"↓ 12.3 MB/s　↑ 84 KB/s";s.disks=L"C 123 GB　D 429 GB";
+    s.battery=L"插电中，约 20 分钟充满";
+    if(column){s.media=L"▶ 一首正在播放的音乐";s.error=L"无线控制未获系统授权";}
+    return s;
+}
+inline Power FixturePower(){Power p;p.valid=true;p.value.BatteryFlag=0;p.value.BatteryLifePercent=97;p.value.ACLineStatus=1;return p;}
+inline void SavePng(Drawing& draw,std::vector<BYTE>& pixels,UINT width,UINT height,std::wstring const& name){
+    winrt::com_ptr<IWICBitmap> bitmap;
+    winrt::check_hresult(draw.wic->CreateBitmapFromMemory(width,height,GUID_WICPixelFormat32bppPBGRA,width*4,UINT(pixels.size()),pixels.data(),bitmap.put()));
+    winrt::com_ptr<IWICStream> stream;winrt::check_hresult(draw.wic->CreateStream(stream.put()));
+    winrt::check_hresult(stream->InitializeFromFilename(name.c_str(),GENERIC_WRITE));
+    winrt::com_ptr<IWICBitmapEncoder> encoder;winrt::check_hresult(draw.wic->CreateEncoder(GUID_ContainerFormatPng,nullptr,encoder.put()));
+    winrt::check_hresult(encoder->Initialize(stream.get(),WICBitmapEncoderNoCache));
+    winrt::com_ptr<IWICBitmapFrameEncode> frame;winrt::check_hresult(encoder->CreateNewFrame(frame.put(),nullptr));
+    winrt::check_hresult(frame->Initialize(nullptr));winrt::check_hresult(frame->SetSize(width,height));
+    WICPixelFormatGUID format=GUID_WICPixelFormat32bppBGRA;winrt::check_hresult(frame->SetPixelFormat(&format));
+    winrt::check_hresult(frame->WriteSource(bitmap.get(),nullptr));winrt::check_hresult(frame->Commit());winrt::check_hresult(encoder->Commit());
+}
 inline void RenderControlPanel(Drawing& draw){
     VerifyControlModel();VerifyMetricModel();const auto output=Directory()+L"\\control-panel-probe";
     std::filesystem::create_directories(output);const auto original=draw.colors;
@@ -147,24 +187,15 @@ inline void RenderControlPanel(Drawing& draw){
             dc->SetTarget(target.get());dc->SetDpi(96*scale,96*scale);dc->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
             dc->BeginDraw();dc->Clear(Ink(0x7D8DAB));
             for(int column=0;column<2;++column){
-                draw.colors.light=column==0;
-                draw.colors.text=Ink(column?0xECEEF2:0x15171B);draw.colors.secondary=Ink(column?0x9EA5B1:0x5E6571);
-                draw.colors.accent=Ink(column?0x3CC2B7:0x0A7470);draw.colors.hair=Ink(column?0xFFFFFF:0x141820,.10f);
-                draw.colors.hover=Ink(column?0xFFFFFF:0x141820,.08f);
-                Sample s;s.volume=column?-1:42;s.brightness=column?-1:78;s.wifi=column?3:1;s.bluetooth=column?-1:0;
-                s.darkTheme=column?-1:1;s.themeAvailable=!column;s.hotspot=column?-1:1;s.hotspotLabel=column?L"未连接网络":L"2 台已连接";
-                s.cpu=24;s.memory=67;s.capacity=L"10.4 / 15.4 GB";
-                s.gpus={{1,L"AMD Radeon(TM) Graphics",15},{2,L"NVIDIA GeForce GTX 1650",column?-1:0}};
-                for(unsigned i=0;i<60;++i)AppendCpu(s.history,1000+i*1000,10+35*std::abs(std::sin(i/6.)));
-                s.network=L"↓ 12.3 MB/s　↑ 84 KB/s";s.disks=L"C 123 GB　D 429 GB";
-                s.battery=L"插电中，约 20 分钟充满";
-                if(column){s.media=L"▶ 一首正在播放的音乐";s.error=L"无线控制未获系统授权";}
-                Power p;p.valid=true;p.value.BatteryFlag=0;p.value.BatteryLifePercent=97;p.value.ACLineStatus=1;
-                PanelLayout layout(s,0);PanelGesture gesture;
+                // Windows 11 default blue: AccentDark1 / AccentLight2.
+                draw.colors.Set(column==0,column?0x60CDFF:0x005FB8);
+                const auto s=FixtureSample(column);const auto p=FixturePower();
+                PanelLayout layout(s,0);PanelGesture gesture;PanelMotion motion;
+                const auto hover=column?PanelPart::None:PanelPart::Bluetooth;motion.Update(s,hover,gesture,0,false);
                 dc->SetTransform(D2D1::Matrix3x2F::Translation(14+column*316.f,14));
-                draw.Round(dc.get(),{0,0,PanelWidth,layout.height},14,Ink(column?0x282D37:0xEEF1F6));
-                if(draw.Measure(L"23:59:59",23,true)>116)winrt::throw_hresult(E_BOUNDS);
-                PaintControlPanel(draw,dc.get(),s,p,L"13:26:08",L"10月23日",L"农历九月十四",layout,PanelPart::None,gesture);
+                draw.Round(dc.get(),{0,0,PanelWidth,layout.height},14,Ink(column?0x1D1F25:0xF2F3F6));
+                if(ClockWidth(draw,L"23:59:59")>120)winrt::throw_hresult(E_BOUNDS);
+                PaintControlPanel(draw,dc.get(),s,p,L"13:26:08",L"10月23日",L"农历九月十四",layout,hover,gesture,motion,0);
             }
             dc->SetTransform(D2D1::Matrix3x2F::Identity());winrt::check_hresult(dc->EndDraw());dc->SetTarget(nullptr);
             props.bitmapOptions=D2D1_BITMAP_OPTIONS_CPU_READ|D2D1_BITMAP_OPTIONS_CANNOT_DRAW;
@@ -173,18 +204,111 @@ inline void RenderControlPanel(Drawing& draw){
             winrt::check_hresult(readback->Map(D2D1_MAP_OPTIONS_READ,&mapped));
             std::vector<BYTE> pixels(size_t(width)*height*4);
             for(UINT row=0;row<height;++row)memcpy(pixels.data()+size_t(row)*width*4,mapped.bits+size_t(row)*mapped.pitch,width*4);
-            readback->Unmap();winrt::com_ptr<IWICBitmap> bitmap;
-            winrt::check_hresult(draw.wic->CreateBitmapFromMemory(width,height,GUID_WICPixelFormat32bppPBGRA,width*4,UINT(pixels.size()),pixels.data(),bitmap.put()));
-            winrt::com_ptr<IWICStream> stream;winrt::check_hresult(draw.wic->CreateStream(stream.put()));
-            const auto name=output+L"\\dpi-"+std::to_wstring(int(scale*100))+L".png";
-            winrt::check_hresult(stream->InitializeFromFilename(name.c_str(),GENERIC_WRITE));
-            winrt::com_ptr<IWICBitmapEncoder> encoder;winrt::check_hresult(draw.wic->CreateEncoder(GUID_ContainerFormatPng,nullptr,encoder.put()));
-            winrt::check_hresult(encoder->Initialize(stream.get(),WICBitmapEncoderNoCache));
-            winrt::com_ptr<IWICBitmapFrameEncode> frame;winrt::check_hresult(encoder->CreateNewFrame(frame.put(),nullptr));
-            winrt::check_hresult(frame->Initialize(nullptr));winrt::check_hresult(frame->SetSize(width,height));
-            WICPixelFormatGUID format=GUID_WICPixelFormat32bppBGRA;winrt::check_hresult(frame->SetPixelFormat(&format));
-            winrt::check_hresult(frame->WriteSource(bitmap.get(),nullptr));winrt::check_hresult(frame->Commit());winrt::check_hresult(encoder->Commit());
+            readback->Unmap();
+            SavePng(draw,pixels,width,height,output+L"\\dpi-"+std::to_wstring(int(scale*100))+L".png");
         }
     }catch(...){draw.colors=original;throw;}draw.colors=original;
+}
+// Composites the real floating Scene (glass, edge lensing, rim and specular
+// layers, content bands) over a fixture wallpaper and reads it back through
+// Windows.Graphics.Capture. A BackdropBrush stands in for the host backdrop,
+// which exists only behind a shown window. Never shows or captures a window;
+// returns false where visual capture is unavailable.
+inline bool RenderMaterial(Drawing& draw,Scene& shared){
+    namespace cap=winrt::Windows::Graphics::Capture;
+    using winrt::Windows::Graphics::DirectX::DirectXPixelFormat;
+    using Create=HRESULT(WINAPI*)(IDXGIDevice*,void**); // out: IInspectable*
+    const auto create=reinterpret_cast<Create>(GetProcAddress(GetModuleHandleW(L"d3d11.dll"),"CreateDirect3D11DeviceFromDXGIDevice"));
+    if(!create||!cap::GraphicsCaptureSession::IsSupported())return false;
+    winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice device{nullptr};
+    winrt::check_hresult(create(draw.d3d.as<IDXGIDevice>().get(),winrt::put_abi(device)));
+    const auto output=Directory()+L"\\control-panel-probe";std::filesystem::create_directories(output);
+    const auto original=draw.colors;
+    try{
+    for(int light=1;light>=0;--light){
+        const auto data=FixtureSample(0);const auto power=FixturePower();PanelLayout layout(data,0);
+        const float width=PanelWidth+64,height=layout.height+64;
+        Scene scene;scene.floating=true;scene.host=false;scene.radius=14;scene.full=scene.base=PanelWidth;scene.height=layout.height;
+        scene.Init(nullptr,1,&shared);scene.Theme(light);scene.FloatShow(false);scene.Light(64,34);
+        auto stage=scene.compositor.CreateContainerVisual();stage.Size({width,height});
+        comp::CompositionDrawingSurface wallpaper{nullptr},content{nullptr};
+        draw.Redraw(wallpaper,width,height,1,[&](ID2D1DeviceContext* dc){
+            auto sky=draw.Gradient(dc,{0,0},{width,height},{{0,Ink(0xFFD66B)},{.45f,Ink(0xFF5F6D)},{1,Ink(0x2B1055)}});
+            dc->FillRectangle({0,0,width,height},sky.get());
+            draw.Round(dc,{-40,150,180,180},90,Ink(0x3DE0FF));draw.Round(dc,{200,260,240,240},120,Ink(0x0B1D51));
+            draw.Round(dc,{230,20,90,90},45,Ink(0xFFFFFF));
+            for(float y=300;y<380;y+=8)draw.Line(dc,20,y,230,y,Ink(0x111111,.8f),2);
+        });
+        stage.Children().InsertAtTop(draw.Visual(scene.compositor,wallpaper,width,height));
+        stage.Children().InsertAtTop(scene.root);
+        draw.colors.Set(light!=0,light?0x005FB8:0x60CDFF);
+        PanelGesture gesture;PanelMotion motion;motion.Update(data,PanelPart::None,gesture,0,false);
+        draw.Redraw(content,PanelWidth,layout.height,1,[&](ID2D1DeviceContext* dc){
+            PaintControlPanel(draw,dc,data,power,L"13:26:08",L"10月23日",L"农历九月十四",layout,PanelPart::None,gesture,motion,0);
+        });
+        scene.Content(content,layout.Cuts());
+        auto item=cap::GraphicsCaptureItem::CreateFromVisual(stage);
+        auto pool=cap::Direct3D11CaptureFramePool::CreateFreeThreaded(device,DirectXPixelFormat::B8G8R8A8UIntNormalized,2,item.Size());
+        auto session=pool.CreateCaptureSession(item);session.StartCapture();
+        cap::Direct3D11CaptureFrame frame{nullptr};
+        const auto start=GetTickCount64();
+        while(GetTickCount64()-start<3000&&!(frame&&GetTickCount64()-start>=500)){
+            MSG m;while(PeekMessageW(&m,nullptr,0,0,PM_REMOVE)){TranslateMessage(&m);DispatchMessageW(&m);}
+            if(auto next=pool.TryGetNextFrame())frame=next;
+            Sleep(15);
+        }
+        UINT fw=0,fh=0;
+        auto read=[&](cap::Direct3D11CaptureFrame const& f){
+            winrt::com_ptr<ID3D11Texture2D> texture;
+            winrt::check_hresult(f.Surface().as<CapsuleDxgiAccess>()->GetInterface(__uuidof(ID3D11Texture2D),texture.put_void()));
+            D3D11_TEXTURE2D_DESC desc{};texture->GetDesc(&desc);fw=desc.Width;fh=desc.Height;
+            desc.Usage=D3D11_USAGE_STAGING;desc.BindFlags=0;desc.CPUAccessFlags=D3D11_CPU_ACCESS_READ;desc.MiscFlags=0;
+            winrt::com_ptr<ID3D11Texture2D> staging;winrt::check_hresult(draw.d3d->CreateTexture2D(&desc,nullptr,staging.put()));
+            winrt::com_ptr<ID3D11DeviceContext> context;draw.d3d->GetImmediateContext(context.put());
+            context->CopyResource(staging.get(),texture.get());
+            D3D11_MAPPED_SUBRESOURCE mapped{};winrt::check_hresult(context->Map(staging.get(),0,D3D11_MAP_READ,0,&mapped));
+            std::vector<BYTE> pixels(size_t(fw)*fh*4);
+            for(UINT row=0;row<fh;++row)memcpy(pixels.data()+size_t(row)*fw*4,static_cast<BYTE*>(mapped.pData)+size_t(row)*mapped.RowPitch,fw*4);
+            context->Unmap(staging.get(),0);return pixels;
+        };
+        bool saved=false;
+        if(frame){
+            auto pixels=read(frame);
+            SavePng(draw,pixels,fw,fh,output+(light?L"\\material-light.png":L"\\material-dark.png"));saved=true;
+        }
+        // Filmstrips of the real reveal and leave animations, sampled by the
+        // compositor's frame times.
+        // Filmstrips of the reveal and leave, one static frame per time step
+        // from the same timing table as the compositor animations.
+        // An unchanged step produces no new frame; it repeats the last one.
+        std::vector<BYTE> last;
+        auto film=[&](std::function<void(double)> step,std::initializer_list<int> at,wchar_t const* name){
+            std::vector<BYTE> strip;size_t column=0;unsigned captured=0;
+            for(int ms:at){
+                while(pool.TryGetNextFrame()){}
+                step(ms);cap::Direct3D11CaptureFrame shot{nullptr};const auto begin=GetTickCount64();
+                while(GetTickCount64()-begin<(last.empty()?1500:400)&&!(shot&&GetTickCount64()-begin>=150)){
+                    MSG m;while(PeekMessageW(&m,nullptr,0,0,PM_REMOVE)){TranslateMessage(&m);DispatchMessageW(&m);}
+                    if(auto next=pool.TryGetNextFrame())shot=next;
+                    Sleep(5);
+                }
+                if(shot)last=read(shot);else if(last.empty())break;
+                auto const& pixels=last;++captured;
+                if(strip.empty())strip.resize(size_t(fw)*at.size()*fh*4);
+                for(UINT row=0;row<fh;++row)memcpy(strip.data()+(size_t(row)*at.size()+column)*fw*4,pixels.data()+size_t(row)*fw*4,fw*4);
+                ++column;
+            }
+            Log(L"material-film-frames",long(captured));
+            if(captured==at.size())SavePng(draw,strip,UINT(fw*at.size()),fh,output+name);
+        };
+        if(saved&&light){
+            film([&](double t){scene.RevealFrame(t);},{0,40,80,120,180,260,400,700},L"\\material-reveal.png");
+            film([&](double t){scene.LeaveFrame(t);},{0,40,80,120,160},L"\\material-leave.png");
+        }
+        session.Close();pool.Close();stage.Children().RemoveAll();scene.Close();
+        if(!saved){draw.colors=original;return false;}
+    }
+    }catch(...){draw.colors=original;throw;}
+    draw.colors=original;return true;
 }
 }

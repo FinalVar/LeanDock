@@ -493,4 +493,6 @@ Version 0.8.81 adds locally written visible-only CPU trend/clock and metric thro
 
 Version 0.8.83 reorders the locally written hover-panel sampling (inexpensive values first, deferred PDH/WMI opens, a 300 ms first rate interval), reuses the default audio endpoint while it is unchanged, prunes finished update backups beyond the newest five, and adds always-on call/time counters around LeanDock's tray and surface layout handlers. No third-party source is added.
 
+Version 0.8.84 replaces the hover panel's PDH GPU query with the public D3DKMT statistics thunks exported by gdi32; only the fields read are declared locally from the documented Windows SDK 10.0.26100 d3dkmthk.h layout and asserted at compile time. The liquid-glass composition layers, UISettings accent colors, staged reveal/leave animations and two-stage hover launch are locally written. No third-party source is added.
+
 Version 0.8.82 adds STARTF_FORCEOFFFEEDBACK only to the native hover-panel launch. Microsoft's public STARTUPINFOW contract documents default GUI startup feedback and this opt-out: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/ns-processthreadsapi-startupinfow . This is an API contract reference, not copied source or a new dependency. Suspended creation, owner publication, child lifetime and all accepted panel binaries remain unchanged.

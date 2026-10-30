@@ -1,23 +1,28 @@
 {
-  "version": "0.8.83",
-  "date": "2026-10-31T00:20:29.2139251+08:00",
-  "state": "DeployedAccepted",
-  "backendVersion": "0.5.68",
-  "panelVersion": "0.8.83",
-  "change": "Panel shows first values without waiting for PDH/WMI (300 ms warm-up for rates, GPU and brightness right after the first frame); volume enumerator reused while the default device is unchanged; hotspot profile read once per sample; brightness polled every 3 s; Update keeps the current plus 4 newest finished backups; always-on layout cost counters in latest-backend.json",
+  "version": "0.8.84",
+  "date": "2026-10-31T02:50:14+08:00",
+  "state": "DeployedAwaitingUserAcceptance",
+  "backendVersion": "0.5.69",
+  "panelVersion": "0.8.84",
+  "change": "Hover panel redesign: two-stage hover (child starts hidden and samples after 120 ms on the key, shown at 400 ms with rates already computed); GPU 3D load from public D3DKMT node statistics instead of PDH; liquid-glass composition material, system accent colors, staged reveal and 150 ms leave animation, interaction transitions; in-place surface redraw. Hit areas, layout and sampling boundaries unchanged. Design notes: docs/panel-latest.md",
   "checks": [
     "Aggregate panel and BackendOnly builds passed; only the existing hide-latest.cpp deprecation warning",
-    "Regenerated styler-latest.cpp and tray-latest.cpp differ from 0.8.82 only by the layout-cost include and scope",
-    "Controller / Start / panels binaries are the exact 0.8.78 accepted files",
-    "23 pre-deploy checks passed: runtime (91), grid, geometry, cards x4, attention, client-edge, clip-ownership, theme-notify, start-lifecycle, maintenance (including 6 backup-retention cases), shell-actions, quick-position, hotcorners, cards-aggregate, cards-aggregate-host, imports, panel lifecycle, 3 read-only probes",
-    "ValidateOnly passed before any change; Update Applied, Live, ComponentHealth Ready",
+    "Regenerated styler-latest.cpp and tray-latest.cpp identical to the committed generated files",
+    "Controller / Start / panels binaries are the exact 0.8.78 accepted files (FCA312C8 / 070939A5 / 9F5976F7)",
+    "23 pre-deploy checks passed: runtime (91), grid, geometry, cards x4, attention, client-edge, clip-ownership, theme-notify, start-lifecycle, maintenance, shell-actions, quick-position, hotcorners, cards-aggregate, cards-aggregate-host, imports, panel-lifecycle, 3 hidden probes",
+    "Hidden probe: 130 policy checks (new D3DKMT adapter-type, node-busy and transition-state cases), 86 metric checks; GPUs D58B and E20E as in 0.8.83; readOnly, no writes, no visible windows",
+    "Lifecycle fixture extended with standby reveal gate (332 checks): a hidden child never shows without its own reveal cookie, a reveal for a replaced cookie is stale, standby quit has no leave delay",
+    "Offscreen material capture (Windows.Graphics.Capture of the real composition tree over a fixture wallpaper): light/dark glass, reveal and leave filmstrips stepped from the shared timing table, reviewed visually",
+    "ValidateOnly passed before any change; Update Applied, Live, ComponentHealth Ready; only latest.dll and aggregate/latest.exe changed",
     "latest.ini, hotcorners/latest.ini and cards/latest.ini unchanged",
-    "Post-deploy aggregate autotest passed with installed files and Explorer unchanged"
+    "Post-deploy autotest AutomatedChecksPassed; installed files and Explorer unchanged during probes; no probe leftovers"
   ],
   "preDeployValidation": {
-    "At": "2026-10-31T00:16:51+08:00",
-    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.83-outputs/pre-deploy-20261031-001651",
+    "At": "2026-10-31T02:43:59+08:00",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.84-outputs/pre-deploy-20261031-024359",
     "ProbeResult": {
+      "policyChecks": 130,
+      "metricChecks": 86,
       "reads": 2,
       "writes": 0,
       "normalUser": true,
@@ -25,13 +30,19 @@
       "hiddenReadsUnchanged": true,
       "hiddenSamplingUnchanged": true,
       "stopMs": 0,
-      "brightness": 100,
       "gpus": 2
     },
-    "Note": "The runtime test was rerun separately after a path typo in the batch script; 91 checks passed"
+    "Lifecycle": {
+      "checks": 332,
+      "closeCases": 20,
+      "maximumStopMs": 47,
+      "ownedPanelWindows": 0
+    },
+    "MaterialEvidence": "control-panel-probe/material-light.png, material-dark.png, material-reveal.png, material-leave.png in each probe directory",
+    "Note": "The suite ran before the reveal-gate cases were added; the extended lifecycle fixture was then run alone and passed. Neither changes the panel binary"
   },
   "automatedValidation": {
-    "At": "2026-10-31T00:22:48.5368128+08:00",
+    "At": "2026-10-31T02:52:27.0046645+08:00",
     "State": "AutomatedChecksPassed",
     "ProbeCycles": 3,
     "Stages": [
@@ -47,12 +58,12 @@
     "ExplorerUnchanged": true,
     "ProbeLeftovers": [],
     "Observation": "NotObserved",
-    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.83-outputs/post-deploy/20261031-002120-6e55a5be"
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.84-outputs/post-deploy/20261031-025035-35f4bc23"
   },
   "deployment": {
-    "State": "DeployedAccepted",
-    "At": "2026-10-31T00:20:29.2139251+08:00",
-    "Version": "0.8.83",
+    "State": "DeployedAwaitingUserAcceptance",
+    "At": "2026-10-31T02:50:14+08:00",
+    "Version": "0.8.84",
     "Architecture": "native-taskbar",
     "Live": true,
     "ComponentHealth": {
@@ -60,21 +71,21 @@
       "Unavailable": [],
       "Pending": []
     },
-    "BackendVersion": "0.5.68",
-    "PackageFiles": 435,
-    "ChangedFiles": 201,
+    "BackendVersion": "0.5.69",
+    "PackageFiles": 439,
+    "ChangedFiles": 29,
     "RuntimeChanged": [
       "aggregate/latest.exe",
       "latest.dll"
     ],
     "RuntimeFiles": {
       "latest.exe": "FCA312C81D1BF8D8AA2E1E54A37590E584E93940F488C531187909ED9B8F6899",
-      "latest.dll": "A01D0D727B41C678FEA3CDBD29E4536CDC80D6519B82B6AF63B108E52703C2B9",
+      "latest.dll": "A473A8C3E1435246D9F193F3A5C0A5FBDA3C6CA51B5AB6E4BBDAD01EF041A104",
       "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
       "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
-      "aggregate/latest.exe": "E887362A4F766CF4B9EF73F04216FFC08C8F57847DB8D8D74EFABBCD3D70A8AE"
+      "aggregate/latest.exe": "87E07FFAC3869684F19311942902A8720756F837A7CBC8A9B984F8C9A52BF004"
     },
-    "Backup": "backups/before-0.8.83-20261031-002009994",
+    "Backup": "backups/before-0.8.84-20261031-025005007",
     "Components": {
       "DockReady": true,
       "HotCornersReady": true,
@@ -88,57 +99,61 @@
       "hotcorners/latest.ini",
       "cards/latest.ini"
     ],
-    "Runner": "PowerShell 7 in the signed-in desktop session (elevated); Windows PowerShell 5.1 misreads the UTF-8 receipt",
+    "Runner": "PowerShell 7 in the signed-in desktop session (elevated)",
     "BackupCleanup": {
-      "RecycledBeforeUpdate": 122,
-      "RecycledMiB": 195.7,
       "PrunedByUpdate": 1,
-      "PrunedBytes": 4646472,
-      "Remaining": "51 directories, 183.1 MiB (capsule-era, pre-0.7 and unfinished backups are outside the rule)",
-      "InstallDirectoryMiB": {
-        "Before": 388,
-        "After": 194.9
-      }
+      "PrunedBytes": 2244075,
+      "Remaining": "51 directories, 186 MiB (capsule-era, pre-0.7 and unfinished backups are outside the rule)"
     },
-    "LayoutCostAfterRestart": {
-      "tray": {
-        "calls": 15,
-        "micros": 4573,
-        "worstMicros": 745
-      },
-      "surface": {
-        "calls": 15,
-        "micros": 8838,
-        "worstMicros": 4216
-      }
-    }
+    "StatusNotes": [
+      "StartAttachment reports Recoveries 1 / Failures 1 after the Explorer reload (0.8.83: 0 / 0); StartLayoutReady and ComponentHealth Ready, so the existing recovery path reattached",
+      "QuickTheme rootReady/buttonReady false and failures 1, the same as after the 0.8.83 deploy (quick settings not open)"
+    ]
   },
-  "rollback": "Existing Update/Rollback transaction with backups/before-0.8.83-20261031-002009994; older backups recycled, not deleted",
+  "rollback": "Existing Update/Rollback transaction with backups/before-0.8.84-20261031-025005007",
   "preserved": [
     "0.8.78 accepted controller / Start / panels binaries",
     "native tray/pins/menus/hotcorners",
     "72x46 DIP key and 78 DIP reservation",
-    "panel exits on close; no new resident process, polling while hidden, or global cursor change"
+    "panel hit areas and 300 DIP layout",
+    "panel exits on close; no new resident process, polling while hidden, or global cursor change",
+    "panel launched only from the real hover on the native key, hash-checked, ordinary token, suspended until PID/cookie are published"
   ],
   "previousAcceptance": {
-    "version": "0.8.82",
-    "record": "docs/verification-v0.8.82-before-performance-pass.json",
-    "answer": "繁忙圈消失，面板正常",
-    "scope": "Repeated real hover: no transient busy cursor; panel opens and closes normally"
+    "version": "0.8.83",
+    "record": "docs/verification-v0.8.83.json",
+    "answer": "面板出数确实快了",
+    "scope": "Real hover after deployment: first values appear sooner"
   },
+  "notVerified": [
+    "Real HostBackdrop glass over the live desktop (offscreen capture used a BackdropBrush over a fixture wallpaper)",
+    "Real hover timing: 120 ms hidden prime, reveal at 400 ms, values complete at reveal",
+    "Compositor playback of the reveal/leave animations on the live desktop (filmstrips are stepped static frames)",
+    "Pointer-following highlight, accent colors under the user's actual theme, dark mode and transparency-off fallback on the live desktop",
+    "Leave then quick re-hover hand-off while the previous panel fades out",
+    "Busy cursor absence with the additional short standby launch on brief rests"
+  ],
   "pending": [
+    "User visual and timing acceptance of the redesigned panel",
+    "Retake docs/assets/screenshot.png after acceptance",
     "layoutCost over a normal working day, to decide whether LayoutUpdated work needs reducing"
   ],
   "sourceEvidence": [
-    "2026-10-30 measurement on this PC: PDH GPU wildcard open + first collect 307 ms (203 ms CPU), later refresh 0.5 ms; WMI ROOT\\WMI connect 55 ms, brightness query ~7 ms (first 26.6 ms); GetInternetConnectionProfile ~6.5 ms per call",
-    "Before 0.8.83 the first detail sample ran PDH and WMI before the first publish, so the panel was empty for ~0.4 s and rates needed ~1 s",
-    "Install directory held 173 update backups (376.5 MiB) because Update never removed any"
+    "2026-10-31 on this PC: D3DKMT node running time equals PDH GPU Engine values for the same engines (AMD 3D 0.50%, Copy 0.13% over 2 s); indirect-display alias (type 0x342) and software adapter (0x105) excluded",
+    "PDH GPU wildcard open + first collect measured at 307 ms in 0.8.83; D3DKMT needs no query construction",
+    "Before 0.8.84 the panel process started only at the 400 ms hover delay, so rates appeared ~0.3 s after the panel"
   ],
-  "userAcceptance": {
-    "At": "2026-10-31",
-    "Answer": "面板出数确实快了",
-    "Scope": "Real hover after deployment: first values appear sooner",
-    "Source": "Direct user reply in current conversation",
-    "Followup": "User wants a more premium panel (theme, motion, liquid glass) and no visible delay for the remaining rate metrics; tracked separately"
+  "layoutCostAfterRestart": {
+    "tray": {
+      "calls": 293,
+      "micros": 99106,
+      "worstMicros": 1054
+    },
+    "surface": {
+      "calls": 304,
+      "micros": 93167,
+      "worstMicros": 6101
+    },
+    "At": "2026-10-31T02:53 (includes autotest probes)"
   }
 }

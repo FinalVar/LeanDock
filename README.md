@@ -49,7 +49,7 @@ Dock 就是 Windows 自己的任务栏换了身衣服。拖拽、跳转列表、
 <td width="50%" valign="top">
 
 ### 🪶 轻到感觉不到
-只有一个隐藏的小进程。详情面板用的时候才启动，鼠标一走就退出，不在后台偷偷采样。
+只有一个隐藏的小进程。详情面板在鼠标停到时间键上时才启动，鼠标一走就退出，不在后台偷偷采样。
 
 </td>
 </tr>
@@ -76,6 +76,12 @@ Dock 就是 Windows 自己的任务栏换了身衣服。拖拽、跳转列表、
 
 - **看**：带秒的时间 · 农历 · CPU 和最近 60 秒趋势 · 内存 · 每块显卡各自的 3D 占用 · 网速 · 磁盘剩余 · 电量和剩余时间 · 正在播放
 - **调**：音量 · 亮度 · Wi-Fi · 蓝牙 · 深浅主题（连壁纸一起换）· 移动热点
+
+**出数快**：鼠标在时间键上停 0.12 秒，面板就在后台先开始采样；到 0.4 秒弹出时，CPU、网速、显卡占用已经是现成的数。只是路过时间键不会启动任何东西。
+
+**样子**：液态玻璃质感——背景透过来时中间柔、边缘更清透，四周有一圈受光的亮边，高光跟着鼠标走；开关和滑块跟随系统的深浅色和主题色（设置 → 个性化 → 颜色）。关掉“透明效果”就换成不透明底。
+
+**动效**：从时间键上方长出来，内容按区块由上往下依次落位；开关、悬停和滑块变化有短过渡；收起时淡出下沉。系统关闭“动画效果”时全部改为直接出现和消失。
 
 鼠标离开 0.25 秒，面板就收起。
 
@@ -181,7 +187,7 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 | Dock 和时间键 | `latest.dll` | 加载进 Explorer |
 | 开始菜单布局 | `start/latest.dll` | 加载进开始菜单的宿主进程 |
 | 快速设置定位 | `panels/latest.dll` | 加载进快速设置的宿主进程 |
-| 详情面板 | `aggregate/latest.exe` | 悬停时由 Explorer 以普通用户权限启动，收起即退出 |
+| 详情面板 | `aggregate/latest.exe` | 鼠标停在时间键上时由 Explorer 以普通用户权限启动，先隐藏采样、到时再显示，收起即退出 |
 
 - 没有托盘图标、可见窗口或 Windows 服务；运行时不需要 Windhawk、Python、Node 或 .NET。
 - 计划任务以“最高可用权限”运行，好让触发角也能作用于管理员窗口；Explorer 和详情面板不会因此提权。
@@ -202,7 +208,8 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 - 每个版本的检查和验收记录在 [docs/verification-latest.json](docs/verification-latest.json)，历史版本在 `docs/verification-v*.json`。
 - 和早期设计稿的逐项对照：[docs/aggregate-comparison-latest.md](docs/aggregate-comparison-latest.md)。
 - 改写前的旧 README（逐版本的改动说明）：[docs/readme-v0.8.82.md](docs/readme-v0.8.82.md)。
-- 首屏的 `docs/assets/screenshot.png` 是实机截图；时间键和触发角两张插图由 `docs/assets/draw-latest.py` 生成，是示意图。界面变了就重新截图，或改脚本重新生成。
+- 首屏的 `docs/assets/screenshot.png` 是实机截图，拍于 0.8.83，详情面板还是改版前的样子，等实机验收后重拍；时间键和触发角两张插图由 `docs/assets/draw-latest.py` 生成，是示意图。界面变了就重新截图，或改脚本重新生成。
+- 面板的离屏检查（`aggregate/latest.exe --hidden-probe`）除了 D2D 绘制图，还会把真实的玻璃合成树放在一张测试壁纸上，用 Windows.Graphics.Capture 读出 `material-*.png` 和按动画时序摆出的入场/收起逐帧图；它不显示窗口，也不截屏。
 
 </details>
 
@@ -216,6 +223,7 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 | 10 月 20 日 | 胶囊 0.9.x | 试过用一条独立的胶囊 Dock 取代任务栏，最后决定放弃。代码留在 `capsule/` 作为历史 |
 | 10 月 23 日 | 0.8.78 – 0.8.82 | 回到原生任务栏，小组件区换成一颗聚合时间键 |
 | 10 月 31 日 | 0.8.83 | 详情面板打开后更快出数；更新只保留最近 5 份备份 |
+| 10 月 31 日 | 0.8.84 | 详情面板改版：液态玻璃、跟随系统主题色、入场和收起动效；悬停时提前采样，弹出即有数 |
 
 ## 🙏 致谢
 

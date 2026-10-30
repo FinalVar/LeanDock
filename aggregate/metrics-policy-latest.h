@@ -33,31 +33,20 @@ inline std::vector<TrendPoint> CpuTrend(std::deque<CpuPoint> const& history,floa
 inline std::wstring PanelClock(unsigned hour,unsigned minute,unsigned second){
     wchar_t text[16]{};swprintf_s(text,L"%02u:%02u:%02u",hour,minute,second);return text;
 }
-struct GpuEngine {
-    uint32_t high{},low{},physical{},engine{};
-    auto operator<=>(GpuEngine const&)const=default;
-    uint64_t Adapter()const{return (uint64_t(high)<<32)|low;}
-};
-inline std::optional<GpuEngine> ParseGpuEngine(wchar_t const* instance){
-    if(!instance)return {};
-    auto start=wcsstr(instance,L"_luid_");if(!start)return {};
-    unsigned hi=0,lo=0,physical=0,engine=0;int used=0;
-    if(swscanf(start,L"_luid_0x%x_0x%x_phys_%u_eng_%u_engtype_3D%n",&hi,&lo,&physical,&engine,&used)!=4||used<=0)return {};
-    // PDH may suffix duplicate instances with #N. No other engine type is 3D.
-    if(start[used]&&start[used]!=L'#')return {};
-    return GpuEngine{hi,lo,physical,engine};
+// D3DKMT_ADAPTERTYPE: RenderSupported is bit 0, SoftwareDevice bit 2. An
+// indirect-display alias of a real GPU reports engines but no render bit.
+inline bool GpuRenders(unsigned type){return (type&1)&&!(type&4);}
+// Busy share of one engine node from its cumulative running time (100 ns),
+// the definition Task Manager and PDH "GPU Engine" use.
+inline double NodeBusy(int64_t before,int64_t after,double elapsed){
+    if(!(elapsed>0)||after<before)return -1;
+    return std::clamp(100.0*double(after-before)/elapsed,0.,100.);
 }
-struct GpuLoads {
-    std::map<GpuEngine,double> engines;
-    void Add(wchar_t const* instance,double percent){
-        auto key=ParseGpuEngine(instance);
-        if(key&&std::isfinite(percent)&&percent>=0)engines[*key]+=percent;
-    }
-    int ForAdapter(uint64_t luid)const{
-        double peak=-1;
-        for(auto const& [engine,value]:engines)if(engine.Adapter()==luid)peak=std::max(peak,value);
-        return peak<0?-1:int(std::lround(std::clamp(peak,0.,100.)));
-    }
+// An adapter's 3D load is its busiest 3D node; never a sum across nodes.
+struct GpuBusy {
+    double peak=-1;
+    void Add(double value){if(value>=0&&std::isfinite(value))peak=std::max(peak,value);}
+    int Percent()const{return peak<0?-1:int(std::lround(std::clamp(peak,0.,100.)));}
 };
 struct GpuSample {uint64_t luid{};std::wstring name;int percent=-1;};
 }

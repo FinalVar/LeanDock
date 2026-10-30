@@ -90,6 +90,9 @@ struct RestartBudget {
 };
 struct Curve {double x1,y1,x2,y2;};
 inline constexpr Curve Spring{.34,1.42,.55,1}, Sink{.5,0,.75,0}, Ease{.25,.1,.25,1};
+// Panel reveal: Lift carries a ~1% overshoot for the glass, Settle is a long
+// deceleration for the content that follows it in.
+inline constexpr Curve Lift{.22,1.18,.36,1}, Settle{.1,.9,.2,1};
 inline double Bezier(double t,double p1,double p2) {
     const double u=1-t;return 3*u*u*t*p1+3*u*t*t*p2+t*t*t;
 }

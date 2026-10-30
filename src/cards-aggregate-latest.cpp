@@ -45,6 +45,7 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
     Power::PowerSupplyStatusChanged_revoker supplyChanged;
     x::FrameworkElement::Unloaded_revoker unloaded;x::UIElement::ContextRequested_revoker context;
     CompactApps compact;std::wstring directory;HWND hwnd{};HANDLE child{};uintptr_t cookie{};
+    uint64_t enteredAt=0,launchedAt=0;
     bool stopped=false,busy=false,fits=false,shown=false,inside=false,ready=false,attached=false,layoutOwned=false;
     unsigned errors=0,clockUpdates=0,powerUpdates=0;int percent=-2;std::atomic<bool> queued=false;
     ~Board(){Stop();}
@@ -60,7 +61,7 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
         if(!hwnd)return;
         auto control=reinterpret_cast<HWND>(GetPropW(hwnd,a::ControlProp));
         if(a::Owned(hwnd,control,a::ControlClass))PostMessageW(control,WM_CLOSE,0,0);
-        for(auto prop:{a::CookieProp,a::PendingProp,a::WindowProp,a::ControlProp,a::PidProp})RemovePropW(hwnd,prop);
+        for(auto prop:{a::CookieProp,a::PendingProp,a::RevealProp,a::WindowProp,a::ControlProp,a::PidProp})RemovePropW(hwnd,prop);
         cookie=0;a::Refresh(hwnd);
     }
     void AlignToSurface(){
@@ -96,15 +97,43 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
             origin.x+LONG(std::lround((pos.X+card.ActualWidth())*scale)),origin.y+LONG(std::lround((pos.Y+card.ActualHeight())*scale))};
         for(unsigned i=0;i<4;++i)SetPropW(hwnd,a::BoundsProps[i],HANDLE(intptr_t(values[i])));
     }
-    void ShowPanel(){
-        hover.Stop();if(stopped||!inside||!Visible()||directory.empty())return;
-        if(child){if(WaitForSingleObject(child,0)==WAIT_TIMEOUT)return;CloseHandle(child);child=nullptr;}
+    // Hover is two-staged: after a short rest the child starts hidden and
+    // samples, then the real hover delay reveals it with values already read.
+    // A pass-over shorter than PrimeDelay starts nothing.
+    static constexpr uint64_t PrimeDelay=120,RevealDelay=400;
+    void Hover(){
+        enteredAt=GetTickCount64();hover.Stop();
+        hover.Interval(std::chrono::milliseconds(child&&WaitForSingleObject(child,0)==WAIT_TIMEOUT?RevealDelay:PrimeDelay));hover.Start();
+    }
+    void HoverTick(){
+        hover.Stop();if(stopped||!inside||!Visible())return;
+        if(child&&WaitForSingleObject(child,0)!=WAIT_TIMEOUT){CloseHandle(child);child=nullptr;}
+        if(!child&&!Launch())return;
+        const auto now=GetTickCount64(),due=enteredAt+RevealDelay;
+        // A predecessor that already withdrew its control window is closing;
+        // poll briefly until it exits, then start and reveal a fresh child.
+        if(now>=due&&Reveal())return;
+        hover.Interval(std::chrono::milliseconds(now<due?due-now:50));hover.Start();
+    }
+    bool Reveal(){
+        if(!cookie||!child||WaitForSingleObject(child,0)!=WAIT_TIMEOUT)return false;
+        auto control=reinterpret_cast<HWND>(GetPropW(hwnd,a::ControlProp));
+        const bool published=a::Owned(hwnd,control,a::ControlClass);
+        if(!published&&launchedAt<enteredAt)return false;
+        // Property first: a child publishing its control window afterwards
+        // checks it, so the reveal is never lost between the two processes.
+        SetPropW(hwnd,a::RevealProp,HANDLE(cookie));
+        if(published)PostMessageW(control,a::RevealMessage,0,0);
+        return true;
+    }
+    bool Launch(){
+        if(stopped||!inside||!Visible()||directory.empty())return false;
         PublishAnchor();ClosePanel();
         const auto path=directory+L"\\aggregate\\latest.exe";wchar_t hash[65]{};
-        if(!NativeHashFile(path.c_str(),hash)||_wcsicmp(hash,AggregatePanelHash)){Put(L"LeanDock.Card.PanelError",ERROR_INVALID_IMAGE_HASH);return;}
+        if(!NativeHashFile(path.c_str(),hash)||_wcsicmp(hash,AggregatePanelHash)){Put(L"LeanDock.Card.PanelError",ERROR_INVALID_IMAGE_HASH);return false;}
         cookie=(GetTickCount64()<<16)^uintptr_t(this);if(!cookie)cookie=1;
         SetPropW(hwnd,a::CookieProp,HANDLE(cookie));RECT anchor{};
-        if(!a::Anchor(hwnd,anchor)){ClosePanel();Put(L"LeanDock.Card.PanelError",ERROR_INVALID_DATA);return;}
+        if(!a::Anchor(hwnd,anchor)){ClosePanel();Put(L"LeanDock.Card.PanelError",ERROR_INVALID_DATA);return false;}
         std::wstring command=L"\""+path+L"\" --owner "+std::to_wstring(uintptr_t(hwnd))+L" "+std::to_wstring(cookie);
         STARTUPINFOW startup{sizeof(startup)};PROCESS_INFORMATION process{};
         // Hover is an in-place interaction. GUI process creation otherwise
@@ -114,14 +143,15 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
         // PID/cookie have been published so the child can reject stale owners.
         if(!CreateProcessW(path.c_str(),command.data(),nullptr,nullptr,FALSE,CREATE_SUSPENDED|CREATE_UNICODE_ENVIRONMENT,
                 nullptr,(directory+L"\\aggregate").c_str(),&startup,&process)){
-            const auto error=GetLastError();ClosePanel();Put(L"LeanDock.Card.PanelError",error);return;
+            const auto error=GetLastError();ClosePanel();Put(L"LeanDock.Card.PanelError",error);return false;
         }
-        child=process.hProcess;
+        child=process.hProcess;launchedAt=GetTickCount64();
         SetPropW(hwnd,a::PidProp,HANDLE(uintptr_t(process.dwProcessId)));
         SetPropW(hwnd,a::PendingProp,HANDLE(uintptr_t(GetTickCount64()+2500)));a::Refresh(hwnd);
-        if(ResumeThread(process.hThread)==DWORD(-1)){TerminateProcess(child,ERROR_CANCELLED);ClosePanel();Put(L"LeanDock.Card.PanelError",ERROR_CANCELLED);}
+        const bool resumed=ResumeThread(process.hThread)!=DWORD(-1);
+        if(!resumed){TerminateProcess(child,ERROR_CANCELLED);ClosePanel();Put(L"LeanDock.Card.PanelError",ERROR_CANCELLED);}
         else Put(L"LeanDock.Card.PanelError",0);
-        CloseHandle(process.hThread);
+        CloseHandle(process.hThread);return resumed;
     }
     void Clock(){
         if(stopped)return;SYSTEMTIME local{};GetLocalTime(&local);wchar_t t[16]{},d[16]{};
@@ -166,10 +196,10 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
         key=card.FindName(L"TimeKey").as<c::Button>();time=card.FindName(L"ClockTime").as<c::TextBlock>();date=card.FindName(L"ClockDate").as<c::TextBlock>();
         normal=card.FindName(L"RingNormal").as<x::Shapes::Path>();low=card.FindName(L"RingLow").as<x::Shapes::Path>();critical=card.FindName(L"RingCritical").as<x::Shapes::Path>();
         c::Canvas::SetZIndex(card,20);card.Visibility(x::Visibility::Collapsed);
-        auto weak=weak_from_this();clock=x::DispatcherTimer();hover=x::DispatcherTimer();hover.Interval(std::chrono::milliseconds(400));
+        auto weak=weak_from_this();clock=x::DispatcherTimer();hover=x::DispatcherTimer();
         clock.Tick([weak](auto&&,auto&&){if(auto p=weak.lock())try{p->Clock();}catch(...){p->Fail();}});
-        hover.Tick([weak](auto&&,auto&&){if(auto p=weak.lock())try{p->ShowPanel();}catch(...){p->hover.Stop();p->ClosePanel();p->Fail();}});
-        key.PointerEntered([weak](auto&&,auto&&){if(auto p=weak.lock();p&&!p->stopped){p->inside=true;p->hover.Start();}});
+        hover.Tick([weak](auto&&,auto&&){if(auto p=weak.lock())try{p->HoverTick();}catch(...){p->hover.Stop();p->ClosePanel();p->Fail();}});
+        key.PointerEntered([weak](auto&&,auto&&){if(auto p=weak.lock();p&&!p->stopped){p->inside=true;p->Hover();}});
         key.PointerExited([weak](auto&&,auto&&){if(auto p=weak.lock()){p->inside=false;p->hover.Stop();}});
         key.Click([weak](auto&&,auto&&){if(auto p=weak.lock();p&&!p->stopped&&LeanDockShell::IsTaskbar(p->hwnd,GetCurrentProcessId())){
             p->hover.Stop();p->ClosePanel();PostMessageW(p->hwnd,WM_SYSCOMMAND,SC_TASKLIST,0);

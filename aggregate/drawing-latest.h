@@ -6,6 +6,7 @@
 #include <dwrite.h>
 #include <wincodec.h>
 #include <winrt/Windows.Graphics.DirectX.h>
+#include <winrt/Windows.UI.ViewManagement.h>
 #include <functional>
 #include <map>
 
@@ -37,18 +38,41 @@ struct AppArtwork {
 inline D2D1_COLOR_F Ink(unsigned hex,float alpha=1) {
     return {float((hex>>16)&255)/255,float((hex>>8)&255)/255,float(hex&255)/255,alpha};
 }
+// Follows the system light/dark mode and accent shade the way Windows 11
+// quick settings do: the dark accent shade in light mode, the light shade in
+// dark mode, with ink chosen for contrast on the filled control.
 struct Palette {
     bool light=true;
     D2D1_COLOR_F text{},secondary{},hair{},hover{},warn{},danger{},accent{};
+    D2D1_COLOR_F onAccent{},control{},controlEdge{},track{},thumb{};
     Palette() {Refresh();}
+    static unsigned AccentShade(bool light){
+        try{
+            using namespace winrt::Windows::UI::ViewManagement;
+            const auto c=UISettings().GetColorValue(light?UIColorType::AccentDark1:UIColorType::AccentLight2);
+            return (unsigned(c.R)<<16)|(unsigned(c.G)<<8)|c.B;
+        }catch(...){return light?0x0A7470:0x3CC2B7;}
+    }
+    static float Luminance(D2D1_COLOR_F c){
+        auto linear=[](float v){return v<=.04045f?v/12.92f:std::pow((v+.055f)/1.055f,2.4f);};
+        return .2126f*linear(c.r)+.7152f*linear(c.g)+.0722f*linear(c.b);
+    }
     void Refresh() {
         DWORD v=1,n=sizeof(v);
         RegGetValueW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-            L"SystemUsesLightTheme",RRF_RT_REG_DWORD,nullptr,&v,&n);light=v;
-        text=Ink(light?0x15171B:0xECEEF2);secondary=Ink(light?0x5E6571:0x9EA5B1);
-        hair=Ink(light?0x141820:0xFFFFFF,.10f);hover=Ink(light?0x141820:0xFFFFFF,light?.07f:.08f);
-        warn=Ink(light?0xB97708:0xE6A23A);danger=Ink(light?0xD23C33:0xF06A60);
-        accent=Ink(light?0x0A7470:0x3CC2B7);
+            L"SystemUsesLightTheme",RRF_RT_REG_DWORD,nullptr,&v,&n);
+        Set(v!=0,AccentShade(v!=0));
+    }
+    void Set(bool lightMode,unsigned accentShade) {
+        light=lightMode;
+        text=Ink(light?0x121418:0xF1F3F6);secondary=Ink(light?0x4D5460:0xAAB1BC);
+        hair=Ink(light?0x141820:0xFFFFFF,light?.11f:.12f);hover=Ink(light?0x141820:0xFFFFFF,light?.06f:.07f);
+        warn=Ink(light?0xA86A00:0xEDB04E);danger=Ink(light?0xC8322A:0xFF7A70);
+        accent=Ink(accentShade);
+        onAccent=Luminance(accent)>.28f?Ink(0x0B0C0E):Ink(0xFFFFFF);
+        // Glass controls: a lighter pane with a 1 DIP lit top edge.
+        control=Ink(0xFFFFFF,light?.48f:.075f);controlEdge=Ink(0xFFFFFF,light?.85f:.16f);
+        track=Ink(light?0x141820:0xFFFFFF,light?.14f:.18f);thumb=Ink(light?0xFFFFFF:0x3A3D44);
     }
 };
 struct Drawing {
@@ -58,7 +82,7 @@ struct Drawing {
     winrt::com_ptr<IDWriteFactory> write;
     winrt::com_ptr<IWICImagingFactory> wic;
     comp::CompositionGraphicsDevice graphics{nullptr};
-    std::wstring font=L"Segoe UI";
+    std::wstring font=L"Segoe UI",figures=L"Segoe UI";
     Palette colors;
     void Init(comp::Compositor const& compositor) {
         winrt::check_hresult(D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,
@@ -78,6 +102,11 @@ struct Drawing {
         for(auto name:{L"MiSans",L"HarmonyOS Sans SC",L"Microsoft YaHei UI",L"Segoe UI"}){
             UINT32 index;BOOL exists;
             if(SUCCEEDED(collection->FindFamilyName(name,&index,&exists))&&exists){font=name;break;}
+        }
+        // Large figures use Windows 11's display optical size when present.
+        for(auto name:{L"Segoe UI Variable Display",L"Segoe UI"}){
+            UINT32 index;BOOL exists;
+            if(SUCCEEDED(collection->FindFamilyName(name,&index,&exists))&&exists){figures=name;break;}
         }
     }
     winrt::com_ptr<IDWriteTextLayout> Layout(std::wstring const& s,float size,float width,float height,
@@ -100,16 +129,27 @@ struct Drawing {
             layout->SetTypography(type.get(),{0,UINT32(s.size())});
         }return layout;
     }
-    float Measure(std::wstring const& s,float size,bool semi=false) {
-        auto layout=Layout(s,size,4096,64,semi);DWRITE_TEXT_METRICS m{};layout->GetMetrics(&m);
+    float Measure(std::wstring const& s,float size,bool semi=false,const wchar_t* face=nullptr) {
+        auto layout=Layout(s,size,4096,64,semi,false,face);DWRITE_TEXT_METRICS m{};layout->GetMetrics(&m);
         return std::ceil(m.widthIncludingTrailingWhitespace);
+    }
+    static float Baseline(IDWriteTextLayout* layout) {
+        DWRITE_LINE_METRICS line{};UINT32 count=0;layout->GetLineMetrics(&line,1,&count);
+        DWRITE_TEXT_METRICS m{};layout->GetMetrics(&m);return m.top+line.baseline;
     }
     comp::CompositionDrawingSurface Surface(float width,float height,float dpi,
         std::function<void(ID2D1DeviceContext*)> paint) {
+        comp::CompositionDrawingSurface surface{nullptr};Redraw(surface,width,height,dpi,paint);return surface;
+    }
+    // Repaint in place: the brush and visuals that show this surface stay.
+    void Redraw(comp::CompositionDrawingSurface& surface,float width,float height,float dpi,
+        std::function<void(ID2D1DeviceContext*)> paint) {
         using namespace winrt::Windows::Graphics::DirectX;
-        auto surface=graphics.CreateDrawingSurface({std::ceil(width*dpi),std::ceil(height*dpi)},
+        const winrt::Windows::Foundation::Size size{std::ceil(width*dpi),std::ceil(height*dpi)};
+        if(!surface)surface=graphics.CreateDrawingSurface(size,
             DirectXPixelFormat::B8G8R8A8UIntNormalized,DirectXAlphaMode::Premultiplied);
         auto interop=surface.as<CapsuleDrawingInterop>();
+        if(surface.Size()!=size)winrt::check_hresult(interop->Resize({LONG(size.Width),LONG(size.Height)}));
         winrt::com_ptr<ID2D1DeviceContext> dc;POINT offset{};
         winrt::check_hresult(interop->BeginDraw(nullptr,__uuidof(ID2D1DeviceContext),dc.put_void(),&offset));
         try {
@@ -120,7 +160,7 @@ struct Drawing {
             dc->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
             paint(dc.get());
         }catch(...){interop->EndDraw();throw;}
-        winrt::check_hresult(interop->EndDraw());return surface;
+        winrt::check_hresult(interop->EndDraw());
     }
     void Text(ID2D1DeviceContext* dc,std::wstring const& s,Rect r,float size,D2D1_COLOR_F color,
               bool semi=false,bool right=false) {
@@ -135,6 +175,25 @@ struct Drawing {
     void Line(ID2D1DeviceContext* dc,float x,float y,float xx,float yy,D2D1_COLOR_F color,float width=1) {
         winrt::com_ptr<ID2D1SolidColorBrush> b;winrt::check_hresult(dc->CreateSolidColorBrush(color,b.put()));
         dc->DrawLine({x,y},{xx,yy},b.get(),width);
+    }
+    winrt::com_ptr<ID2D1LinearGradientBrush> Gradient(ID2D1DeviceContext* dc,D2D1_POINT_2F from,D2D1_POINT_2F to,
+        std::initializer_list<D2D1_GRADIENT_STOP> stops) {
+        winrt::com_ptr<ID2D1GradientStopCollection> collection;
+        winrt::check_hresult(dc->CreateGradientStopCollection(stops.begin(),UINT32(stops.size()),collection.put()));
+        winrt::com_ptr<ID2D1LinearGradientBrush> brush;
+        winrt::check_hresult(dc->CreateLinearGradientBrush({from,to},collection.get(),brush.put()));return brush;
+    }
+    void Fill(ID2D1DeviceContext* dc,Rect r,float radius,ID2D1Brush* brush) {
+        dc->FillRoundedRectangle({{float(r.x),float(r.y),float(r.x+r.w),float(r.y+r.h)},radius,radius},brush);
+    }
+    void Stroke(ID2D1DeviceContext* dc,Rect r,float radius,ID2D1Brush* brush,float width=1) {
+        dc->DrawRoundedRectangle({{float(r.x),float(r.y),float(r.x+r.w),float(r.y+r.h)},radius,radius},brush,width);
+    }
+    // A hairline that fades out at both ends instead of stopping abruptly.
+    void Rule(ID2D1DeviceContext* dc,float x,float y,float xx,D2D1_COLOR_F color) {
+        auto clear=color;clear.a=0;
+        auto brush=Gradient(dc,{x,y},{xx,y},{{0,clear},{.12f,color},{.88f,color},{1,clear}});
+        dc->FillRectangle({x,y-.5f,xx,y+.5f},brush.get());
     }
     winrt::com_ptr<IWICBitmap> Bitmap(HBITMAP image) {
         // Shell's ICONONLY image contains straight BGRA (verified against the

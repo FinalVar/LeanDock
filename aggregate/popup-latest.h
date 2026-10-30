@@ -70,6 +70,7 @@ class Popup {
 public:
     HWND window{};
     Scene scene;
+    comp::CompositionDrawingSurface surface{nullptr};
     Drawing* draw{};
     float dpi=1,width=300,height=340,radius=14;
     Rect rect{};
@@ -98,10 +99,10 @@ public:
         SetWindowPos(window,HWND_TOPMOST,int(std::lround(left-32*dpi)),int(std::lround(top-32*dpi)),
             int(std::ceil((width+64)*dpi)),int(std::ceil((height+64)*dpi)),SWP_NOACTIVATE);
     }
-    void Paint(std::function<void(ID2D1DeviceContext*)> painter) {
-        auto surface=draw->Surface(width,height,dpi,painter);
-        scene.content.Children().RemoveAll();
-        scene.content.Children().InsertAtTop(draw->Visual(scene.compositor,surface,width,height));
+    // One surface redrawn in place; cuts split it into reveal bands.
+    void Paint(std::function<void(ID2D1DeviceContext*)> painter,std::vector<float> const& cuts={}) {
+        draw->Redraw(surface,width,height,dpi,painter);
+        scene.Content(surface,cuts);
     }
     bool Hit(double x,double y)const {return visible&&RoundedHit(rect,x,y,radius*dpi);}
     int Index(float y)const{
@@ -128,6 +129,13 @@ public:
         ShowWithoutActivation(window);
         if(menu)SetForegroundWindow(window);
     }
+    // Stop taking input at once and fade out; Hide() follows after the delay.
+    int Leave() {
+        visible=false;hover=-1;if(pointerCancel)pointerCancel();
+        if(window&&GetCapture()==window)ReleaseCapture();
+        if(window&&!transparent){transparent=true;SetWindowLongPtrW(window,GWL_EXSTYLE,GetWindowLongPtrW(window,GWL_EXSTYLE)|WS_EX_TRANSPARENT);}
+        return scene.FloatHide(Animations());
+    }
     void Hide() {visible=false;hover=-1;
         if(pointerCancel)pointerCancel();if(window&&GetCapture()==window)ReleaseCapture();
         if(window)ShowWindow(window,SW_HIDE);}
@@ -145,7 +153,7 @@ public:
             }
         });
     }
-    void Destroy() {Hide();scene.Close();if(window){DestroyWindow(window);window=nullptr;}}
+    void Destroy() {Hide();surface=nullptr;scene.Close();if(window){DestroyWindow(window);window=nullptr;}}
     ~Popup(){Destroy();}
 };
 inline float MenuHeight(std::vector<MenuItem> const& items){
