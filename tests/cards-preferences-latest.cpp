@@ -7,7 +7,7 @@ int wmain(int argc,wchar_t** argv){
     using namespace LeanDockCards;int count=0,failures=0;
     auto check=[&](bool ok,const char* name){++count;if(!ok){++failures;std::printf("FAIL %s\n",name);}};
     PageOrder order;check(order.pages.front()==Page::Clock,"first use defaults to clock");
-    check(order.Step(Page::Clock,1)==Page::Power&&order.Step(Page::Clock,-1)==Page::Network,"default order both directions");
+    check(order.Step(Page::Clock,1)==Page::Metrics&&order.Step(Page::Clock,-1)==Page::Media,"dashboard default order both directions");
     for(auto key:{L"",L"clock,",L",clock",L"clock,,media",L"clock,clock",L"CLOCK",L"metrics,nonsense",L"    "})
         check(!ParseOrder(key),"reject invalid order");
     check(!ParseOrder(std::wstring(129,L'x')),"reject oversized preference");

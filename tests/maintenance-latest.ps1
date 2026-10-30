@@ -91,6 +91,16 @@ $after.StartLayoutBlocked=$true
 Check (@(Get-LeanDockReadinessFailures $after $required).Count -eq 3) 'blocked host overrides stale active flags'
 Check (@(Get-LeanDockReadinessRequirements ([pscustomobject]@{Running=$false})).Count -eq 0) 'stopped installation has no live baseline'
 Reject {Get-LeanDockReadinessFailures $before @('MisspelledComponent')} 'unknown requirements cannot silently pass'
+$edge=$before|ConvertTo-Json -Depth 5|ConvertFrom-Json
+$edge|Add-Member -NotePropertyName ClientEdge -NotePropertyValue ([pscustomobject]@{Supported=$true;Ready=$true;RetryScheduled=$false})
+Check ('ClientEdgeReady' -in @(Get-LeanDockReadinessRequirements $edge)) 'ready bottom-edge adapter joins recovery contract'
+$edge.ClientEdge.Ready=$false
+Check ('ClientEdgeReady' -in @(Get-LeanDockReadinessFailures $edge @('ClientEdgeReady'))) 'failed bottom-edge adapter cannot pass readiness'
+Check ('ClientEdge' -in (Get-LeanDockComponentHealth $edge).Unavailable) 'core Live does not conceal missing bottom edge'
+$edge.ClientEdge.RetryScheduled=$true
+Check ('ClientEdge' -in (Get-LeanDockComponentHealth $edge).Pending) 'bounded bottom-edge recovery is reported pending'
+$edge.ClientEdge.Ready=$true;$edge.ClientEdge.RetryScheduled=$false
+Check ((Get-LeanDockComponentHealth $edge).State -eq 'Ready') 'bottom-edge recovery clears health warning'
 # Replay the actual bounded readiness function with observations, no real waits
 # or desktop calls. First sample has a delayed companion, the next is healthy.
 $confirm=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Confirm-Readiness'},$false)
