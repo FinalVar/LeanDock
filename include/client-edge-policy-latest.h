@@ -5,7 +5,8 @@
 #include <iterator>
 
 // Public shell contract, not an Explorer ABI hook. This deliberately excludes
-// non-maximized, non-resizable/fullscreen windows and unrelated applications.
+// non-maximized and non-resizable/fullscreen windows. The shared package
+// identity remains narrow; generic edge repair requires separate live evidence.
 namespace LeanDockClientEdgePolicy {
 inline bool Eligible(bool visible,bool minimized,bool maximized,LONG_PTR style,
                      const RECT& window,const RECT& monitor) {
@@ -19,6 +20,21 @@ inline bool Identity(const wchar_t* family,const wchar_t* image) {
     constexpr wchar_t suffix[]=L"\\app\\ChatGPT.exe";
     const size_t n=wcslen(image),m=std::size(suffix)-1;
     return n>m && !_wcsicmp(image+n-m,suffix);
+}
+inline bool BottomResize(LRESULT hit) {
+    return hit==HTBOTTOM || hit==HTBOTTOMLEFT || hit==HTBOTTOMRIGHT;
+}
+inline bool BorderInset(LONG_PTR exStyle,const RECT& frame,const RECT& monitor,int dpi) {
+    // A visible inset plus a native resize hit distinguishes an invisible
+    // sizing border from genuine full-screen content. Unknown data is a no-op.
+    const auto gap=monitor.bottom-frame.bottom;
+    return !(exStyle&(WS_EX_TOPMOST|WS_EX_TOOLWINDOW)) &&
+        frame.right>frame.left && frame.bottom>frame.top && dpi>=48 && dpi<=768 &&
+        gap>0 && gap<=MulDiv(16,dpi,96);
+}
+inline bool ResizeObstruction(bool ownsEdge,LRESULT hit,LONG_PTR exStyle,
+                              const RECT& frame,const RECT& monitor,int dpi) {
+    return ownsEdge && BottomResize(hit) && BorderInset(exStyle,frame,monitor,dpi);
 }
 // Shared read-only identity check for the shell edge and hot-corner policies.
 // Do not infer identity from a caption, a file name alone, or NonRudeHWND.
