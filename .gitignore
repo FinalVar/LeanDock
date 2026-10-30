@@ -36,3 +36,11 @@ maintenance/*.json
 # Local investigation files and the independent ChatGPT startup experiment.
 /work/
 /integrations/chatgpt-admin-startup/
+# Component-local build intermediates and probe output that are regenerated.
+/aggregate/build/
+/aggregate/control-panel-probe/
+/aggregate/*-probe-latest.json
+/aggregate/*-probe-latest.txt
+# Pre-change copies kept for local diffing; versioned evidence lives in docs/.
+*.json.before-*
+*.md.before-*
