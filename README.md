@@ -166,8 +166,7 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 - `latest.ini`：日志和诊断开关，默认都关。
 - `cards/latest.ini` 和 `Cards` 动作属于旧版小组件，当前不起作用，只为能回退而保留。
 
-> [!CAUTION]
-> 不要按 `latest.exe` 这个文件名批量结束进程。要停止请用 `Stop`。
+> ⛔ **不要按 `latest.exe` 这个文件名批量结束进程。** 要停止请用 `Stop`。
 
 </details>
 
