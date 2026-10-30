@@ -8,6 +8,9 @@
 #include "shell-actions-latest.h"
 #include "shell-menu-latest.h"
 #include "backdrop-resume-latest.h"
+#include "icon-optics-latest.h"
+#include <winrt/Windows.UI.Xaml.Media.Imaging.h>
+#include <winrt/Windows.Storage.Streams.h>
 #include "clip-ownership-latest.h"
 #include <commctrl.h>
 #include <xamlom.h>
@@ -63,6 +66,7 @@ void ForgetElementId(InstanceHandle handle);
 void ApplyCustomizations(ElementId elementId,
                          winrt::Windows::UI::Xaml::FrameworkElement element,
                          PCWSTR fallbackClassName);
+namespace LeanDockSwitcher { void Record(winrt::Windows::UI::Xaml::FrameworkElement const&) noexcept; void Attach(ElementId, winrt::Windows::UI::Xaml::FrameworkElement const&) noexcept; void Remove(ElementId) noexcept; void Clear() noexcept; }
 void CleanupCustomizations(ElementId elementId);
 void QueueDiagnosticsRelease(InstanceHandle handle);
 void FlushDiagnosticsReleasesIfQuiet();
@@ -1484,15 +1488,17 @@ struct ClickThroughTaskbarState {
     winrt::weak_ref<Controls::Grid> menuAnchorParent;
     winrt::weak_ref<Controls::MenuFlyout> menuFocusFlyout;
     winrt::event_token menuFocusOpened{};
+    std::shared_ptr<bool> menuClosing;
+    winrt::event_token menuClosingToken{}, menuClosedToken{};
+    winrt::weak_ref<Controls::MenuFlyout> menuReopenFlyout;
+    winrt::event_token menuReopenClosed{};
     winrt::weak_ref<Controls::Control> menuFocusItem;
     winrt::event_token menuFocusGot{};
-    ULONGLONG menuPointerAt{};
+    ULONGLONG menuPointerAt{}, menuPlacementAt{};
     winrt::weak_ref<Controls::Grid> contextRoot;
     UIElement::ContextRequested_revoker contextRequested;
     winrt::weak_ref<Controls::Grid> contextTrayRoot;
     UIElement::ContextRequested_revoker contextTrayRequested;
-    winrt::weak_ref<Shapes::Rectangle> divider;
-    winrt::weak_ref<Controls::Grid> dividerParent;
     winrt::weak_ref<Controls::Grid> material;
     winrt::weak_ref<Controls::Canvas> materialHost;
     winrt::weak_ref<Shapes::Rectangle> materialSource;
@@ -7105,7 +7111,7 @@ void UpdateClickThroughRegion(ClickThroughTaskbarState& state) {
         }
         const int left=origin.x-windowRect.left+std::lround(span.X*scale);
         LeanDockGeometry::Publish(topLevelWnd,left,left+std::lround(span.Width*scale),std::lround(span.Height*scale));
-        UpdateLeanDockDivider(state);
+        UpdateLeanDockSurface(state);
     }
     // LayoutUpdated is frequent; only re-apply when the result actually
     // changes.
@@ -7410,7 +7416,7 @@ void HandleClickThroughIslandRoot(
 void ClearClickThroughRegions() {
     StopLeanDockBackdrops();
     for(auto& state:g_clickThroughTaskbarState) {
-        ClearLeanDockDivider(state);
+        ClearLeanDockSurface(state);
         if(state.islandHwnd)LeanDockGeometry::Clear(GetAncestor(state.islandHwnd,GA_ROOT));
     }
     for (const auto& [topLevelWnd, appliedRgnBox] :
@@ -7722,6 +7728,8 @@ void HandleVirtualizingRepeater(ElementId elementId, FrameworkElement element) {
         });
 }
 
+#include "icon-optics-latest.inc"
+
 void MergeResourceVariables();
 
 void ApplyCustomizations(ElementId elementId,
@@ -7744,6 +7752,8 @@ void ApplyCustomizations(ElementId elementId,
     // Before the early return below: a repeater rarely has styles of its own,
     // but its item elements do.
     HandleVirtualizingRepeater(elementId, element);
+    LeanDockIconView::Attach(elementId, element);
+    LeanDockSwitcher::Attach(elementId, element);
 
     // Everything below holds `state` across calls that run arbitrary XAML work
     // and can re-enter, so keep the entry from being reaped underneath it.
@@ -7813,6 +7823,7 @@ void ApplyCustomizations(ElementId elementId,
             std::move(overridesForVisualStateGroup),
             elementCustomizationStateForVisualStateGroup);
     }
+    LeanDockSwitcher::Record(element);
 }
 
 // The diagnostics create a runtime object which holds every element they
@@ -7993,6 +8004,8 @@ void StopDiagnosticsReleases() {
 }
 
 void CleanupCustomizations(ElementId elementId) {
+    LeanDockIconView::Remove(elementId);
+    LeanDockSwitcher::Remove(elementId);
     // Unconditional: a repeater, or an item element which matched no rule, has
     // no customization state but can still have virtualization bookkeeping.
     g_virtualizingRepeaters.erase(elementId);
@@ -8909,6 +8922,9 @@ std::optional<bool> IsOsFeatureEnabled(UINT32 featureId) {
     return std::nullopt;
 }
 
+#include "switcher-style-latest.inc"
+#include "switcher-confirm-latest.inc"
+
 void ProcessAllStylesFromSettings() {
     AddElementCustomizationRules(L"Taskbar.ExperienceToggleButton#LaunchListButton[AutomationProperties.AutomationId=StartButton]", {L"Visibility=Collapsed"});
     AddElementCustomizationRules(L":root > ScrollViewer > ScrollContentPresenter > Border > Grid", {L"ColumnDefinitions:=<ColumnDefinitionCollection><ColumnDefinition Width=\"*\"/><ColumnDefinition Width=\"Auto\"/><ColumnDefinition Width=\"Auto\"/><ColumnDefinition Width=\"*\"/></ColumnDefinitionCollection>", L"ActualWidth=>containerGridWidth"});
@@ -8929,6 +8945,7 @@ void ProcessAllStylesFromSettings() {
     AddElementCustomizationRules(L"SystemTray.OmniButton#ControlCenterButton > * > SystemTray.IconView > Grid#ContainerGrid > Border#BackgroundBorder", {L"Opacity=0"});
     AddElementCustomizationRules(L"Grid#IconPanel > Border#MultiWindowElement, Taskbar.TaskListLabeledButtonPanel > Border#MultiWindowElement", {L"Opacity=0", L"IsHitTestVisible=False"});
     AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.Gripper#GripperControl", {L"Visibility=Collapsed"});
+    LeanDockSwitcher::AddRules();
     g_resourceVariables.clear();
 }
 
@@ -8965,6 +8982,8 @@ void UninitializeResourceVariables() {
 }
 
 void UninitializeForCurrentThread() {
+    LeanDockIconView::Clear();
+    LeanDockSwitcher::Clear();
     // Drop the click-through subclasses before restoring the windows below.
     // ClearClickThroughRegions calls SetWindowRgn, which sends
     // WM_WINDOWPOSCHANGED synchronously, and a still-attached subclass would

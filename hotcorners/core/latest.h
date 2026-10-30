@@ -4,7 +4,7 @@
 namespace nhc {
 struct Point { int x, y; };
 struct Rect { int left, top, right, bottom; };
-enum Action { None, TaskView, ShowDesktop, StartMenu, LockScreen };
+enum Action { None, TaskView, ShowDesktop, StartMenu, LockScreen, AppSwitcher };
 struct Config {
     unsigned delay = 0;
     int cornerDelay[4] = { -1, -1, -1, -1 }; // absent override inherits delay

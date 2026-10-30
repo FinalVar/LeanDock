@@ -1,0 +1,16 @@
+{
+  "Module": "taskbar.dll",
+  "Sha256": "CA1E335AC1FAE5FF57519035302A2F365C4620D3A230F31F1231AF7331760741",
+  "Symbol": "public: struct tagSIZE __cdecl TaskbarHost::IconSizeInViewPixels(void)const",
+  "Rva": 167740,
+  "SourceCalls": [
+    { "Kind": "Cache", "Function": "IconContainer::RecreateStorage", "ReturnRva": 166092 },
+    { "Kind": "Win32", "Function": "ShellIconLoaderV2::UpdateMembers", "ReturnRva": 330957 },
+    { "Kind": "Packaged", "Function": "CWinRTAppIconLoader::RuntimeClassInitialize", "ReturnRva": 245369 },
+    { "Kind": "Placeholder", "Function": "PlaceholderTileIconLoader::LoadPlaceholderTileIconAsync", "ReturnRva": 1426326 },
+    { "Kind": "Website", "Function": "PinnedWebsiteIconLoader::RuntimeClassInitialize", "ReturnRva": 1429984 }
+  ],
+  "DisplayCalls": [
+    { "Function": "CTaskListWnd::GetIconSizeInViewPixels", "ReturnRva": 1386168 }
+  ]
+}

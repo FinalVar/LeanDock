@@ -1,11 +1,23 @@
 #include "../core/latest.h"
 #include "../actions/latest.h"
 #include "../fullscreen/latest.h"
+#include "../start-menu/policy-latest.h"
 #include <stdio.h>
+#include <initializer_list>
 using namespace nhc;
 static int checks, failed;
 static void Check(bool ok, const char* name) { ++checks; if (!ok) { ++failed; printf("FAIL %s\n", name); } }
 int main() {
+    StartGate start;
+    Check(start.Poll(1,false,false,false)==StartGateResult::Idle,"no deferred input without a corner request");
+    start.Arm(AppSwitcher,3,100);
+    Check(start.Poll(110,true,true,false)==StartGateResult::Wait,"Start must close before switcher input");
+    Check(start.Poll(150,false,true,false)==StartGateResult::Wait,"cloaked Start must also release foreground");
+    Check(start.Poll(180,false,false,false)==StartGateResult::Execute,"continue only after shell popup has closed");
+    Check(start.Poll(799,true,true,false)==StartGateResult::Wait,"bounded wait before deadline");
+    Check(start.Poll(800,false,false,false)==StartGateResult::Cancel,"late callbacks cannot dispatch expired input");
+    Check(start.Poll(200,false,false,true)==StartGateResult::Cancel,"new user input or session change cancels deferred input");
+    start.Clear();Check(start.Poll(201,false,false,false)==StartGateResult::Idle,"stop clears pending action");
     Rect displays[] = {{0,0,1920,1080}, {-1280,-200,0,824}, {1920,300,4480,1740}};
     Config cfg; cfg.delay=250; cfg.cooldown=500;
     for (auto& a : cfg.actions) a = TaskView;
@@ -72,7 +84,7 @@ int main() {
     Check(e.Expire(displays,3,{1919,1079},defaults,8003,false)==TaskView,"leave and reenter fires without cooldown");
     e.Reset(); e.Observe(displays,3,{0,1079},defaults,8100,true);
     Check(e.Expire(displays,3,{0,1079},defaults,8100,true)==None,"immediate mode retains drag and fullscreen suppression");
-    INPUT input[4];
+    INPUT input[ActionInputCapacity];
     Config lockConfig;lockConfig.actions[0]=LockScreen;e.Reset();
     e.Observe(displays,3,{0,0},lockConfig,9000,false);
     Check(e.Expire(displays,3,{0,0},lockConfig,9000,false)==LockScreen,"top-left immediate lock action");
@@ -116,6 +128,70 @@ int main() {
     Check(input[1].ki.wVk==VK_TAB && input[1].ki.dwFlags==0 && input[2].ki.wVk==VK_TAB && input[2].ki.dwFlags==KEYEVENTF_KEYUP,"Tab is paired and not an extended key");
     Check(input[3].ki.wVk==VK_LWIN && input[3].ki.dwFlags==(KEYEVENTF_EXTENDEDKEY|KEYEVENTF_KEYUP),"Task View releases extended Windows key last");
     Check(BuildActionInput(ShowDesktop,input)==4 && input[1].ki.wVk=='D',"optional Show Desktop uses Win D");
+    Check(BuildActionInput(AppSwitcher,input)==6,"persistent switcher uses a complete six-event chord");
+    const WORD switchKeys[]{VK_LCONTROL,VK_LMENU,VK_TAB,VK_TAB,VK_LMENU,VK_LCONTROL};
+    const WORD switchScans[]{0x1d,0x38,0x0f,0x0f,0x38,0x1d};
+    for(unsigned i=0;i<6;++i) {
+        Check(input[i].type==INPUT_KEYBOARD && input[i].ki.wVk==switchKeys[i] &&
+              input[i].ki.wScan==switchScans[i] && input[i].ki.dwFlags==(i<3?0:KEYEVENTF_KEYUP),
+              "switcher presses left Ctrl/Alt/Tab then releases every key in reverse order");
+    }
+    for(WORD key:{static_cast<WORD>(VK_LCONTROL),static_cast<WORD>(VK_LMENU),static_cast<WORD>(VK_TAB)})
+        Check(AnyActionKeyHeld(input,6,[key](WORD value){return value==key;}),"held chord key prevents synthetic press/release");
+    Check(!AnyActionKeyHeld(input,6,[](WORD value){return value=='Q';}),"unrelated key is not treated as a chord key");
+    Check(AnyActionKeyHeld(input,7,[](WORD){return false;}),"invalid input length fails closed");
+    Check(BuildActionInput(AppSwitcher,input,true)==2,"visible native switcher gets a paired Escape instead of reopening chord");
+    Check(input[0].ki.wVk==VK_ESCAPE && input[0].ki.wScan==0x01 && input[0].ki.dwFlags==0 &&
+          input[1].ki.wVk==VK_ESCAPE && input[1].ki.dwFlags==KEYEVENTF_KEYUP,"cancel presses and releases only Escape");
+    Check(AnyActionKeyHeld(input,2,[](WORD key){return key==VK_ESCAPE;}),"user-held Escape suppresses cancellation");
+    Check(!AnyActionKeyHeld(input,2,[](WORD key){return key==VK_TAB;}),"dismissal does not release user-held Tab");
+    Check(BuildActionInput(ShowDesktop,input,true)==4 && input[1].ki.wVk=='D',"switcher visibility cannot change left-corner action");
+    for(unsigned sent=0;sent<=2;++sent) {
+        BuildActionInput(AppSwitcher,input,true);
+        INPUT recovery[ActionInputCapacity];
+        unsigned n=BuildReleaseInput(input,2,sent,recovery);
+        Check(n==(sent==1?1u:0u),"Escape cleanup covers empty partial and full submissions");
+        if(n) Check(recovery[0].ki.wVk==VK_ESCAPE && recovery[0].ki.dwFlags==KEYEVENTF_KEYUP,"partial cancel releases exactly injected Escape");
+    }
+    // Model the keyboard state for every possible accepted prefix. Recovery
+    // must clear exactly our outstanding downs, without creating new presses.
+    for(Action action:{StartMenu,TaskView,ShowDesktop,AppSwitcher}) {
+        const unsigned count=BuildActionInput(action,input);
+        for(unsigned sent=0;sent<=count;++sent) {
+            bool held[256]{};
+            for(unsigned i=0;i<sent;++i) held[input[i].ki.wVk]=!(input[i].ki.dwFlags&KEYEVENTF_KEYUP);
+            INPUT releases[ActionInputCapacity];
+            const unsigned releaseCount=BuildReleaseInput(input,count,sent,releases);
+            bool valid=releaseCount<=3;
+            for(unsigned i=0;i<releaseCount;++i) {
+                const auto& release=releases[i];
+                valid=valid && release.type==INPUT_KEYBOARD && (release.ki.dwFlags&KEYEVENTF_KEYUP) && held[release.ki.wVk];
+                held[release.ki.wVk]=false;
+                if(release.ki.wVk==VK_LWIN) valid=valid && (release.ki.dwFlags&KEYEVENTF_EXTENDEDKEY);
+            }
+            for(bool state:held) valid=valid && !state;
+            Check(valid,"every accepted prefix releases only injected held keys with the correct extended flag");
+            if(sent==0 || sent==count) Check(releaseCount==0,"zero or complete submission needs no cleanup");
+        }
+    }
+    BuildActionInput(AppSwitcher,input);
+    INPUT releases[ActionInputCapacity];
+    Check(BuildReleaseInput(input,6,3,releases)==3 && releases[0].ki.wVk==VK_TAB &&
+          releases[1].ki.wVk==VK_LMENU && releases[2].ki.wVk==VK_LCONTROL,"partial switcher releases Tab before Alt and Ctrl");
+    Config switcher;switcher.actions[0]=LockScreen;switcher.cornerDelay[0]=500;
+    switcher.actions[2]=ShowDesktop;switcher.actions[3]=AppSwitcher;e={};
+    e.Observe(displays,3,{1919,1079},switcher,16500,false);
+    Check(e.Expire(displays,3,{1919,1079},switcher,16500,false)==AppSwitcher,"configured right corner opens switcher immediately");
+    e.Observe(displays,3,{1900,1060},switcher,16501,false);
+    e.Observe(displays,3,{1919,1079},switcher,16502,false);
+    Check(e.Expire(displays,3,{1919,1079},switcher,16502,false)==None,"switcher cannot repeat from corner jitter");
+    e.Observe(displays,3,{1800,900},switcher,16503,false);
+    e.Observe(displays,3,{1919,1079},switcher,16504,false);
+    Check(e.Expire(displays,3,{1919,1079},switcher,16504,false)==AppSwitcher,"switcher rearms after leaving 32 pixel region");
+    e={};e.Observe(displays,3,{1919,1079},switcher,16505,true);
+    Check(e.Expire(displays,3,{1919,1079},switcher,16505,true)==None,"switcher retains drag/modifier/fullscreen entry suppression");
+    e.Observe(displays,3,{1919,1079},switcher,16506,false);
+    Check(e.Expire(displays,3,{1919,1079},switcher,16506,false)==None,"releasing a guard while still in corner cannot open switcher");
     const RECT monitor{0,0,2560,1600},full=monitor,gap{0,0,2560,1598};
     const LONG_PTR gptStyle=0x15070000; // live maximized frameless GPT window
     Check(!SuppressFullscreen(gptStyle,full,monitor,true,true),"verified GPT maximization remains usable when DWM reaches screen edge");

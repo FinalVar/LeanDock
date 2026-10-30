@@ -1,0 +1,15 @@
+{
+  "path": "C:\\Windows\\System32\\twinui.pcshell.dll",
+  "sha256": "8BA440EDED430A2417692A98B34695A12AD0EE000333DFED07E0C2723E17111C",
+  "guid": "9507f3da-d47f-5f02-6569-fc50273c40d7",
+  "age": 1,
+  "pdb": "twinui.pcshell.pdb",
+  "url": "https://msdl.microsoft.com/download/symbols/twinui.pcshell.pdb/9507F3DAD47F5F026569FC50273C40D71/twinui.pcshell.pdb",
+  "timestamp": 3162946381,
+  "imageSize": 10113024,
+  "symbol": "?DisplayAltTab@XamlAltTabViewHost@@AEAAXXZ",
+  "rva": 104492,
+  "dbiAge": 1,
+  "publicInfoAge": 2,
+  "version": "10.0.26100.9278"
+}

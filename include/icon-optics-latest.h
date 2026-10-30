@@ -1,0 +1,47 @@
+#pragma once
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <span>
+
+// Alpha bounds, not executable names or replacement artwork. The longest
+// visible edge determines scale; aspect ratio and all original pixels remain.
+namespace LeanDockIcons {
+struct Fit {
+    bool valid{};
+    double scale{1}, x{}, y{}; // translation as a fraction of the square icon box
+    int left{}, top{}, right{}, bottom{};
+};
+inline Fit Measure(std::span<const uint8_t> bgra,int width,int height) noexcept {
+    Fit fit;
+    if(width<2||height<2||width>1024||height>1024||
+       bgra.size()!=size_t(width)*size_t(height)*4)return fit;
+    unsigned maximum=0;
+    for(size_t i=3;i<bgra.size();i+=4)maximum=std::max(maximum,unsigned(bgra[i]));
+    if(maximum<32)return fit; // empty/fading/unsupported capture: keep native
+    // Half coverage keeps resampled edge fringes/shadows from expanding the
+    // contour; relative coverage also supports intentionally translucent art.
+    const unsigned threshold=std::max(16u,maximum/2);
+    int left=width,top=height,right=0,bottom=0,count=0;
+    for(int y=0;y<height;++y)for(int x=0;x<width;++x)
+        if(bgra[(size_t(y)*width+x)*4+3]>=threshold){
+            left=std::min(left,x);top=std::min(top,y);
+            right=std::max(right,x+1);bottom=std::max(bottom,y+1);++count;
+        }
+    if(count<std::max(4,width*height/100))return fit;
+    // A rectangular source is uniformly fitted in the native square icon
+    // box, so both axes use its longest edge, not two independent scales.
+    const double canvas=std::max(width,height);
+    const double extent=std::max(right-left,bottom-top)/canvas;
+    if(extent<0.40)return fit; // tiny glyph/placeholder: don't invent its scale
+    fit.valid=true;fit.left=left;fit.top=top;fit.right=right;fit.bottom=bottom;
+    fit.scale=std::clamp(1.0/extent,1.0,1.35);
+    fit.x=(width-double(left+right))/(2*canvas)*fit.scale;
+    fit.y=(height-double(top+bottom))/(2*canvas)*fit.scale;
+    // Suppress subpixel sampling noise on already full-sized artwork.
+    if(fit.scale<1.02&&std::abs(fit.x)<0.01&&std::abs(fit.y)<0.01)
+        fit.scale=1,fit.x=fit.y=0;
+    return fit;
+}
+}

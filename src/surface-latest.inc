@@ -24,11 +24,71 @@ bool IsLeanDockMenuCaller(void* caller) {
         (g_nativeMenuShowRight&&start==reinterpret_cast<DWORD64>(g_nativeMenuShowRight));
 }
 void ClearLeanDockMenuFocus(ClickThroughTaskbarState& state) noexcept {
-    state.menuPointerAt=0;
+    state.menuPointerAt=0;state.menuPlacementAt=0;
+    try{if(auto flyout=state.menuFocusFlyout.get()){
+        if(state.menuClosingToken.value)flyout.Closing(state.menuClosingToken);
+        if(state.menuClosedToken.value)flyout.Closed(state.menuClosedToken);
+    }}catch(...){}
+    state.menuClosing.reset();state.menuClosingToken={};state.menuClosedToken={};
     try{if(auto flyout=state.menuFocusFlyout.get();flyout&&state.menuFocusOpened.value)flyout.Opened(state.menuFocusOpened);}catch(...){}
     try{if(auto item=state.menuFocusItem.get();item&&state.menuFocusGot.value)item.GotFocus(state.menuFocusGot);}catch(...){}
     state.menuFocusFlyout={};state.menuFocusOpened={};
     state.menuFocusItem={};state.menuFocusGot={};
+}
+void ClearLeanDockMenuReopen(ClickThroughTaskbarState& state) noexcept {
+    try{if(auto flyout=state.menuReopenFlyout.get();flyout&&state.menuReopenClosed.value)flyout.Closed(state.menuReopenClosed);}catch(...){}
+    state.menuReopenFlyout={};state.menuReopenClosed={};
+    if(state.islandHwnd)for(auto key:{L"LeanDock.Menu.ReopenPending",L"LeanDock.Menu.ReopenAt"})
+        RemovePropW(GetAncestor(state.islandHwnd,GA_ROOT),key);
+}
+LeanDockMenu::Reopen LeanDockMenu::ReopenVisible(const Gesture& next) {
+    if(ReopenPending(next.taskbar,GetTickCount64()))return Reopen::Pending;
+    for(auto& state:g_clickThroughTaskbarState){
+        if(state.cardsClosing||!state.islandHwnd||GetAncestor(state.islandHwnd,GA_ROOT)!=next.taskbar)continue;
+        try{
+            auto menu=state.menuFocusFlyout.get();
+            if(!menu||(!menu.IsOpen()&&(!state.menuClosing||!*state.menuClosing)))continue;
+            auto frame=state.taskbarFrame.get();if(!frame||!frame.IsLoaded())return Reopen::Failed;
+            ClearLeanDockMenuReopen(state);
+            static std::atomic<ULONG_PTR> serial{0};
+            const auto ticket=++serial;
+            if(!SetPropW(next.taskbar,L"LeanDock.Menu.ReopenPending",reinterpret_cast<HANDLE>(ticket)))return Reopen::Failed;
+            if(!SetPropW(next.taskbar,L"LeanDock.Menu.ReopenAt",reinterpret_cast<HANDLE>(static_cast<ULONG_PTR>(next.at)))){
+                ClaimReopen(next.taskbar,ticket);return Reopen::Failed;
+            }
+            auto weakMenu=winrt::make_weak(menu);
+            auto weakFrame=winrt::make_weak(frame);
+            auto token=std::make_shared<winrt::event_token>();
+            *token=menu.Closed([weakMenu,weakFrame,token,next,ticket](auto const&,auto const&) noexcept {
+                try{
+                    if(auto flyout=weakMenu.get())flyout.Closed(*token);
+                    auto frame=weakFrame.get();
+                    if(!frame||!frame.IsLoaded()||!Fresh(next,GetTickCount64())){ClaimReopen(next.taskbar,ticket);return;}
+                    // Native Closed handlers finish first. This is one dispatcher
+                    // turn, not a timer or a synthetic second click.
+                    frame.Dispatcher().RunAsync(winrt::Windows::UI::Core::CoreDispatcherPriority::Normal,[weakFrame,next,ticket]() noexcept {
+                        if(!ClaimReopen(next.taskbar,ticket))return;
+                        try{
+                            auto frame=weakFrame.get();
+                            if(!frame||!frame.IsLoaded()||!Fresh(next,GetTickCount64()))return;
+                            // The consumed ticket deduplicates this real gesture;
+                            // the previous opening's 200ms window must not drop it.
+                            Put(next.taskbar,L"LeanDock.Menu.ReopenSubmitted",Submit(next,false));
+                        }catch(...){Put(next.taskbar,L"LeanDock.Menu.ReopenError",static_cast<ULONG_PTR>(winrt::to_hresult()));}
+                    });
+                }catch(...){ClaimReopen(next.taskbar,ticket);Put(next.taskbar,L"LeanDock.Menu.ReopenError",static_cast<ULONG_PTR>(winrt::to_hresult()));}
+            });
+            state.menuReopenFlyout=weakMenu;state.menuReopenClosed=*token;
+            Put(next.taskbar,L"LeanDock.Menu.ReopenCount",std::max<ULONG_PTR>(1,reinterpret_cast<ULONG_PTR>(GetPropW(next.taskbar,L"LeanDock.Menu.ReopenCount"))));
+            if(menu.IsOpen())menu.Hide(); // a native light-dismiss may already be closing it
+            return Reopen::Pending;
+        }catch(...){
+            ClearLeanDockMenuReopen(state);
+            Put(next.taskbar,L"LeanDock.Menu.ReopenError",static_cast<ULONG_PTR>(winrt::to_hresult()));
+            return Reopen::Failed;
+        }
+    }
+    return Reopen::NotOpen;
 }
 bool SetLeanDockPointerFocus(Controls::Control const& item,HWND taskbar,ULONGLONG requested) noexcept {
     try{
@@ -50,63 +110,113 @@ void WINAPI ShowLeanDockFlyout(Controls::Primitives::FlyoutBase* value,const Dep
         auto element=target->try_as<FrameworkElement>();
         if(menu&&element)for(auto& state:g_clickThroughTaskbarState){
             auto frame=state.taskbarFrame.get();
-            if(state.cardsClosing||!state.menuPointerAt||!frame||!state.islandHwnd||
+            if(state.cardsClosing||!state.menuPlacementAt||!frame||!state.islandHwnd||
                frame.XamlRoot()!=element.XamlRoot())continue;
             const HWND taskbar=GetAncestor(state.islandHwnd,GA_ROOT);
-            const auto requested=state.menuPointerAt;
+            const auto requested=state.menuPlacementAt;
+            const bool pointer=state.menuPointerAt!=0;
             ClearLeanDockMenuFocus(state); // consume before calling into XAML
             if(!LeanDockMenu::Fresh({taskbar,{},requested},GetTickCount64()))break;
             auto weak=winrt::make_weak(menu);
-            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusItemCount",menu.Items().Size());
-            for(auto const& item:menu.Items()){
-                auto control=item.try_as<Controls::Control>();
-                if(!control||!control.IsEnabled()||control.Visibility()!=Visibility::Visible)continue;
-                auto weakItem=winrt::make_weak(control);
-                auto focusToken=std::make_shared<winrt::event_token>();
-                *focusToken=control.GotFocus([weakItem,focusToken,taskbar,requested](auto const&,auto const&) noexcept {
-                    try{if(auto item=weakItem.get()){
-                        LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusGot",reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Menu.FocusGot")));
-                        if(!LeanDockMenu::Fresh({taskbar,{},requested},GetTickCount64())||
-                           SetLeanDockPointerFocus(item,taskbar,requested))item.GotFocus(*focusToken);
-                    }}catch(...){}
+            // Keep the native flyout's lifecycle for both launch modes, so a
+            // subsequent real card right-click can reopen a keyboard menu.
+            // Keyboard calls retain native focus and accelerator hints.
+            if(pointer){
+                LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusItemCount",menu.Items().Size());
+                for(auto const& item:menu.Items()){
+                    auto control=item.try_as<Controls::Control>();
+                    if(!control||!control.IsEnabled()||control.Visibility()!=Visibility::Visible)continue;
+                    auto weakItem=winrt::make_weak(control);
+                    auto focusToken=std::make_shared<winrt::event_token>();
+                    *focusToken=control.GotFocus([weakItem,focusToken,taskbar,requested](auto const&,auto const&) noexcept {
+                        try{if(auto item=weakItem.get()){
+                            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusGot",reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Menu.FocusGot")));
+                            if(!LeanDockMenu::Fresh({taskbar,{},requested},GetTickCount64())||
+                               SetLeanDockPointerFocus(item,taskbar,requested))item.GotFocus(*focusToken);
+                        }}catch(...){}
+                    });
+                    state.menuFocusItem=weakItem;state.menuFocusGot=*focusToken;
+                    break;
+                }
+                auto token=std::make_shared<winrt::event_token>();
+                *token=menu.Opened([weak,token,taskbar,requested](auto const&,auto const&) noexcept {
+                    try{
+                        auto flyout=weak.get();if(!flyout)return;
+                        LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusOpened",reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Menu.FocusOpened")));
+                        if(!LeanDockMenu::Fresh({taskbar,{},requested},GetTickCount64())){flyout.Opened(*token);return;}
+                        // A windowed popup can have a distinct focus scope from
+                        // the placement target. Inspect its own items directly.
+                        for(auto const& item:flyout.Items())if(auto control=item.try_as<Controls::Control>();control&&control.FocusState()!=FocusState::Unfocused){
+                            if(SetLeanDockPointerFocus(control,taskbar,requested))flyout.Opened(*token);
+                            break;
+                        }
+                    }catch(...){LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusError",static_cast<ULONG_PTR>(winrt::to_hresult()));}
                 });
-                state.menuFocusItem=weakItem;state.menuFocusGot=*focusToken;
-                break;
+                state.menuFocusOpened=*token;
+                LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusArmed",1);
             }
-            auto token=std::make_shared<winrt::event_token>();
-            *token=menu.Opened([weak,token,taskbar,requested](auto const&,auto const&) noexcept {
-                try{
-                    auto flyout=weak.get();if(!flyout)return;
-                    LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusOpened",reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Menu.FocusOpened")));
-                    if(!LeanDockMenu::Fresh({taskbar,{},requested},GetTickCount64())){flyout.Opened(*token);return;}
-                    // A windowed popup can have a distinct focus scope from
-                    // the placement target. Inspect its own items directly.
-                    for(auto const& item:flyout.Items())if(auto control=item.try_as<Controls::Control>();control&&control.FocusState()!=FocusState::Unfocused){
-                        if(SetLeanDockPointerFocus(control,taskbar,requested))flyout.Opened(*token);
-                        break;
-                    }
-                }catch(...){LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusError",static_cast<ULONG_PTR>(winrt::to_hresult()));}
+            state.menuFocusFlyout=weak;
+            auto closing=std::make_shared<bool>(false);state.menuClosing=closing;
+            state.menuClosingToken=menu.Closing([closing,taskbar](auto const&,auto const&) noexcept {
+                *closing=true;LeanDockMenu::Put(taskbar,L"LeanDock.Menu.Closing",1);
             });
-            state.menuFocusFlyout=weak;state.menuFocusOpened=*token;
-            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusArmed",1);
+            state.menuClosedToken=menu.Closed([closing,taskbar](auto const&,auto const&) noexcept {
+                *closing=false;LeanDockMenu::Put(taskbar,L"LeanDock.Menu.Closing",0);
+            });
             break;
         }
     }catch(...){Wh_Log(L"LeanDock pointer menu focus unavailable: %08X",winrt::to_hresult());}
     g_nativeFlyoutShow(value,target,options);
 }
 unsigned char WINAPI ShowLeanDockNativeMenu(FrameworkElement* source,void* model,void* frameArg,void* coordinator) {
-    for(auto& state:g_clickThroughTaskbarState)ClearLeanDockMenuFocus(state);
+    for(auto& state:g_clickThroughTaskbarState){
+        ClearLeanDockMenuReopen(state);ClearLeanDockMenuFocus(state);
+        if(!state.cardsClosing&&state.islandHwnd){
+            const HWND taskbar=GetAncestor(state.islandHwnd,GA_ROOT);
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.NativeCalls",std::max<ULONG_PTR>(1,reinterpret_cast<ULONG_PTR>(GetPropW(taskbar,L"LeanDock.Menu.NativeCalls"))));
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.NativeStage",0);
+            for(auto key:{L"LeanDock.Menu.NativeAnchor",L"LeanDock.Menu.Invocation",L"LeanDock.Menu.Error",L"LeanDock.Menu.FocusArmed",L"LeanDock.Menu.PointerFocus",L"LeanDock.Menu.FocusBefore",L"LeanDock.Menu.FocusAfter",L"LeanDock.Menu.FocusError"})
+                LeanDockMenu::Put(taskbar,key,0);
+        }
+    }
     LeanDockMenu::Gesture gesture;
-    if(source&&LeanDockMenu::Take(gesture))try {
+    const bool pointer=LeanDockMenu::Take(gesture);
+    HWND taskbar=nullptr;
+    if(source&&*source)try {
+        const auto sourceRoot=source->XamlRoot();
+        if(pointer)LeanDockMenu::Put(gesture.taskbar,L"LeanDock.Menu.NativeStage",1);
         for(auto& state:g_clickThroughTaskbarState){
-            if(state.cardsClosing||!state.islandHwnd||GetAncestor(state.islandHwnd,GA_ROOT)!=gesture.taskbar)continue;
-            auto frame=state.taskbarFrame.get();if(!frame||!source->XamlRoot()||source->XamlRoot()!=frame.XamlRoot())break;
+            if(state.cardsClosing||!state.islandHwnd)continue;
+            const HWND candidate=GetAncestor(state.islandHwnd,GA_ROOT);
+            if(pointer&&candidate!=gesture.taskbar)continue;
+            auto frame=state.taskbarFrame.get();
+            if(!frame||!frame.IsLoaded()||!sourceRoot||sourceRoot!=frame.XamlRoot())continue;
+            taskbar=candidate;
+            if(!LeanDockShell::IsTaskbar(taskbar,GetCurrentProcessId()))break;
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.Invocation",pointer?1:2);
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.NativeStage",3); // matching native XAML root
             if(Media::VisualTreeHelper::GetChildrenCount(frame)<1)break;
             auto root=Media::VisualTreeHelper::GetChild(frame,0).try_as<Controls::Grid>();if(!root)break;
             RECT dock{};MONITORINFO monitor{};
-            if(!LeanDockGeometry::Read(gesture.taskbar,dock,&monitor))break;
+            if(!LeanDockGeometry::Read(taskbar,dock,&monitor))break;
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.NativeStage",4); // geometry ready
             const double scale=frame.XamlRoot().RasterizationScale();if(scale<=0)break;
-            POINT point=LeanDockMenu::AnchorPoint(gesture.click,dock,GetDpiForWindow(gesture.taskbar));
+            POINT point{};
+            if(pointer)point=LeanDockMenu::AnchorPoint(gesture.click,dock,GetDpiForWindow(taskbar));
+            else{
+                // The shell selected the XAML root/monitor. Resolve that root's
+                // current card directly, never from the mouse or old properties.
+                auto card=state.cards?state.cards->MenuTarget():FrameworkElement{nullptr};
+                if(!card||card.XamlRoot()!=sourceRoot)break;
+                auto bounds=card.TransformToVisual(sourceRoot.Content()).TransformBounds(
+                    {0,0,float(card.ActualWidth()),float(card.ActualHeight())});
+                if(!std::isfinite(bounds.X)||!std::isfinite(bounds.Y)||!std::isfinite(bounds.Width)||!std::isfinite(bounds.Height))break;
+                POINT origin{};if(!ClientToScreen(state.islandHwnd,&origin))break;
+                const RECT cardRect{origin.x+std::lround(bounds.X*scale),origin.y+std::lround(bounds.Y*scale),
+                    origin.x+std::lround((bounds.X+bounds.Width)*scale),origin.y+std::lround((bounds.Y+bounds.Height)*scale)};
+                if(!LeanDockMenu::CardAnchor(cardRect,dock,GetDpiForWindow(taskbar),point))break;
+            }
+            const POINT screenPoint=point;
             if(!ScreenToClient(state.islandHwnd,&point))break;
             auto local=root.TransformToVisual(frame.XamlRoot().Content()).Inverse().TransformPoint(
                 winrt::Windows::Foundation::Point{float(point.x/scale),float(point.y/scale)});
@@ -120,13 +230,17 @@ unsigned char WINAPI ShowLeanDockNativeMenu(FrameworkElement* source,void* model
             }
             Media::TranslateTransform offset;offset.X(local.X);offset.Y(local.Y);anchor.RenderTransform(offset);anchor.UpdateLayout();
             *source=anchor; // native coroutine now owns the correct XAML anchor
-            state.menuPointerAt=gesture.at;
-            LeanDockMenu::Put(gesture.taskbar,L"LeanDock.Menu.NativeAnchor",1);
-            LeanDockMenu::Put(gesture.taskbar,L"LeanDock.Menu.AnchorX100",std::lround(local.X*100));
-            LeanDockMenu::Put(gesture.taskbar,L"LeanDock.Menu.AnchorY100",std::lround(local.Y*100));
+            state.menuPlacementAt=pointer?gesture.at:GetTickCount64();
+            state.menuPointerAt=pointer?gesture.at:0;
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.NativeAnchor",1);
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.NativeStage",5); // anchor applied
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.AnchorX100",std::lround(local.X*100));
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.AnchorY100",std::lround(local.Y*100));
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.ScreenX",static_cast<ULONG_PTR>(static_cast<LONG_PTR>(screenPoint.x)));
+            LeanDockMenu::Put(taskbar,L"LeanDock.Menu.ScreenY",static_cast<ULONG_PTR>(static_cast<LONG_PTR>(screenPoint.y)));
             break;
         }
-    }catch(...){LeanDockMenu::Put(gesture.taskbar,L"LeanDock.Menu.Error",static_cast<ULONG_PTR>(winrt::to_hresult()));}
+    }catch(...){LeanDockMenu::Put(taskbar,L"LeanDock.Menu.Error",static_cast<ULONG_PTR>(winrt::to_hresult()));}
     return g_nativeDockMenu(source,model,frameArg,coordinator);
 }
 void InstallLeanDockMenuHook() {
@@ -145,20 +259,18 @@ void InstallLeanDockMenuHook() {
     WindhawkUtils::HookSymbols(module,focusHooks,ARRAYSIZE(focusHooks));
 }
 
-enum class DockContextTarget { Unknown, Background, Card, Native };
+using DockContextTarget=LeanDockContext::Target;
 DockContextTarget ClassifyDockContext(DependencyObject node,FrameworkElement const& frame,
                                      FrameworkElement const& tray,HWND taskbar) {
-    bool native=false;
+    LeanDockContext::Classifier classifier;
+    const bool nativePowerMapped=GetPropW(taskbar,L"LeanDock.Card.NativePowerHit")!=nullptr;
     for(unsigned depth=0;node&&depth<32;++depth,node=Media::VisualTreeHelper::GetParent(node)){
         auto fe=node.try_as<FrameworkElement>();if(!fe)continue;
         const auto name=fe.Name();
-        if(name==L"LeanDockCard"||name==L"LeanDockPowerCard"||
-           (name==L"ControlCenterButton"&&GetPropW(taskbar,L"LeanDock.Card.NativePowerHit")))return DockContextTarget::Card;
         const auto type=winrt::get_class_name(fe);
-        if(fe.try_as<Controls::Primitives::ButtonBase>()||type==L"SystemTray.NotifyIconView"||
-           type==L"SystemTray.IconView"||type==L"Taskbar.TaskListButtonPanel"||
-           name==L"NotifyItemIcon")native=true;
-        if(fe==frame||fe==tray)return native?DockContextTarget::Native:DockContextTarget::Background;
+        const auto result=classifier.Visit(name,type,bool(fe.try_as<Controls::Control>()),
+                                          fe==frame||fe==tray,nativePowerMapped);
+        if(result!=DockContextTarget::Unknown)return result;
     }
     return DockContextTarget::Unknown;
 }
@@ -178,9 +290,9 @@ void BindLeanDockContext(ClickThroughTaskbarState& state,FrameworkElement const&
             if(e.Handled()||!e.TryGetPosition(sender,point)||
                !LeanDockShell::IsTaskbar(taskbar,GetCurrentProcessId()))return;
             const auto target=ClassifyDockContext(e.OriginalSource().try_as<DependencyObject>(),frame.get(),tray.get(),taskbar);
-            if(target!=DockContextTarget::Card&&target!=DockContextTarget::Background)return;
+            if(LeanDockContext::Route(target)==LeanDockContext::Action::Pass)return;
             e.Handled(true); // ownership does not depend on SendInput succeeding
-            LeanDockMenu::Consume(taskbar,target==DockContextTarget::Card?
+            LeanDockMenu::HandleContext(taskbar,target,target==DockContextTarget::Card?
                 LeanDockMenu::ContextSource::XamlCard:LeanDockMenu::ContextSource::XamlBackground);
         }catch(...){LeanDockMenu::Put(taskbar,L"LeanDock.Menu.ContextError",static_cast<ULONG_PTR>(winrt::to_hresult()));}
     });
@@ -189,9 +301,9 @@ void BindLeanDockContext(ClickThroughTaskbarState& state,FrameworkElement const&
 
 #include "material-latest.inc"
 
-// The material uses the existing backdrop composition brush. This hairline
-// follows NextKDE DockDivider's centered, short-line proportions.
-void UpdateLeanDockDivider(ClickThroughTaskbarState& state) try {
+// Own the material, native context routes and aggregate key. The compact key
+// replaces the old dashboard; no decorative separator remains beside it.
+void UpdateLeanDockSurface(ClickThroughTaskbarState& state) try {
     if(state.cardsClosing)return;
     auto frame=state.taskbarFrame.get();
     if(!frame || !state.systemTrayFrame.get())return;
@@ -205,29 +317,13 @@ void UpdateLeanDockDivider(ClickThroughTaskbarState& state) try {
     if(state.cards && state.islandHwnd)state.cards->Update(
         GetAncestor(state.islandHwnd,GA_ROOT),frame.XamlRoot().Size().Width,
         state.systemTrayFrame.get().ActualWidth());
-    if(state.divider.get())return;
-    auto line=Markup::XamlReader::Load(LR"xaml(
-<Rectangle xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
- <Rectangle.Fill><LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1" Opacity="0.30">
-  <GradientStop Offset="0" Color="Transparent"/><GradientStop Offset="0.18" Color="{ThemeResource SystemBaseHighColor}"/>
-  <GradientStop Offset="0.82" Color="{ThemeResource SystemBaseHighColor}"/><GradientStop Offset="1" Color="Transparent"/>
- </LinearGradientBrush></Rectangle.Fill>
-</Rectangle>)xaml").as<Shapes::Rectangle>();
-    line.Name(L"LeanDockDivider");line.Width(1);line.Height(40);
-    line.RadiusX(0.5);line.RadiusY(0.5);
-    line.HorizontalAlignment(HorizontalAlignment::Right);
-    line.VerticalAlignment(VerticalAlignment::Center);
-    line.Margin(Thickness{0,0,2,0});line.IsHitTestVisible(false);
-    Media::TranslateTransform offset;offset.X(12);line.RenderTransform(offset);
-    Controls::Canvas::SetZIndex(line,10);
-    root.Children().Append(line);state.divider=winrt::make_weak(line);
-    state.dividerParent=winrt::make_weak(root);
-} catch(...) { Wh_Log(L"LeanDock divider waiting for a stable visual tree"); }
-void ClearLeanDockDivider(ClickThroughTaskbarState& state) {
+} catch(...) { Wh_Log(L"LeanDock surface waiting for a stable visual tree"); }
+void ClearLeanDockSurface(ClickThroughTaskbarState& state) {
     ClearLeanDockMaterial(state);
     state.contextRequested.revoke();state.contextTrayRequested.revoke();
     state.contextRoot={};state.contextTrayRoot={};
-    if(state.islandHwnd)for(auto key:{L"LeanDock.Menu.ContextSource",L"LeanDock.Menu.ContextCount",L"LeanDock.Menu.ContextSubmitted",L"LeanDock.Menu.ContextError"})
+    ClearLeanDockMenuReopen(state);
+    if(state.islandHwnd)for(auto key:{L"LeanDock.Menu.ContextSource",L"LeanDock.Menu.ContextCount",L"LeanDock.Menu.ContextSubmitted",L"LeanDock.Menu.ContextError",L"LeanDock.Menu.ContextTarget",L"LeanDock.Menu.BlankSuppressed",L"LeanDock.Menu.ReopenCount",L"LeanDock.Menu.ReopenSubmitted",L"LeanDock.Menu.ReopenError",L"LeanDock.Menu.NativeCalls",L"LeanDock.Menu.NativeStage",L"LeanDock.Menu.Invocation",L"LeanDock.Menu.ScreenX",L"LeanDock.Menu.ScreenY"})
         RemovePropW(GetAncestor(state.islandHwnd,GA_ROOT),key);
     LeanDockMenu::Cancel();
     ClearLeanDockMenuFocus(state);
@@ -236,9 +332,6 @@ void ClearLeanDockDivider(ClickThroughTaskbarState& state) {
     state.menuAnchor={};state.menuAnchorParent={};
     state.cardsClosing=true;
     if(state.cards){state.cards->Stop();state.cards.reset();}
-    auto parent=state.dividerParent.get();auto line=state.divider.get();
-    if(parent && line){uint32_t index=0;if(parent.Children().IndexOf(line,index))parent.Children().RemoveAt(index);}
-    state.divider={};state.dividerParent={};
 }
 void LeanDockTimeChanged(HWND taskbar) {
     for(auto& state:g_clickThroughTaskbarState)if(!state.cardsClosing&&state.cards&&state.islandHwnd&&
@@ -249,8 +342,8 @@ void LeanDockPreferencesChanged(HWND taskbar) {
         GetAncestor(state.islandHwnd,GA_ROOT)==taskbar)state.cards->ReloadPreferences();
 }
 
-// Intercept only the taskbar's background context menu. Application jump
-// lists and notification icons retain their native, separate right-clicks.
+// Cards alone open Win+X. Empty background is consumed without a menu.
+// Application jump lists and notification icons keep their native routes.
 bool HandleLeanDockContext(HWND window,LPARAM position) try {
     if(position==LPARAM(-1))return false; // leave keyboard focus handling native
     for(auto& state:g_clickThroughTaskbarState){
@@ -264,9 +357,7 @@ bool HandleLeanDockContext(HWND window,LPARAM position) try {
             winrt::Windows::Foundation::Point{float(pt.x/scale),float(pt.y/scale)},content,false).First();
         if(!hits.HasCurrent())return false;
         const auto target=ClassifyDockContext(hits.Current(),frame,state.systemTrayFrame.get(),window);
-        if(target==DockContextTarget::Card||target==DockContextTarget::Background)
-            return LeanDockMenu::Consume(window,LeanDockMenu::ContextSource::WindowMessage);
-        return false;
+        return LeanDockMenu::HandleContext(window,target,LeanDockMenu::ContextSource::WindowMessage);
     }
     return false;
 }catch(...){return false;}

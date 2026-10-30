@@ -4,6 +4,9 @@
 #include <iterator>
 #include "start-host-latest.h"
 #include "quick-host-latest.h"
+#ifdef LEANDOCK_CAPSULE_SEARCH
+#include "search-host-latest.h"
+#endif
 
 // Discovery only. Both native UI threads adjust pending placement themselves;
 // no SHOW -> timer -> second move, and no restoration during HIDE/CLOAKED.
@@ -13,6 +16,9 @@ inline bool active;
 inline unsigned failures;
 inline int Kind(HWND w) {
     if(!w || GetAncestor(w,GA_ROOT)!=w)return -1;
+#ifdef LEANDOCK_CAPSULE_SEARCH
+    if(LeanDockSearch::Host(w))return 2;
+#endif
     wchar_t cls[96]{};GetClassNameW(w,cls,std::size(cls));
     const bool quick=!wcscmp(cls,L"ControlCenterWindow");
     if(!quick && wcscmp(cls,L"Windows.UI.Core.CoreWindow"))return -1;
@@ -26,7 +32,11 @@ inline int Kind(HWND w) {
 }
 inline void Discover(HWND w) {
     if(!active)return;
-    switch(Kind(w)){case 0:LeanDockStart::Attach(w);break;case 1:LeanDockQuickHost::Attach(w);break;}
+    switch(Kind(w)){case 0:LeanDockStart::Attach(w);break;case 1:LeanDockQuickHost::Attach(w);break;
+#ifdef LEANDOCK_CAPSULE_SEARCH
+        case 2:LeanDockSearchHost::Attach(w);break;
+#endif
+    }
 }
 inline void CALLBACK Event(HWINEVENTHOOK,DWORD event,HWND w,LONG object,LONG child,DWORD,DWORD) {
     if(!active || object!=OBJID_WINDOW || child!=CHILDID_SELF)return;

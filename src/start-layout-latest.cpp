@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include "panel-position-latest.h"
+#include "start-position-latest.h"
 #include "start-protocol-latest.h"
 #undef GetCurrentTime
 #include <winrt/Windows.Foundation.h>
@@ -96,7 +97,7 @@ static void WriteStatus() noexcept {
   unsigned items=0,groups=0;size_t applied=0;
   for(auto const& entry:state->lists)if(auto target=entry->target.get())if(target.ItemsSource()==entry->view){++applied;items+=entry->count;groups+=entry->groups;}
   char text[900];auto bytes=snprintf(text,sizeof(text),
-    "{\"version\":\"0.1.4\",\"pid\":%lu,\"ownerPid\":%lu,\"active\":%s,\"lists\":%zu,\"items\":%u,\"sourceGroups\":%u,\"lockedSelectors\":%zu,\"columns\":%u,\"rows\":%u,\"panelWidth\":%.3f,\"panelHeight\":%.3f,\"passes\":%u,\"failures\":%u,\"initFailures\":%u,\"initResult\":%ld,\"initStage\":\"%s\",\"watchMode\":\"events\"}\n",
+    "{\"version\":\"0.1.5\",\"pid\":%lu,\"ownerPid\":%lu,\"active\":%s,\"lists\":%zu,\"items\":%u,\"sourceGroups\":%u,\"lockedSelectors\":%zu,\"columns\":%u,\"rows\":%u,\"panelWidth\":%.3f,\"panelHeight\":%.3f,\"passes\":%u,\"failures\":%u,\"initFailures\":%u,\"initResult\":%ld,\"initStage\":\"%s\",\"watchMode\":\"events\"}\n",
     GetCurrentProcessId(),state->owner,state->active?"true":"false",applied,items,groups,state->selectors.size(),state->columns,state->rows,state->panelWidth,state->panelHeight,state->passes,state->failures,state->initFailures,state->initResult,state->initStage);
   HANDLE file=CreateFileW(path,GENERIC_WRITE,FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
   if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,text,bytes,&written,nullptr);CloseHandle(file);}
@@ -278,7 +279,11 @@ static bool FitMenu(std::vector<x::FrameworkElement> const& elements,std::vector
  const double body=rows*cellHeight+header.ActualHeight()+padding.Top+padding.Bottom+inset.Top+inset.Bottom;
  const double desired=top+body+bottom+edge.Top+edge.Bottom+rootPadding.Top+rootPadding.Bottom;
  // Retain the system height limit and native scrolling on small work areas.
- const double limit=std::min(frame.MaxHeight(),(monitor.rcWork.bottom-monitor.rcWork.top)/scale-frame.Margin().Top);
+  RECT client{};
+  const double workHeight=monitor.rcWork.bottom-monitor.rcWork.top;
+  const double areaHeight=GetClientRect(state->host,&client)&&client.bottom>client.top?
+   std::min(workHeight,double(client.bottom-client.top)):workHeight;
+  const double limit=std::min(frame.MaxHeight(),areaHeight/scale-frame.Margin().Top);
  const double height=std::min(desired,limit);
  if(height<top+bottom+cellHeight+rootPadding.Top+rootPadding.Bottom){RestoreSizing();return true;}
  SetSizing(enforcer,x::UIElement::VisibilityProperty(),x::Visibility::Collapsed);
@@ -364,7 +369,9 @@ static void Restore(bool position) {
  for(auto key:{LeanDockStartProtocol::Active,LeanDockStartProtocol::Owner,LeanDockStartProtocol::Adjustments})RemovePropW(state->host,key);
  RECT current{};
  if(position && state->moved && GetWindowRect(state->host,&current) && EqualRect(&current,&state->applied))
-  SetWindowPos(state->host,nullptr,state->original.left,state->original.top,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOOWNERZORDER);
+   SetWindowPos(state->host,nullptr,state->original.left,state->original.top,
+    state->original.right-state->original.left,state->original.bottom-state->original.top,
+    SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOOWNERZORDER);
  state->moved=false;
  if(state->ownerWait){SetThreadpoolWait(state->ownerWait,nullptr,nullptr);WaitForThreadpoolWaitCallbacks(state->ownerWait,TRUE);CloseThreadpoolWait(state->ownerWait);state->ownerWait=nullptr;}
  if(state->ownerProcess){CloseHandle(state->ownerProcess);state->ownerProcess=nullptr;}
@@ -412,9 +419,11 @@ static void Position(WINDOWPOS& pos) {
  if(!(pos.flags&SWP_NOSIZE)){requested.right=requested.left+pos.cx;requested.bottom=requested.top+pos.cy;}
  RECT dock{},native{};MONITORINFO monitor{};
  if(!LeanDockPlacement::DockFor(requested,dock,monitor) ||
-    !LeanDockPlacement::Adjust(pos,current,dock,monitor.rcMonitor,GetDpiForWindow(state->host),false,&native))return;
- if(!state->moved || native.left!=state->applied.left || native.top!=state->applied.top)state->original=native;
- state->applied={pos.x,pos.y,pos.x+native.right-native.left,pos.y+native.bottom-native.top};state->moved=true;
+    !LeanDockStartPlacement::Adjust(pos,current,dock,monitor.rcMonitor,GetDpiForWindow(state->host),&native))return;
+  if(!state->moved || !EqualRect(&native,&state->applied))state->original=native;
+  const LONG width=(pos.flags&SWP_NOSIZE)?current.right-current.left:pos.cx;
+  const LONG height=(pos.flags&SWP_NOSIZE)?current.bottom-current.top:pos.cy;
+  state->applied={pos.x,pos.y,pos.x+width,pos.y+height};state->moved=true;
  SetPropW(state->host,LeanDockStartProtocol::Adjustments,reinterpret_cast<HANDLE>(++state->moves));
 }
 static LRESULT CALLBACK WindowProc(HWND w,UINT message,WPARAM p,LPARAM l,UINT_PTR,DWORD_PTR) {
@@ -484,6 +493,9 @@ extern "C" __declspec(dllexport) LRESULT CALLBACK LeanDockStartHook(int code,WPA
  }
  return CallNextHookEx(nullptr,code,p,l);
 }
+#ifdef LEANDOCK_CAPSULE_SEARCH
+#include "search-position-latest.inc"
+#endif
 BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,void*) {
  if(reason==DLL_PROCESS_ATTACH){module=instance;DisableThreadLibraryCalls(instance);}return TRUE;
 }
