@@ -1,0 +1,13 @@
+{
+  "retrievedAt": "2026-10-17",
+  "project": "Microsoft PowerToys",
+  "component": "FancyZonesWindowProcessing",
+  "commit": "471db8bf9ceb644d6fc4149e549e795957b10d30",
+  "source": "https://github.com/microsoft/PowerToys/blob/471db8bf9ceb644d6fc4149e549e795957b10d30/src/modules/fancyzones/FancyZonesLib/FancyZonesWindowProcessing.cpp",
+  "license": "MIT",
+  "copyright": "Microsoft Corporation",
+  "sourceSha256": "001F316EDAB27BC242AC4EC0942D9C6874952F86D36CC081C96DC902B9550618",
+  "adapted": "Root/visible/owned/tool-window classification; extra checks require maximizable resizable main windows",
+  "local": "One-shot launch state, foreground gating, lifecycle markers, bounded confirmation, controller integration",
+  "notImported": "FancyZones layouts, snapping, settings, runner, virtual desktop manager or injection"
+}
