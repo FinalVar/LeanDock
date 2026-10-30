@@ -2,6 +2,7 @@
 $ErrorActionPreference='Stop'
 $script:LeanDockConfigFiles=@('latest.ini','hotcorners/latest.ini')
 $script:LeanDockRuntimeFiles=@('latest.exe','latest.dll','start/latest.dll','panels/latest.dll')
+$script:LeanDockOptionalRuntimeFiles=@('aggregate/latest.exe')
 function Get-LeanDockApplicationControlState {
  # Read only. Absence/read failure is unknown, not permission to restart code.
  try {
@@ -10,8 +11,9 @@ function Get-LeanDockApplicationControlState {
  } catch {'Unknown'}
 }
 function Get-LeanDockRuntimeTrust([string]$Root,$RestorePlan=$null,[string]$BackupRoot=''){
- @(foreach($name in $script:LeanDockRuntimeFiles){
+ @(foreach($name in @($script:LeanDockRuntimeFiles)+@($script:LeanDockOptionalRuntimeFiles)){
   $file=if($RestorePlan){@($RestorePlan.Files|Where-Object Name -EQ $name)}else{@()}
+  if($name -in $script:LeanDockOptionalRuntimeFiles -and (($file.Count -and -not $file[0].Existed) -or (-not $file.Count -and -not(Test-Path -LiteralPath (Join-Path $Root $name))))){continue}
   $path=if($file.Count -and $file[0].Existed){Resolve-LeanDockChild $BackupRoot ('original/'+$name)}else{Resolve-LeanDockChild $Root $name}
   if(-not(Test-Path -LiteralPath $path -PathType Leaf)){throw "Missing runtime dependency: $name"}
   $signature=Get-AuthenticodeSignature -LiteralPath $path
@@ -33,9 +35,12 @@ function Get-LeanDockReadinessRequirements($Before){
  if($Before.StartLayoutSupported){'StartLayoutSupported'}
  if($Before.StartLayoutActive -or $Before.StartLayoutReady){'StartLayoutActive'}
  if($Before.StartLayoutReady){'StartLayoutReady'}
+ if($Before.SearchPosition.Supported){'SearchPositionSupported'}
+ if($Before.SearchPosition.Active){'SearchPositionActive'}
  if($Before.QuickSettingsPosition.Supported){'QuickPositionSupported'}
  if($Before.QuickSettingsPosition.Active){'QuickPositionActive'}
  if($Before.QuickTheme.active){'QuickThemeReady'}
+ if($Before.ClientEdge.Ready){'ClientEdgeReady'}
 }
 function Get-LeanDockReadinessFailures($State,[string[]]$Required){
  foreach($name in $Required){
@@ -44,9 +49,12 @@ function Get-LeanDockReadinessFailures($State,[string[]]$Required){
    'StartLayoutSupported' {$State.StartLayoutSupported -and -not $State.StartLayoutBlocked}
    'StartLayoutActive' {($State.StartLayoutActive -or $State.StartLayoutReady) -and -not $State.StartLayoutBlocked}
    'StartLayoutReady' {$State.StartLayoutReady -and -not $State.StartLayoutBlocked}
+   'SearchPositionSupported' {$State.SearchPosition.Supported -and -not $State.SearchPosition.Blocked}
+   'SearchPositionActive' {$State.SearchPosition.Active -and -not $State.SearchPosition.Blocked -and -not $State.SearchPosition.Failures}
    'QuickPositionSupported' {$State.QuickSettingsPosition.Supported -and -not $State.QuickSettingsPosition.Blocked}
    'QuickPositionActive' {$State.QuickSettingsPosition.Active -and -not $State.QuickSettingsPosition.Blocked}
    'QuickThemeReady' {[bool]$State.QuickTheme.active}
+   'ClientEdgeReady' {$State.ClientEdge.Supported -and $State.ClientEdge.Ready}
    default {throw "Unknown readiness requirement: $name"}
   }
   if(-not $ok){$name}
@@ -58,11 +66,15 @@ function Get-LeanDockComponentHealth($State){
   if(-not $State.DockReady){'Dock'}
   if(-not $State.HotCornersReady){'HotCorners'}
   if(-not $State.StartLayoutSupported -or $State.StartLayoutBlocked){'StartLayout'}
+  if($State.SearchPosition -and (-not $State.SearchPosition.Supported -or $State.SearchPosition.Blocked -or $State.SearchPosition.Failures)){'SearchPosition'}
   if(-not $State.QuickSettingsPosition.Supported -or $State.QuickSettingsPosition.Blocked){'QuickSettings'}
+  if($State.ClientEdge -and $State.ClientEdge.Supported -and -not $State.ClientEdge.Ready -and -not $State.ClientEdge.RetryScheduled){'ClientEdge'}
  )
  $pending=@(
   if('StartLayout' -notin $unavailable -and -not $State.StartLayoutReady){'StartLayout'}
+  if($State.SearchPosition -and 'SearchPosition' -notin $unavailable -and -not $State.SearchPosition.Active){'SearchPosition'}
   if('QuickSettings' -notin $unavailable -and (-not $State.QuickSettingsPosition.Active -or -not $State.QuickTheme.active)){'QuickSettings'}
+  if($State.ClientEdge -and $State.ClientEdge.Supported -and -not $State.ClientEdge.Ready -and $State.ClientEdge.RetryScheduled){'ClientEdge'}
  )
  [pscustomobject]@{State=if($unavailable.Count){'Degraded'}elseif($pending.Count){'WaitingForHost'}else{'Ready'};Unavailable=$unavailable;Pending=$pending}
 }

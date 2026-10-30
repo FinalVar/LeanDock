@@ -111,6 +111,7 @@ function Get-LiveStatus {
     }
     $status=[pscustomobject]@{Live=$live;Running=$running;DockReady=$dockReady;HotCornersReady=$cornerReady;DockSupported=$runtime.dockSupported;QuickSettingsPosition=$quick;QuickTheme=$theme;StartLayoutReady=$startReady;StartLayoutActive=($running -and $runtime.startLayoutActive);StartLayoutSupported=$runtime.startLayoutSupported;StartLayoutBlocked=$runtime.startLayoutBlocked;StartLayout=$startLayout;Elevated=$runtime.elevated;HotCorners=$corners;Controller=@($processes | Select-Object ProcessId,ExecutablePath);ExplorerPid=$shell.ProcessId;Backend=$backend;LoadedComponents=$modules;Task=if($t){[pscustomobject]@{Name=$t.TaskName;State=[string]$t.State;RunLevel=[string]$t.Principal.RunLevel;LogonType=[string]$t.Principal.LogonType}}else{$null};WindhawkService=[string](Get-Service Windhawk -ErrorAction SilentlyContinue).Status}
     $status|Add-Member -NotePropertyName StartAttachment -NotePropertyValue ([pscustomobject]@{Attempts=$runtime.startLayoutInitAttempts;Recoveries=$runtime.startLayoutInitRecoveries;RetryScheduled=$runtime.startLayoutRetryScheduled;Receipt=$runtime.startLayoutAttachReceipt;Error=$runtime.startLayoutAttachError;Failures=$runtime.startLayoutFailures;HostRecoveries=$runtime.startLayoutRecoveries;LastExitCode=if($runtime.startLayoutLastExitKnown){$runtime.startLayoutLastExitCode}else{$null}})
+    $status|Add-Member -NotePropertyName ClientEdge -NotePropertyValue ([pscustomobject]@{Supported=[bool]$runtime.dockSupported;Ready=($running -and $runtime.clientEdgeReady);Stage=$runtime.clientEdgeStage;Error=$runtime.clientEdgeError;Attempts=$runtime.clientEdgeInitAttempts;Recoveries=$runtime.clientEdgeRecoveries;RetryScheduled=[bool]$runtime.clientEdgeRetryScheduled;Repairs=$runtime.clientEdgeRepairs;GenericRepairs=$runtime.clientEdgeGenericRepairs;Failures=$runtime.clientEdgeFailures})
     $status|Add-Member -NotePropertyName ComponentHealth -NotePropertyValue (Get-LeanDockComponentHealth $status)
     $status
 }
@@ -125,8 +126,8 @@ function Install-NativeTask {
     $identity=[Security.Principal.WindowsIdentity]::GetCurrent().Name
     $principal=New-ScheduledTaskPrincipal -UserId $identity -LogonType Interactive -RunLevel Highest
     $trigger=New-ScheduledTaskTrigger -AtLogOn -User $identity
-    $trigger.Delay='PT5S'
-    $settings=New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([timespan]::Zero) -MultipleInstances IgnoreNew -StartWhenAvailable
+    $trigger.Delay='PT0S' # Host readiness is handled by the controller's existing bounded retry.
+    $settings=New-ScheduledTaskSettingsSet -Priority 4 -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([timespan]::Zero) -MultipleInstances IgnoreNew -StartWhenAvailable
     $action=New-ScheduledTaskAction -Execute $exe -WorkingDirectory $root
     Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description 'Native Dock and hot corners. One hidden process; elevated to support existing administrator foreground windows.' | Out-Null
 }

@@ -25,6 +25,10 @@ static std::atomic<unsigned> g_state{NativeIdle};
 static std::atomic<bool> g_startIssued{false},g_fault{false};
 static bool g_logging=false,g_diagnostics=false,g_everInitialized=false,g_hasApplied=false;
 static bool g_stoppingCore=false;
+#include "switcher-confirm-policy-latest.h"
+static NativeSwitcherPolicy::Request g_switcherRequest;
+extern "C" unsigned long long Native_SwitcherPeek() { return g_switcherRequest.Peek(GetTickCount64()); }
+extern "C" bool Native_SwitcherConsume(unsigned long long ticket) { return g_switcherRequest.Consume(ticket, GetTickCount64()); }
 static HANDLE g_owner;
 static PTP_WAIT g_ownerWait;
 static DWORD g_ownerPid;
@@ -235,6 +239,7 @@ extern "C" BOOL InternalWh_Disasm(void*,void* address,WH_DISASM_RESULT* result) 
 }
 
 #ifndef NATIVE_RUNTIME_TEST
+#include "switcher-preshow-latest.inc"
 #define DECLARE_CORE(name) extern "C" BOOL Native_##name##_init(); \
     extern "C" void Native_##name##_after(); extern "C" void Native_##name##_stop();
 DECLARE_CORE(styler) DECLARE_CORE(tray) DECLARE_CORE(size) DECLARE_CORE(hide) DECLARE_CORE(show)
@@ -252,7 +257,7 @@ static void SaveState() {
     size_t hooks;{std::lock_guard guard(g_hookMutex);hooks=g_hooks.size();}
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.5.29\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s,"
+        "{\"protocol\":1,\"version\":\"0.5.67\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s,"
         "\"attentionPolicy\":{\"active\":%s,\"blockedReveals\":%llu,\"ignoredFlashingChecks\":%llu,\"passedReveals\":%llu}}\n",
         GetCurrentProcessId(),g_ownerPid,g_state.load(),hooks,elements,g_fault?"true":"false",
         Native_hide_attention(0)?"true":"false",Native_hide_attention(1),
@@ -262,8 +267,12 @@ static void SaveState() {
     if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,json,size,&written,nullptr);CloseHandle(file);}
     std::lock_guard guard(g_storageMutex);
     for(auto const& [key,value]:g_storage) {
-        if(key!=L"mergedGridState"&&key!=L"cardsLayoutState")continue;
-        const auto path=FilePath(key==L"mergedGridState"?L"latest-layout.json":L"latest-cards-layout.json");
+        if(key!=L"mergedGridState"&&key!=L"cardsLayoutState"&&key!=L"switcherStyleState"&&key!=L"switcherConfirmState"&&key!=L"switcherGeometryState"&&key!=L"switcherPreshowState")continue;
+        const auto path=FilePath(key==L"mergedGridState"?L"latest-layout.json":
+            key==L"cardsLayoutState"?L"latest-cards-layout.json":
+            key==L"switcherStyleState"?L"latest-switcher-style.json":
+            key==L"switcherPreshowState"?L"latest-switcher-preshow.json":
+            key==L"switcherGeometryState"?L"latest-switcher-geometry.json":L"latest-switcher-confirm.json");
         HANDLE f=CreateFileW(path.c_str(),GENERIC_WRITE,FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
         if(f!=INVALID_HANDLE_VALUE) {
             const int length=WideCharToMultiByte(CP_UTF8,0,value.c_str(),-1,nullptr,0,nullptr,nullptr);
@@ -302,6 +311,8 @@ static bool SetOwner(DWORD pid) {
     SetThreadpoolWait(wait,process,nullptr);return true;
 }
 static void StopCore() {
+    g_switcherRequest.Cancel();
+    NativeSwitcherPreshow::Stop();
     if(g_stoppingCore)return;
     if(g_state!=NativeActive && g_state!=NativeStarting)return;
     struct StopGuard{StopGuard(){g_stoppingCore=true;}~StopGuard(){g_stoppingCore=false;}} stopGuard;
@@ -340,7 +351,7 @@ static bool StartCore(DWORD owner) {
             }
             g_initializedCore[i]=true;
         }
-        if(!InternalWh_ApplyHookOperations(nullptr)){StopCore();g_state=NativeFailed;return false;}
+        if(!NativeSwitcherPreshow::Initialize() || !InternalWh_ApplyHookOperations(nullptr)){StopCore();g_state=NativeFailed;return false;}
         g_everInitialized=true;
         g_hasApplied=true;
         Native_size_after();Native_tray_after();
@@ -351,12 +362,17 @@ static bool StartCore(DWORD owner) {
     }
     Native_show_after();Native_hide_after();Native_styler_after();
     if(g_fault){StopCore();g_state=NativeFailed;SaveState();return false;}
-    g_state=NativeActive;SaveState();Log(L"Native Dock active");return true;
+    g_state=NativeActive;NativeSwitcherPreshow::Start();SaveState();Log(L"Native Dock active");return true;
 }
 static LRESULT CALLBACK BackendProc(HWND w,UINT message,WPARAM p,LPARAM l) {
     try {
     if(g_stoppingCore && (message==NativeQuery||message==NativeStart||message==NativeStop||message==NativeOwnerExit))return NativeStarting;
     if(message==NativeQuery){SaveState();return g_state.load();}
+    if(message==NativeSwitcherPrepare){
+        if(g_stoppingCore || g_state!=NativeActive || static_cast<DWORD>(p)!=g_ownerPid)return 0;
+        if(l){return static_cast<LRESULT>(g_switcherRequest.Arm(GetTickCount64()));}
+        g_switcherRequest.Cancel();return 1;
+    }
     if(message==NativeStop || (message==NativeOwnerExit && static_cast<DWORD>(p)==g_ownerPid)){StopCore();return g_state.load();}
     if(message==NativeStart){return StartCore(static_cast<DWORD>(p))?g_state.load():NativeFailed;}
     if(message==WM_ENDSESSION && p){StopCore();return 0;}

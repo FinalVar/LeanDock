@@ -6,6 +6,18 @@ param(
  [int]$ParentProcessId=0,[long]$ParentStarted=0
 )
 $ErrorActionPreference='Stop'
+# Cross-architecture packages retain the same Update/ValidateOnly entry. The
+# capsule adapter preserves the existing task and complete legacy rollback.
+if($Action -eq 'Update' -and $PackagePath){
+ $candidate=Join-Path $PackagePath 'package-latest.json'
+ if(Test-Path -LiteralPath $candidate){
+  $kind=Get-Content -LiteralPath $candidate -Raw|ConvertFrom-Json
+  if($kind.Architecture -eq 'capsule'){
+   & (Join-Path $PSScriptRoot 'capsule-latest.ps1') -Action Update -PackagePath $PackagePath -Destination $Destination -ValidateOnly:$ValidateOnly
+   return
+  }
+ }
+}
 . (Join-Path $PSScriptRoot 'files-latest.ps1')
 $Destination=[IO.Path]::GetFullPath($Destination).TrimEnd('\','/')
 # Reject reparse-point parents even when the destination is not created yet.
@@ -53,6 +65,12 @@ function Quiesce([string[]]$Changed){
  # owner for every runtime update; its diagnostics hot reconnect is not proven.
  $hosts=Get-PinnedHosts @(@($Changed)+@('latest.dll')|Select-Object -Unique)
  & (Join-Path $Destination 'latest.ps1') -Action Stop|Out-Null
+ # The on-demand panel observes the removed owner cookie and exits itself.
+ # It is not the controller and must never be terminated by basename.
+ foreach($panel in Get-CimInstance Win32_Process -Filter "Name='latest.exe'"|Where-Object {$_.ExecutablePath -ieq (Join-Path $Destination 'aggregate/latest.exe') -and $_.SessionId -eq $session}){
+  $p=Get-Process -Id $panel.ProcessId -ErrorAction SilentlyContinue
+  if($p -and $p.Path -ieq (Join-Path $Destination 'aggregate/latest.exe') -and -not $p.WaitForExit(10000)){throw 'Owned aggregate panel did not finish releasing resources'}
+ }
  foreach($hostInfo in $hosts){
   $p=Get-Process -Id $hostInfo.Id -ErrorAction SilentlyContinue
   if(-not $p){continue}
@@ -68,7 +86,7 @@ function Restore-Transaction($Plan){
  $null=Read-OwnedTask
  Test-LeanDockRestore $Plan $BackupPath
  # Stop the exact current controller and unload only components being restored.
- $runtime=@($Plan.Files.Name|Where-Object {$_ -in @('latest.exe','latest.dll','start/latest.dll','panels/latest.dll')})
+ $runtime=@($Plan.Files.Name|Where-Object {$_ -in @($script:LeanDockRuntimeFiles)+@($script:LeanDockOptionalRuntimeFiles)})
  if($runtime.Count -and $Plan.WasRunning){
   Assert-LeanDockRuntimeTrust (Get-LeanDockRuntimeTrust $Destination $Plan $BackupPath) (Get-LeanDockApplicationControlState)
  }
@@ -129,7 +147,7 @@ try{
   $oldHash=if($existed){(Get-FileHash -LiteralPath $dst).Hash}else{$null}
   if($oldHash -ine $f.SHA256){[pscustomobject]@{Name=$f.Name;Existed=$existed;PreviousHash=$oldHash;NewHash=$f.SHA256}}
  })
- $runtimeChanged=@($changes.Name|Where-Object {$_ -in $script:LeanDockRuntimeFiles})
+ $runtimeChanged=@($changes.Name|Where-Object {$_ -in @($script:LeanDockRuntimeFiles)+@($script:LeanDockOptionalRuntimeFiles)})
  if($runtimeChanged.Count){
   # All four files are reloaded by this controller lifecycle, even if only one
   # hash changed. Check the incoming set and existing recovery set before Stop

@@ -11,7 +11,11 @@
 #include "../hotcorners/core/latest.h"
 #include "../hotcorners/actions/latest.h"
 #include "hotcorners-latest.h"
+#include "protocol-latest.h"
+#include "switcher-visibility-latest.h"
 #include "../hotcorners/fullscreen/latest.h"
+#include "start-menu-state-latest.h"
+#include "../hotcorners/start-menu/policy-latest.h"
 
 namespace NativeCorners {
 static const wchar_t* kClass = L"NativeHotCorners.1.Window";
@@ -54,6 +58,7 @@ static void RecordBlock(BlockReason reason,int corner) {
     lastBlockMaximized=IsZoomed(foreground)!=FALSE;
     lastBlockStyle=static_cast<unsigned long>(GetWindowLongPtrW(foreground,GWL_STYLE));
 }
+static uint64_t switcherOpenRequests{},switcherCloseRequests{},switcherStateChanged{};
 
 static void MakePath(wchar_t* result, const wchar_t* name) { swprintf(result, MAX_PATH, L"%ls\\%ls", folder, name); }
 static void Log(const char* event, DWORD code = 0) {
@@ -72,7 +77,7 @@ static void Log(const char* event, DWORD code = 0) {
     DWORD written; WriteFile(file, line, n, &written, nullptr); CloseHandle(file);
 }
 static const char* ActionName(nhc::Action action) {
-    return action == nhc::LockScreen ? "lock-screen" : action == nhc::TaskView ? "task-view" : action == nhc::ShowDesktop ? "show-desktop" : action == nhc::StartMenu ? "start-menu" : "none";
+    return action == nhc::LockScreen ? "lock-screen" : action == nhc::AppSwitcher ? "app-switcher" : action == nhc::TaskView ? "task-view" : action == nhc::ShowDesktop ? "show-desktop" : action == nhc::StartMenu ? "start-menu" : "none";
 }
 static bool ReadNumber(const wchar_t* key, int def, int min, int max, int& out) {
     wchar_t fallback[24], value[80], *end;
@@ -100,6 +105,7 @@ static bool LoadConfig() {
     for (int c = 0; c < 4; ++c) {
         GetPrivateProfileStringW(L"HotCorners", keys[c], defaults[c], value, 80, iniPath);
         if (!_wcsicmp(value, L"task-view")) next.actions[c] = nhc::TaskView;
+        else if (!_wcsicmp(value, L"app-switcher")) next.actions[c] = nhc::AppSwitcher;
         else if (!_wcsicmp(value, L"show-desktop")) next.actions[c] = nhc::ShowDesktop;
         else if (!_wcsicmp(value, L"start-menu")) next.actions[c] = nhc::StartMenu;
         else if (!_wcsicmp(value, L"lock-screen")) next.actions[c] = nhc::LockScreen;
@@ -121,7 +127,9 @@ static BOOL CALLBACK EnumMonitor(HMONITOR h, HDC, RECT*, LPARAM) {
     monitorIds[monitorCount++] = h;
     return TRUE;
 }
+static void CancelStartDismiss();
 static void Reset() {
+    CancelStartDismiss();
     KillTimer(window, kDwell); timerArmed = false; timerDue = 0; engine.Reset();
 }
 static void RefreshMonitors() {
@@ -149,6 +157,8 @@ static bool Fullscreen(HMONITOR target) {
     if (!wcscmp(name, L"Progman") || !wcscmp(name, L"WorkerW") ||
         !wcscmp(name, L"Shell_TrayWnd") || !wcscmp(name, L"Shell_SecondaryTrayWnd") ||
         !wcscmp(name, L"MultitaskingViewFrame") || !wcscmp(name, L"XamlExplorerHostIslandWindow")) return false;
+    // Start is a verified shell popup, not a fullscreen application.
+    if(LeanDockStartState::Host(foreground))return false;
     if (MonitorFromWindow(foreground, MONITOR_DEFAULTTONULL) != target) return false;
     const LONG_PTR style=GetWindowLongPtrW(foreground,GWL_STYLE);
     if ((style & WS_CAPTION) == WS_CAPTION) return false;
@@ -185,26 +195,57 @@ static void SyncTimer() {
     timerDue = engine.due;
     if (!timerArmed) { lastErrorCode = GetLastError(); engine.Consume(engine.waiting); Log("timer-failed", lastErrorCode); }
 }
+static void PrepareSwitcher(bool arm) {
+    HWND backend = FindWindowW(NativeBackendClass, nullptr);
+    HWND taskbar = FindWindowW(L"Shell_TrayWnd", nullptr);
+    DWORD backendPid=0, shellPid=0;
+    if (!backend || !taskbar || !GetWindowThreadProcessId(backend, &backendPid) ||
+        !GetWindowThreadProcessId(taskbar, &shellPid) || backendPid!=shellPid) return;
+    DWORD_PTR result=0;
+    SendMessageTimeoutW(backend, NativeSwitcherPrepare, GetCurrentProcessId(), arm ? 1 : 0,
+        SMTO_ABORTIFHUNG | SMTO_BLOCK, 150, &result);
+}
 static bool LaunchAction(nhc::Action action) {
     if(action == nhc::LockScreen)return LockWorkStation()!=FALSE;
-    INPUT keys[4]; UINT count = nhc::BuildActionInput(action, keys);
+    const HWND sourceForeground=GetForegroundWindow();
+    const HWND dismissWindow=action==nhc::AppSwitcher ? LeanDockSwitcherVisibility::ActiveWindow() : nullptr;
+    INPUT keys[nhc::ActionInputCapacity]; UINT count = nhc::BuildActionInput(action, keys, dismissWindow!=nullptr);
     if (!count) return false;
-    if (ModifierOrButton() || (count == 4 && (GetAsyncKeyState(keys[1].ki.wVk) & 0x8000))) {
+    if (ModifierOrButton() || nhc::AnyActionKeyHeld(keys, count, [](WORD key) {
+        return (GetAsyncKeyState(key) & 0x8000) != 0;
+    })) {
         lastErrorCode = ERROR_BUSY; return false;
+    }
+    if (action == nhc::AppSwitcher) {
+        PrepareSwitcher(!dismissWindow);
+        // Focus/visibility can change while the backend processes the ticket.
+        // Abort that entry; never send a stale Escape to another application.
+        if ((dismissWindow && LeanDockSwitcherVisibility::ActiveWindow()!=dismissWindow) ||
+            (!dismissWindow && (LeanDockSwitcherVisibility::ActiveWindow() || GetForegroundWindow()!=sourceForeground))) {
+            PrepareSwitcher(false); ++switcherStateChanged;
+            lastErrorCode=ERROR_RETRY; return false;
+        }
     }
     SetLastError(ERROR_SUCCESS);
     UINT sent = SendInput(count, keys, sizeof(INPUT));
     lastErrorCode = sent == count ? 0 : GetLastError();
-    if (sent == count) return true;
+    if (sent == count) {
+        if (action==nhc::AppSwitcher) {
+            if (dismissWindow) { ++switcherCloseRequests; Log("switcher-close-request"); }
+            else { ++switcherOpenRequests; Log("switcher-open-request"); }
+        }
+        return true;
+    }
+    if (action == nhc::AppSwitcher) PrepareSwitcher(false);
     if (!lastErrorCode) lastErrorCode = ERROR_GEN_FAILURE;
-    // Release only keys whose injected key-down was accepted but key-up was
-    // not, so partial submission cannot leave our Windows/Tab key held down.
-    INPUT releases[2]; UINT releaseCount = 0;
-    if (count == 4 && sent == 2) releases[releaseCount++] = keys[2];
-    if (sent > 0 && sent < count) releases[releaseCount++] = keys[count - 1];
+    // Best-effort cleanup also covers partial Ctrl+Alt+Tab submission.
+    // A failed action remains a failure even if cleanup succeeds.
+    INPUT releases[nhc::ActionInputCapacity];
+    UINT releaseCount = nhc::BuildReleaseInput(keys, count, sent, releases);
     if (releaseCount) SendInput(releaseCount, releases, sizeof(INPUT));
     return false;
 }
+#include "../hotcorners/start-menu/latest.inc"
 static void Evaluate(bool expiry) {
     ++mouseEvaluations;
     POINT point; if (!GetCursorPos(&point)) { Reset(); return; }
@@ -227,8 +268,7 @@ static void Evaluate(bool expiry) {
         int corner = engine.waiting.corner;
         nhc::Action action = engine.Expire(monitors, monitorCount, p, config, GetTickCount64(), blocked);
         if (action != nhc::None) {
-            if (LaunchAction(action)) { ++activations[corner]; Log(ActionName(action)); }
-            else { ++failures; Log("action-failed", lastErrorCode); }
+            DispatchCorner(action,corner);
         }
     }
     SyncTimer();
@@ -236,18 +276,19 @@ static void Evaluate(bool expiry) {
 static bool WriteStatus(bool running = true) {
     char data[4096];
     int n = snprintf(data, sizeof(data),
-        "{\n  \"version\":\"1.0.4-integrated\",\"hosted\":true,\"pid\":%lu,\"running\":%s,\"paused\":%s,\"locked\":%s,\n"
+        "{\n  \"version\":\"1.0.14-integrated\",\"hosted\":true,\"pid\":%lu,\"running\":%s,\"paused\":%s,\"locked\":%s,\n"
         "  \"inputMode\":\"raw-input-events\",\"rawInputRegistered\":%s,\"inputDesktopAvailable\":%s,\"periodicPolling\":false,\"timerArmed\":%s,\n"
         "  \"uptimeMs\":%llu,\"rawEvents\":%llu,\"evaluations\":%llu,\"monitors\":%d,\n"
         "  \"delayMs\":%u,\"cornerDelayMs\":{\"topLeft\":%u,\"topRight\":%u,\"bottomLeft\":%u,\"bottomRight\":%u},\"cooldownMs\":%u,\"cornerPixels\":%d,\"rearmPixels\":%d,\"fullscreenSuppression\":%s,\n"
         "  \"actions\":[\"%s\",\"%s\",\"%s\",\"%s\"],\"activations\":[%llu,%llu,%llu,%llu],\n"
-        "  \"blockedEntries\":%llu,\"failures\":%llu,\"lastError\":%lu,\n  \"maximizedClientEntries\":%llu,\"blockReasons\":{\"paused\":%llu,\"locked\":%llu,\"inputHeld\":%llu,\"inputDesktop\":%llu,\"fullscreen\":%llu},\n  \"lastBlock\":{\"reason\":\"%s\",\"pid\":%lu,\"corner\":%d,\"tick\":%llu,\"maximized\":%s,\"style\":%lu}\n}\n",
+        "  \"switcherToggle\":{\"openRequests\":%llu,\"closeRequests\":%llu,\"stateChanged\":%llu},\n  \"blockedEntries\":%llu,\"failures\":%llu,\"lastError\":%lu,\n  \"maximizedClientEntries\":%llu,\"blockReasons\":{\"paused\":%llu,\"locked\":%llu,\"inputHeld\":%llu,\"inputDesktop\":%llu,\"fullscreen\":%llu},\n  \"lastBlock\":{\"reason\":\"%s\",\"pid\":%lu,\"corner\":%d,\"tick\":%llu,\"maximized\":%s,\"style\":%lu}\n}\n",
         (unsigned long)GetCurrentProcessId(), running ? "true" : "false", paused ? "true" : "false", locked ? "true" : "false",
         rawRegistered ? "true" : "false", DefaultInputDesktop() ? "true" : "false", timerArmed ? "true" : "false",
         (unsigned long long)(GetTickCount64() - started), (unsigned long long)rawEvents, (unsigned long long)mouseEvaluations, monitorCount,
         config.delay, config.Delay(0), config.Delay(1), config.Delay(2), config.Delay(3), config.cooldown, config.pixels, config.rearm, config.fullscreen ? "true" : "false",
         ActionName(config.actions[0]), ActionName(config.actions[1]), ActionName(config.actions[2]), ActionName(config.actions[3]),
         (unsigned long long)activations[0], (unsigned long long)activations[1], (unsigned long long)activations[2], (unsigned long long)activations[3],
+        (unsigned long long)switcherOpenRequests,(unsigned long long)switcherCloseRequests,(unsigned long long)switcherStateChanged,
         (unsigned long long)blockedEntries, (unsigned long long)failures, (unsigned long)lastErrorCode,
         (unsigned long long)maximizedClientEntries,
         (unsigned long long)blockReasons[1],(unsigned long long)blockReasons[2],
@@ -309,6 +350,7 @@ bool Dispatch(HWND hwnd,UINT message,WPARAM w,LPARAM l,LRESULT& result) {
     }
     case kEvaluate:evalPending=false;if(!paused && !locked)Evaluate(false);return true;
     case WM_TIMER:
+        if(w==kStartDismiss){ContinueAfterStart();return true;}
         if(w!=kDwell)return false;
         KillTimer(hwnd,kDwell);timerArmed=false;Evaluate(true);return true;
     case WM_DISPLAYCHANGE:case WM_SETTINGCHANGE:RefreshMonitors();return false;

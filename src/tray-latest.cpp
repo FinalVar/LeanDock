@@ -20,7 +20,7 @@
 #include <winrt/Windows.UI.Xaml.Data.h>
 #include <winrt/Windows.UI.Xaml.Automation.h>
 #include "shell-menu-latest.h"
-#include "cards-core-latest.h"
+#include "cards-dashboard-latest.h"
 #include "power-target-latest.h"
 #include <winrt/Windows.UI.Xaml.Input.h>
 namespace NDTray {
@@ -655,7 +655,6 @@ winrt::weak_ref<Controls::Button> g_nativePowerCard;
 UIElement::PointerEntered_revoker g_powerEntered;
 UIElement::PointerExited_revoker g_powerExited;
 winrt::Windows::Foundation::IInspectable g_powerPressed{nullptr},g_powerReleased{nullptr};
-UIElement::ContextRequested_revoker g_powerContext;
 
 void ClearNativePowerHit() {
     if(g_dockUnified&&g_dockUnified->threadId!=GetCurrentThreadId())return;
@@ -665,7 +664,6 @@ void ClearNativePowerHit() {
         if(g_powerReleased)target.RemoveHandler(UIElement::PointerReleasedEvent(),g_powerReleased);
     }
     g_powerPressed=nullptr;g_powerReleased=nullptr;
-    g_powerContext.revoke();
     if(auto card=g_nativePowerCard.get()){VisualStateManager::GoToState(card,L"Normal",false);card.IsHitTestVisible(true);card.IsTabStop(true);}
     g_nativePowerButton={};g_nativePowerTarget={};g_nativePowerGrid={};g_nativePowerCard={};
     for(auto name:{L"LeanDock.Card.NativePowerHit",L"LeanDock.Card.NativePowerPrepared",L"LeanDock.Card.NativePowerWidth100",L"LeanDock.Card.NativePowerHeight100",L"LeanDock.Card.NativePowerIcons",L"LeanDock.Card.NativePowerLoadedIcons",L"LeanDock.Card.NativePowerTargetWidth100",L"LeanDock.Card.NativePowerTargetHeight100",L"LeanDock.Card.NativePowerCoverage",L"LeanDock.Card.NativePowerTipOwners",L"LeanDock.Card.NativePowerTipsRemaining",L"LeanDock.Card.NativePowerTipScanComplete",L"LeanDock.Card.NativePowerTipError"})
@@ -750,11 +748,11 @@ void PrepareDormantNativePower(FrameworkElement const& battery) {
         DockSet(control,Controls::Control::IsTabStopProperty(),false);
     DockSet(battery,Automation::AutomationProperties::AccessibilityViewProperty(),Automation::Peers::AccessibilityView::Raw);
     DockSet(battery,UIElement::VisibilityProperty(),Visibility::Visible);
-    DockBox(battery,LeanDockCards::CardWidth,LeanDockCards::CardHeight,HorizontalAlignment::Left,false);
-    DockSet(battery,FrameworkElement::MarginProperty(),Thickness{0,0,-LeanDockCards::CardWidth,0});
+    DockBox(battery,LeanDockCards::Dashboard::PowerWidth,LeanDockCards::CardHeight,HorizontalAlignment::Left,false);
+    DockSet(battery,FrameworkElement::MarginProperty(),Thickness{0,0,-LeanDockCards::Dashboard::PowerWidth,0});
     if(auto grid=FindChildByClassName(battery,L"Windows.UI.Xaml.Controls.Grid"))
-        DockBox(grid,LeanDockCards::CardWidth,LeanDockCards::CardHeight);
-    const bool measured=DockEqual(battery.ActualWidth(),LeanDockCards::CardWidth)&&
+        DockBox(grid,LeanDockCards::Dashboard::PowerWidth,LeanDockCards::CardHeight);
+    const bool measured=DockEqual(battery.ActualWidth(),LeanDockCards::Dashboard::PowerWidth)&&
                         DockEqual(battery.ActualHeight(),LeanDockCards::CardHeight);
     SetPropW(FindWindowW(L"Shell_TrayWnd",nullptr),L"LeanDock.Card.NativePowerPrepared",reinterpret_cast<HANDLE>(measured?2:1));
 }
@@ -777,12 +775,12 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
     }
     auto grid=FindChildByClassName(battery,L"Windows.UI.Xaml.Controls.Grid");
     if(!card||!grid||!card.IsLoaded()||card.Visibility()!=Visibility::Visible)return false;
-    // The shared slot is already laid out on every page. The power page itself
-    // may just have left Collapsed and still report zero/stale ActualWidth.
+    // The board contains simultaneous modules; only the measured battery module
+    // may receive the native overlay. Never stretch this over the whole board.
     auto slot=FindParentByName(card,L"LeanDockCard");
     if(!slot||!slot.IsLoaded()||slot.Visibility()!=Visibility::Visible)return false;
-    const double width=slot.ActualWidth(),height=slot.ActualHeight();
-    if(width<24||width>LeanDockCards::CardWidth+0.5||height<24||height>80)return false;
+    const double width=card.ActualWidth(),height=card.ActualHeight();
+    if(width<24||width>LeanDockCards::Dashboard::PowerWidth+0.5||height<24||height>80)return false;
     // Preserve the native parent, event handlers and accessibility. A zero
     // flow slot avoids restoring the old tray gap; the full native hit target
     // is translated onto the already-measured custom battery card.
@@ -816,7 +814,7 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
        !DockEqual(targetGrid.ActualWidth(),width)||!DockEqual(targetGrid.ActualHeight(),height))return false;
     if(!grid.as<Controls::Grid>().Background())
         DockSet(grid,Controls::Panel::BackgroundProperty(),Media::Brush{Media::SolidColorBrush{winrt::Windows::UI::Color{0,0,0,0}}});
-    auto desired=slot.TransformToVisual(content).TransformPoint({0,0});
+    auto desired=card.TransformToVisual(content).TransformPoint({0,0});
     auto actual=battery.TransformToVisual(content).TransformPoint({0,0});
     auto targetPoint=target.TransformToVisual(content).TransformPoint({0,0});
     auto gridPoint=targetGrid.TransformToVisual(content).TransformPoint({0,0});
@@ -838,7 +836,7 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
     // accept an inert outer Grid or a native target covered by another view.
     unsigned coverage=0;
     for(double dy:{2.0,height/2,height-2.0})for(double dx:{2.0,width/2,width-2.0})
-        if(LeanDockPower::TopHit(content,target,{float(desired.X+dx),float(desired.Y+dy)}))++coverage;
+        if(LeanDockPower::TopHit(content,targetGrid,{float(desired.X+dx),float(desired.Y+dy)}))++coverage;
     if(coverage!=9){card.IsHitTestVisible(true);card.IsTabStop(true);RemovePropW(taskbar,L"LeanDock.Card.NativePowerHit");return false;}
     if(g_nativePowerButton.get()!=battery||g_nativePowerTarget.get()!=target||g_nativePowerGrid.get()!=targetGrid||g_nativePowerCard.get()!=card){
         ClearNativePowerHit();g_nativePowerButton=winrt::make_weak(battery);g_nativePowerTarget=winrt::make_weak(target);g_nativePowerGrid=winrt::make_weak(targetGrid);g_nativePowerCard=winrt::make_weak(card);
@@ -856,12 +854,7 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
         }));
         target.AddHandler(UIElement::PointerPressedEvent(),g_powerPressed,true);
         target.AddHandler(UIElement::PointerReleasedEvent(),g_powerReleased,true);
-        g_powerContext=target.ContextRequested(winrt::auto_revoke,[taskbar](UIElement const& sender,Input::ContextRequestedEventArgs const& e){
-            winrt::Windows::Foundation::Point point{};
-            if(e.Handled()||!e.TryGetPosition(sender,point))return; // keyboard stays native
-            e.Handled(true);
-            LeanDockMenu::Consume(taskbar,LeanDockMenu::ContextSource::NativePower);
-        });
+        // User chose the native battery context menu after the custom WinX retry failed.
     }
     SuppressNativePowerToolTips(battery,taskbar);
     LeanDockMenu::Put(taskbar,L"LeanDock.Card.NativePowerWidth100",std::lround(battery.ActualWidth()*100));
@@ -874,10 +867,10 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
     return true;
 }
 
-// The whole carousel owns the battery entry as soon as the slot is measured.
-// Only the selected power page gets a native hit target. Other pages retain a
-// measured but noninteractive zero-flow slot, without an extra tray icon.
-// A crowded/failed carousel restores the original compact native entry.
+// The dashboard owns the battery entry as soon as its slot is measured.
+// Only the battery module receives the native hit target. If disabled, retain
+// a measured, noninteractive zero-flow slot without an extra tray icon.
+// An unavailable dashboard restores the original compact native entry.
 void UpdateUnifiedDockGrid() {
     if(!g_dockUnified||g_dockUnified->updating||g_unloading||
        g_dockUnified->threadId!=GetCurrentThreadId())return;

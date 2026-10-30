@@ -29,6 +29,7 @@ static const NativeSymbol NativeSymbols[] = {
     {L"taskbar.dll", L"private: void __cdecl CSecondaryTray::_Unhide(enum TrayCommon::TrayUnhideFlags,enum TrayCommon::UnhideRequest)", 1363144u},
     {L"taskbar.dll", L"public: __cdecl winrt::impl::consume_WindowsUdk_UI_Shell_ITaskbarSettings<struct winrt::WindowsUdk::UI::Shell::ITaskbarSettings>::Size(void)const ", 936304u},
     {L"taskbar.dll", L"public: int __cdecl TaskbarHost::FrameHeight(void)const ", 565532u},
+    {L"taskbar.dll", L"public: struct tagSIZE __cdecl TaskbarHost::IconSizeInViewPixels(void)const", 167740u},
     {L"taskbar.dll", L"public: virtual __int64 __cdecl TrayUI::WndProc(struct HWND__ *,unsigned int,unsigned __int64,__int64,bool *)", 600032u},
     {L"taskbar.dll", L"public: virtual bool __cdecl IconContainer::IsStorageRecreationRequired(class CCoSimpleArray<unsigned int,4294967294,class CSimpleArrayStandardCompareHelper<unsigned int> > const &,enum IconContainerFlags)", 522144u},
     {L"taskbar.dll", L"public: virtual bool __cdecl TrayUI::GetStuckRectForMonitor(struct HMONITOR__ *,struct tagRECT *)", 366368u},

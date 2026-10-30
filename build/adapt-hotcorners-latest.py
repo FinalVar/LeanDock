@@ -28,7 +28,7 @@ text=text.replace('config.delay, config.cooldown, config.pixels',
 text=text.replace(r'\"delayMs\":%u,\"cooldownMs\":%u',
                   r'\"delayMs\":%u,\"cornerDelayMs\":{\"topLeft\":%u,\"topRight\":%u,\"bottomLeft\":%u,\"bottomRight\":%u},\"cooldownMs\":%u')
 text=text.replace('static bool WriteStatus(bool running = true)', 'static bool WriteStatus(bool running = true)')
-text=text.replace('\\"version\\":\\"1.0.2\\",','\\"version\\":\\"1.0.4-integrated\\",\\"hosted\\":true,')
+text=text.replace('\\"version\\":\\"1.0.2\\",','\\"version\\":\\"1.0.6-integrated\\",\\"hosted\\":true,')
 # Keep the upstream core, actions and fullscreen exclusions. Share the exact
 # installed-client identity/maximization policy with the existing edge repair.
 def replace_once(old, new):
@@ -36,7 +36,80 @@ def replace_once(old, new):
     assert text.count(old) == 1, f'Hot-corner adaptation anchor drifted: {old[:80]}'
     text=text.replace(old,new,1)
 
+replace_once('action == nhc::TaskView ? "task-view"',
+             'action == nhc::AppSwitcher ? "app-switcher" : action == nhc::TaskView ? "task-view"')
+replace_once('if (!_wcsicmp(value, L"task-view")) next.actions[c] = nhc::TaskView;',
+'''if (!_wcsicmp(value, L"task-view")) next.actions[c] = nhc::TaskView;
+        else if (!_wcsicmp(value, L"app-switcher")) next.actions[c] = nhc::AppSwitcher;''')
+replace_once('INPUT keys[4]; UINT count = nhc::BuildActionInput(action, keys);',
+             'INPUT keys[nhc::ActionInputCapacity]; UINT count = nhc::BuildActionInput(action, keys);')
+replace_once('if (ModifierOrButton() || (count == 4 && (GetAsyncKeyState(keys[1].ki.wVk) & 0x8000))) {',
+'''if (ModifierOrButton() || nhc::AnyActionKeyHeld(keys, count, [](WORD key) {
+        return (GetAsyncKeyState(key) & 0x8000) != 0;
+    })) {''')
+replace_once('''    // Release only keys whose injected key-down was accepted but key-up was
+    // not, so partial submission cannot leave our Windows/Tab key held down.
+    INPUT releases[2]; UINT releaseCount = 0;
+    if (count == 4 && sent == 2) releases[releaseCount++] = keys[2];
+    if (sent > 0 && sent < count) releases[releaseCount++] = keys[count - 1];''',
+'''    // Best-effort cleanup also covers partial Ctrl+Alt+Tab submission.
+    // A failed action remains a failure even if cleanup succeeds.
+    INPUT releases[nhc::ActionInputCapacity];
+    UINT releaseCount = nhc::BuildReleaseInput(keys, count, sent, releases);''')
+
 replace_once('#include "hotcorners-latest.h"', '#include "hotcorners-latest.h"\n#include "../hotcorners/fullscreen/latest.h"')
+replace_once('#include "hotcorners-latest.h"', '#include "hotcorners-latest.h"\n#include "protocol-latest.h"')
+replace_once('static bool LaunchAction(nhc::Action action) {', '''static void PrepareSwitcher(bool arm) {
+    HWND backend = FindWindowW(NativeBackendClass, nullptr);
+    HWND taskbar = FindWindowW(L"Shell_TrayWnd", nullptr);
+    DWORD backendPid=0, shellPid=0;
+    if (!backend || !taskbar || !GetWindowThreadProcessId(backend, &backendPid) ||
+        !GetWindowThreadProcessId(taskbar, &shellPid) || backendPid!=shellPid) return;
+    DWORD_PTR result=0;
+    SendMessageTimeoutW(backend, NativeSwitcherPrepare, GetCurrentProcessId(), arm ? 1 : 0,
+        SMTO_ABORTIFHUNG | SMTO_BLOCK, 150, &result);
+}
+static bool LaunchAction(nhc::Action action) {''')
+replace_once('    SetLastError(ERROR_SUCCESS);\n    UINT sent = SendInput',
+             '    if (action == nhc::AppSwitcher) PrepareSwitcher(true);\n    SetLastError(ERROR_SUCCESS);\n    UINT sent = SendInput')
+replace_once('    if (sent == count) return true;',
+             '    if (sent == count) return true;\n    if (action == nhc::AppSwitcher) PrepareSwitcher(false);')
+# Native Ctrl+Alt+Tab is an opener, not a toggle. Choose cancellation only for
+# an actively marked native switcher, and revalidate after the bounded IPC.
+replace_once('#include "protocol-latest.h"',
+             '#include "protocol-latest.h"\n#include "switcher-visibility-latest.h"')
+replace_once('static DWORD lastErrorCode;',
+             'static DWORD lastErrorCode;\nstatic uint64_t switcherOpenRequests{},switcherCloseRequests{},switcherStateChanged{};')
+replace_once('    INPUT keys[nhc::ActionInputCapacity]; UINT count = nhc::BuildActionInput(action, keys);',
+'''    const HWND sourceForeground=GetForegroundWindow();
+    const HWND dismissWindow=action==nhc::AppSwitcher ? LeanDockSwitcherVisibility::ActiveWindow() : nullptr;
+    INPUT keys[nhc::ActionInputCapacity]; UINT count = nhc::BuildActionInput(action, keys, dismissWindow!=nullptr);''')
+replace_once('    if (action == nhc::AppSwitcher) PrepareSwitcher(true);',
+'''    if (action == nhc::AppSwitcher) {
+        PrepareSwitcher(!dismissWindow);
+        // Focus/visibility can change while the backend processes the ticket.
+        // Abort that entry; never send a stale Escape to another application.
+        if ((dismissWindow && LeanDockSwitcherVisibility::ActiveWindow()!=dismissWindow) ||
+            (!dismissWindow && (LeanDockSwitcherVisibility::ActiveWindow() || GetForegroundWindow()!=sourceForeground))) {
+            PrepareSwitcher(false); ++switcherStateChanged;
+            lastErrorCode=ERROR_RETRY; return false;
+        }
+    }''')
+replace_once('    if (sent == count) return true;',
+'''    if (sent == count) {
+        if (action==nhc::AppSwitcher) {
+            if (dismissWindow) { ++switcherCloseRequests; Log("switcher-close-request"); }
+            else { ++switcherOpenRequests; Log("switcher-open-request"); }
+        }
+        return true;
+    }''')
+replace_once(r'  \"blockedEntries\":%llu,\"failures\":%llu,\"lastError\":%lu\n}\n',
+             r'  \"switcherToggle\":{\"openRequests\":%llu,\"closeRequests\":%llu,\"stateChanged\":%llu},\n'
+             r'  \"blockedEntries\":%llu,\"failures\":%llu,\"lastError\":%lu\n}\n')
+replace_once('        (unsigned long long)blockedEntries, (unsigned long long)failures, (unsigned long)lastErrorCode);',
+'''        (unsigned long long)switcherOpenRequests,(unsigned long long)switcherCloseRequests,(unsigned long long)switcherStateChanged,
+        (unsigned long long)blockedEntries, (unsigned long long)failures, (unsigned long)lastErrorCode);''')
+text=text.replace('1.0.6-integrated','1.0.14-integrated')
 replace_once('static DWORD lastErrorCode;', '''static DWORD lastErrorCode;
 enum class BlockReason { None, Paused, Locked, InputHeld, Desktop, Fullscreen };
 static uint64_t blockReasons[6]{},maximizedClientEntries,lastBlockAt;
@@ -175,5 +248,20 @@ bool Dispatch(HWND hwnd,UINT message,WPARAM w,LPARAM l,LRESULT& result) {
 }
 } // namespace NativeCorners
 '''
+replace_once('#include "../hotcorners/fullscreen/latest.h"',
+    '#include "../hotcorners/fullscreen/latest.h"\n#include "start-menu-state-latest.h"\n#include "../hotcorners/start-menu/policy-latest.h"')
+replace_once('static void Reset() {',
+    'static void CancelStartDismiss();\nstatic void Reset() {\n    CancelStartDismiss();')
+replace_once('    if (MonitorFromWindow(foreground, MONITOR_DEFAULTTONULL) != target) return false;',
+    '''    // Start is a verified shell popup, not a fullscreen application.
+    if(LeanDockStartState::Host(foreground))return false;
+    if (MonitorFromWindow(foreground, MONITOR_DEFAULTTONULL) != target) return false;''')
+replace_once('static void Evaluate(bool expiry) {',
+    '#include "../hotcorners/start-menu/latest.inc"\nstatic void Evaluate(bool expiry) {')
+replace_once('''            if (LaunchAction(action)) { ++activations[corner]; Log(ActionName(action)); }
+            else { ++failures; Log("action-failed", lastErrorCode); }''',
+    '            DispatchCorner(action,corner);')
+replace_once('    case WM_TIMER:\n        if(w!=kDwell)return false;',
+    '    case WM_TIMER:\n        if(w==kStartDismiss){ContinueAfterStart();return true;}\n        if(w!=kDwell)return false;')
 (root/'src/hotcorners-latest.cpp').write_text(text,encoding='utf-8',newline='\n')
 print('NativeHotCorners adapted as an event handler in the existing controller.')

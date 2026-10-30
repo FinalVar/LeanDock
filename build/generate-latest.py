@@ -118,6 +118,15 @@ def main():
         source = source[source.index("#include"):]
         if name == "styler":
             source = '#include "clip-ownership-latest.h"\n' + source
+            source = '#include "icon-optics-latest.h"\n#include <winrt/Windows.UI.Xaml.Media.Imaging.h>\n#include <winrt/Windows.Storage.Streams.h>\n' + source
+            source = replace_once(source, "void MergeResourceVariables();",
+                '#include "icon-optics-latest.inc"\n\nvoid MergeResourceVariables();')
+            source = replace_once(source, "    HandleVirtualizingRepeater(elementId, element);",
+                "    HandleVirtualizingRepeater(elementId, element);\n    LeanDockIconView::Attach(elementId, element);\n    LeanDockSwitcher::Attach(elementId, element);")
+            source = replace_once(source, "void CleanupCustomizations(ElementId elementId) {",
+                "void CleanupCustomizations(ElementId elementId) {\n    LeanDockIconView::Remove(elementId);\n    LeanDockSwitcher::Remove(elementId);")
+            source = replace_once(source, "void UninitializeForCurrentThread() {",
+                "void UninitializeForCurrentThread() {\n    LeanDockIconView::Clear();\n    LeanDockSwitcher::Clear();")
             source = source.replace("#include <winrt/Windows.UI.Xaml.h>", "#include <winrt/Windows.UI.Xaml.h>\n#include <winrt/Windows.UI.Xaml.Controls.Primitives.h>\n#include <winrt/Windows.UI.Xaml.Input.h>\n#include <winrt/Windows.UI.Xaml.Data.h>", 1)
             a = source.index("const Theme g_themeTranslucentTaskbar")
             b = source.index("// An InstanceHandle", a)
@@ -128,7 +137,14 @@ def main():
             source = source[:a] + tail[last_theme_end:] + source[b:]
             source = replace_function(
                 source, "void ProcessAllStylesFromSettings()",
-                "\n".join(rules) + "\n    g_resourceVariables.clear();")
+                "\n".join(rules) + "\n    LeanDockSwitcher::AddRules();\n    g_resourceVariables.clear();")
+            source = replace_once(source, "void ProcessAllStylesFromSettings() {",
+                '#include "switcher-style-latest.inc"\n#include "switcher-confirm-latest.inc"\n\nvoid ProcessAllStylesFromSettings() {')
+            source = replace_once(source, "void CleanupCustomizations(ElementId elementId);",
+                "namespace LeanDockSwitcher { void Record(winrt::Windows::UI::Xaml::FrameworkElement const&) noexcept; void Attach(ElementId, winrt::Windows::UI::Xaml::FrameworkElement const&) noexcept; void Remove(ElementId) noexcept; void Clear() noexcept; }\nvoid CleanupCustomizations(ElementId elementId);")
+            source = replace_once(source,
+                "            elementCustomizationStateForVisualStateGroup);\n    }\n}\n\n// The diagnostics create",
+                "            elementCustomizationStateForVisualStateGroup);\n    }\n    LeanDockSwitcher::Record(element);\n}\n\n// The diagnostics create")
             source = replace_function(source, "void PromptToRestartExplorer(HRESULT statusCode)",
                                       '    Native_ReportFailure(L"XAML diagnostics attachment", statusCode);')
             prompt_start = source.index("constexpr WCHAR kRestartExplorerPromptTitle[]")
@@ -169,15 +185,17 @@ def main():
     winrt::weak_ref<Controls::Grid> menuAnchorParent;
     winrt::weak_ref<Controls::MenuFlyout> menuFocusFlyout;
     winrt::event_token menuFocusOpened{};
+    std::shared_ptr<bool> menuClosing;
+    winrt::event_token menuClosingToken{}, menuClosedToken{};
+    winrt::weak_ref<Controls::MenuFlyout> menuReopenFlyout;
+    winrt::event_token menuReopenClosed{};
     winrt::weak_ref<Controls::Control> menuFocusItem;
     winrt::event_token menuFocusGot{};
-    ULONGLONG menuPointerAt{};
+    ULONGLONG menuPointerAt{}, menuPlacementAt{};
     winrt::weak_ref<Controls::Grid> contextRoot;
     UIElement::ContextRequested_revoker contextRequested;
     winrt::weak_ref<Controls::Grid> contextTrayRoot;
     UIElement::ContextRequested_revoker contextTrayRequested;
-    winrt::weak_ref<Shapes::Rectangle> divider;
-    winrt::weak_ref<Controls::Grid> dividerParent;
     winrt::weak_ref<Controls::Grid> material;
     winrt::weak_ref<Controls::Canvas> materialHost;
     winrt::weak_ref<Shapes::Rectangle> materialSource;
@@ -238,17 +256,19 @@ def main():
         }
         const int left=origin.x-windowRect.left+std::lround(span.X*scale);
         LeanDockGeometry::Publish(topLevelWnd,left,left+std::lround(span.Width*scale),std::lround(span.Height*scale));
-        UpdateLeanDockDivider(state);
+        UpdateLeanDockSurface(state);
     }
     // LayoutUpdated is frequent; only re-apply when the result actually""")
             source = replace_once(source,"void ClearClickThroughRegions() {", """void ClearClickThroughRegions() {
     StopLeanDockBackdrops();
     for(auto& state:g_clickThroughTaskbarState) {
-        ClearLeanDockDivider(state);
+        ClearLeanDockSurface(state);
         if(state.islandHwnd)LeanDockGeometry::Clear(GetAncestor(state.islandHwnd,GA_ROOT));
     }""")
         if name == "hide":
-            source = '#include "dock-geometry-latest.h"\n#include "event-loop-latest.h"\n#include "backdrop-resume-latest.h"\n#include "attention-policy-latest.h"\n#include <stdexcept>\n' + source
+            source = '#include "aggregate-bridge-latest.h"\n' + source
+            source = replace_once(source, "bool ShouldKeepTaskbarShown(HWND hTaskbarWnd, HMONITOR monitor) {", "bool ShouldKeepTaskbarShown(HWND hTaskbarWnd, HMONITOR monitor) {\n    if(LeanDockAggregate::Holding(hTaskbarWnd))return true;")
+            source = '#include "dock-geometry-latest.h"\n#include "event-loop-latest.h"\n#include "backdrop-resume-latest.h"\n#include "attention-policy-latest.h"\n#include "appbar-query-policy-latest.h"\n#include "protocol-latest.h"\n#include "verify-latest.h"\n#include <stdexcept>\n' + source
             source = replace_once(source, "CSecondaryTray__Unhide_t CSecondaryTray__Unhide_Original;",
                 "CSecondaryTray__Unhide_t CSecondaryTray__Unhide_Original;\n\n" +
                 read(ROOT / "src" / "hide-attention-latest.inc"))
@@ -263,8 +283,11 @@ def main():
         {{LR"(public: virtual int __cdecl CTaskBtnGroup::IsFlashing(void))"},
          &CTaskBtnGroup_IsFlashing_Original, CTaskBtnGroup_IsFlashing_Hook},""")
             source = replace_once(source, "using ViewCoordinator_ShouldTaskbarBeExpanded_t =",
-                read(ROOT / "src" / "hide-state-latest.inc") + "\nusing ViewCoordinator_ShouldTaskbarBeExpanded_t =")
+                read(ROOT / "src" / "hide-state-latest.inc") + "\n" +
+                read(ROOT / "src" / "hide-appbar-latest.inc") + "\nusing ViewCoordinator_ShouldTaskbarBeExpanded_t =")
+            source = replace_once(source,"    g_initialized = true;", "    InstallAppBarCompatibility();\n    g_initialized = true;")
             source = replace_once(source, "    g_taskbarToViewCoordinator[hMMTaskbarWnd] = pThis;", """    g_taskbarToViewCoordinator[hMMTaskbarWnd] = pThis;
+    if(LeanDockAggregate::Holding(hMMTaskbarWnd))return true;
     ResumeValue(hMMTaskbarWnd,L"ExpandedAtQuery",expanded);
     ResumeValue(hMMTaskbarWnd,L"QueryAt",GetTickCount64());""")
             source = replace_once(source, "            return true;\n        }\n    }\n\n    return ViewCoordinator_ShouldTaskbarBeExpanded_Original(", "            ResumeValue(hMMTaskbarWnd,L\"Decision\",1);\n            return true;\n        }\n    }\n\n    return ViewCoordinator_ShouldTaskbarBeExpanded_Original(")
@@ -348,6 +371,7 @@ void StopEventThread() {
     if(g_eventStopping)return {original}({args});
     if(Msg==g_updateTaskbarStateRegisteredMsg && lParam!=g_eventGeneration.load())return 0;
     if(Msg==LeanDockGeometry::ChangedMessage())AdjustTaskbar(hWnd);
+    if(Msg==WM_NCCREATE || Msg==g_updateTaskbarStateRegisteredMsg || Msg==LeanDockAppBar::RefreshMessage())PublishAppBarSupport(hWnd);
 """+source[opening:]
             opening=source.index("{",source.index("void CALLBACK WinEventProc("))+1
             source=source[:opening]+"""
@@ -369,10 +393,14 @@ void StopEventThread() {
             source = replace_once(source,"void Wh_ModAfterInit() {", """void Wh_ModAfterInit() {
     ++g_eventGeneration;g_eventStopping=false;""")
             source = replace_function(source,"void Wh_ModUninit()", """    g_eventStopping=true;++g_eventGeneration;
+    RestoreAppBarCache();
     StopEventThread();
     EnumWindows([](HWND window,LPARAM)->BOOL {
         DWORD owner=0;GetWindowThreadProcessId(window,&owner);
         if(owner==GetCurrentProcessId() && IsTaskbarWindow(window)) {
+            RemovePropW(window,LeanDockAppBar::HookReady);
+            RemovePropW(window,LeanDockAppBar::Queries);
+            RemovePropW(window,LeanDockAppBar::CacheWrites);
             for(auto key:{L"LeanDock.Hide.Precise",L"LeanDock.Hide.KeepShown",L"LeanDock.Hide.Decisions",L"LeanDock.Hide.Left",L"LeanDock.Hide.Top",L"LeanDock.Hide.Right",L"LeanDock.Hide.Bottom"})RemovePropW(window,key);
             ClearResumeState(window);
         }
@@ -393,6 +421,17 @@ void StopEventThread() {
     }
     if (Msg == WM_NCCREATE) {""")
         if name == "size":
+            source = '#include "icon-resolution-latest.h"\n' + source
+            source = replace_once(source, "using IconUtils_GetIconSize_t =", read(ROOT / "src" / "icon-resolution-latest.inc") + "\nusing IconUtils_GetIconSize_t =")
+            source = replace_once(source, "    WindhawkUtils::SYMBOL_HOOK taskbarDllHooks[] = {", """    IconResolution::moduleBase=reinterpret_cast<std::uintptr_t>(module);
+    WindhawkUtils::SYMBOL_HOOK taskbarDllHooks[] = {
+        {
+            {LR"(public: struct tagSIZE __cdecl TaskbarHost::IconSizeInViewPixels(void)const)"},
+            &IconResolution::original,
+            IconResolution::Hook,
+        },""")
+            source = replace_function(source, "void Wh_ModUninit()", """    while(g_hookCallCounter>0)Sleep(100);
+    IconResolution::Clear();""")
             source = replace_function(source, "HMODULE GetSearchUxUiModuleHandle()",
                                       "    return nullptr; // Search is disabled in the dedicated Dock profile.")
         if name == "tray":
@@ -531,6 +570,32 @@ void StopEventThread() {
             key = (module_name, parts[i])
             assert key not in symbols or symbols[key] == rva
             symbols[key] = rva
+    # This one native method serves both source loading and layout. Keep an
+    # explicit source-only call set, checked as direct E8 calls in the exact
+    # pinned binary. A changed OS build must be re-audited, never guessed.
+    resolution = json.loads(read(ROOT / "baseline" / "icon-resolution-latest.json"))
+    module = next(x for x in modules if x["Name"].lower() == resolution["Module"])
+    image = Path(module["Path"]).read_bytes()
+    assert hashlib.sha256(image).hexdigest().upper() == resolution["Sha256"]
+    pe = struct.unpack_from("<I", image, 0x3C)[0]
+    sections = pe + 24 + struct.unpack_from("<H", image, pe + 20)[0]
+    def file_offset(rva):
+        for i in range(struct.unpack_from("<H", image, pe + 6)[0]):
+            size, address, raw_size, raw = struct.unpack_from("<IIII", image, sections + i*40 + 8)
+            if address <= rva < address + min(size, raw_size):
+                return raw + rva - address
+        raise ValueError(rva)
+    for call in resolution["SourceCalls"] + resolution["DisplayCalls"]:
+        rva = call["ReturnRva"]
+        offset = file_offset(rva - 5)
+        assert image[offset] == 0xE8, call
+        assert rva + struct.unpack_from("<i", image, offset + 1)[0] == resolution["Rva"], call
+    assert not ({x["ReturnRva"] for x in resolution["SourceCalls"]} & {x["ReturnRva"] for x in resolution["DisplayCalls"]})
+    symbols[(resolution["Module"], resolution["Symbol"])] = resolution["Rva"]
+    emit(include / "icon-resolution-pin-generated.h", "#pragma once\n"
+         "struct NativeIconSourceCall { const char* kind; unsigned returnRva; };\n"
+         "inline constexpr NativeIconSourceCall NativeIconSourceCalls[] = {\n" +
+         "\n".join('    {"' + x["Kind"] + '", ' + str(x["ReturnRva"]) + 'u},' for x in resolution["SourceCalls"]) + "\n};\n")
     lines = [f"    {{{wide(module)}, {wide(symbol)}, {rva}u}}," for (module, symbol), rva in sorted(symbols.items())]
     emit(include / "symbols-generated.h",
          "#pragma once\nstruct NativeModulePin { const wchar_t* name; const wchar_t* path; const wchar_t* sha256; unsigned timestamp; unsigned imageSize; };\n"

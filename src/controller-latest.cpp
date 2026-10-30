@@ -40,17 +40,27 @@ static bool OwnProcessPath(DWORD pid) {
 static void SaveStatus() {
     NativeCorners::Snapshot();
     wchar_t path[32768];Path(path,std::size(path),L"latest-status.json");
-    char json[2400],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
+    char json[4096],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
     // Error messages are fixed internal labels, never window titles or application text.
     int size=snprintf(json,sizeof(json),
-        "{\"version\":\"0.3.13\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
+        "{\"version\":\"0.3.33\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
         GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockStart::target,LeanDockStartProtocol::Adjustments))),static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),LeanDockPanels::failures,LeanDockStart::supported?"true":"false",(LeanDockStart::target && LeanDockStart::Query(LeanDockStart::target))?"true":"false",(LeanDockStart::blocked || LeanDockStart::attachPolicy.stopped)?"true":"false",LeanDockStart::failures,error);
+    HWND taskbar=FindWindowW(L"Shell_TrayWnd",nullptr);
+    const bool appBarReady=LeanDockClientEdge::active && g_state==NativeActive && g_explorerPid &&
+        GetPropW(taskbar,LeanDockAppBar::HookReady)==reinterpret_cast<HANDLE>(uintptr_t(g_explorerPid)) &&
+        GetPropW(g_window,LeanDockAppBar::ControllerReady)==reinterpret_cast<HANDLE>(uintptr_t(GetCurrentProcessId()));
+    size+=snprintf(json+size,sizeof(json)-size,"\"appBarGapCompatibilityReady\":%s,\"appBarQueriesAdjusted\":%llu,\"appBarCacheWrites\":%llu,",
+        appBarReady?"true":"false",static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(GetPropW(taskbar,LeanDockAppBar::Queries))),
+        static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(GetPropW(taskbar,LeanDockAppBar::CacheWrites))));
     size+=snprintf(json+size,sizeof(json)-size,"\"startLayoutRecoveries\":%u,\"startLayoutLastExitKnown\":%s,\"startLayoutLastExitCode\":%lu,",
         LeanDockStart::restartPolicy.recoveries,LeanDockStart::lastExitKnown?"true":"false",LeanDockStart::lastExitCode);
     size+=snprintf(json+size,sizeof(json)-size,"\"startLayoutInitAttempts\":%u,\"startLayoutInitRecoveries\":%u,\"startLayoutRetryScheduled\":%s,\"startLayoutAttachReceipt\":%s,\"startLayoutAttachError\":%lu,",
         LeanDockStart::attachPolicy.attempts,LeanDockStart::attachPolicy.recoveries,LeanDockStart::retryTimer?"true":"false",LeanDockStart::attachReceipt?"true":"false",LeanDockStart::lastAttachError);
     size+=snprintf(json+size,sizeof(json)-size,"\"clientEdgeReady\":%s,\"clientEdgeRepairs\":%u,\"clientEdgeFailures\":%u,",
         LeanDockClientEdge::active?"true":"false",LeanDockClientEdge::repairs,LeanDockClientEdge::failures);
+    size+=snprintf(json+size,sizeof(json)-size,"\"clientEdgeStage\":\"%s\",\"clientEdgeError\":%lu,\"clientEdgeInitAttempts\":%u,\"clientEdgeRecoveries\":%u,\"clientEdgeRetryScheduled\":%s,\"clientEdgeGenericRepairs\":%u,",
+        LeanDockClientEdge::lastStage,static_cast<DWORD>(LeanDockClientEdge::lastError),LeanDockClientEdge::initAttempts,
+        LeanDockClientEdge::initPolicy.recoveries,LeanDockClientEdge::retryTimer?"true":"false",LeanDockClientEdge::genericRepairs);
     size+=snprintf(json+size,sizeof(json)-size,"\"quickPositionSupported\":%s,\"quickPositionActive\":%s,\"quickPositionBlocked\":%s,\"quickPositionFailures\":%u,\"quickPositionAdjustments\":%llu,\"quickPositionWindow\":%llu,\"quickPositionRecoveries\":%u,\"quickPositionLastExitKnown\":%s,\"quickPositionLastExitCode\":%lu}\n",
         LeanDockQuickHost::supported?"true":"false",LeanDockQuickHost::Query()?"true":"false",LeanDockQuickHost::blocked?"true":"false",LeanDockQuickHost::failures,
         static_cast<unsigned long long>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),
@@ -84,6 +94,9 @@ static bool QueryBackend(HWND window,unsigned* state) {
     *state=static_cast<unsigned>(result);return true;
 }
 static void ClearExplorer() {
+    // The TaskbarList object and compatibility marks belong to this shell
+    // lifetime. Reconnect only after the replacement backend is ready.
+    LeanDockClientEdge::Stop();
     if(g_explorerWait) {
         SetThreadpoolWait(g_explorerWait,nullptr,nullptr);
         WaitForThreadpoolWaitCallbacks(g_explorerWait,TRUE);
@@ -187,7 +200,7 @@ static bool TryConnect() {
             if(state==NativeActive){
                 DWORD_PTR acquired=NativeFailed;
                 if(!SendMessageTimeoutW(backend,NativeStart,GetCurrentProcessId(),0,SMTO_ABORTIFHUNG|SMTO_BLOCK,3000,&acquired) || acquired!=NativeActive)return false;
-                g_state=state;g_error[0]=0;LeanDockClientEdge::Queue();SaveStatus();CancelHelper();return true;
+                g_state=state;g_error[0]=0;LeanDockClientEdge::Ensure(g_window);SaveStatus();CancelHelper();return true;
             }
             if(state==NativeFailed){wcscpy_s(g_error,L"Native backend failed; automatic retry stopped");g_exitCode=4;PostMessageW(g_window,WM_CLOSE,0,0);return false;}
             if(state==NativeStopped)PostMessageW(backend,NativeStart,GetCurrentProcessId(),0);
@@ -332,7 +345,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     if(g_dockSupported)LeanDockQuickHost::Start(g_directory);
     g_panelsReady=g_dockSupported && LeanDockPanels::Start(g_window);
     if(!g_panelsReady)LeanDockPanels::Stop();
-    if(g_dockSupported)LeanDockClientEdge::Start(g_window);
+    // ClientEdge initializes from TryConnect after NativeActive, not while
+    // Explorer and its taskbar COM service may still be starting at sign-in.
     SaveStatus();
     MSG message;
     while(GetMessageW(&message,nullptr,0,0)>0){TranslateMessage(&message);DispatchMessageW(&message);}

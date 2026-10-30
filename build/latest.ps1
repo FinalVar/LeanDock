@@ -28,6 +28,9 @@ $common=@('-target','x86_64-w64-mingw32','-O2','-DUNICODE','-D_UNICODE',
     '-ffunction-sections','-fdata-sections','-I',(Join-Path $root 'include'))
 $objects=[Collections.Generic.List[string]]::new()
 if(-not $ControllerOnly){
+if(-not (Test-Path (Join-Path $root 'aggregate/latest.exe'))){throw 'Build aggregate panel first'}
+$panelHash=(Get-FileHash (Join-Path $root 'aggregate/latest.exe')).Hash
+if(-not (Select-String -LiteralPath (Join-Path $root 'include/aggregate-panel-pin-generated.h') -SimpleMatch $panelHash -Quiet)){throw 'Aggregate helper pin does not match'}
 $headerTime=(@(Get-ChildItem -LiteralPath (Join-Path $root 'include') -File)+@(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Filter '*.inc' -File) | Measure-Object LastWriteTimeUtc -Maximum).Maximum
 foreach($name in @('buffer','hook','trampoline','hde\hde64')) {
     $file=Join-Path $root ('vendor\minhook\src\'+$name+'.c')
@@ -37,7 +40,7 @@ foreach($name in @('buffer','hook','trampoline','hde\hde64')) {
     $objects.Add($object)
 }
 foreach($name in @('runtime','size','tray','hide','show','styler','cards')) {
-    $file=Join-Path $root ('src\'+$name+'-latest.cpp')
+    $file=Join-Path $root ('src\'+$(if($name -eq 'cards'){'cards-aggregate'}else{$name})+'-latest.cpp')
     $object=Join-Path $build ($name+'.o')
     if((Test-Path -LiteralPath $object) -and
        (Get-Item -LiteralPath $object).LastWriteTimeUtc -gt (Get-Item -LiteralPath $file).LastWriteTimeUtc -and
@@ -63,10 +66,10 @@ if(-not $BackendOnly){
     if($LASTEXITCODE -ne 0){throw 'Controller compilation failed.'}
 }
 if(-not $ControllerOnly -and -not $BackendOnly){& (Join-Path $PSScriptRoot 'start-latest.ps1') -CompilerRoot $compiler}
-if(-not $BackendOnly){& (Join-Path $PSScriptRoot 'panels-latest.ps1') -CompilerRoot $compiler | Out-Null}
+if(-not $BackendOnly -and -not $ControllerOnly){& (Join-Path $PSScriptRoot 'panels-latest.ps1') -CompilerRoot $compiler | Out-Null}
 [pscustomobject]@{
-    Version='0.8.34';ControllerVersion='0.3.13';BackendVersion='0.5.29';StartLayoutVersion='0.1.4';QuickPositionVersion='0.2.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true;CardsIntegrated=$true
-    RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll,(Join-Path $root 'start\latest.dll'),(Join-Path $root 'panels\latest.dll') | ForEach-Object {
+    Version='0.8.82';ControllerVersion='0.3.33';BackendVersion='0.5.67';StartLayoutVersion='0.1.4';QuickPositionVersion='0.2.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true;CardsIntegrated=$true
+    RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll,(Join-Path $root 'start\latest.dll'),(Join-Path $root 'panels\latest.dll'),(Join-Path $root 'aggregate\latest.exe') | ForEach-Object {
         [pscustomobject]@{Name=[IO.Path]::GetRelativePath($root,$_.FullName);Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName).Hash}
     })
 } | ConvertTo-Json -Depth 4 | Tee-Object -FilePath (Join-Path $PSScriptRoot 'latest.json')

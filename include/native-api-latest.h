@@ -10,3 +10,6 @@
 #undef GetCurrentTime
 extern "C" void Native_ReportFailure(const wchar_t* stage, HRESULT error);
 
+extern "C" unsigned long long Native_SwitcherPeek();
+extern "C" bool Native_SwitcherConsume(unsigned long long ticket);
+extern "C" void Native_SwitcherReveal(unsigned long long ticket);

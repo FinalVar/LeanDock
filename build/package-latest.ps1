@@ -8,12 +8,12 @@ $out=[IO.Path]::GetFullPath($OutputDirectory)
 if($out -eq $root -or $root.StartsWith($out.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Output must not contain source checkout'}
 if(Test-Path -LiteralPath $out){throw 'Package output already exists. Use a new versioned parent directory with a latest child.'}
 $names=[Collections.Generic.List[string]]::new()
-foreach($f in @('latest.exe','latest.dll','start/latest.dll','panels/latest.dll','latest.ps1','latest.ini','AGENTS.md','README.md','NOTICE.md','LICENSE.txt','.gitattributes')){$names.Add($f)}
-foreach($dir in @('include','src','baseline','build','tests','hotcorners','start','panels','maintenance','docs','upstream','vendor')){
+foreach($f in @('aggregate/latest.exe','latest.exe','latest.dll','start/latest.dll','panels/latest.dll','latest.ps1','latest.ini','AGENTS.md','README.md','NOTICE.md','LICENSE.txt','.gitattributes')){$names.Add($f)}
+foreach($dir in @('aggregate','include','src','baseline','build','tests','hotcorners','start','panels','maintenance','docs','upstream','vendor')){
  foreach($f in Get-ChildItem -LiteralPath (Join-Path $root $dir) -File -Recurse){
   $relative=[IO.Path]::GetRelativePath($root,$f.FullName).Replace('\','/')
-  if($relative -match '/(objects|backups|[^/]*-fixture)/' -or $relative -match '/previous-' -or $relative -match 'latest-status\.json$' -or $relative -match '^tests/.*\.(json|txt|bin|ini)$' -or $relative -match '^maintenance/.*\.json$'){continue}
-  if($f.Extension -in @('.cpp','.c','.h','.hpp','.inc','.py','.ps1','.md','.ini','.json','.def','.txt') -and $relative -notin $names){$names.Add($relative)}
+  if($relative -match '^aggregate/[^/]*probe' -or $relative -match '^aggregate/build/' -or $relative -match '/(objects|backups|[^/]*-fixture)/' -or $relative -match '/previous-' -or $relative -match 'latest-status\.json$' -or $relative -match '^tests/.*\.(json|txt|bin|ini)$' -or $relative -match '^maintenance/.*\.json$'){continue}
+  if($f.Extension -in @('.cpp','.c','.h','.hpp','.inc','.py','.ps1','.md','.ini','.json','.def','.txt','.manifest','.rc') -and $relative -notin $names){$names.Add($relative)}
  }
 }
 $files=@(foreach($name in $names){$path=Resolve-LeanDockChild $root $name;[pscustomobject]@{Name=$name;SHA256=(Get-FileHash -LiteralPath $path).Hash;Bytes=(Get-Item $path).Length}})
