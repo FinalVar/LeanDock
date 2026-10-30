@@ -1,0 +1,3 @@
+#pragma once
+inline constexpr wchar_t AggregatePanelHash[]=L"13EA76E4A358E6B9CABB0F84079E96C93F6A74AFB1311E35A20E5281D3B188D4";
+

@@ -1,0 +1,86 @@
+[
+  {
+    "File": "platform-latest.h",
+    "Origin": "capsule/platform-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "E0DC761CB4EB456A0576F171330D28754E8B2D02FEFC6F02FBA8372D9B3BB00E"
+  },
+  {
+    "File": "policy-latest.h",
+    "Origin": "capsule/policy-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "D3F6BF6B565CAD54A8E3A90758FD988943D2E3E39918B09A101F0EFB8BC4FD9B"
+  },
+  {
+    "File": "effects-latest.h",
+    "Origin": "capsule/effects-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "2EC34A6F2AAD2F7B2642436AF6C5A78EE21D868EF94948C957F9B03D97E956D7"
+  },
+  {
+    "File": "composition-latest.h",
+    "Origin": "capsule/composition-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "4CEC48DCBF751615B8B72F2DABE9499CCAD3E69C26D14F8F68B9364A6E23D429"
+  },
+  {
+    "File": "drawing-latest.h",
+    "Origin": "capsule/drawing-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "AFDD6C71DB79F29B7F50B3447CFB12E497F33F79688BFCA56E826A5D271F5CB7"
+  },
+  {
+    "File": "popup-latest.h",
+    "Origin": "capsule/popup-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "159C422668FE25B7A95F85DD78D9BB508464C742FD9BA4380F859B3FBEDDABDC"
+  },
+  {
+    "File": "metrics-latest.h",
+    "Origin": "capsule/metrics-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "30BBBB9CD11C60454504B4CC91DBDAEC6B36B6F16A00E1F720DC49AF01FA7C57"
+  },
+  {
+    "File": "controls-latest.h",
+    "Origin": "capsule/controls-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "1AF5F2864369367206E6BA97593E566DFDB50F96CEE5EFB02FF651D16C648505"
+  },
+  {
+    "File": "control-panel-latest.h",
+    "Origin": "capsule/control-panel-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "3D41542CCAF6E210DE148123794E620A7EFE9825D46EAF439CE0979118BF243F"
+  },
+  {
+    "File": "theme-control-latest.h",
+    "Origin": "capsule/theme-control-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "F478DE05025247F52C00E62018F78F0FB8F084484D7B68645E6AED77D638451B"
+  },
+  {
+    "File": "latest.manifest",
+    "Origin": "capsule/latest.manifest",
+    "Version": "0.9.8",
+    "OriginalSHA256": "D1527CDB07BCBEAFE700387D3E1C0864D84BBD147DD62DC9FAF7E1A907393552"
+  },
+  {
+    "File": "latest.rc",
+    "Origin": "capsule/latest.rc",
+    "Version": "0.9.8",
+    "OriginalSHA256": "35AD0F812CDF3066D311229B1325579B4E3E9E6BBAE5D5785C9CF25271AB51C0"
+  },
+  {
+    "File": "time-key-latest.h",
+    "Origin": "capsule/time-key-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "CE51DC0BBCB861FEDD53396E79BAFDC3F6B2CF57FDA9CA9B403806D6720AA6D8"
+  },
+  {
+    "File": "control-tests-latest.h",
+    "Origin": "capsule/control-tests-latest.h",
+    "Version": "0.9.8",
+    "OriginalSHA256": "9D89FCBF68CB174CC3404A392AEABA9209689335434C136FEF19B68A2206026B"
+  }
+]

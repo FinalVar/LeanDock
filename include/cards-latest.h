@@ -11,6 +11,9 @@ struct Host {
     virtual void ReloadPreferences() noexcept=0;
     virtual void Stop() noexcept=0;
     virtual bool Alive()const noexcept=0;
+    // UI-thread-only live placement target. Auto-hide keeps this layout valid;
+    // a stopped, detached or space-collapsed card must return null.
+    virtual winrt::Windows::UI::Xaml::FrameworkElement MenuTarget()const noexcept=0;
 };
 // Called only on the owning taskbar's XAML thread. The returned object owns
 // its UI, subscriptions and reversible padding/background overrides.

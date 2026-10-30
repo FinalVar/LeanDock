@@ -33,7 +33,7 @@ struct Settings {
         dpi=GetDpiForWindow(window);
         font=CreateFontW(-Px(14),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,
             CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
-        Child(L"STATIC",L"勾选要显示的卡片，上下移动调整滚轮顺序。",0,0,18,16,362,25);
+        Child(L"STATIC",L"显示内容与排列顺序",0,0,18,16,362,25);
         list=Child(WC_LISTVIEWW,L"",WS_TABSTOP|WS_BORDER|LVS_REPORT|LVS_NOCOLUMNHEADER|LVS_SINGLESEL|LVS_SHOWSELALWAYS,
             ListId,18,50,272,158);
         if(!list)return false;
@@ -43,9 +43,9 @@ struct Settings {
         int i=0;for(auto page:config.pages)order[i++]=page;
         for(auto page:DefaultOrder)if(!config.Has(page))order[i++]=page;
         std::array<bool,5> enabled{};for(i=0;i<5;++i)enabled[i]=config.Has(order[i]);Populate(enabled,0);
-        Child(L"BUTTON",L"上移",WS_TABSTOP,UpId,304,76,74,30);
-        Child(L"BUTTON",L"下移",WS_TABSTOP,DownId,304,120,74,30);
-        Child(L"STATIC",L"始终只显示一张，记住上次选择。\n在卡片上按下鼠标滚轮，可再次打开这里。",0,0,18,224,360,44);
+        Child(L"BUTTON",L"前移",WS_TABSTOP,UpId,304,76,74,30);
+        Child(L"BUTTON",L"后移",WS_TABSTOP,DownId,304,120,74,30);
+        Child(L"STATIC",L"媒体有内容时显示，可点击展开。",0,0,18,224,360,44);
         Child(L"BUTTON",L"保存",WS_TABSTOP|BS_DEFPUSHBUTTON,SaveId,210,286,80,32);
         Child(L"BUTTON",L"取消",WS_TABSTOP,CancelId,300,286,80,32);
         SetFocus(list);return true;

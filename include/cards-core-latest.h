@@ -37,7 +37,7 @@ inline Page Cycle(Page page,int direction) {
     constexpr auto count=static_cast<int>(Page::Count);
     return static_cast<Page>((static_cast<int>(page)+(direction<0?count-1:direction>0?1:0))%count);
 }
-inline constexpr Page DefaultOrder[]={Page::Clock,Page::Power,Page::Media,Page::Metrics,Page::Network};
+inline constexpr Page DefaultOrder[]={Page::Clock,Page::Metrics,Page::Power,Page::Network,Page::Media};
 inline const wchar_t* PageKey(Page page) {
     switch(page){case Page::Clock:return L"clock";case Page::Power:return L"power";
     case Page::Media:return L"media";case Page::Metrics:return L"metrics";case Page::Network:return L"network";default:return L"";}

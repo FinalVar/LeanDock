@@ -13,7 +13,7 @@ inline bool PreferencesDirectory(std::wstring const& root){
 }
 inline bool ReadPreferences(std::wstring const& root,PageOrder& order,Page& selected) {
     const auto path=PreferencesPath(root);wchar_t buffer[256]{};
-    const auto n=GetPrivateProfileStringW(L"cards",L"Order",L"clock,power,media,metrics,network",buffer,256,path.c_str());
+    const auto n=GetPrivateProfileStringW(L"cards",L"Order",L"clock,metrics,power,network,media",buffer,256,path.c_str());
     if(n>=255)return false;
     auto parsed=ParseOrder(buffer);if(!parsed)return false;
     GetPrivateProfileStringW(L"cards",L"LastPage",L"clock",buffer,256,path.c_str());
