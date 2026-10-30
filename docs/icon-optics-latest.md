@@ -1,0 +1,64 @@
+# 应用图标可见尺寸补偿
+
+0.8.36 / backend 0.5.31 增加通用的透明留白补偿，0.8.37 / backend 0.5.32 修正显示偏移混入测量造成的垂直不齐。用户要求以后新增的应用也自动处理，因此不保存应用名称、路径或逐个缩放白名单。
+
+0.8.36 部署后实际读回：几个完整图案的测量上沿为 16、下沿正好卡在 192 的捕获边界；PI、Antigravity 上沿分别是 27、31，下沿也靠近边界。完整原资源不应有这段共同的顶部空白。用户截图确认上下不齐。独立原生 XAML 对照进一步验证，读取带裁剪的原生图像会得到截断边界，读取其同源中性副本可保留完整边界。该问题不能靠统一移动所有图标解决。
+
+## 依据与范围
+
+本机只读提取的 64 像素原始图标中，PI 的可见边界是 (5,4)–(59,58)，Antigravity 是 (5,5)–(59,59)，DSH 是 (2,2)–(62,62)，Edge 和 Hermes 是完整 64×64。界面统一使用 40 DIP 图像框，但原图留白不同；同一框尺寸不代表同一可见尺寸。这些资源仅用作验证样本，运行实现不使用名单。
+
+继续复用 taskbar-icon-size 上游模块的尺寸、DPI 与布局处理，以及 windows-11-taskbar-styler 的元素标识和销毁通知。新增代码只负责 Image#Icon 的可见轮廓补偿，且须有 TaskListButton/TaskListButtonPanel/TaskListLabeledButtonPanel 祖先；托盘、卡片、按钮底色、进度条、徽标与运行圆点不参与。
+
+## 计算和生命周期
+
+- WriteableBitmap 直接读取原像素；其他来源使用同一 ImageSource 建立一个 128 DIP 方形中性 Image，经 Windows 原生 RenderTargetBitmap 读取 alpha。副本放在既有树的零尺寸 Canvas 中，父容器平移至 XAML 根范围以外，不绘制到用户桌面、不占布局或输入区域。取样请求为 256 像素，按 API 返回的实际尺寸计算，兼容 DPI 缩放；不保存图像、不替换应用图标。微软 API 的树连接与可渲染内容限制见 https://learn.microsoft.com/en-us/uwp/api/windows.ui.xaml.media.imaging.rendertargetbitmap.renderasync 。
+- 以峰值 alpha 的一半（最低 16）界定实质轮廓，排除重采样边缘和微弱阴影，以可见边界最长边计算等比缩放和居中。最多放大 1.35 倍；透明、过淡、极小占位或无效数据保留原图。不裁剪、不拉伸宽高、不把白色底板当透明留白删除。
+- 图标加入、加载完成、来源或布局尺寸改变时计算。每个图标最多一个未完成的测量，事件通过原有 UI dispatcher 合并；新副本首次渲染可能尚无表面，保留同一副本在后续最多两帧重试，随后撤销帧订阅并清理。成功、来源改变或卸载也清理副本；没有持续逐帧扫描、计时器或后台常驻进程。
+- 只给图像添加变换，先补偿图案再应用原变换对象，避免放大原有位移；保留原 RenderTransformOrigin。不改变按钮宽度、命中范围、应用身份或图标源。绑定的变换保留原生行为。
+- 元素销毁/虚拟化/停止时撤销回调、取消未完成测量，并仅在仍持有该变换时恢复原属性。来源代次阻止旧结果覆盖新图像；进程固定的后端保证迟到回调代码仍有效，已停止状态不再应用结果。
+- 只处理原生 Uniform 拉伸的方形图像框；其他布局和绑定的变换保留原生行为，避免把特殊布局强行拉大。
+- 窗口属性 LeanDock.Icons.<slot>.Status/Scale/Left/Top/Right/Bottom/Source/Error/PixelsWidth/PixelsHeight/OffsetX/OffsetY 仅记录测量数值。Status 1 为无需调整、2 为补偿已应用、3 为无效/失败、4 为绑定变换跳过；Source 1 为直接原像素、2 为 BitmapImage 渲染、3 为其他渲染来源。Scale 是倍率乘 10000，OffsetX/Y 是 DIP 位移乘 10000，所有值存储时加 1。销毁时清除。
+
+## 验证边界
+
+纯计算测试覆盖真实资源边界、长宽比例、偏心图案、阴影与重采样边缘、空图、上限和数据尺寸。独立原生 XAML 测试验证真实 WriteableBitmap 与内存 PNG 解码的 BitmapImage、带原生位移与裁剪时的完整测量和中心、原图和布局保留、属性恢复、原生接管及异步取消清理。测试窗口完全置于所有显示器范围之外，禁止激活且无桌面输入；它不是实际 Dock 的视觉验收。检查数量和结果见 verification-latest.json。
+
+任务栏当前图像的数值读回、用户视觉验收和新应用动态加入需分别记录于 verification-latest.json。相同外轮廓尺寸不保证不同图案的主观视觉重量完全相同；不以编译或离线测试替代真实 Dock 验收。
+
+0.8.38 增加 SourceWidth/SourceHeight、DecodeWidth/DecodeHeight 和 DisplayWidth100/DisplayHeight100 只读数值。前两组是 BitmapSource 原图与显式解码参数，显示尺寸包含系统缩放与光学补偿；PixelsWidth/PixelsHeight 只是中性取样画布，不能当作原图清晰度证据。0.8.37 居中已获用户确认，用户随后反馈白底图标偏软，清晰度另行核对。
+
+0.8.39 曾在保留的 taskbar-icon-size Mod 的 ViewModel GetIconHeight 方法追加 1.5 倍源像素预算；加载后六个 BitmapImage 仍全部为 60×60，Loader 请求计数也未出现，因此不能证明当前动态路径使用该接口。0.8.40 已移除该适配、辅助函数和只验证倍率的测试，恢复上游加载逻辑。当时显示画布为 60、60、72、64、60、73.61 物理像素；补偿后的实际图案最长边约 60 像素，中心保留，但透明留白图标会经过额外上采样。该版尚未解决用户关于柔化的观察；保留只读源像素诊断，不自动换图标、按应用建名单或修改原始素材。以下 0.8.44 从已证实的本机原生取图路径修正，并分别记录源像素和视觉验收。
+
+## 0.8.44 原生取图预算
+
+用户明确同意先取高清资源再补偿，不能继续放大已解码的小图。修改前的现场读回为七个 BitmapImage 全部 60×60，最大绘制画布约 73.61 像素。Antigravity 的签名程序资源组包含 16、24、32、48、64、128、256 尺寸；直接读取最大资源的 PNG IHDR 也确认 256×256。这证明资源存在，不代表旧任务栏已经选用了该资源。
+
+本机 Taskbar.dll 的动态路径由 TaskbarHost::IconSizeInViewPixels 返回图标尺寸。微软匹配 PDB、PE 函数边界和直接调用指令显示，共有六个调用点：五个用于图像缓存/加载，一个用于报告界面尺寸。沿用上游 taskbar-icon-size 的 HookSymbols、停止、恢复与加载流程，只增加该方法的精确调用来源过滤。
+
+| 调用者 | 返回 RVA | 用途 |
+| --- | --- | --- |
+| IconContainer::RecreateStorage | 0x288CC | 图像列表缓存尺寸 |
+| ShellIconLoaderV2::UpdateMembers | 0x50CCD | Win32 图标请求尺寸 |
+| CWinRTAppIconLoader::RuntimeClassInitialize | 0x3BE79 | 打包应用图标请求尺寸 |
+| PlaceholderTileIconLoader::LoadPlaceholderTileIconAsync | 0x15C396 | 占位/磁贴原生取图 |
+| PinnedWebsiteIconLoader::RuntimeClassInitialize | 0x15D1E0 | 固定网站原生取图 |
+| CTaskListWnd::GetIconSizeInViewPixels | 0x1526B8 | 布局报告，明确保持原值 |
+
+权威输入为 baseline/icon-resolution-latest.json，模块仍由现有 baseline/modules-latest.json 固定 SHA256。生成器验证每个返回地址之前的 E8 指令确实调用已绑定的目标，取图与显示集合不可重叠；运行时 HookSymbols 再验证模块身份。不是扫描图案、猜测偏移或全局修改所有尺寸查询。新增源码在 src/icon-resolution-latest.inc，生成器负责接入，不手改生成的 size-latest.cpp。
+
+仅对 8–128 DIP 的方形有效请求提供两倍原生取图预算；其他值、未识别调用、布局调用和卸载阶段保留原值。预算包含最多 1.35 倍补偿所需的像素余量；DPI 换算和资源选择继续由 Windows 完成。原生缓存和图像通知负责新增应用与图标变化，不增加应用白名单、磁盘图标副本、轮询器或常驻进程。停止时沿用原设置恢复，等待在途调用结束后清理诊断属性。
+
+LeanDock.IconLoader.Cache/Win32/Packaged/Placeholder/Website 记录实际请求计数，DisplayDips/SourceDips 记录原值和源预算，仍按数值加一存储。它们用于与 LeanDock.Icons.<slot>.SourceWidth/SourceHeight 对照：只有请求计数增加而原图仍小，不能判为生效。来源变大仍不自动证明应用没有提供低分辨率自定义图标，清晰度以真实画面验收为准；多显示器、特殊动态图标和未安装应用不可外推为已全部测试。
+
+补充验证包含真正 256×256 PNG 经 BitmapImage 解码、补偿后的图案范围、显示框仍为 40 DIP、最终绘制尺寸小于源尺寸，以及清理时原生 Source 和 Transform 属性保留。该离屏测试只操作自有的非激活测试窗口，不模拟桌面输入。任务栏图标的实际数值验证与用户视觉确认单独记录。
+
+### 现场结果与用户验收
+
+2026-10-17 21:39 部署后读回，六个大图标的 BitmapImage 原图均为 120×120，显示画布分别为 60、60、72、64、60、73.38 物理像素。原生缓存、Win32 和打包应用取图请求计数分别为 1、8、1，布局值仍为 40 DIP，源预算为 80 DIP。取样画布此时为 384×384，与上述实际源图尺寸分别记录，不能混用。
+
+38 项策略检查及 40 项独立原生 XAML 检查通过；四个运行文件哈希匹配、两份用户配置保留，Dock、触发角、紧凑开始菜单、快速设置和主题组件均恢复就绪。用户随后确认“更清晰，大小和居中正常”，并提供包含六个大图标的截图；截图复核未见明显垂直错位，图案本身的视觉重量差异保留。这构成当前应用集合的真实视觉验收，不外推为全部未来应用、特殊动态图标、多显示器 DPI 或休眠恢复均已验收。
+
+本轮版本保持 0.8.44；最后的验收文档同步不更换运行文件，无需重载资源管理器。部署、后台读回、截图和用户原话见 verification-latest.json，完整本地诊断位于 work/icon-quality-20261017。
+
+参考微软对资源匹配与缩放的说明：https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-construction 。XAML 最终尺寸重栅格化与自动解码边界：https://learn.microsoft.com/en-us/windows/apps/develop/performance/optimize-animations-and-media 。本地目标程序和 Windows 二进制未被改写。

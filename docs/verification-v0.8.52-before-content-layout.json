@@ -1,0 +1,91 @@
+{
+  "schema": 82,
+  "recordedAt": "2026-10-18T12:08:20.9085829+08:00",
+  "packageVersion": "0.8.52",
+  "controllerVersion": "0.3.21",
+  "backendVersion": "0.5.41",
+  "hotCornersVersion": "1.0.6-integrated",
+  "scope": "Ctrl+Alt+Tab only: fixed large canvas and recovery from private layout regression",
+  "previousVerification": "docs/verification-v0.8.51-before-native-layout-only.json",
+  "evidence": {
+    "priorUserConfirmedSingleScreen": true,
+    "priorUserConfirmedAdaptiveSize": true,
+    "priorUserReportedNativeTaskbar": true,
+    "explorerCrashes": 3,
+    "stowedException": "0xc000027b",
+    "werException": "0x80004002",
+    "crashDumpAvailable": false,
+    "rootCause": "suspected redundant private layout setters or parsing; exact throw site unproven",
+    "rolledBackVersion": "0.8.50",
+    "rollbackLive": true,
+    "rollbackHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    }
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.52",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.52-20261018-121838478",
+    "ChangedFiles": 17,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "dockRecovery": "user confirmed: Dock normal",
+    "runtimeStability": "12 samples; Explorer 19672 unchanged, all Live, no crash events",
+    "singleScreen": "user confirmed 0.8.52",
+    "systemLaunchMaximize": "paused by user: only switcher now",
+    "existingWindowSize": "paused by user: only switcher now",
+    "twoWindowConfirm": "pending",
+    "fixedCanvas": "user confirmed 0.8.52",
+    "arrangement": "rejected: six items in one row; 182 DIP height leaves large empty vertical space"
+  },
+  "canvasPolicy": {
+    "widthRatio": 0.92,
+    "heightRatio": 0.84,
+    "countChangesOuterSize": false,
+    "nativePanelLayoutUntouched": true,
+    "maxPreviewRatio": 0.7,
+    "maxPreviewPixels": 1000,
+    "scrollbarHidden": false,
+    "geometryEvidenceLimit": 128
+  },
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 344576,
+      "SHA256": "076A1D96AFCEEC3488765F2F65A28B20B4DD92DB2DDB6AE5ADDD9D3ED0CDACBD"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2152448,
+      "SHA256": "5D8AAE8CD0614F55F924CA79EBA9649FFC78EB91B0035481F7488F47D7DC623E"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "checks": {
+    "switcherPolicy": 21,
+    "switcherFailures": 0,
+    "launchPolicy": 58,
+    "launchNative": 73,
+    "launchFailures": 0,
+    "buildPassed": true,
+    "desktopInputSent": false
+  }
+}

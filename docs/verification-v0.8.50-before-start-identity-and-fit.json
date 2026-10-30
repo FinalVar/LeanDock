@@ -1,0 +1,91 @@
+{
+  "schema": 80,
+  "recordedAt": "2026-10-18T01:57:05.2766855+08:00",
+  "packageVersion": "0.8.50",
+  "controllerVersion": "0.3.20",
+  "backendVersion": "0.5.39",
+  "hotCornersVersion": "1.0.6-integrated",
+  "scope": "Do not cancel an explicit new launch when CREATE delivery is still pending",
+  "previousVerification": "docs/verification-v0.8.49-before-launch-event-order.json",
+  "evidence": {
+    "failureBranch": "created=0 was compared as older than a real click in both resolved-input and foreground cancellation",
+    "beforeNativeChecks": 61,
+    "beforeNativeFailures": 2,
+    "afterNativeChecks": 61,
+    "afterNativeFailures": 0,
+    "policyChecks": 58,
+    "policyFailures": 0,
+    "inputDesktopUnchanged": true,
+    "testInputSent": false,
+    "threeSystemCatalogEntriesUnique": true,
+    "clockPresentInCurrentQueries": false,
+    "causality": "Reproduces a controller state-machine defect; not yet a replay of the reported complete real system-app launch"
+  },
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 344064,
+      "SHA256": "B8FB273710FEF795CA87B60EB2D6D31DFF9F09D97A6499D5F0CF5CF6E29154E2"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2145280,
+      "SHA256": "63198FC0E53E981B49B655EADE0A09E01E5190E778606106A30FC6C6D2AE0FA1"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "checks": {
+    "build": "passed",
+    "preflight": "passed",
+    "nativeFixtures": "isolated desktop; never switched to input desktop"
+  },
+  "deployment": {
+    "state": "Applied",
+    "configPreserved": true,
+    "details": {
+      "backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.50-20261018-015945529",
+      "fourRuntimeHashesVerified": true,
+      "componentHealth": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "explorerPid": 32736,
+      "start": true,
+      "corners": true,
+      "sourceReceiptAfterFrozenPackage": true
+    }
+  },
+  "acceptance": {
+    "state": "pending",
+    "unverified": [
+      "Settings actual new launch",
+      "Explorer actual new launch",
+      "Sound Recorder retained behavior",
+      "existing normal window stays unchanged"
+    ],
+    "clock": "Not found in current Get-StartApps or Appx Alarms read; not accepted"
+  },
+  "switcherAcceptance": {
+    "state": "pending",
+    "unverified": [
+      "two-item actual target and repeated switching",
+      "picker flash and transition continuity",
+      "neutral focus and enlarged actual preview",
+      "click keyboard and Escape",
+      "multi-monitor DPI session recovery"
+    ]
+  },
+  "switcherBackendUnchanged": true,
+  "glassScope": "Read-only preparation report only; no effect deployment",
+  "sourcePolicy": "Preserved earlier uncommitted and untracked work; exact local package snapshot, not clean stable baseline"
+}

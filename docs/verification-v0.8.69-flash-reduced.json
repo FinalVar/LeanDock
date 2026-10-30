@@ -1,0 +1,210 @@
+{
+  "schema": 98,
+  "recordedAt": "2026-10-19T19:47:20.627826+08:00",
+  "packageVersion": "0.8.69",
+  "controllerVersion": "0.3.29",
+  "backendVersion": "0.5.55",
+  "previousVerification": "docs/verification-v0.8.68-flash-persists.json",
+  "scope": "Corner-only native pre-show DWM presentation gate",
+  "previousResult": "0.8.68 user confirmed round trip normal; flash persists",
+  "policy": {
+    "exactlyTwo": "Map native keyboard focus to one of the two realized item containers; Invoke native thumbnail once for corner ticket only",
+    "otherCounts": "Native manual picker",
+    "keyboard": "Manual Ctrl+Alt+Tab unchanged",
+    "secondCorner": "Cancel visible picker",
+    "applicationPage": "Absent",
+    "winKeyInterception": "Absent",
+    "automaticMaximization": "Remains removed",
+    "additionalPolling": false,
+    "desktopInputAutomation": false,
+    "boundedWatchdog": "200 ms one-shot while presentation held; scheduling is not a real-time guarantee"
+  },
+  "checks": {
+    "build": "passed",
+    "runtimeRegression": "91 passed, 0 failed",
+    "confirmationPolicy": "23 passed",
+    "hiddenDwmLifecycle": "17 passed; no fixture shown or input sent",
+    "unchangedComponents": [
+      {
+        "file": "latest.exe",
+        "sha256": "3D0F863853EBE66DA4940DBD375F541D13CCF117447B5B0B115ACB85C24386E2",
+        "unchanged": true
+      },
+      {
+        "file": "start/latest.dll",
+        "sha256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "unchanged": true
+      },
+      {
+        "file": "panels/latest.dll",
+        "sha256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "unchanged": true
+      },
+      {
+        "file": "include/switcher-layout-policy-latest.h",
+        "sha256": "013DEEDCF036CF271ECF05326A5E429D76EBE96E592CADEF1CBC213C985036DE",
+        "unchanged": true
+      },
+      {
+        "file": "include/switcher-visibility-latest.h",
+        "sha256": "607E72B2EE141840DAED8C60C7650B06940480983D88CEBF4536360676F4CE7B",
+        "unchanged": true
+      },
+      {
+        "file": "src/switcher-layout-latest.inc",
+        "sha256": "4A7A72272070F35CAF5ED4262810D16B1DB9AE5974A1CA0E1F08575B87496D58",
+        "unchanged": true
+      },
+      {
+        "file": "src/switcher-style-latest.inc",
+        "sha256": "AD90B1DB773877FF8F996B02E29C6287A5B1877BE1B22FB05349599E9537E4EF",
+        "unchanged": true
+      },
+      {
+        "file": "src/hotcorners-latest.cpp",
+        "sha256": "E873BECAA36E1CCA5B25E546B28F5C47AF65E4E5A54E7CE1CCE2B917B57841A2",
+        "unchanged": true
+      },
+      {
+        "file": "src/cards-latest.cpp",
+        "sha256": "3B5D94987AB218BB5B8581AA1477FB1454B16BC4AF79E7307CF3329DA2F13223",
+        "unchanged": true
+      }
+    ],
+    "matureReference": "L3r0y alt-tab-delayer 1.2.0, b07c7e0d65abbbf7d10547608004595ce07189e0, MIT",
+    "binaryEvidence": "Microsoft matching PDB GUID and DBI age, local read-only Capstone disassembly; REA timed out and session closed"
+  },
+  "review": {
+    "maintainability": "Accepted native focus/Invoke and shared runtime hook ownership preserved; optional exact module hash gate",
+    "boundaries": "Corner request; hidden host in native DisplayAltTab scope; no preexisting APP cloak; ownership property guards recycled HWNDs",
+    "regression": "Other counts reveal; keyboard has no request; timeout consumes late confirmation; native hide and Stop restore",
+    "resourceCost": "One one-shot thread-pool timer per active gate; disarmed idle; Stop drains and closes handle",
+    "remaining": "Real host focus and visual zero-flash acceptance, keyboard manual and 3+ item native click; multi-monitor/resume"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.69",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.69-20261019-194826468",
+    "ChangedFiles": 20,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "twoWindowRoundTrip": "Retained; newest feedback concerns residual flash",
+    "pickerFlash": "User: very careful observation still sees flash; less obvious (0.8.69)",
+    "keyboardManual": "pending",
+    "threeWindowsManual": "pending"
+  },
+  "runtimeAfter": {
+    "Live": true,
+    "Backend": {
+      "protocol": 1,
+      "version": "0.5.55",
+      "explorerPid": 26908,
+      "ownerPid": 24824,
+      "state": 2,
+      "hooks": 67,
+      "styledElements": 37,
+      "failed": false,
+      "attentionPolicy": {
+        "active": true,
+        "blockedReveals": 0,
+        "ignoredFlashingChecks": 0,
+        "passedReveals": 7
+      }
+    },
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Start": true,
+    "QuickSettingsPosition": true,
+    "QuickTheme": true,
+    "preshow": {
+      "schema": 1,
+      "supported": true,
+      "enabled": true,
+      "pending": false,
+      "held": 0,
+      "revealed": 0,
+      "timeouts": 0,
+      "errors": 0,
+      "uncloakDeferred": 0,
+      "maximumDelayMs": 200,
+      "method": "pre-show-app-cloak"
+    }
+  },
+  "deployedHashes": [
+    {
+      "Name": "latest.exe",
+      "Hash": "3D0F863853EBE66DA4940DBD375F541D13CCF117447B5B0B115ACB85C24386E2",
+      "DeployedMatches": true
+    },
+    {
+      "Name": "latest.dll",
+      "Hash": "E49AC23FAF41AA366C165EA8ED375DF62E75CA68E69FB7ACF5E7431C76CA4BDB",
+      "DeployedMatches": true
+    },
+    {
+      "Name": "start/latest.dll",
+      "Hash": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "DeployedMatches": true
+    },
+    {
+      "Name": "panels/latest.dll",
+      "Hash": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "DeployedMatches": true
+    },
+    {
+      "Name": "src/switcher-preshow-latest.inc",
+      "Hash": "F34BEE38B2F1C1ED52B076186D8A235212AEC10A38FE7FA536646BCA002B589A",
+      "DeployedMatches": true
+    },
+    {
+      "Name": "src/switcher-confirm-latest.inc",
+      "Hash": "B15103D245368EA5054D36BD0F17237985D67FD63FE508FEE059542C22CEA6F2",
+      "DeployedMatches": true
+    },
+    {
+      "Name": "tests/switcher-preshow-latest.cpp",
+      "Hash": "C22DF512A44DD8AB7AF42564C544D8611394665E8BE3E760658981BB128CF457",
+      "DeployedMatches": true
+    }
+  ],
+  "followupEvidence": {
+    "preshow": {
+      "schema": 1,
+      "supported": true,
+      "enabled": true,
+      "pending": false,
+      "held": 1,
+      "revealed": 1,
+      "timeouts": 0,
+      "errors": 0,
+      "uncloakDeferred": 1,
+      "maximumDelayMs": 200,
+      "method": "pre-show-app-cloak"
+    },
+    "confirm": {
+      "schema": 4,
+      "autoConfirm": true,
+      "invokeAccepted": 36,
+      "keptOpen": 1,
+      "invokeErrors": 0,
+      "attachErrors": 0,
+      "lastCount": 2,
+      "lastSelected": -1,
+      "lastFocused": 1,
+      "listSource": "native-SwitchItemList",
+      "targetSource": "native-item-keyboard-focus",
+      "scope": "corner-ticket-only"
+    }
+  },
+  "followupFinding": "36 native invokes, only 1 pre-show gate; reused WS_VISIBLE/native-cloaked hosts missed; unconditional gate cleanup could undo native closing cloak"
+}

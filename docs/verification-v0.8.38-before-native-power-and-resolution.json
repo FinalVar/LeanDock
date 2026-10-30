@@ -1,0 +1,231 @@
+{
+  "schema": 67,
+  "recordedAt": "2026-10-17T16:08:28.5085531+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.38",
+  "backendVersion": "0.5.33",
+  "scope": "Native battery right-button ownership, closing-phase menu reopening and true icon resolution readback",
+  "previousVerification": "docs/verification-v0.8.37-before-input-and-clarity.json",
+  "tests": {
+    "build": "Passed",
+    "runtimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 292352,
+        "SHA256": "3EBAE5829C94E93730051BAE310D5645A7DA9617FFF6EF6E0EE6A14464D7DADA"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2122240,
+        "SHA256": "80457D1BC887EA578EED67DFBA521754DAC411AA1A6A17662BA4DCC22F0785A7"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 397312,
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ],
+    "shellActions": {
+      "inputSent": false,
+      "checks": 168,
+      "failures": 0
+    },
+    "iconView": {
+      "inputSent": false,
+      "offscreen": true,
+      "checks": 31,
+      "failures": 0
+    },
+    "freshChecks": 199
+  },
+  "userFeedback": {
+    "version": "0.8.37",
+    "batteryReopen": "Failed: first right-click closes, second opens",
+    "iconClarity": "White tile icons look soft in supplied original screenshot",
+    "iconAlignment": "Accepted by user"
+  },
+  "rules": {
+    "tray": "Native menu",
+    "batteryLeft": "Native Quick Settings",
+    "application": "Native menu",
+    "card": "WinX, including native battery",
+    "blank": "No menu"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.38",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.38-20261017-161011610",
+    "ChangedFiles": 19,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "required": [
+      "Visible WinX -> one battery right-click reopens",
+      "Battery left-click and card paging retained"
+    ],
+    "iconClarity": "All six native BitmapImages are 60x60. Padded images are drawn at up to 73.61 physical pixels.",
+    "state": "User confirmed still needs second battery right-click; left-click normal. User chose to restore native battery context menu."
+  },
+  "RuntimeReadback": {
+    "At": "2026-10-17T16:10:30.2190846+08:00",
+    "Backend": "0.5.33",
+    "ExplorerPid": 11604,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "StartReady": true,
+    "StartItems": 49,
+    "QuickSettingsActive": true,
+    "QuickThemeActive": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "File": "latest.exe",
+        "Match": true
+      },
+      {
+        "File": "latest.dll",
+        "Match": true
+      },
+      {
+        "File": "start\\latest.dll",
+        "Match": true
+      },
+      {
+        "File": "panels\\latest.dll",
+        "Match": true
+      }
+    ],
+    "ConfigHashes": [
+      {
+        "File": "latest.ini",
+        "Match": true
+      },
+      {
+        "File": "hotcorners/latest.ini",
+        "Match": true
+      }
+    ]
+  },
+  "IconReadback": {
+    "RecordedAt": "2026-10-17T16:10:30.5636282+08:00",
+    "Values": {
+      "LeanDock.Icons.1.Bottom": 384,
+      "LeanDock.Icons.1.DecodeHeight": 0,
+      "LeanDock.Icons.1.DecodeWidth": 0,
+      "LeanDock.Icons.1.DisplayHeight100": 6000,
+      "LeanDock.Icons.1.DisplayWidth100": 6000,
+      "LeanDock.Icons.1.Left": 0,
+      "LeanDock.Icons.1.OffsetX": 0,
+      "LeanDock.Icons.1.OffsetY": 0,
+      "LeanDock.Icons.1.PixelsHeight": 384,
+      "LeanDock.Icons.1.PixelsWidth": 384,
+      "LeanDock.Icons.1.Right": 384,
+      "LeanDock.Icons.1.Scale": 10000,
+      "LeanDock.Icons.1.Source": 2,
+      "LeanDock.Icons.1.SourceHeight": 60,
+      "LeanDock.Icons.1.SourceWidth": 60,
+      "LeanDock.Icons.1.Status": 1,
+      "LeanDock.Icons.1.Top": 0,
+      "LeanDock.Icons.2.Bottom": 379,
+      "LeanDock.Icons.2.DecodeHeight": 0,
+      "LeanDock.Icons.2.DecodeWidth": 0,
+      "LeanDock.Icons.2.DisplayHeight100": 6000,
+      "LeanDock.Icons.2.DisplayWidth100": 6000,
+      "LeanDock.Icons.2.Left": 0,
+      "LeanDock.Icons.2.OffsetX": 0,
+      "LeanDock.Icons.2.OffsetY": 0,
+      "LeanDock.Icons.2.PixelsHeight": 384,
+      "LeanDock.Icons.2.PixelsWidth": 384,
+      "LeanDock.Icons.2.Right": 384,
+      "LeanDock.Icons.2.Scale": 10000,
+      "LeanDock.Icons.2.Source": 2,
+      "LeanDock.Icons.2.SourceHeight": 60,
+      "LeanDock.Icons.2.SourceWidth": 60,
+      "LeanDock.Icons.2.Status": 1,
+      "LeanDock.Icons.2.Top": 5,
+      "LeanDock.Icons.3.Bottom": 346,
+      "LeanDock.Icons.3.DecodeHeight": 0,
+      "LeanDock.Icons.3.DecodeWidth": 0,
+      "LeanDock.Icons.3.DisplayHeight100": 7200,
+      "LeanDock.Icons.3.DisplayWidth100": 7200,
+      "LeanDock.Icons.3.Left": 33,
+      "LeanDock.Icons.3.OffsetX": 0,
+      "LeanDock.Icons.3.OffsetY": 7500,
+      "LeanDock.Icons.3.PixelsHeight": 384,
+      "LeanDock.Icons.3.PixelsWidth": 384,
+      "LeanDock.Icons.3.Right": 351,
+      "LeanDock.Icons.3.Scale": 12000,
+      "LeanDock.Icons.3.Source": 2,
+      "LeanDock.Icons.3.SourceHeight": 60,
+      "LeanDock.Icons.3.SourceWidth": 60,
+      "LeanDock.Icons.3.Status": 2,
+      "LeanDock.Icons.3.Top": 26,
+      "LeanDock.Icons.4.Bottom": 371,
+      "LeanDock.Icons.4.DecodeHeight": 0,
+      "LeanDock.Icons.4.DecodeWidth": 0,
+      "LeanDock.Icons.4.DisplayHeight100": 6400,
+      "LeanDock.Icons.4.DisplayWidth100": 6400,
+      "LeanDock.Icons.4.Left": 11,
+      "LeanDock.Icons.4.OffsetX": 1111,
+      "LeanDock.Icons.4.OffsetY": 1111,
+      "LeanDock.Icons.4.PixelsHeight": 384,
+      "LeanDock.Icons.4.PixelsWidth": 384,
+      "LeanDock.Icons.4.Right": 371,
+      "LeanDock.Icons.4.Scale": 10667,
+      "LeanDock.Icons.4.Source": 2,
+      "LeanDock.Icons.4.SourceHeight": 60,
+      "LeanDock.Icons.4.SourceWidth": 60,
+      "LeanDock.Icons.4.Status": 2,
+      "LeanDock.Icons.4.Top": 11,
+      "LeanDock.Icons.5.Bottom": 384,
+      "LeanDock.Icons.5.DecodeHeight": 0,
+      "LeanDock.Icons.5.DecodeWidth": 0,
+      "LeanDock.Icons.5.DisplayHeight100": 6000,
+      "LeanDock.Icons.5.DisplayWidth100": 6000,
+      "LeanDock.Icons.5.Left": 0,
+      "LeanDock.Icons.5.OffsetX": 0,
+      "LeanDock.Icons.5.OffsetY": 0,
+      "LeanDock.Icons.5.PixelsHeight": 384,
+      "LeanDock.Icons.5.PixelsWidth": 384,
+      "LeanDock.Icons.5.Right": 384,
+      "LeanDock.Icons.5.Scale": 10000,
+      "LeanDock.Icons.5.Source": 2,
+      "LeanDock.Icons.5.SourceHeight": 60,
+      "LeanDock.Icons.5.SourceWidth": 60,
+      "LeanDock.Icons.5.Status": 1,
+      "LeanDock.Icons.5.Top": 0,
+      "LeanDock.Icons.6.Bottom": 348,
+      "LeanDock.Icons.6.DecodeHeight": 0,
+      "LeanDock.Icons.6.DecodeWidth": 0,
+      "LeanDock.Icons.6.DisplayHeight100": 7361,
+      "LeanDock.Icons.6.DisplayWidth100": 7361,
+      "LeanDock.Icons.6.Left": 35,
+      "LeanDock.Icons.6.OffsetX": 639,
+      "LeanDock.Icons.6.OffsetY": 639,
+      "LeanDock.Icons.6.PixelsHeight": 384,
+      "LeanDock.Icons.6.PixelsWidth": 384,
+      "LeanDock.Icons.6.Right": 348,
+      "LeanDock.Icons.6.Scale": 12268,
+      "LeanDock.Icons.6.Source": 2,
+      "LeanDock.Icons.6.SourceHeight": 60,
+      "LeanDock.Icons.6.SourceWidth": 60,
+      "LeanDock.Icons.6.Status": 2,
+      "LeanDock.Icons.6.Top": 35
+    }
+  }
+}

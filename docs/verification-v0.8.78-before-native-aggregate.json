@@ -1,0 +1,142 @@
+{
+  "schema": 107,
+  "recordedAt": "2026-10-20T15:45:58.2616050+08:00",
+  "packageVersion": "0.8.78",
+  "controllerVersion": "0.3.33",
+  "backendVersion": "0.5.63",
+  "scope": "Locally owned dashboard layout only: battery rows, shared media-control row, 6-DIP gaps",
+  "previousVerification": "docs/verification-v0.8.77-before-density.json",
+  "checks": {
+    "hiddenNativeXaml": "Passed: real production battery markup, full-state text, 0/1/50/99/100-percent fill, four non-overlapping 24-DIP media controls, maximum metrics and clock text, media transitions, light-dark-light",
+    "core": 115,
+    "shellActions": 195,
+    "geometry": 199,
+    "maintenance": 51,
+    "failures": 0,
+    "build": "Passed: backend rebuilt; controller, Start and panels runtime hashes unchanged",
+    "desktopInputAutomation": false,
+    "testLimit": "Hidden layout assertions and enumerated budget cases are not live desktop click or visual acceptance"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.78",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.78-20261020-015236253",
+    "ChangedFiles": 15,
+    "ConfigPreserved": true
+  },
+  "realAcceptance": {
+    "state": "AcceptedBatteryLayoutClickAndVisibleValues",
+    "date": "2026-10-20",
+    "source": "Direct user reply to 0.8.78 acceptance questions",
+    "responses": [
+      "排布合适，电池点击正常",
+      "数值正常，能刷新"
+    ],
+    "accepted": [
+      "Battery two-row layout is clear and comfortable",
+      "Battery click opens native Quick Settings",
+      "CPU, memory, clock and network show real values and refresh normally"
+    ],
+    "pending": [
+      "Active media expansion, collapse and playback controls",
+      "Crowded app layout and mixed-DPI monitors"
+    ]
+  },
+  "configuration": "Existing configuration byte-for-byte preservation; no registry, task or security policy changes",
+  "layout": {
+    "baselineWidthDip": 358,
+    "mediaEntryWidthDip": 388,
+    "mediaExpandedWidthDip": 492,
+    "priorWidthsDip": [
+      384,
+      416,
+      550
+    ],
+    "batteryWidthDip": 64,
+    "moduleGapDip": 6,
+    "unchanged": [
+      "Displayed information",
+      "Fonts",
+      "Clock, metrics and network dimensions",
+      "Media title width",
+      "24-DIP media controls",
+      "App icon sizing policy",
+      "Native input and lifecycle"
+    ]
+  },
+  "limitations": [
+    "Active media playback, crowded app layout and mixed-DPI/multi-monitor use have not been accepted on the live Dock.",
+    "Hidden-only telemetry is retained as historical evidence; visible numeric refresh is accepted from the direct user response, without claiming a measured refresh rate."
+  ],
+  "observed": {
+    "dashboardWidthDip": 358.0,
+    "moduleRectangles": [
+      {
+        "layout": {
+          "name": "ClockGroup",
+          "actual": 84.0,
+          "desired": 84.0,
+          "min": 0.0,
+          "visible": 1
+        },
+        "x": 0.0,
+        "y": 0.0,
+        "height": 44.0
+      },
+      {
+        "layout": {
+          "name": "MetricsCard",
+          "actual": 124.0,
+          "desired": 124.0,
+          "min": 0.0,
+          "visible": 1
+        },
+        "x": 90.0,
+        "y": 0.0,
+        "height": 44.0
+      },
+      {
+        "layout": {
+          "name": "LeanDockPowerCard",
+          "actual": 64.0,
+          "desired": 64.0,
+          "min": 0.0,
+          "visible": 1
+        },
+        "x": 220.0,
+        "y": 0.0,
+        "height": 44.0
+      },
+      {
+        "layout": {
+          "name": "NetworkCard",
+          "actual": 68.0,
+          "desired": 68.0,
+          "min": 0.0,
+          "visible": 1
+        },
+        "x": 290.0,
+        "y": 0.0,
+        "height": 44.0
+      }
+    ],
+    "appButtonWidthDip": 52.0,
+    "nativeBatteryWidthDip": 64,
+    "nativeBatteryCoverage": 9,
+    "widgetErrors": 0,
+    "componentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "runtimeHashesMatch": true,
+    "quickThemeFailureCounter": "1 before and after; no new failure",
+    "sampling": "Earlier passive samples captured hidden state only. User subsequently confirmed real values and normal visible refresh; this is user acceptance, not independent timer telemetry."
+  }
+}

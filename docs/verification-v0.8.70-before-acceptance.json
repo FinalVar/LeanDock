@@ -1,0 +1,183 @@
+{
+  "schema": 99,
+  "recordedAt": "2026-10-19T20:02:00.737129+08:00",
+  "packageVersion": "0.8.70",
+  "controllerVersion": "0.3.29",
+  "backendVersion": "0.5.56",
+  "previousVerification": "docs/verification-v0.8.69-flash-reduced.json",
+  "scope": "Corner-only pre-display gate for reused native hosts; preserve native closing cloak",
+  "previousResult": {
+    "twoWindowRoundTrip": "Retained; newest feedback concerns residual flash",
+    "pickerFlash": "User: very careful observation still sees flash; less obvious (0.8.69)",
+    "keyboardManual": "pending",
+    "threeWindowsManual": "pending"
+  },
+  "previousCounters": {
+    "preshow": {
+      "schema": 1,
+      "supported": true,
+      "enabled": true,
+      "pending": false,
+      "held": 1,
+      "revealed": 1,
+      "timeouts": 0,
+      "errors": 0,
+      "uncloakDeferred": 1,
+      "maximumDelayMs": 200,
+      "method": "pre-show-app-cloak"
+    },
+    "confirm": {
+      "schema": 4,
+      "autoConfirm": true,
+      "invokeAccepted": 36,
+      "keptOpen": 1,
+      "invokeErrors": 0,
+      "attachErrors": 0,
+      "lastCount": 2,
+      "lastSelected": -1,
+      "lastFocused": 1,
+      "listSource": "native-SwitchItemList",
+      "targetSource": "native-item-keyboard-focus",
+      "scope": "corner-ticket-only"
+    }
+  },
+  "policy": {
+    "exactlyTwo": "Map native keyboard focus to one of the two realized item containers; Invoke native thumbnail once for corner ticket only",
+    "otherCounts": "Native manual picker",
+    "keyboard": "Manual Ctrl+Alt+Tab unchanged",
+    "secondCorner": "Cancel visible picker",
+    "applicationPage": "Absent",
+    "winKeyInterception": "Absent",
+    "automaticMaximization": "Remains removed",
+    "additionalPolling": false,
+    "desktopInputAutomation": false,
+    "boundedWatchdog": "200 ms one-shot while presentation held; scheduling is not a real-time guarantee"
+  },
+  "checks": {
+    "build": "passed",
+    "runtimeRegression": "91 passed, 0 failed",
+    "confirmationPolicy": "23 passed",
+    "hiddenDwmLifecycle": "59 passed; no fixture presented or input sent",
+    "allPreviousPackageFilesCompared": true,
+    "onlyExpectedChanges": [
+      "latest.dll",
+      "README.md",
+      "NOTICE.md",
+      "src/runtime-latest.cpp",
+      "src/switcher-preshow-latest.inc",
+      "build/latest.json",
+      "build/latest.ps1",
+      "tests/switcher-preshow-latest.cpp",
+      "docs/switcher-style-latest.md",
+      "docs/verification-latest.json"
+    ],
+    "unchangedRuntimeFiles": [
+      "latest.exe",
+      "start/latest.dll",
+      "panels/latest.dll"
+    ],
+    "unchangedBehaviorSources": [
+      "switcher-confirm",
+      "switcher-layout",
+      "switcher-style",
+      "hotcorners",
+      "cards"
+    ],
+    "matureReference": "Same L3r0y 1.2.0 pinned source and license; local gate lifecycle fix; no new hook or private offset"
+  },
+  "review": {
+    "maintainability": "Retains native focus/Invoke and shared hook ownership, isolated gate adaptation with exact system-module pin",
+    "boundaries": "Native uncloak acquires only within DisplayAltTab + live corner ticket + exact current process/thread/host class; Show path still refuses preexisting APP cloak",
+    "lifecycle": "Native close succeeds before ownership release; late callbacks and Stop cannot undo native cloak; replacement ticket has no uncloak gap; failed native close keeps watchdog",
+    "resourceCost": "Existing one-shot watchdog only while gate held; idle disarmed; Stop drains callbacks and closes timer",
+    "remaining": "Real two-window round trip and flash; native keyboard/multiwindow behavior; sleep/multiple monitors not newly verified"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.70",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.70-20261019-200322260",
+    "ChangedFiles": 12,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "twoWindowRoundTrip": "pending",
+    "pickerFlash": "pending",
+    "keyboardManual": "pending",
+    "threeWindowsManual": "pending"
+  },
+  "runtimeAfter": {
+    "Live": true,
+    "Backend": {
+      "protocol": 1,
+      "version": "0.5.56",
+      "explorerPid": 24224,
+      "ownerPid": 25488,
+      "state": 2,
+      "hooks": 67,
+      "styledElements": 30,
+      "failed": false,
+      "attentionPolicy": {
+        "active": true,
+        "blockedReveals": 0,
+        "ignoredFlashingChecks": 0,
+        "passedReveals": 7
+      }
+    },
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Start": true,
+    "QuickSettingsPosition": true,
+    "QuickTheme": true,
+    "preshow": {
+      "schema": 2,
+      "supported": true,
+      "enabled": true,
+      "pending": false,
+      "held": 0,
+      "released": 0,
+      "timeouts": 0,
+      "errors": 0,
+      "uncloakDeferred": 0,
+      "fromShow": 0,
+      "fromUncloak": 0,
+      "nativeClosed": 0,
+      "maximumDelayMs": 200,
+      "method": "pre-display-app-cloak"
+    }
+  },
+  "deployedHashes": [
+    {
+      "Name": "latest.exe",
+      "Expected": "3D0F863853EBE66DA4940DBD375F541D13CCF117447B5B0B115ACB85C24386E2",
+      "Actual": "3D0F863853EBE66DA4940DBD375F541D13CCF117447B5B0B115ACB85C24386E2",
+      "DeployedMatches": true
+    },
+    {
+      "Name": "latest.dll",
+      "Expected": "78A177282CA8D67E49DB9F456A75A4B16A4D13C76AD47D1C2CFED2C46312C248",
+      "Actual": "78A177282CA8D67E49DB9F456A75A4B16A4D13C76AD47D1C2CFED2C46312C248",
+      "DeployedMatches": true
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Expected": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "Actual": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "DeployedMatches": true
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Expected": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "Actual": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "DeployedMatches": true
+    }
+  ]
+}

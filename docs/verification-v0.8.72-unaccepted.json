@@ -1,0 +1,58 @@
+{
+  "schema": 101,
+  "recordedAt": "2026-10-19T20:28:48.943868+08:00",
+  "packageVersion": "0.8.72",
+  "controllerVersion": "0.3.29",
+  "backendVersion": "0.5.58",
+  "scope": "Synchronize proven old native presenter rectangle with the current agreed viewport",
+  "previousVerification": "docs/verification-v0.8.71-diagnostic.json",
+  "evidence": {
+    "transition": "3->2",
+    "before": [
+      1081.33,
+      816
+    ],
+    "afterActualAndViewport": [
+      1532,
+      528
+    ],
+    "staleClip": [
+      1081.33,
+      816
+    ],
+    "insidePublicClip": "1/2",
+    "user": "Clipped; single-click normal; screenshot right side clipped"
+  },
+  "checks": {
+    "clipPolicy": 274,
+    "runtime": 91,
+    "confirmation": 23,
+    "total": 388,
+    "build": "passed",
+    "review": "Existing layout and no-flash gate unchanged; clip object retained; no extra events/timers/callbacks; unknown objects and mismatched viewport ignored"
+  },
+  "deployment": {
+    "State": "Applied",
+    "At": "2026-10-19T20:33:27.1596223+08:00",
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.72-20261019-203243886",
+    "ConfigPreserved": true,
+    "Components": "Ready",
+    "RuntimeHashes": "all four match build receipt",
+    "ExplorerPid": 29360
+  },
+  "acceptance": {
+    "Clipping": "user reproduced",
+    "SingleClick": "normal",
+    "TwoWindow": "normal",
+    "RepairCounter": 0,
+    "Followup": "Native XAML test confirms weak clip peer expires despite native presenter retaining clip"
+  },
+  "boundaries": [
+    "native geometry object retained",
+    "unknown clip not expanded",
+    "only existing loaded/layout events",
+    "no focus, input, async callback or timer changes",
+    "no Composition GetElementVisual",
+    "no obsolete clip restored on unload"
+  ]
+}

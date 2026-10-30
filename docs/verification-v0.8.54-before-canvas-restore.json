@@ -1,0 +1,159 @@
+{
+  "schema": 84,
+  "recordedAt": "2026-10-18T12:51:00.4812786+08:00",
+  "packageVersion": "0.8.54",
+  "controllerVersion": "0.3.21",
+  "backendVersion": "0.5.43",
+  "scope": "Ctrl+Alt+Tab fully transparent outer canvas and hidden focus outline; accepted 0.8.53 layout retained",
+  "previousVerification": "docs/verification-v0.8.53-before-transparent-switcher.json",
+  "policy": {
+    "stepDip": 24,
+    "canvas": "native content-sized; maximum available grid 92% x 84%",
+    "samplingLimit": 128,
+    "scrollbarsHidden": false,
+    "comfortableCardHeightDip": 360,
+    "maxOverflowCorrections": 3,
+    "nativeFitToContentUntouched": true,
+    "nativePanelEnumUntouched": true
+  },
+  "checks": {
+    "desktopInputSent": false,
+    "layoutFailures": 0,
+    "confirmationAssertions": 21,
+    "build": "passed",
+    "layoutAssertions": 1041,
+    "confirmationFailures": 0,
+    "regressionEvidence": "0.8.53: 1041 layout and 21 confirmation assertions passed; those implementation files unchanged in 0.8.54"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.54",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.54-20261018-124816992",
+    "ChangedFiles": 10,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "fixedCanvas": "superseded by user: canvas follows content",
+    "twoWindowConfirm": "pending",
+    "internalArrangement": "user confirmed: rows, preview size and content-sized background appropriate",
+    "liquidGlass": "preparation only",
+    "maximization": "paused",
+    "dock": "0.8.54: all four components Ready; loaded backend 0.5.43; all four runtime hashes match; both user configuration hashes unchanged. Actual UI interactions pending.",
+    "hiddenChrome": "User observed transparent canvas retained a glass-like visual; then explicitly requested restoring the visible canvas for appearance. Focus properties read back zero, but no separate visual acceptance claimed."
+  },
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 344576,
+      "SHA256": "076A1D96AFCEEC3488765F2F65A28B20B4DD92DB2DDB6AE5ADDD9D3ED0CDACBD"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2169344,
+      "SHA256": "EB1342E460192D9E2F056B1E8EF6B7C3FD641DA17FCE2652E970CA8C9E00A4AB"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "observedGeometry": {
+    "schema": 2,
+    "count": 5,
+    "sampleLimited": false,
+    "realized": 5,
+    "insideCanvas": 5,
+    "rows": 2,
+    "rootWidth": 1706.67,
+    "rootHeight": 1066.67,
+    "canvasX": 80.0,
+    "canvasY": 129.33,
+    "canvasWidth": 1546.0,
+    "canvasHeight": 808.0,
+    "minItemWidth": 440.0,
+    "maxItemWidth": 473.33,
+    "minItemHeight": 336.0,
+    "maxItemHeight": 336.0,
+    "scrollableHeight": 0.0,
+    "plannedRows": 2,
+    "plannedCardHeight": 336.0,
+    "layoutDisabled": false,
+    "layoutError": 0,
+    "layoutRepairs": 0
+  },
+  "observedGeometryVersion": "0.8.54",
+  "postUpdateIntegrity": {
+    "Runtime": [
+      {
+        "Name": "latest.exe",
+        "SHA256": "076A1D96AFCEEC3488765F2F65A28B20B4DD92DB2DDB6AE5ADDD9D3ED0CDACBD",
+        "Matches": true
+      },
+      {
+        "Name": "latest.dll",
+        "SHA256": "EB1342E460192D9E2F056B1E8EF6B7C3FD641DA17FCE2652E970CA8C9E00A4AB",
+        "Matches": true
+      },
+      {
+        "Name": "start\\latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "Matches": true
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "Matches": true
+      }
+    ],
+    "Configuration": [
+      {
+        "Name": "latest.ini",
+        "SHA256": "5D3060BEAC27A3D4BDD975FFB1C079E5D31269D63EF3C72260EF0C51346AC375",
+        "Matches": true
+      },
+      {
+        "Name": "hotcorners\\latest.ini",
+        "SHA256": "C26DF2EF906CE5EF93BF91B1C3526BED376C9CB8D8EE1C4247F6CB48671D169C",
+        "Matches": true
+      }
+    ],
+    "Live": true,
+    "BackendVersion": "0.5.43",
+    "Health": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "ExplorerPid": 23764
+  },
+  "observedStyle": {
+    "schema": 5,
+    "supported": true,
+    "ruleThreads": 2,
+    "itemsSeen": 15,
+    "focusReadbacks": 15,
+    "primaryThickness": 0.0,
+    "secondaryThickness": 0.0,
+    "panelsSeen": 6,
+    "layoutPolicy": "content-first-adaptive-row-height",
+    "maxHeightReadbacks": 6,
+    "maxPixels": 360.0,
+    "maxRatio": 0.0,
+    "canvasReadbacks": 3,
+    "canvasAlpha": 0.0,
+    "canvasBorder": 0.0,
+    "readErrors": 0
+  }
+}

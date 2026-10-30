@@ -1,0 +1,201 @@
+{
+  "schema": 88,
+  "recordedAt": "2026-10-18T13:47:59.1615743+08:00",
+  "packageVersion": "0.8.58",
+  "controllerVersion": "0.3.22",
+  "backendVersion": "0.5.46",
+  "scope": "Remove entire application-launch maximization feature and runtime integration; restore Windows/application default launch behavior",
+  "previousVerification": "docs/verification-v0.8.57-before-remove-maximize.json",
+  "policy": {
+    "automaticMaximize": "removed",
+    "launchClickInspection": false,
+    "launchWindowTracking": false,
+    "launchWorkerThread": false,
+    "newWindowMaximizeCommands": false,
+    "existingWindowsResized": false,
+    "shortcutOrApplicationSettingsWritten": false,
+    "inputAutomation": false
+  },
+  "checks": {
+    "build": "passed",
+    "cornerCoreAssertions": 129,
+    "cornerConfigAssertions": 32,
+    "testFailures": 0,
+    "binaryRemovalAudit": [
+      {
+        "Identifier": "ShowWindowAsync",
+        "OldBinary": true,
+        "NewBinary": false
+      },
+      {
+        "Identifier": "explicit-launch-new-window-only",
+        "OldBinary": true,
+        "NewBinary": false
+      },
+      {
+        "Identifier": "windowLaunch",
+        "OldBinary": true,
+        "NewBinary": false
+      },
+      {
+        "Identifier": "LeanDock.WindowLaunch.v1.Owner",
+        "OldBinary": true,
+        "NewBinary": false
+      }
+    ],
+    "unchangedHostComponents": [
+      {
+        "Name": "latest.dll",
+        "SameHash": true
+      },
+      {
+        "Name": "start\\latest.dll",
+        "SameHash": true
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "SameHash": true
+      }
+    ],
+    "desktopInputSent": false
+  },
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 292864,
+      "SHA256": "1A234350206845DACDB208748026DE7F3C8CDF2A6F45061655566D5A538CEE42"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2172416,
+      "SHA256": "6AF616B16734E23678570701007A35918210CF30409A7193399562BD62309E76"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.58",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.58-20261018-134418254",
+    "ChangedFiles": 12,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "maximization": "0.8.58 / controller 0.3.22 loaded. Old controller exited; feature fields absent; old HWND ownership markers 209 -> 0. Dedicated source/tests removed from build and deployment; normal window behavior delegated to applications and Windows. No user app launch or resize was automated.",
+    "switcher": "0.8.57 user accepted preview size, identical backend retained",
+    "batteryFill": "unchanged from 0.8.56; final visual feedback still pending",
+    "liquidGlass": "preparation only"
+  },
+  "review": {
+    "maintainability": "Remove dedicated component and entry points rather than add a disabled configuration branch",
+    "boundaries": "Do not reset native app saved sizes or modify existing window placement",
+    "regression": "Retain independent corner/raw-input ownership and taskbar hide/fullscreen detection; verify exact unchanged DLL hashes"
+  },
+  "postUpdateIntegrity": {
+    "At": "2026-10-18T13:45:03.4119623+08:00",
+    "Runtime": [
+      {
+        "Name": "latest.exe",
+        "SHA256": "1A234350206845DACDB208748026DE7F3C8CDF2A6F45061655566D5A538CEE42",
+        "Matches": true
+      },
+      {
+        "Name": "latest.dll",
+        "SHA256": "6AF616B16734E23678570701007A35918210CF30409A7193399562BD62309E76",
+        "Matches": true
+      },
+      {
+        "Name": "start\\latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "Matches": true
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "Matches": true
+      }
+    ],
+    "Configuration": [
+      {
+        "Name": "latest.ini",
+        "SHA256": "5D3060BEAC27A3D4BDD975FFB1C079E5D31269D63EF3C72260EF0C51346AC375",
+        "Matches": true
+      },
+      {
+        "Name": "hotcorners/latest.ini",
+        "SHA256": "C26DF2EF906CE5EF93BF91B1C3526BED376C9CB8D8EE1C4247F6CB48671D169C",
+        "Matches": true
+      }
+    ],
+    "Live": true,
+    "ExplorerPid": 21468,
+    "ControllerVersion": "0.3.22",
+    "Backend": "0.5.46",
+    "Health": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "OldControllerStillRunning": false,
+    "LaunchStatePresent": false,
+    "RemainingLaunchMarkers": 0,
+    "InputSent": false
+  },
+  "retiredSources": {
+    "State": "Retired",
+    "Files": [
+      {
+        "Name": "include/window-launch-latest.h",
+        "SHA256": "88B0FDB06BA2FB22E551F7A939D6D19088DCE22E3B0426AECFA51F92841BC2E2"
+      },
+      {
+        "Name": "include/window-launch-input-latest.h",
+        "SHA256": "DF9F0657C2CD84E660C688F8A0C49ED5D6914A6453D9950DC0992857126F123E"
+      },
+      {
+        "Name": "include/window-launch-policy-latest.h",
+        "SHA256": "3BD10F986136BECACC2EE9F6711C81D25B8355F4BF499AD432A5093EC2EAB539"
+      },
+      {
+        "Name": "tests/window-launch-latest.cpp",
+        "SHA256": "B36C1377279B4F87525B612FAAB390BA795BD64F75A29BA84FE291D7BEE22133"
+      },
+      {
+        "Name": "tests/window-launch-native-latest.cpp",
+        "SHA256": "E4411097B0F08A8EE099DBB65E112DF9069A6D072FD49ECD10E0731BFB18B619"
+      },
+      {
+        "Name": "tests/window-launch-latest.ps1",
+        "SHA256": "51B4B0F5C432388DECA7616A38A132FBADC9370B5527642FD60592F08326A2D1"
+      }
+    ],
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.58-20261018-134418254\\retired-launch-source",
+    "RuntimeFilesRemoved": false,
+    "ConfigurationChanged": false
+  },
+  "beforeLaunchOwnerMarkers": 209,
+  "stabilityObservation": {
+    "Begin": "2026-10-18T13:45:05.7012003+08:00",
+    "End": "2026-10-18T13:46:07.3395899+08:00",
+    "Samples": 8,
+    "ExplorerPid": 21468,
+    "AllLive": true,
+    "SameExplorer": true,
+    "ExplorerCrashEvents": 0,
+    "DesktopInputSent": false
+  }
+}

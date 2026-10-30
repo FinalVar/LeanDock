@@ -1,0 +1,209 @@
+{
+  "schema": 69,
+  "recordedAt": "2026-10-17T16:36:17.2383383+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.40",
+  "backendVersion": "0.5.35",
+  "scope": "Retain user-requested native battery menu and remove ineffective icon-resolution experiment",
+  "previousVerification": "docs/verification-v0.8.39-before-cleanup.json",
+  "tests": {
+    "build": "Passed",
+    "shellActions": {
+      "failures": 0,
+      "inputSent": false,
+      "checks": 151
+    },
+    "iconOptics": {
+      "checks": 23,
+      "failures": 0
+    },
+    "iconView": {
+      "failures": 0,
+      "revision": "Unchanged source-measurement implementation from 0.8.38; 31 historical offscreen checks, not rerun",
+      "inputSent": false,
+      "offscreen": true,
+      "checks": 31
+    },
+    "freshChecks": 174,
+    "runtimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 292352,
+        "SHA256": "3EBAE5829C94E93730051BAE310D5645A7DA9617FFF6EF6E0EE6A14464D7DADA"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2110464,
+        "SHA256": "4A434A24D02CD080FD8B91EE0B6684197001B188784D5AF8AC4718DAFA0E57A9"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 397312,
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ],
+    "imports": "Passed"
+  },
+  "rules": {
+    "tray": "Native menu",
+    "blank": "No menu",
+    "card": "WinX except battery",
+    "application": "Native menu",
+    "batteryRight": "Original Windows power context menu",
+    "batteryLeft": "Native Quick Settings"
+  },
+  "userFeedback": {
+    "iconAlignment": "0.8.37 accepted",
+    "iconClarity": "60px source was enlarged to as much as 73.61px",
+    "batteryOverride": "Latest user explicitly accepts withdrawing custom battery WinX"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.40",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.40-20261017-163519833",
+    "ChangedFiles": 14,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "VerifiedEarlier": [
+      "0.8.37 vertical alignment accepted",
+      "0.8.38 battery left accepted"
+    ],
+    "Unverified": [
+      "User observation of native battery right menu after rollback",
+      "Higher-resolution source path and final icon sharpness"
+    ],
+    "CurrentRules": [
+      "Battery right uses original native power context menu",
+      "Battery left Quick Settings",
+      "Other cards WinX",
+      "Blank suppressed",
+      "Apps and tray native"
+    ],
+    "State": "Deployed and runtime verified; native right-click user observation and icon clarity remain unverified"
+  },
+  "iconReadback": {
+    "Clarity": "Unresolved; no claim of improvement",
+    "ObservationVersion": "0.8.40",
+    "Conclusion": "Ineffective source-budget override removed; actual source and visible size remain unchanged; softness unresolved",
+    "MaxDisplayPixels": 73.61,
+    "SourcePixels": "All six sources 60x60",
+    "Alignment": "Existing optical measurement retained",
+    "Measurements": [
+      {
+        "Slot": 1,
+        "SourceWidth": 60,
+        "SourceHeight": 60,
+        "CanvasPhysicalPixels": 60,
+        "VisibleLongestEdgePhysicalPixels": 60.0,
+        "Scale": 1
+      },
+      {
+        "Slot": 2,
+        "SourceWidth": 60,
+        "SourceHeight": 60,
+        "CanvasPhysicalPixels": 60,
+        "VisibleLongestEdgePhysicalPixels": 60.0,
+        "Scale": 1
+      },
+      {
+        "Slot": 3,
+        "SourceWidth": 60,
+        "SourceHeight": 60,
+        "CanvasPhysicalPixels": 72,
+        "VisibleLongestEdgePhysicalPixels": 60.0,
+        "Scale": 1.2
+      },
+      {
+        "Slot": 4,
+        "SourceWidth": 60,
+        "SourceHeight": 60,
+        "CanvasPhysicalPixels": 64,
+        "VisibleLongestEdgePhysicalPixels": 60.0,
+        "Scale": 1.0667
+      },
+      {
+        "Slot": 5,
+        "SourceWidth": 60,
+        "SourceHeight": 60,
+        "CanvasPhysicalPixels": 60,
+        "VisibleLongestEdgePhysicalPixels": 60.0,
+        "Scale": 1
+      },
+      {
+        "Slot": 6,
+        "SourceWidth": 60,
+        "SourceHeight": 60,
+        "CanvasPhysicalPixels": 73.61,
+        "VisibleLongestEdgePhysicalPixels": 60.0,
+        "Scale": 1.2268
+      }
+    ]
+  },
+  "runtimeReadback": {
+    "At": "2026-10-17T16:35:42.6168527+08:00",
+    "Backend": "0.5.35",
+    "ExplorerPid": 29192,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "StartReady": true,
+    "StartItems": 49,
+    "QuickSettingsActive": true,
+    "QuickThemeActive": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "File": "latest.exe",
+        "Match": true
+      },
+      {
+        "File": "latest.dll",
+        "Match": true
+      },
+      {
+        "File": "start\\latest.dll",
+        "Match": true
+      },
+      {
+        "File": "panels\\latest.dll",
+        "Match": true
+      }
+    ],
+    "ConfigHashes": [
+      {
+        "File": "latest.ini",
+        "Match": true
+      },
+      {
+        "File": "hotcorners/latest.ini",
+        "Match": true
+      }
+    ]
+  },
+  "review": {
+    "Regression": "Configuration and all runtime hashes verified; all shell components Ready; no new desktop input test performed",
+    "Maintainability": "Removed battery-specific right-click interception and ineffective image source override; upstream source sizing restored",
+    "Boundaries": "Native battery and fallback power target pass through; other card, native app/tray, blank routing covered by existing no-input tests"
+  },
+  "publication": {
+    "LocalSource": "Updated",
+    "LocalDeployment": "0.8.40",
+    "GitCommitted": false,
+    "GitPushed": false
+  }
+}

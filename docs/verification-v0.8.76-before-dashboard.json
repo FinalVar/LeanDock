@@ -1,0 +1,174 @@
+{
+  "schema": 105,
+  "recordedAt": "2026-10-20T00:40:24.071539+08:00",
+  "packageVersion": "0.8.76",
+  "controllerVersion": "0.3.32",
+  "backendVersion": "0.5.61",
+  "scope": "Version-pinned AppBar query and cache adaptation with restored native internal reads",
+  "previousVerification": "docs/verification-v0.8.75-query-only-incomplete.json",
+  "checks": {
+    "appBarQuery": 66,
+    "clientEdge": 72,
+    "eventLifecycle": 200,
+    "geometry": 199,
+    "maintenance": 51,
+    "attention": "Passed",
+    "desktopInputAutomation": false,
+    "privateDesktopShown": false,
+    "build": "Passed; unchanged deployed Start and panels DLLs preserved byte-for-byte",
+    "appBarCache": 31,
+    "numberedChecksPassed": 619,
+    "numberedChecksFailed": 0
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.76",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.76-20261020-003359392",
+    "ChangedFiles": 21,
+    "ConfigPreserved": true
+  },
+  "realAcceptance": {
+    "state": "AcceptedForReportedQiyeGapAndDockReveal",
+    "date": "2026-10-20",
+    "userResponse": "白边消失，Dock 唤出正常",
+    "scenario": "Qiye dark theme: restore then maximize normally, then pointer to bottom center",
+    "whiteGap": "User confirmed absent",
+    "dockReveal": "User confirmed normal",
+    "trueFullscreen": "Not tested in this version; policy tests are separate evidence",
+    "otherApplications": "Not individually re-accepted in this version"
+  },
+  "limitations": [
+    "No guarantee for application-drawn or hardcoded borders",
+    "Existing clients can require native geometry recalculation or cache refresh",
+    "Mixed DPI, multiple monitors, 32-bit clients and sleep resume not tested in this change",
+    "Explorer and shell32 are pinned to exact verified identities; incompatible updates skip this optional adaptation"
+  ],
+  "rollback": {
+    "source": "work/edge-unified-20261019/before-0.8.74",
+    "runtime": "C:/Users/x/Documents/Codex/Tools/NativeTaskbarDock/backups/before-0.8.75-20261020-001224201"
+  },
+  "observations": {
+    "publicAndNativeApi": {
+      "externalState": 0,
+      "externalBottom": 0,
+      "externalBottomEx": 0,
+      "internalRead": true,
+      "internalAutoHide": 1,
+      "monitor": [
+        0,
+        0,
+        2560,
+        1600
+      ],
+      "work": [
+        0,
+        0,
+        2560,
+        1600
+      ],
+      "fixtureClient": [
+        0,
+        0,
+        2560,
+        1600
+      ],
+      "fixtureHidden": true,
+      "focusUnchanged": true
+    },
+    "qiye": {
+      "recordedAt": "2026-10-20T00:36:57.8231555+08:00",
+      "hwnd": 393798,
+      "maximized": true,
+      "client": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1600
+      },
+      "dpi": 144
+    },
+    "runtime": {
+      "Live": true,
+      "DockReady": true,
+      "HotCornersReady": true,
+      "StartLayoutActive": true,
+      "QuickSettingsPosition": {
+        "Supported": true,
+        "Active": true,
+        "Blocked": false,
+        "Failures": 0,
+        "Adjustments": 0,
+        "Recoveries": 0,
+        "LastExitCode": null
+      },
+      "ExplorerPid": 10536,
+      "Controller": [
+        {
+          "ProcessId": 7208,
+          "ExecutablePath": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\latest.exe"
+        }
+      ],
+      "ClientEdge": {
+        "Supported": true,
+        "Ready": true,
+        "Stage": "ready",
+        "Error": 0,
+        "Attempts": 1,
+        "Recoveries": 0,
+        "RetryScheduled": false,
+        "Repairs": 3,
+        "GenericRepairs": 2,
+        "Failures": 0
+      },
+      "ComponentHealth": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      }
+    },
+    "configuration": [
+      {
+        "Name": "latest.ini",
+        "Unchanged": true
+      },
+      {
+        "Name": "hotcorners/latest.ini",
+        "Unchanged": true
+      }
+    ],
+    "runtimeFiles": [
+      {
+        "name": "latest.exe",
+        "sha256": "EF9788F0716FFBC5ED57C0D91A833462E3696176701BD40C795FC13403A1A35E",
+        "sourceAndDeploymentMatch": true
+      },
+      {
+        "name": "latest.dll",
+        "sha256": "E82BC1A3700B4A980899AC75D82CF119A309DAC7D97E9E46DD1632A443DB8F06",
+        "sourceAndDeploymentMatch": true
+      },
+      {
+        "name": "start\\latest.dll",
+        "sha256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "sourceAndDeploymentMatch": true
+      },
+      {
+        "name": "panels\\latest.dll",
+        "sha256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "sourceAndDeploymentMatch": true
+      }
+    ]
+  },
+  "evidenceDirectory": "work/edge-unified-20261019",
+  "sourcePublication": {
+    "state": "LocalSourceAndDeploymentOnly",
+    "committedThisChange": false,
+    "pushedThisChange": false
+  }
+}

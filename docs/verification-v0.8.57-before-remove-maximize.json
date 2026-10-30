@@ -1,0 +1,335 @@
+{
+  "schema": 87,
+  "recordedAt": "2026-10-18T13:31:10.6197791+08:00",
+  "packageVersion": "0.8.57",
+  "controllerVersion": "0.3.21",
+  "backendVersion": "0.5.46",
+  "scope": "Remove fixed 360 DIP preview ceiling; use 75 percent of useful display height and a shared descending 24 DIP ladder",
+  "previousVerification": "docs/verification-v0.8.56-before-sparse-preview.json",
+  "policy": {
+    "stepDip": 24,
+    "comfortableFractionOfAvailableHeight": 0.75,
+    "canvas": "native content-sized; maximum available grid 92% x 84%, 32 DIP reserve",
+    "samplingLimit": 128,
+    "scrollbarsHidden": false,
+    "maxOverflowCorrections": 3,
+    "nativeFitToContentUntouched": true,
+    "nativePanelEnumUntouched": true,
+    "outerScrollPaddingDip": 8
+  },
+  "checks": {
+    "desktopInputSent": false,
+    "layoutAssertions": 2073,
+    "layoutFailures": 0,
+    "confirmationAssertions": 21,
+    "confirmationFailures": 0,
+    "build": "passed",
+    "scope": "Pure policy: 1..64 same/mixed proportions in four areas, sparse previews, ultrawide/portrait, maximum fitting step, non-increasing size, invalid input, repair ceiling. Real UI pending."
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.57",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.57-20261018-132341718",
+    "ChangedFiles": 13,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "sparsePreview": "User confirmed 0.8.57: 明显变大，大小合适. Actual one-item card 934 x 624 DIP (previous 512 x 360), all inside content-sized canvas, no scroll or layout error.",
+    "multiWindow": "New runtime captured 2 items: one row at 504 DIP; 3 items: two rows at 384 DIP; all bounds inside canvas, zero scroll/error. Larger counts and other displays not visually accepted in this update.",
+    "twoWindowConfirm": "pending",
+    "canvas": "0.8.56 actual insets 21.33 DIP; padding and native material unchanged",
+    "batteryFill": "0.8.56 loaded; actual green fill appearance still pending user",
+    "maximization": "paused",
+    "liquidGlass": "preparation only"
+  },
+  "beforeGeometry": {
+    "schema": 3,
+    "count": 1,
+    "sampleLimited": false,
+    "realized": 1,
+    "insideCanvas": 1,
+    "rows": 1,
+    "rootWidth": 1706.67,
+    "rootHeight": 1066.67,
+    "canvasX": 575.33,
+    "canvasY": 332.0,
+    "canvasWidth": 554.67,
+    "canvasHeight": 402.67,
+    "minItemWidth": 512.0,
+    "maxItemWidth": 512.0,
+    "minItemHeight": 360.0,
+    "maxItemHeight": 360.0,
+    "scrollableHeight": 0.0,
+    "outerInsets": [
+      21.33,
+      21.33,
+      21.33,
+      21.33
+    ],
+    "scrollPadding": [
+      8.0,
+      8.0,
+      8.0,
+      8.0
+    ],
+    "plannedRows": 1,
+    "plannedCardHeight": 360.0,
+    "layoutDisabled": false,
+    "layoutError": 0,
+    "layoutRepairs": 0
+  },
+  "review": {
+    "maintainability": "One display-relative sizing policy; no per-app or special single-window renderer",
+    "boundaries": "Native width/height checks and finite overflow repairs retained",
+    "regression": "Native material, input, two-item confirmation, ownership/restoration and device/version gates unchanged"
+  },
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 344576,
+      "SHA256": "076A1D96AFCEEC3488765F2F65A28B20B4DD92DB2DDB6AE5ADDD9D3ED0CDACBD"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2172416,
+      "SHA256": "6AF616B16734E23678570701007A35918210CF30409A7193399562BD62309E76"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "postUpdateIntegrity": {
+    "At": "2026-10-18T13:24:08.067109+08:00",
+    "Runtime": [
+      {
+        "Name": "latest.exe",
+        "SHA256": "076A1D96AFCEEC3488765F2F65A28B20B4DD92DB2DDB6AE5ADDD9D3ED0CDACBD",
+        "Matches": true
+      },
+      {
+        "Name": "latest.dll",
+        "SHA256": "6AF616B16734E23678570701007A35918210CF30409A7193399562BD62309E76",
+        "Matches": true
+      },
+      {
+        "Name": "start\\latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "Matches": true
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "Matches": true
+      }
+    ],
+    "Configuration": [
+      {
+        "Name": "latest.ini",
+        "SHA256": "5D3060BEAC27A3D4BDD975FFB1C079E5D31269D63EF3C72260EF0C51346AC375",
+        "Matches": true
+      },
+      {
+        "Name": "hotcorners/latest.ini",
+        "SHA256": "C26DF2EF906CE5EF93BF91B1C3526BED376C9CB8D8EE1C4247F6CB48671D169C",
+        "Matches": true
+      }
+    ],
+    "Live": true,
+    "ExplorerPid": 34624,
+    "Backend": "0.5.46",
+    "Health": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    }
+  },
+  "observedGeometry": {
+    "schema": 3,
+    "count": 1,
+    "sampleLimited": false,
+    "realized": 1,
+    "insideCanvas": 1,
+    "rows": 1,
+    "rootWidth": 1706.67,
+    "rootHeight": 1066.67,
+    "canvasX": 364.67,
+    "canvasY": 200.0,
+    "canvasWidth": 976.67,
+    "canvasHeight": 666.67,
+    "minItemWidth": 934.0,
+    "maxItemWidth": 934.0,
+    "minItemHeight": 624.0,
+    "maxItemHeight": 624.0,
+    "scrollableHeight": 0.0,
+    "outerInsets": [
+      21.33,
+      21.33,
+      21.33,
+      21.33
+    ],
+    "scrollPadding": [
+      8.0,
+      8.0,
+      8.0,
+      8.0
+    ],
+    "plannedRows": 1,
+    "plannedCardHeight": 624.0,
+    "layoutDisabled": false,
+    "layoutError": 0,
+    "layoutRepairs": 0
+  },
+  "observedByCount": [
+    {
+      "schema": 3,
+      "count": 1,
+      "sampleLimited": false,
+      "realized": 1,
+      "insideCanvas": 1,
+      "rows": 1,
+      "rootWidth": 1706.67,
+      "rootHeight": 1066.67,
+      "canvasX": 364.67,
+      "canvasY": 200.0,
+      "canvasWidth": 976.67,
+      "canvasHeight": 666.67,
+      "minItemWidth": 934.0,
+      "maxItemWidth": 934.0,
+      "minItemHeight": 624.0,
+      "maxItemHeight": 624.0,
+      "scrollableHeight": 0.0,
+      "outerInsets": [
+        21.33,
+        21.33,
+        21.33,
+        21.33
+      ],
+      "scrollPadding": [
+        8.0,
+        8.0,
+        8.0,
+        8.0
+      ],
+      "plannedRows": 1,
+      "plannedCardHeight": 624.0,
+      "layoutDisabled": false,
+      "layoutError": 0,
+      "layoutRepairs": 0
+    },
+    {
+      "schema": 3,
+      "count": 2,
+      "sampleLimited": false,
+      "realized": 2,
+      "insideCanvas": 2,
+      "rows": 1,
+      "rootWidth": 1706.67,
+      "rootHeight": 1066.67,
+      "canvasX": 86.0,
+      "canvasY": 260.0,
+      "canvasWidth": 1534.67,
+      "canvasHeight": 546.67,
+      "minItemWidth": 726.0,
+      "maxItemWidth": 742.0,
+      "minItemHeight": 504.0,
+      "maxItemHeight": 504.0,
+      "scrollableHeight": 0.0,
+      "outerInsets": [
+        21.33,
+        21.33,
+        21.33,
+        21.33
+      ],
+      "scrollPadding": [
+        8.0,
+        8.0,
+        8.0,
+        8.0
+      ],
+      "plannedRows": 1,
+      "plannedCardHeight": 504.0,
+      "layoutDisabled": false,
+      "layoutError": 0,
+      "layoutRepairs": 0
+    },
+    {
+      "schema": 3,
+      "count": 3,
+      "sampleLimited": false,
+      "realized": 3,
+      "insideCanvas": 3,
+      "rows": 2,
+      "rootWidth": 1706.67,
+      "rootHeight": 1066.67,
+      "canvasX": 282.0,
+      "canvasY": 116.0,
+      "canvasWidth": 1142.67,
+      "canvasHeight": 834.67,
+      "minItemWidth": 538.0,
+      "maxItemWidth": 550.0,
+      "minItemHeight": 384.0,
+      "maxItemHeight": 384.0,
+      "scrollableHeight": 0.0,
+      "outerInsets": [
+        21.33,
+        21.33,
+        21.33,
+        21.33
+      ],
+      "scrollPadding": [
+        8.0,
+        8.0,
+        8.0,
+        8.0
+      ],
+      "plannedRows": 2,
+      "plannedCardHeight": 384.0,
+      "layoutDisabled": false,
+      "layoutError": 0,
+      "layoutRepairs": 0
+    }
+  ],
+  "observedGeometryVersion": "0.8.57",
+  "observedStyle": {
+    "schema": 6,
+    "canvasPolicy": "native-material-unmodified",
+    "supported": true,
+    "ruleThreads": 2,
+    "itemsSeen": 10,
+    "focusReadbacks": 10,
+    "primaryThickness": 0.0,
+    "secondaryThickness": 0.0,
+    "panelsSeen": 8,
+    "layoutPolicy": "content-first-adaptive-row-height",
+    "maxHeightReadbacks": 8,
+    "maxPixels": 648.0,
+    "maxRatio": 0.0,
+    "canvasReadbacks": 0,
+    "canvasAlpha": -1.0,
+    "canvasBorder": -1.0,
+    "readErrors": 0
+  },
+  "stability": {
+    "Begin": "2026-10-18T13:24:08.1203215+08:00",
+    "End": "2026-10-18T13:25:29.7875132+08:00",
+    "Samples": 12,
+    "AllLive": true,
+    "SameExplorer": true,
+    "ExplorerPid": 34624,
+    "ExplorerCrashEvents": 0,
+    "ObservationEnded": true
+  }
+}

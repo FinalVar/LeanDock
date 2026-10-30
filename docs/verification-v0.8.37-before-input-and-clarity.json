@@ -1,0 +1,252 @@
+{
+  "schema": 66,
+  "recordedAt": "2026-10-17T12:32:48.0567733+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.37",
+  "backendVersion": "0.5.32",
+  "scope": "Measure neutral original image source for consistent vertical centers; retain 0.8.36 card menu reopening",
+  "previousVerification": "docs/verification-v0.8.36-before-source-centering.json",
+  "rules": {
+    "card": "WinX including battery",
+    "tray": "Native menu",
+    "keyboard": "Native context route",
+    "blank": "Suppress without sending input",
+    "application": "Native menu"
+  },
+  "tests": {
+    "runtimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 292352,
+        "SHA256": "3EBAE5829C94E93730051BAE310D5645A7DA9617FFF6EF6E0EE6A14464D7DADA"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2107904,
+        "SHA256": "BB709A8DAF07277D392F2F7B327B5C5730661E3208F0B6BA4E97C8156C763F03"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 397312,
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ],
+    "build": "Passed",
+    "cardInput": {
+      "checks": 36,
+      "failures": 0
+    },
+    "cardManipulation": {
+      "failures": 0,
+      "hardwareGestureAcceptance": false,
+      "checks": 47,
+      "realHiddenWindowsCOM": true
+    },
+    "shellActions": {
+      "failures": 0,
+      "checks": 152,
+      "inputSent": false
+    },
+    "iconOptics": {
+      "failures": 0,
+      "actualResourceBounds": true,
+      "checks": 23
+    },
+    "iconView": {
+      "failures": 0,
+      "checks": 31,
+      "inputSent": false,
+      "dpi": 144,
+      "nativeOffsetAndClip": true,
+      "offscreenTestWindow": true,
+      "directSourcePixels": true,
+      "realBitmapImageRender": true,
+      "sampleCleanup": true,
+      "asyncCancel": true,
+      "desktopAcceptance": false
+    },
+    "iconRenderFallback": {
+      "state": "Six live taskbar BitmapImages measured successfully; visual user acceptance pending",
+      "mechanism": "Neutral source copy retained across at most two frame retries; zero layout size; offscreen; no input",
+      "previousDefect": "Capturing live Image included offset and cropped the lower edge",
+      "live": {
+        "invalid": 0,
+        "boundSkipped": 0,
+        "pixelWidth": 384,
+        "pixelHeight": 384,
+        "compensated": 3,
+        "measured": 6,
+        "unchanged": 3
+      }
+    },
+    "imports": {
+      "passed": true,
+      "extraRuntimeDependency": false,
+      "files": 4
+    },
+    "totalChecks": 289
+  },
+  "protectionBefore": {
+    "realTimeProtection": true,
+    "settingsChanged": false,
+    "smartAppControl": "Off"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.37",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.37-20261017-123203754",
+    "ChangedFiles": 16,
+    "ConfigPreserved": true,
+    "readback": {
+      "At": "2026-10-17T12:32:16.8871498+08:00",
+      "Backend": "0.5.32",
+      "ExplorerPid": 37528,
+      "DockReady": true,
+      "HotCornersReady": true,
+      "StartReady": true,
+      "StartItems": 49,
+      "QuickSettingsActive": true,
+      "QuickThemeActive": true,
+      "ComponentHealth": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "RuntimeHashes": [
+        {
+          "File": "latest.exe",
+          "Match": true
+        },
+        {
+          "File": "latest.dll",
+          "Match": true
+        },
+        {
+          "File": "start\\latest.dll",
+          "Match": true
+        },
+        {
+          "File": "panels\\latest.dll",
+          "Match": true
+        }
+      ],
+      "ConfigHashes": [
+        {
+          "File": "latest.ini",
+          "Match": true
+        },
+        {
+          "File": "hotcorners/latest.ini",
+          "Match": true
+        }
+      ]
+    }
+  },
+  "acceptance": {
+    "state": "Awaiting current visual and menu feedback",
+    "required": [
+      "From an open non-battery WinX, scroll to battery and right-click once: menu appears again",
+      "Repeat while WinX already open on battery and after returning to other cards",
+      "App and tray menus remain native; blank stays silent; battery left-click still works",
+      "Current and newly added app icons automatically use consistent visible bounds without changing badge/dot positions",
+      "All large app icons visibly share the same vertical center"
+    ]
+  },
+  "review": {
+    "regressionRisk": "Neutral source samples must not affect taskbar measure/hit testing; source/stop cancels stale results; actual vertical alignment and WinX reopening require separate user verification",
+    "boundaryCases": "Menu close timing, stale callbacks, inactive/recycled images, rectangular source, alpha shadow, size cap, native transform ownership",
+    "maintainability": "Reuse upstream element lifecycle and icon sizing; no per-app whitelist; bounded asynchronous work; no added resident task"
+  },
+  "standingAuthorization": {
+    "persisted": [
+      "global AGENTS.md",
+      "project AGENTS.md",
+      "eksight windows.leandock.routine_update_autoload"
+    ],
+    "date": "2026-10-17",
+    "user": "以后直接加载不要问我",
+    "scope": "Routine LeanDock load including existing Explorer restart after build/tests/preflight; not unrelated apps or security"
+  },
+  "iconRuntime": {
+    "RecordedAt": "2026-10-17T12:32:17.0789524+08:00",
+    "Values": {
+      "LeanDock.Icons.1.Bottom": 384,
+      "LeanDock.Icons.1.Left": 0,
+      "LeanDock.Icons.1.OffsetX": 0,
+      "LeanDock.Icons.1.OffsetY": 0,
+      "LeanDock.Icons.1.PixelsHeight": 384,
+      "LeanDock.Icons.1.PixelsWidth": 384,
+      "LeanDock.Icons.1.Right": 384,
+      "LeanDock.Icons.1.Scale": 10000,
+      "LeanDock.Icons.1.Source": 2,
+      "LeanDock.Icons.1.Status": 1,
+      "LeanDock.Icons.1.Top": 0,
+      "LeanDock.Icons.2.Bottom": 379,
+      "LeanDock.Icons.2.Left": 0,
+      "LeanDock.Icons.2.OffsetX": 0,
+      "LeanDock.Icons.2.OffsetY": 0,
+      "LeanDock.Icons.2.PixelsHeight": 384,
+      "LeanDock.Icons.2.PixelsWidth": 384,
+      "LeanDock.Icons.2.Right": 384,
+      "LeanDock.Icons.2.Scale": 10000,
+      "LeanDock.Icons.2.Source": 2,
+      "LeanDock.Icons.2.Status": 1,
+      "LeanDock.Icons.2.Top": 5,
+      "LeanDock.Icons.3.Bottom": 346,
+      "LeanDock.Icons.3.Left": 33,
+      "LeanDock.Icons.3.OffsetX": 0,
+      "LeanDock.Icons.3.OffsetY": 7500,
+      "LeanDock.Icons.3.PixelsHeight": 384,
+      "LeanDock.Icons.3.PixelsWidth": 384,
+      "LeanDock.Icons.3.Right": 351,
+      "LeanDock.Icons.3.Scale": 12000,
+      "LeanDock.Icons.3.Source": 2,
+      "LeanDock.Icons.3.Status": 2,
+      "LeanDock.Icons.3.Top": 26,
+      "LeanDock.Icons.4.Bottom": 348,
+      "LeanDock.Icons.4.Left": 35,
+      "LeanDock.Icons.4.OffsetX": 639,
+      "LeanDock.Icons.4.OffsetY": 639,
+      "LeanDock.Icons.4.PixelsHeight": 384,
+      "LeanDock.Icons.4.PixelsWidth": 384,
+      "LeanDock.Icons.4.Right": 348,
+      "LeanDock.Icons.4.Scale": 12268,
+      "LeanDock.Icons.4.Source": 2,
+      "LeanDock.Icons.4.Status": 2,
+      "LeanDock.Icons.4.Top": 35,
+      "LeanDock.Icons.5.Bottom": 371,
+      "LeanDock.Icons.5.Left": 11,
+      "LeanDock.Icons.5.OffsetX": 1111,
+      "LeanDock.Icons.5.OffsetY": 1111,
+      "LeanDock.Icons.5.PixelsHeight": 384,
+      "LeanDock.Icons.5.PixelsWidth": 384,
+      "LeanDock.Icons.5.Right": 371,
+      "LeanDock.Icons.5.Scale": 10667,
+      "LeanDock.Icons.5.Source": 2,
+      "LeanDock.Icons.5.Status": 2,
+      "LeanDock.Icons.5.Top": 11,
+      "LeanDock.Icons.6.Bottom": 384,
+      "LeanDock.Icons.6.Left": 0,
+      "LeanDock.Icons.6.OffsetX": 0,
+      "LeanDock.Icons.6.OffsetY": 0,
+      "LeanDock.Icons.6.PixelsHeight": 384,
+      "LeanDock.Icons.6.PixelsWidth": 384,
+      "LeanDock.Icons.6.Right": 384,
+      "LeanDock.Icons.6.Scale": 10000,
+      "LeanDock.Icons.6.Source": 2,
+      "LeanDock.Icons.6.Status": 1,
+      "LeanDock.Icons.6.Top": 0
+    }
+  }
+}

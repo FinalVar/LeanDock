@@ -1,0 +1,144 @@
+{
+  "schema": 97,
+  "recordedAt": "2026-10-19T19:25:17.4183927+08:00",
+  "packageVersion": "0.8.68",
+  "controllerVersion": "0.3.29",
+  "backendVersion": "0.5.54",
+  "previousVerification": "docs/verification-v0.8.67-before-confirm-latency.json",
+  "scope": "Reduce automatic confirmation scheduling delay only; Low to Normal CoreDispatcher priority",
+  "acceptedBaseline": {
+    "version": "0.8.67",
+    "twoWindowRoundTrip": "User confirmed 能正常来回互换",
+    "nativeInvokeAccepted": 19,
+    "invokeErrors": 0,
+    "attachErrors": 0,
+    "remainingIssue": "Brief visible picker before automatic switch"
+  },
+  "policy": {
+    "exactlyTwo": "Map native keyboard focus to one of the two realized item containers; Invoke native thumbnail once for corner ticket only",
+    "otherCounts": "Native manual picker",
+    "keyboard": "Manual Ctrl+Alt+Tab unchanged",
+    "secondCorner": "Cancel visible picker",
+    "applicationPage": "Absent",
+    "winKeyInterception": "Absent",
+    "automaticMaximization": "Remains removed",
+    "additionalPolling": false,
+    "desktopInputAutomation": false
+  },
+  "checks": {
+    "build": "passed",
+    "runtimeRegression": "91 passed, 0 failed",
+    "confirmationAndHotcornerPolicy": "Unchanged byte-for-byte from accepted 0.8.67; retained previous test evidence",
+    "unchangedComponents": [
+      {
+        "Name": "include/switcher-layout-policy-latest.h",
+        "SHA256": "013DEEDCF036CF271ECF05326A5E429D76EBE96E592CADEF1CBC213C985036DE",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "include/switcher-visibility-latest.h",
+        "SHA256": "607E72B2EE141840DAED8C60C7650B06940480983D88CEBF4536360676F4CE7B",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "src/switcher-layout-latest.inc",
+        "SHA256": "4A7A72272070F35CAF5ED4262810D16B1DB9AE5974A1CA0E1F08575B87496D58",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "src/switcher-style-latest.inc",
+        "SHA256": "AD90B1DB773877FF8F996B02E29C6287A5B1877BE1B22FB05349599E9537E4EF",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "hotcorners/actions/latest.h",
+        "SHA256": "C7BA579C7ADB5847C1927721C15958078E9B79BBEC6B6CC0D3FC9522E5FE066D",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "hotcorners/core/latest.h",
+        "SHA256": "C13807B30A5C3E1906F12DADFCB3925F38F787BA941920DAB4874979CDD0500B",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "src/cards-latest.cpp",
+        "SHA256": "3B5D94987AB218BB5B8581AA1477FB1454B16BC4AF79E7307CF3329DA2F13223",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "start/latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "panels/latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "MatchesRollbackBaseline": true
+      }
+    ],
+    "sourceDelta": "One executable behavior line changes Low to Normal; comment, version and documentation updates only"
+  },
+  "review": {
+    "maintainability": "Same native provider, ownership and callback lifecycle; no new subsystem",
+    "boundaries": "Normal queue is not a compositor presentation barrier. Cannot guarantee zero visible frames from scheduling alone. High is reserved by system and is not used.",
+    "regression": "Two-window round trip must remain functional; 3+ native picker, keyboard behavior and close toggle preserved",
+    "additionalPolling": false,
+    "desktopInputAutomation": false,
+    "api": "https://learn.microsoft.com/en-us/uwp/api/windows.ui.core.coredispatcher.runasync"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.68",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.68-20261019-192709489",
+    "ChangedFiles": 11,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "twoWindowRoundTrip": "0.8.68 user confirmed normal",
+    "pickerFlash": "User confirmed still flashes; scheduling-only change did not fix it",
+    "keyboardManual": "no new acceptance claimed",
+    "threeWindowsManual": "no new acceptance claimed"
+  },
+  "runtimeAfter": {
+    "Live": true,
+    "BackendVersion": "0.5.54",
+    "ControllerPid": 1692,
+    "ExplorerPid": 21100,
+    "StartActive": true,
+    "QuickPositionActive": true,
+    "QuickThemeActive": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "Name": "latest.exe",
+        "SHA256": "3D0F863853EBE66DA4940DBD375F541D13CCF117447B5B0B115ACB85C24386E2",
+        "MatchesBuild": true
+      },
+      {
+        "Name": "latest.dll",
+        "SHA256": "E5DA2CD204EC37EF435894688615ECA98B4C1D0EF37BB804B4E46FBAE8F6F273",
+        "MatchesBuild": true
+      },
+      {
+        "Name": "start\\latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "MatchesBuild": true
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "MatchesBuild": true
+      }
+    ]
+  }
+}

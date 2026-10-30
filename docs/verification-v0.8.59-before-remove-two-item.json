@@ -1,0 +1,218 @@
+{
+  "schema": 89,
+  "recordedAt": "2026-10-18T14:39:51.6453437+08:00",
+  "packageVersion": "0.8.59",
+  "controllerVersion": "0.3.23",
+  "backendVersion": "0.5.47",
+  "scope": "Right-bottom Ctrl+Alt+Tab toggle based on actual native switcher visibility",
+  "previousVerification": "docs/verification-v0.8.58-before-switcher-toggle.json",
+  "policy": {
+    "open": "Ctrl+Alt+Tab full chord",
+    "close": "Escape down and up only for marked foreground shell switcher",
+    "rearmPixels": 32,
+    "twoItemConfirmation": "retained only when opening",
+    "automaticMaximization": "remains removed",
+    "additionalPeriodicPolling": false,
+    "additionalThread": false,
+    "desktopInputAutomation": false
+  },
+  "checks": {
+    "hotCornerCore": 138,
+    "hotCornerConfig": 33,
+    "visibilityOwnership": 16,
+    "twoItemConfirm": 21,
+    "failures": 0,
+    "build": "passed",
+    "unchangedComponents": [
+      {
+        "Name": "include/switcher-layout-policy-latest.h",
+        "SHA256": "013DEEDCF036CF271ECF05326A5E429D76EBE96E592CADEF1CBC213C985036DE",
+        "SameAsDeploymentBefore": true
+      },
+      {
+        "Name": "src/switcher-layout-latest.inc",
+        "SHA256": "4A7A72272070F35CAF5ED4262810D16B1DB9AE5974A1CA0E1F08575B87496D58",
+        "SameAsDeploymentBefore": true
+      },
+      {
+        "Name": "src/switcher-style-latest.inc",
+        "SHA256": "AD90B1DB773877FF8F996B02E29C6287A5B1877BE1B22FB05349599E9537E4EF",
+        "SameAsDeploymentBefore": true
+      },
+      {
+        "Name": "src/cards-latest.cpp",
+        "SHA256": "3B5D94987AB218BB5B8581AA1477FB1454B16BC4AF79E7307CF3329DA2F13223",
+        "SameAsDeploymentBefore": true
+      },
+      {
+        "Name": "start/latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "SameAsDeploymentBefore": true
+      },
+      {
+        "Name": "panels/latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "SameAsDeploymentBefore": true
+      }
+    ],
+    "generatorReproducible": true
+  },
+  "review": {
+    "maintainability": "Existing generator and XAML lifecycle retained; temporary HWND owner mark shared through one header",
+    "boundaries": "Mark is published only for the exact verified native root, cleared on hide/unload/remove, and rechecked before input after bounded IPC. Window replacement cannot be cleared by a stale owner. Foreground can still change concurrently after the final check; no global atomic input lock is claimed.",
+    "regression": "Existing layout and style sources unchanged, no launch-maximization references restored, no mouse or keyboard used by tests"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.59",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.59-20261018-143656750",
+    "ChangedFiles": 21,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "toggle": {
+      "At": "2026-10-18T14:38:47.2336585+08:00",
+      "UserFeedback": "打开、关闭、再次打开都正常",
+      "Live": true,
+      "ExplorerPid": 25784,
+      "Health": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "SwitcherToggle": {
+        "openRequests": 6,
+        "closeRequests": 2,
+        "stateChanged": 0
+      },
+      "HotCornerFailures": 0,
+      "LastError": 0
+    },
+    "layout": "same source as accepted 0.8.57 behavior, no new visual acceptance claimed",
+    "switching": "native selected thumbnail confirmation preserved"
+  },
+  "references": [
+    "https://learn.microsoft.com/en-us/uwp/api/windows.ui.xaml.xamlroot",
+    "upstream/NativeHotCorners/latest.cpp",
+    "L"
+  ],
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 294400,
+      "SHA256": "109C25CEEF76065B79149BB3EB6C2E28E7754E9E5DF2CC69EC2FDDF81AC30BCE"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2179584,
+      "SHA256": "58E86CF7DE319169E6D2E859171F2882EBB72BC2E27E612D464E51C126454284"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "preflight": {
+    "Action": "Update",
+    "Version": "0.8.59",
+    "Destination": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock",
+    "ChangedFiles": 20,
+    "RuntimeChanged": [
+      "latest.exe",
+      "latest.dll"
+    ],
+    "PreserveConfiguration": true
+  },
+  "postUpdateIntegrity": {
+    "At": "2026-10-18T14:37:29.1966329+08:00",
+    "Runtime": [
+      {
+        "Name": "latest.exe",
+        "SHA256": "109C25CEEF76065B79149BB3EB6C2E28E7754E9E5DF2CC69EC2FDDF81AC30BCE",
+        "Matches": true
+      },
+      {
+        "Name": "latest.dll",
+        "SHA256": "58E86CF7DE319169E6D2E859171F2882EBB72BC2E27E612D464E51C126454284",
+        "Matches": true
+      },
+      {
+        "Name": "start\\latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "Matches": true
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "Matches": true
+      }
+    ],
+    "Configuration": [
+      {
+        "Name": "latest.ini",
+        "SHA256": "5D3060BEAC27A3D4BDD975FFB1C079E5D31269D63EF3C72260EF0C51346AC375",
+        "Matches": true
+      },
+      {
+        "Name": "hotcorners/latest.ini",
+        "SHA256": "C26DF2EF906CE5EF93BF91B1C3526BED376C9CB8D8EE1C4247F6CB48671D169C",
+        "Matches": true
+      }
+    ],
+    "Live": true,
+    "ExplorerPid": 25784,
+    "ControllerVersion": "0.3.23",
+    "Backend": "0.5.47",
+    "HotCorners": "1.0.7-integrated",
+    "SwitcherToggle": {
+      "openRequests": 1,
+      "closeRequests": 0,
+      "stateChanged": 0
+    },
+    "Health": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "OldControllerStillRunning": false,
+    "LaunchStatePresent": false,
+    "RemainingLaunchMarkers": 0,
+    "InputSent": false
+  },
+  "stabilityObservation": {
+    "Begin": "2026-10-18T14:37:44.133934+08:00",
+    "End": "2026-10-18T14:38:48.1016994+08:00",
+    "Samples": 8,
+    "ExplorerPid": 25784,
+    "AllLive": true,
+    "SameExplorer": true,
+    "ExplorerCrashEvents": 0
+  },
+  "diagnosticRollback": {
+    "At": "2026-10-18T18:31:12.8609062+08:00",
+    "RejectedPackage": "0.8.60-diagnostic",
+    "RestoredPackage": "0.8.59",
+    "RestoredBackend": "0.5.47",
+    "UserReportedIssue": "Both corner and keyboard Ctrl+Alt+Tab could dismiss without switching; a second click was required",
+    "UserFeedbackAfterRollback": "单击切换恢复正常",
+    "ActualTest": "Right-bottom corner, GPT to Edge and Edge to GPT",
+    "CurrentDiagnosticStopped": true,
+    "RuntimeIntegrity": "All four source and production hashes match original 0.8.59 build receipt",
+    "ComponentHealth": "Ready",
+    "RootCauseProven": false,
+    "OriginalClippingResolved": false,
+    "Boundary": "Restoration is confirmed. Exact diagnosis remains unproven because rollback also restarted Explorer. Do not reload 0.8.60-diagnostic."
+  }
+}

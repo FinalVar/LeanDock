@@ -1,0 +1,105 @@
+{
+  "schema": 79,
+  "recordedAt": "2026-10-18T01:47:31.6438194+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.49",
+  "controllerVersion": "0.3.19",
+  "backendVersion": "0.5.39",
+  "hotCornersVersion": "1.0.6-integrated",
+  "scope": "Ctrl+Alt+Tab native visual adaptation and two-item corner confirmation",
+  "previousVerification": "docs/verification-v0.8.48-before-switcher-style.json",
+  "request": "保留 Ctrl+Alt+Tab，减弱蓝框、增大少窗口预览；右下角触发且原生列表只有两项时直接切到另一项，沿用原生过渡",
+  "implementation": {
+    "nativeChord": "Ctrl+Alt+Tab",
+    "countSource": "native SwitchItemListControl.Items",
+    "confirm": "selected ThumbnailHost IInvokeProvider.Invoke",
+    "requestLifetimeMs": 1500,
+    "newTimers": false,
+    "newProcesses": false,
+    "newInputHooks": false,
+    "manualKeyboardAutoConfirm": false,
+    "scopeGate": "exact Switcher DLL and PRI SHA256",
+    "visualChanges": [
+      "thin neutral focus",
+      "native default panel mode and 0.36/540 maximum row height",
+      "140 ms hover brush transition only"
+    ],
+    "preserved": [
+      "existing raw input hotcorner guard and rearm",
+      "native window selection and confirmation",
+      "existing XAML thread lifecycle and property restoration",
+      "other Dock components and user configuration"
+    ]
+  },
+  "staticEvidence": {
+    "decodedXbfFiles": 23,
+    "decodeFailures": 0,
+    "switcherVersion": "10.0.26100.9549",
+    "switcherSha256": "A9A33AE9735F191895B39A2C62E2510993C3CA6E66D6723A5E16C770C70265F8",
+    "priSha256": "928753406E1636E897847D07AC5203ACF12C12C6BBC1B17E9BB56BBC037E2141",
+    "upstreamStylerCommit": "162bca0d6b4fe4da2c63c21f17921a165d5870fa"
+  },
+  "checks": {
+    "confirmationPolicy": 21,
+    "hotCornerCore": 129,
+    "hotCornerConfig": 32,
+    "failures": 0,
+    "generatedSourceUnchanged": true,
+    "realInputSentByTests": false,
+    "finalBuild": "passed"
+  },
+  "deployment": {
+    "state": "Applied",
+    "baselineVersion": "0.8.48",
+    "previousAcceptance": "右下保持显示、选择和取消正常，左下也正常",
+    "baselineAcceptanceAppliesToNewVersion": false,
+    "details": {
+      "backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.49-20261018-014601502",
+      "configPreserved": true,
+      "fourRuntimeHashesVerified": true,
+      "componentHealth": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "explorerPid": 16632,
+      "hotCornersVersion": "1.0.6-integrated",
+      "backendVersion": "0.5.39",
+      "sourceDocumentationUpdatedAfterFrozenPackage": true
+    }
+  },
+  "visualAcceptance": {
+    "state": "pending",
+    "unverified": [
+      "two-item actual target and repeated switching",
+      "picker flash and transition continuity",
+      "neutral focus and enlarged actual preview",
+      "click keyboard and Escape",
+      "multi-monitor DPI session recovery"
+    ]
+  },
+  "unrelatedOpenWork": "系统应用启动最大化修复未包含；Liquid Glass 仍停在预备调查范围",
+  "sourcePolicy": "Local working tree contains earlier uncommitted/untracked changes; this is not a clean stable baseline",
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 344064,
+      "SHA256": "224F4D20C6BF853C667B8926B932A773E94FC44545E4E4332B8EFF2930A89B86"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2145280,
+      "SHA256": "63198FC0E53E981B49B655EADE0A09E01E5190E778606106A30FC6C6D2AE0FA1"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ]
+}

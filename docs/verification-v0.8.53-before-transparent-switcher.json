@@ -1,0 +1,94 @@
+{
+  "schema": 83,
+  "recordedAt": "2026-10-18T12:36:20.1619142+08:00",
+  "packageVersion": "0.8.53",
+  "controllerVersion": "0.3.21",
+  "backendVersion": "0.5.42",
+  "scope": "Ctrl+Alt+Tab content-first preview size and row layout only",
+  "previousVerification": "docs/verification-v0.8.52-before-content-layout.json",
+  "policy": {
+    "stepDip": 24,
+    "canvas": "native content-sized; maximum available grid 92% x 84%",
+    "samplingLimit": 128,
+    "scrollbarsHidden": false,
+    "comfortableCardHeightDip": 360,
+    "maxOverflowCorrections": 3,
+    "nativeFitToContentUntouched": true,
+    "nativePanelEnumUntouched": true
+  },
+  "checks": {
+    "desktopInputSent": false,
+    "layoutFailures": 0,
+    "confirmationAssertions": 21,
+    "build": "passed",
+    "layoutAssertions": 1041,
+    "confirmationFailures": 0
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.53",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.53-20261018-123840329",
+    "ChangedFiles": 15,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "fixedCanvas": "superseded by user: canvas follows content",
+    "twoWindowConfirm": "pending",
+    "internalArrangement": "user confirmed: rows, preview size and content-sized background appropriate",
+    "liquidGlass": "preparation only",
+    "maximization": "paused",
+    "dock": "four components Ready; unchanged runtime/configuration hashes confirmed"
+  },
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 344576,
+      "SHA256": "076A1D96AFCEEC3488765F2F65A28B20B4DD92DB2DDB6AE5ADDD9D3ED0CDACBD"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2166784,
+      "SHA256": "CEE0C60E1C53DAF2EA53E2DDA8DFF97BDA13B6389BBDADF9B4F1E91E1F7B5D49"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "observedGeometry": {
+    "schema": 2,
+    "count": 5,
+    "sampleLimited": false,
+    "realized": 5,
+    "insideCanvas": 5,
+    "rows": 2,
+    "rootWidth": 1706.67,
+    "rootHeight": 1066.67,
+    "canvasX": 119.33,
+    "canvasY": 152.0,
+    "canvasWidth": 1468.0,
+    "canvasHeight": 762.67,
+    "minItemWidth": 435.33,
+    "maxItemWidth": 435.33,
+    "minItemHeight": 312.0,
+    "maxItemHeight": 312.0,
+    "scrollableHeight": 0.0,
+    "plannedRows": 2,
+    "plannedCardHeight": 312.0,
+    "layoutDisabled": false,
+    "layoutError": 0,
+    "layoutRepairs": 1
+  }
+}

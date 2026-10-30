@@ -1,0 +1,62 @@
+{
+  "schema": 102,
+  "recordedAt": "2026-10-19T20:40:51.623676+08:00",
+  "packageVersion": "0.8.73",
+  "controllerVersion": "0.3.29",
+  "backendVersion": "0.5.59",
+  "scope": "Fix stale clip peer lifetime while preserving narrow viewport correction",
+  "previousVerification": "docs/verification-v0.8.72-unaccepted.json",
+  "evidence": {
+    "nativeWeakReference": "expires while core clip remains owned by native presenter",
+    "productionHelpers": "15 native XAML tests passed without a window",
+    "priorUser": "0.8.72 still clipped; single-click and swap normal"
+  },
+  "checks": {
+    "nativeXaml": 15,
+    "clipPolicy": 274,
+    "runtime": 91,
+    "confirmation": 23,
+    "total": 403,
+    "build": "passed",
+    "review": "Strong peers explicitly released on hide/unload/host change/stop; native object replacement resets evidence; no layout/focus/input/timer changes"
+  },
+  "deployment": {
+    "State": "Applied",
+    "At": "2026-10-19T20:46:49.5939446+08:00",
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.73-20261019-204612389",
+    "ConfigPreserved": true,
+    "Components": "Ready",
+    "RuntimeHashes": "all four match build receipt",
+    "ExplorerPid": 19124
+  },
+  "acceptance": {
+    "at": "2026-10-19T20:53:14.653677+08:00",
+    "user": "预览完整，单击和互换正常",
+    "status": "passed for reproduced live reflow and related switching",
+    "capturedSequences": [
+      "7 -> 6 -> 5 -> 4 -> 3",
+      "4 -> 3 -> 2"
+    ],
+    "observedRepairCounters": [
+      4,
+      2
+    ],
+    "everyRecordedItemInsidePublicClip": true,
+    "clipRepairErrors": 0,
+    "postStatus": "Ready; backend 0.5.59",
+    "observerStopped": {
+      "ReadFailures": 0,
+      "Samples": 640,
+      "Changes": 21,
+      "Ended": "2026-10-19T20:52:17.2842576+08:00",
+      "Pid": 27540
+    },
+    "remainingBoundary": "Not an exhaustive all-monitor/DPI/system-version qualification; only exact pinned system supported"
+  },
+  "boundaries": [
+    "native geometry retained only while visible",
+    "hide/unload/host replacement release strong peers",
+    "native object replacement loses old evidence",
+    "no input, focus, timers or async callbacks added"
+  ]
+}

@@ -1,0 +1,163 @@
+{
+  "version": "0.8.82",
+  "backendVersion": "0.5.67",
+  "panelVersion": "0.8.81",
+  "state": "DeployedAccepted",
+  "date": "2026-10-23T02:17:36.9661717+08:00",
+  "change": "Add STARTF_FORCEOFFFEEDBACK to native hover panel CreateProcess startup; retain all other lifecycle and input behavior",
+  "sourceEvidence": [
+    "src/cards-aggregate-latest.cpp ShowPanel previously used STARTF_USESHOWWINDOW only; GUI executable built with -mwindows",
+    "Microsoft STARTUPINFOW documents default GUI startup cursor when neither feedback flag is specified",
+    "aggregate sources contain no IDC_WAIT, IDC_APPSTARTING or SetCursor busy-cursor path"
+  ],
+  "reference": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/ns-processthreadsapi-startupinfow",
+  "preserved": [
+    "0.8.81 panel binary and SHA binding",
+    "0.8.78 accepted controller / Start / panels binaries",
+    "native tray/pins/menus/hotcorners",
+    "72x46 DIP key and 78 DIP reservation",
+    "ordinary Explorer token and suspended PID/cookie handshake",
+    "panel exits on close; no new resident process or global cursor change"
+  ],
+  "previousAcceptance": {
+    "version": "0.8.81",
+    "record": "docs/verification-v0.8.81-before-hover-cursor.json",
+    "answer": "显示和操作都正常",
+    "scope": "seconds, CPU trend, separate AMD/NVIDIA display, panel size, controls and closing"
+  },
+  "checks": [
+    "BackendOnly build passed; only runtime version and hover startup flag changed",
+    "Production native hidden XAML Init/layout/power subscription/Stop restoration passed",
+    "Native key 72x46 DIP, reservation 78 DIP, center delta zero",
+    "Panel/controller/Start/panels binaries match accepted hashes",
+    "424 delivered files match package hashes; component health Ready",
+    "All 3 config files, login task, Taskband and native pin shortcuts unchanged",
+    "Panel/controller/Start/panels unchanged; no independent Dock or closed panel process",
+    "Runtime rollback recorded before-0.8.82-20261023-021953431"
+  ],
+  "pending": [],
+  "rollback": "Existing Update/Rollback transaction; no manual replacement of loaded DLL",
+  "deployment": {
+    "State": "DeployedPendingCursorAcceptance",
+    "At": "2026-10-23T02:20:08.2876735+08:00",
+    "Version": "0.8.82",
+    "Architecture": "native-taskbar",
+    "Live": true,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "BackendVersion": "0.5.67",
+    "PackageFiles": 424,
+    "Mismatches": [],
+    "Preserved": [
+      {
+        "Name": "latest.ini",
+        "Unchanged": true
+      },
+      {
+        "Name": "hotcorners/latest.ini",
+        "Unchanged": true
+      },
+      {
+        "Name": "cards/latest.ini",
+        "Unchanged": true
+      },
+      {
+        "Name": "latest.exe",
+        "Unchanged": true
+      },
+      {
+        "Name": "start/latest.dll",
+        "Unchanged": true
+      },
+      {
+        "Name": "panels/latest.dll",
+        "Unchanged": true
+      },
+      {
+        "Name": "aggregate/latest.exe",
+        "Unchanged": true
+      }
+    ],
+    "TaskUnchanged": true,
+    "NativePinsRegistryUnchanged": true,
+    "NativePinShortcutsUnchanged": true,
+    "NativeTaskbarOwner": "C:\\Windows\\Explorer.EXE",
+    "IndependentDockProcesses": 0,
+    "OnDemandPanelProcesses": 0,
+    "CardProperties": {
+      "LeanDock.Card.Ready": 1,
+      "LeanDock.Card.Fits": 1,
+      "LeanDock.Card.Visible": 0,
+      "LeanDock.Card.PowerReady": 1,
+      "LeanDock.Card.PowerActive": 0,
+      "LeanDock.Card.Dashboard.Width100": 7200,
+      "LeanDock.Card.AggregateVersion": 1,
+      "LeanDock.Card.Left100": 98467,
+      "LeanDock.Card.Top100": 767,
+      "LeanDock.Card.Right100": 105667,
+      "LeanDock.Card.Bottom100": 5367,
+      "LeanDock.Card.ClockHourMinute": -1,
+      "LeanDock.Card.ClockMonthDay": -1,
+      "LeanDock.Card.ClockUpdates": -1,
+      "LeanDock.Card.BatteryPercent": -1,
+      "LeanDock.Card.PowerUpdates": -1,
+      "LeanDock.Card.Errors": 0,
+      "LeanDock.Card.PanelError": -1,
+      "LeanDock.Card.Sampling": 0,
+      "LeanDock.Card.NetworkActive": 0,
+      "LeanDock.Card.SurfaceCenterY100": 3067,
+      "LeanDock.Card.CenterDelta100": 0,
+      "LeanDock.Card.OffsetY100": 100,
+      "LeanDock.Aggregate.Left": 1477,
+      "LeanDock.Aggregate.Top": 1609,
+      "LeanDock.Aggregate.Right": 1585,
+      "LeanDock.Aggregate.Bottom": 1678,
+      "LeanDock.Aggregate.PanelPid": 0,
+      "LeanDock.Aggregate.PanelWindow": 0,
+      "LeanDock.Aggregate.ControlWindow": 0,
+      "LeanDock.Aggregate.Cookie": 0,
+      "LeanDock.Hide.KeepShown": 1
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.82-20261023-021953431",
+    "QuickTheme": {
+      "version": "0.2.0",
+      "pid": 7152,
+      "ownerPid": 29704,
+      "active": true,
+      "rootReady": false,
+      "tileInstalled": false,
+      "buttonReady": false,
+      "busy": false,
+      "workerPid": 0,
+      "dark": true,
+      "stateKnown": true,
+      "discoveries": 8,
+      "switches": 0,
+      "failures": 1,
+      "lastExit": 0,
+      "discoveryResult": 0,
+      "watchMode": "events"
+    },
+    "UserAcceptance": "Native 0.8.80 appearance accepted; 0.8.79 hover/sliders/Start accepted; 0.8.81 user confirmed display and operation normal"
+  },
+  "userAcceptance": {
+    "At": "2026-10-23T12:17:35.2205806+08:00",
+    "QuestionItem": "call_4feae4efb187421398179f42351a4c34:0",
+    "Answer": "繁忙圈消失，面板正常",
+    "Scope": "Repeated real hover: no transient busy cursor; panel opens and closes normally",
+    "Source": "Direct user reply in current conversation"
+  },
+  "automatedValidation": {
+    "At": "2026-10-23T02:31:51+08:00",
+    "State": "AutomatedChecksPassed",
+    "ProbeCycles": 3,
+    "Observation": "NotObserved",
+    "Evidence": "outputs/native-aggregate-autotest-20261023/latest.json",
+    "Note": "Historical observer had no natural hover sample; user acceptance above is separate evidence"
+  }
+}

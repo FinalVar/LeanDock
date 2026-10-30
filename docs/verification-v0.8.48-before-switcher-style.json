@@ -1,0 +1,92 @@
+{
+  "schema": 78,
+  "recordedAt": "2026-10-18T00:55:32.4411569+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.48",
+  "controllerVersion": "0.3.18",
+  "backendVersion": "0.5.38",
+  "hotCornersVersion": "1.0.5-integrated",
+  "scope": "Bottom-right persistent native application switcher, Ctrl+Alt+Tab",
+  "previousVerification": "docs/verification-v0.8.47-before-app-switcher.json",
+  "request": "右下角改为不需要按住 Alt 的应用切换器；其他触发角和现有保护规则保留",
+  "implementation": {
+    "action": "app-switcher",
+    "nativeChord": "Ctrl+Alt+Tab",
+    "keySequence": "LeftCtrl down, LeftAlt down, Tab down, Tab up, LeftAlt up, LeftCtrl up",
+    "retained": "Raw Input delivery, existing controller, spatial rearm, fullscreen/client identity guard, lock/session lifecycle",
+    "partialInput": "Best-effort releases for accepted down events without an accepted up; failures remain failures",
+    "legacyTaskView": "task-view remains Win+Tab",
+    "newProcessOrPolling": false
+  },
+  "tests": {
+    "coreChecks": 129,
+    "configurationChecks": 32,
+    "failures": 0,
+    "generatorReproducible": true,
+    "controllerBuild": "Passed",
+    "unrelatedRuntimeHashesPreserved": true,
+    "desktopInputSent": false,
+    "hostedInputTestRun": false
+  },
+  "deployment": {
+    "state": "Applied; deployed runtime and configuration verified; requested actual interaction accepted by user",
+    "configurationPolicy": "Updater preserves all settings; separately migrate only BottomRight after new controller is installed",
+    "backupDirectory": "C:\\Users\\x\\Documents\\Codex\\2026-10-07\\referenced-chatgpt-conversation-this-is-an\\outputs\\hotcorner-switcher-20261017-234232",
+    "updateBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.48-20261017-234631505",
+    "configurationReceipt": "C:\\Users\\x\\Documents\\Codex\\2026-10-07\\referenced-chatgpt-conversation-this-is-an\\outputs\\hotcorner-switcher-20261017-234232\\config-change-latest.json",
+    "allRuntimeHashesMatch": true,
+    "runtimeActions": [
+      "lock-screen",
+      "none",
+      "show-desktop",
+      "app-switcher"
+    ],
+    "componentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "hotCornerFailures": 0,
+    "immutablePackageNote": "Packaged verification remains the pre-deployment snapshot; this source record and task output contain the later deployment evidence. No deployed payload documentation was rewritten after Update."
+  },
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 344064,
+      "SHA256": "791591DB40024471DAC6B74A0A5925BCB740E8E9879DABE08227FEB9E6C33092"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2118144,
+      "SHA256": "7641D7E218A92FF5BD04105E935B4AF11E21FAB230DCE7D8F8C34DA98EFB5C24"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "userAcceptance": {
+    "state": "Passed for requested right-corner persistence, window selection, Esc cancellation and left-corner Show Desktop",
+    "needed": [
+      "Separate live GPT maximized corner regression if newly reported",
+      "Sleep/resume and multi-monitor live acceptance remain outside this test"
+    ],
+    "notClaimed": [
+      "New live GPT maximized-window acceptance",
+      "Sleep/resume and multi-monitor live acceptance"
+    ],
+    "confirmedAt": "2026-10-18T00:55:32.4442195+08:00",
+    "userFeedback": "右下保持显示、选择和取消正常，左下也正常"
+  },
+  "outstandingOtherTask": {
+    "systemAppMaximization": "Unresolved: user reported only Sound Recorder appeared to work in 0.8.47; Settings, Clock and Explorer direct Start clicks remain pending",
+    "liquidGlass": "Research only; no material implementation in this change"
+  },
+  "rollback": "While new controller still runs, restore backed-up BottomRight=task-view and ReloadCorners before rolling back to a pre-0.8.48 controller, which does not parse app-switcher. Existing Update rollback set retained."
+}

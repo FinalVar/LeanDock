@@ -1,0 +1,192 @@
+{
+  "schema": 65,
+  "recordedAt": "2026-10-17T12:10:35.3159247+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.36",
+  "backendVersion": "0.5.31",
+  "scope": "Consistent card menu reopen and automatic alpha-bounds sizing for present and future app icons",
+  "previousVerification": "docs/verification-v0.8.35-before-menu-reopen.json",
+  "rules": {
+    "card": "WinX including battery",
+    "tray": "Native menu",
+    "keyboard": "Native context route",
+    "blank": "Suppress without sending input",
+    "application": "Native menu"
+  },
+  "tests": {
+    "runtimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 292352,
+        "SHA256": "3EBAE5829C94E93730051BAE310D5645A7DA9617FFF6EF6E0EE6A14464D7DADA"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2099712,
+        "SHA256": "EEC36AECA7F782785E59CB3D2F286B7289E5BFE82E764C8C5933106897037322"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 397312,
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ],
+    "build": "Passed",
+    "cardInput": {
+      "checks": 36,
+      "failures": 0
+    },
+    "cardManipulation": {
+      "failures": 0,
+      "hardwareGestureAcceptance": false,
+      "checks": 47,
+      "realHiddenWindowsCOM": true
+    },
+    "shellActions": {
+      "failures": 0,
+      "checks": 152,
+      "inputSent": false
+    },
+    "iconOptics": {
+      "failures": 0,
+      "actualResourceBounds": true,
+      "checks": 22
+    },
+    "iconView": {
+      "hiddenNativeXaml": true,
+      "failures": 0,
+      "desktopAcceptance": false,
+      "directSourcePixels": true,
+      "checks": 18,
+      "asyncCancel": true
+    },
+    "iconRenderFallback": {
+      "hiddenFixture": "Blank capture observed intermittently; source pixels preferred; fallback bounded to two frame retries",
+      "state": "Pending live acceptance"
+    },
+    "imports": {
+      "passed": true,
+      "extraRuntimeDependency": false,
+      "files": 4
+    },
+    "totalChecks": 275
+  },
+  "protectionBefore": {
+    "realTimeProtection": true,
+    "settingsChanged": false,
+    "smartAppControl": "Off"
+  },
+  "deployment": {
+    "At": "2026-10-17T12:13:49.4762467+08:00",
+    "Backend": "0.5.31",
+    "ExplorerPid": 11724,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "StartReady": true,
+    "StartItems": 49,
+    "QuickSettingsActive": true,
+    "QuickThemeActive": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "File": "latest.exe",
+        "Match": true
+      },
+      {
+        "File": "latest.dll",
+        "Match": true
+      },
+      {
+        "File": "start\\latest.dll",
+        "Match": true
+      },
+      {
+        "File": "panels\\latest.dll",
+        "Match": true
+      }
+    ],
+    "ConfigHashes": [
+      {
+        "File": "latest.ini",
+        "Match": true
+      },
+      {
+        "File": "hotcorners/latest.ini",
+        "Match": true
+      }
+    ],
+    "State": "Applied",
+    "Version": "0.8.36"
+  },
+  "acceptance": {
+    "state": "User reported vertical misalignment",
+    "required": [
+      "From an open non-battery WinX, scroll to battery and right-click once: menu appears again",
+      "Repeat while WinX already open on battery and after returning to other cards",
+      "App and tray menus remain native; blank stays silent; battery left-click still works",
+      "Current and newly added app icons automatically use consistent visible bounds without changing badge/dot positions"
+    ],
+    "userEvidence": "2026-10-17: 没有垂直居中 (codex-clipboard-a0fa359a-8d6a-43f7-952d-2ac719d5d1c9.png)"
+  },
+  "review": {
+    "regressionRisk": "Live menu reopening and actual image-source compatibility require acceptance; on invalid image keep native appearance",
+    "boundaryCases": "Menu close timing, stale callbacks, inactive/recycled images, rectangular source, alpha shadow, size cap, native transform ownership",
+    "maintainability": "Reuse upstream element lifecycle and icon sizing; no per-app whitelist; bounded asynchronous work; no added resident task"
+  },
+  "iconRuntime": {
+    "RecordedAt": "2026-10-17T12:15:47.4028262+08:00",
+    "Values": {
+      "LeanDock.Icons.1.Bottom": 192,
+      "LeanDock.Icons.1.Left": 0,
+      "LeanDock.Icons.1.Right": 192,
+      "LeanDock.Icons.1.Scale": 10000,
+      "LeanDock.Icons.1.Source": 2,
+      "LeanDock.Icons.1.Status": 2,
+      "LeanDock.Icons.1.Top": 16,
+      "LeanDock.Icons.2.Bottom": 192,
+      "LeanDock.Icons.2.Left": 0,
+      "LeanDock.Icons.2.Right": 192,
+      "LeanDock.Icons.2.Scale": 10000,
+      "LeanDock.Icons.2.Source": 2,
+      "LeanDock.Icons.2.Status": 2,
+      "LeanDock.Icons.2.Top": 16,
+      "LeanDock.Icons.3.Bottom": 190,
+      "LeanDock.Icons.3.Left": 15,
+      "LeanDock.Icons.3.Right": 177,
+      "LeanDock.Icons.3.Scale": 11779,
+      "LeanDock.Icons.3.Source": 2,
+      "LeanDock.Icons.3.Status": 2,
+      "LeanDock.Icons.3.Top": 27,
+      "LeanDock.Icons.4.Bottom": 192,
+      "LeanDock.Icons.4.Left": 15,
+      "LeanDock.Icons.4.Right": 177,
+      "LeanDock.Icons.4.Scale": 11852,
+      "LeanDock.Icons.4.Source": 2,
+      "LeanDock.Icons.4.Status": 2,
+      "LeanDock.Icons.4.Top": 31,
+      "LeanDock.Icons.5.Bottom": 192,
+      "LeanDock.Icons.5.Left": 3,
+      "LeanDock.Icons.5.Right": 187,
+      "LeanDock.Icons.5.Scale": 10435,
+      "LeanDock.Icons.5.Source": 2,
+      "LeanDock.Icons.5.Status": 2,
+      "LeanDock.Icons.5.Top": 19,
+      "LeanDock.Icons.6.Bottom": 192,
+      "LeanDock.Icons.6.Left": 0,
+      "LeanDock.Icons.6.Right": 192,
+      "LeanDock.Icons.6.Scale": 10000,
+      "LeanDock.Icons.6.Source": 2,
+      "LeanDock.Icons.6.Status": 2,
+      "LeanDock.Icons.6.Top": 16
+    }
+  }
+}

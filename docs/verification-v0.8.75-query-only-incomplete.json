@@ -1,0 +1,76 @@
+{
+  "schema": 104,
+  "recordedAt": "2026-10-20T00:10:16.0054878+08:00",
+  "packageVersion": "0.8.75",
+  "controllerVersion": "0.3.31",
+  "backendVersion": "0.5.60",
+  "scope": "Explorer external AppBar queries, native-state preservation and ordinary full-client maximization compatibility",
+  "previousVerification": "docs/verification-v0.8.74-before-appbar-compatibility.json",
+  "checks": {
+    "appBarQuery": 66,
+    "clientEdge": 72,
+    "eventLifecycle": 200,
+    "geometry": 199,
+    "maintenance": 51,
+    "attention": "Passed",
+    "desktopInputAutomation": false,
+    "privateDesktopShown": false,
+    "build": "Passed; unchanged deployed Start and panels DLLs preserved byte-for-byte"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.75",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.75-20261020-001224201",
+    "ChangedFiles": 20,
+    "ConfigPreserved": true
+  },
+  "realAcceptance": {
+    "state": "Pending",
+    "whiteGap": "Not yet observed after deployment",
+    "dockReveal": "Not yet tested after deployment",
+    "trueFullscreen": "Not yet tested after deployment"
+  },
+  "limitations": [
+    "No guarantee for application-drawn or hardcoded borders",
+    "Existing clients can require native geometry recalculation or cache refresh",
+    "Mixed DPI, multiple monitors, 32-bit clients and sleep resume not tested in this change"
+  ],
+  "rollback": {
+    "source": "work/edge-unified-20261019/before-0.8.74",
+    "runtime": "Existing maintenance transaction will preserve 0.8.74 at update"
+  },
+  "actualQueryResult": {
+    "externalState": 1,
+    "externalBottom": 393904,
+    "externalBottomEx": 393904,
+    "internalRead": true,
+    "internalAutoHide": 1,
+    "monitor": [
+      0,
+      0,
+      2560,
+      1600
+    ],
+    "work": [
+      0,
+      0,
+      2560,
+      1600
+    ],
+    "fixtureClient": [
+      0,
+      0,
+      2560,
+      1599
+    ],
+    "fixtureHidden": true,
+    "focusUnchanged": true
+  },
+  "outcome": "0.8.75 query-only attempt was not effective for real external API calls; superseded before visual acceptance. Serialized PID was receiver; shell32 also bypasses messages using property cache."
+}

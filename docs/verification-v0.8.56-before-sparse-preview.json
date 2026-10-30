@@ -1,0 +1,262 @@
+{
+  "schema": 86,
+  "recordedAt": "2026-10-18T13:14:14.0990672+08:00",
+  "packageVersion": "0.8.56",
+  "controllerVersion": "0.3.21",
+  "backendVersion": "0.5.45",
+  "scope": "Ctrl+Alt+Tab outer scroll padding 44 to 8 DIP; native canvas and hidden selection outline retained; battery fill shares body inner layout using percentage columns",
+  "previousVerification": "docs/verification-v0.8.55-before-compact-padding.json",
+  "policy": {
+    "stepDip": 24,
+    "canvas": "native content-sized; maximum available grid 92% x 84%",
+    "samplingLimit": 128,
+    "scrollbarsHidden": false,
+    "comfortableCardHeightDip": 360,
+    "maxOverflowCorrections": 3,
+    "nativeFitToContentUntouched": true,
+    "nativePanelEnumUntouched": true,
+    "outerScrollPaddingDip": 8
+  },
+  "checks": {
+    "desktopInputSent": false,
+    "layoutFailures": 0,
+    "confirmationAssertions": 21,
+    "build": "passed",
+    "layoutAssertions": 1041,
+    "confirmationFailures": 0,
+    "regressionEvidence": "Existing 1041 layout and 21 confirmation assertions passed; policy and layout adaptation unchanged. Confirmation file only changes passive geometry diagnostics."
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.56",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.56-20261018-130937843",
+    "ChangedFiles": 13,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "fixedCanvas": "superseded by user: canvas follows content",
+    "twoWindowConfirm": "pending",
+    "internalArrangement": "user confirmed: rows, preview size and content-sized background appropriate",
+    "liquidGlass": "preparation only",
+    "maximization": "paused",
+    "dock": "0.8.56 four components Ready; backend 0.5.45; runtime and configuration hash verification passed",
+    "hiddenChrome": "Focus readbacks zero, native canvas retained; no separate new issue reported with focus",
+    "canvas": "Actual schema 3: 7 items in 2 rows, all bounds in canvas; outer insets 21.33 DIP each; scrollPadding 8 each; no vertical overflow. User clarified parity changed only after window count changed and was asking why, not reporting same-count instability. No further layout change requested; explicit final visual acceptance of padding not separately claimed.",
+    "batteryFill": "0.8.56 loaded, power card Ready with 100 percent, zero card errors; actual green fill appearance pending user"
+  },
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 344576,
+      "SHA256": "076A1D96AFCEEC3488765F2F65A28B20B4DD92DB2DDB6AE5ADDD9D3ED0CDACBD"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2171904,
+      "SHA256": "3EC31CB3E1E58F184B83EEE91E31ED3FC08AF82972BFE7508D2D8539BCBBD6D3"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "observedGeometry": {
+    "schema": 3,
+    "count": 7,
+    "sampleLimited": false,
+    "realized": 7,
+    "insideCanvas": 7,
+    "rows": 2,
+    "rootWidth": 1706.67,
+    "rootHeight": 1066.67,
+    "canvasX": 96.0,
+    "canvasY": 236.0,
+    "canvasWidth": 1514.67,
+    "canvasHeight": 594.67,
+    "minItemWidth": 350.0,
+    "maxItemWidth": 358.0,
+    "minItemHeight": 264.0,
+    "maxItemHeight": 264.0,
+    "scrollableHeight": 0.0,
+    "outerInsets": [
+      21.33,
+      21.33,
+      21.33,
+      21.33
+    ],
+    "scrollPadding": [
+      8.0,
+      8.0,
+      8.0,
+      8.0
+    ],
+    "plannedRows": 2,
+    "plannedCardHeight": 264.0,
+    "layoutDisabled": false,
+    "layoutError": 0,
+    "layoutRepairs": 0
+  },
+  "observedGeometryVersion": "0.8.56",
+  "observedStyle": {
+    "schema": 6,
+    "canvasPolicy": "native-material-unmodified",
+    "supported": true,
+    "ruleThreads": 2,
+    "itemsSeen": 17,
+    "focusReadbacks": 17,
+    "primaryThickness": 0.0,
+    "secondaryThickness": 0.0,
+    "panelsSeen": 8,
+    "layoutPolicy": "content-first-adaptive-row-height",
+    "maxHeightReadbacks": 8,
+    "maxPixels": 288.0,
+    "maxRatio": 0.0,
+    "canvasReadbacks": 0,
+    "canvasAlpha": -1.0,
+    "canvasBorder": -1.0,
+    "readErrors": 0
+  },
+  "observedStyleVersion": "0.8.56",
+  "postUpdateIntegrity": {
+    "Runtime": [
+      {
+        "Name": "latest.exe",
+        "SHA256": "076A1D96AFCEEC3488765F2F65A28B20B4DD92DB2DDB6AE5ADDD9D3ED0CDACBD",
+        "Matches": true
+      },
+      {
+        "Name": "latest.dll",
+        "SHA256": "3EC31CB3E1E58F184B83EEE91E31ED3FC08AF82972BFE7508D2D8539BCBBD6D3",
+        "Matches": true
+      },
+      {
+        "Name": "start\\latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "Matches": true
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "Matches": true
+      }
+    ],
+    "Configuration": [
+      {
+        "Name": "latest.ini",
+        "SHA256": "5D3060BEAC27A3D4BDD975FFB1C079E5D31269D63EF3C72260EF0C51346AC375",
+        "Matches": true
+      },
+      {
+        "Name": "hotcorners\\latest.ini",
+        "SHA256": "C26DF2EF906CE5EF93BF91B1C3526BED376C9CB8D8EE1C4247F6CB48671D169C",
+        "Matches": true
+      }
+    ],
+    "Live": true,
+    "BackendVersion": "0.5.45",
+    "Health": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "ExplorerPid": 29144
+  },
+  "observedPower": {
+    "Ready": 1,
+    "PowerReady": 1,
+    "BatteryPercent": 100,
+    "Charging": 0,
+    "Plugged": 1,
+    "PowerActive": 0,
+    "BatteryMode": 7,
+    "PowerUpdates": 2,
+    "Errors": 0
+  },
+  "boundedObservation": {
+    "Begin": "2026-10-18T13:10:20.4855407+08:00",
+    "End": "2026-10-18T13:11:46.6542086+08:00",
+    "Samples": 12,
+    "ExplorerPid": 29144,
+    "AllLive": true,
+    "SameExplorer": true,
+    "ExplorerCrashEvents": 0,
+    "Last": {
+      "Style": {
+        "schema": 6,
+        "canvasPolicy": "native-material-unmodified",
+        "supported": true,
+        "ruleThreads": 2,
+        "itemsSeen": 17,
+        "focusReadbacks": 17,
+        "primaryThickness": 0.0,
+        "secondaryThickness": 0.0,
+        "panelsSeen": 8,
+        "layoutPolicy": "content-first-adaptive-row-height",
+        "maxHeightReadbacks": 8,
+        "maxPixels": 288.0,
+        "maxRatio": 0.0,
+        "canvasReadbacks": 0,
+        "canvasAlpha": -1.0,
+        "canvasBorder": -1.0,
+        "readErrors": 0
+      },
+      "At": "2026-10-18T13:11:46.0792204+08:00",
+      "Live": true,
+      "ExplorerPid": 29144,
+      "SameExplorer": true,
+      "Health": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "Geometry": {
+        "schema": 3,
+        "count": 7,
+        "sampleLimited": false,
+        "realized": 7,
+        "insideCanvas": 7,
+        "rows": 2,
+        "rootWidth": 1706.67,
+        "rootHeight": 1066.67,
+        "canvasX": 96.0,
+        "canvasY": 236.0,
+        "canvasWidth": 1514.67,
+        "canvasHeight": 594.67,
+        "minItemWidth": 350.0,
+        "maxItemWidth": 358.0,
+        "minItemHeight": 264.0,
+        "maxItemHeight": 264.0,
+        "scrollableHeight": 0.0,
+        "outerInsets": [
+          21.33,
+          21.33,
+          21.33,
+          21.33
+        ],
+        "scrollPadding": [
+          8.0,
+          8.0,
+          8.0,
+          8.0
+        ],
+        "plannedRows": 2,
+        "plannedCardHeight": 264.0,
+        "layoutDisabled": false,
+        "layoutError": 0,
+        "layoutRepairs": 0
+      }
+    }
+  }
+}

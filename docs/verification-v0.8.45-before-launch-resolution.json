@@ -1,0 +1,138 @@
+{
+  "schema": 75,
+  "recordedAt": "2026-10-17T22:22:31.5889778+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.45",
+  "controllerVersion": "0.3.15",
+  "backendVersion": "0.5.38",
+  "scope": "Restrict maximize to explicit Start/Dock click or shortcut double-click and new matching foreground window",
+  "previousVerification": "docs/verification-v0.8.44-before-launch-intent.json",
+  "request": "仅开始菜单、Dock 大图标或快捷方式的这次新启动默认最大化，其他情况不干预",
+  "clarification": "只管新启动，已有窗口保持原状",
+  "tests": {
+    "policyChecks": 45,
+    "nativeChecks": 40,
+    "failures": 0,
+    "build": "Passed",
+    "imports": "Passed",
+    "desktopInput": false,
+    "inputDesktopUnchanged": true
+  },
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 339456,
+      "SHA256": "FEFAAA1003DE8273F217A9DCB8538AE1D4D75BAB042A3EDE5DBA5687A54FEEB3"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2118144,
+      "SHA256": "7641D7E218A92FF5BD04105E935B4AF11E21FAB230DCE7D8F8C34DA98EFB5C24"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "review": {
+    "maintainability": "Reuses existing controller, raw input, lifecycle and PowerToys-derived window filtering; public read-only target resolver on bounded MTA worker",
+    "boundaries": "Identity and CREATE-time gating; all existing/hidden windows excluded; single consumption; actual foreground only; pointer drag, new input, hide and focus-loss cancellation",
+    "regression": "Only controller binary changed; icon/menu/Start/panels binaries unchanged; native tests retain shared raw input and normal restore size"
+  },
+  "acceptance": {
+    "state": "Rejected by user: none of the requested new-launch entries maximized",
+    "unverified": [
+      "Actual Start app click, Dock app click and shortcut double-click on this machine",
+      "Special launcher forwarding and terminal hosts",
+      "Multi-monitor DPI and sleep/resume"
+    ],
+    "runtimeCounterBoundary": "The first snapshot includes 13 observer failures before any launch candidates or maximize requests. Guard failures are not equivalent to failed maximize requests; per-entry behavior still requires actual user clicks.",
+    "userFeedback": "没有最大化的，没生效"
+  },
+  "preservedUserAcceptance": {
+    "iconQuality": "0.8.44: 更清晰，大小和居中正常",
+    "keyboardWinX": "0.8.43: 两种情况位置都正常"
+  },
+  "publication": {
+    "localDeployment": "0.8.45",
+    "localSource": "0.8.45",
+    "gitCommitted": false,
+    "gitPushed": false
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.45",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.45-20261017-221935753",
+    "ChangedFiles": 16,
+    "ConfigPreserved": true
+  },
+  "runtimeReadback": {
+    "At": "2026-10-17T22:20:15.4697154+08:00",
+    "ExplorerPid": 21300,
+    "Backend": "0.5.38",
+    "DockReady": true,
+    "HotCornersReady": true,
+    "StartReady": true,
+    "QuickSettingsActive": true,
+    "QuickThemeActive": true,
+    "WindowLaunch": {
+      "ready": true,
+      "mode": "explicit-launch-new-window-only",
+      "candidates": 0,
+      "requests": 0,
+      "maximized": 0,
+      "declined": 0,
+      "failures": 13,
+      "dockClicks": 0,
+      "startClicks": 0,
+      "shortcutClicks": 0,
+      "unresolved": 0,
+      "existingSkipped": 0
+    },
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "File": "latest.exe",
+        "Match": true
+      },
+      {
+        "File": "latest.dll",
+        "Match": true
+      },
+      {
+        "File": "start\\latest.dll",
+        "Match": true
+      },
+      {
+        "File": "panels\\latest.dll",
+        "Match": true
+      }
+    ],
+    "ConfigHashes": [
+      {
+        "File": "latest.ini",
+        "Match": true
+      },
+      {
+        "File": "hotcorners/latest.ini",
+        "Match": true
+      }
+    ]
+  }
+}

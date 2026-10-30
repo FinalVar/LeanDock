@@ -1,0 +1,117 @@
+{
+  "schema": 81,
+  "recordedAt": "2026-10-18T11:59:55.9933512+08:00",
+  "packageVersion": "0.8.51",
+  "controllerVersion": "0.3.21",
+  "backendVersion": "0.5.40",
+  "hotCornersVersion": "1.0.6-integrated",
+  "scope": "Resolve Start system application IDs; restore single-screen native switcher layout",
+  "previousVerification": "docs/verification-v0.8.50-before-start-identity-and-fit.json",
+  "evidence": {
+    "userRejectedPreviousSystemLaunch": true,
+    "userRejectedScrollingLayout": true,
+    "observedStartPrefixes": [
+      "P~",
+      "W~"
+    ],
+    "observedDecoratedNames": [
+      "设置, 系统",
+      "文件资源管理器, 系统"
+    ],
+    "oldNativeChecks": 73,
+    "oldNativeFailures": 8,
+    "newNativeChecks": 73,
+    "newNativeFailures": 0,
+    "policyChecks": 58,
+    "policyFailures": 0,
+    "actualAppsFolderReplayPassed": true,
+    "oldLayoutClearReadbacks": 18,
+    "oldMaxPixels": 540,
+    "oldMaxRatio": 0.36,
+    "probeStopped": true,
+    "probeNoInputOrFocus": true,
+    "probeDpiCaveat": "Default DPI probe: identity/name evidence only; controller retains PerMonitorV2"
+  },
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 344576,
+      "SHA256": "076A1D96AFCEEC3488765F2F65A28B20B4DD92DB2DDB6AE5ADDD9D3ED0CDACBD"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2147840,
+      "SHA256": "9E87D8752C3A277DAF03809AA7566B16B9CDD9A0BD7A56D4595D03B000689918"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "deployment": {
+    "state": "RolledBackAfterExplorerCrash",
+    "configurationPreserved": true,
+    "componentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.51-20261018-115909010"
+  },
+  "acceptance": {
+    "settingsNewLaunch": "pending",
+    "explorerNewLaunch": "pending",
+    "existingWindowUnchanged": "pending",
+    "switcherAllItemsOneScreen": "pending",
+    "fewerWindowsLarger": "pending",
+    "moreWindowsSmaller": "pending",
+    "twoWindowDirectSwitch": "pending",
+    "clickAndEscape": "pending"
+  },
+  "boundaries": [
+    "No glass implementation",
+    "No Computer Use or desktop input automation",
+    "No commit or push",
+    "No security changes"
+  ],
+  "runtimeReadback": [
+    {
+      "name": "latest.exe",
+      "source": "076A1D96AFCEEC3488765F2F65A28B20B4DD92DB2DDB6AE5ADDD9D3ED0CDACBD",
+      "deployed": "076A1D96AFCEEC3488765F2F65A28B20B4DD92DB2DDB6AE5ADDD9D3ED0CDACBD",
+      "match": true
+    },
+    {
+      "name": "latest.dll",
+      "source": "9E87D8752C3A277DAF03809AA7566B16B9CDD9A0BD7A56D4595D03B000689918",
+      "deployed": "9E87D8752C3A277DAF03809AA7566B16B9CDD9A0BD7A56D4595D03B000689918",
+      "match": true
+    },
+    {
+      "name": "start\\latest.dll",
+      "source": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "deployed": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "match": true
+    },
+    {
+      "name": "panels\\latest.dll",
+      "source": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "deployed": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "match": true
+    }
+  ],
+  "userFeedbackAfterDeployment": {
+    "SingleScreenAndAdaptiveSize": "confirmed",
+    "Dock": "Reverted to native taskbar",
+    "NewWindowMaximize": "not accepted because runtime failed",
+    "CrashCount": 3,
+    "Error": "XAML stowed exception 0xc000027b / E_NOINTERFACE 0x80004002",
+    "FallbackVersion": "0.8.50"
+  }
+}

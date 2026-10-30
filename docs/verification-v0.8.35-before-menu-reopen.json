@@ -1,0 +1,161 @@
+{
+  "schema": 64,
+  "recordedAt": "2026-10-17T11:40:53.1131991+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.35",
+  "backendVersion": "0.5.30",
+  "scope": "Card-only Win+X, silent blank right-click, native app/tray menu preservation",
+  "previousVerification": "docs/verification-v0.8.34-before-card-context.json",
+  "rules": {
+    "card": "WinX including battery",
+    "tray": "Native menu",
+    "keyboard": "Native context route",
+    "blank": "Suppress without sending input",
+    "application": "Native menu"
+  },
+  "tests": {
+    "runtimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 292352,
+        "SHA256": "3EBAE5829C94E93730051BAE310D5645A7DA9617FFF6EF6E0EE6A14464D7DADA"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2050560,
+        "SHA256": "541A4AA09636B42B52BD4FE478E37E5789DBC4929DC231AEAA9C62FEF8258724"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 397312,
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ],
+    "build": "Backend built; controller, Start and Quick Settings hashes unchanged",
+    "cardInput": {
+      "checks": 36,
+      "failures": 0
+    },
+    "cardManipulation": {
+      "failures": 0,
+      "hardwareGestureAcceptance": false,
+      "checks": 47,
+      "realHiddenWindowsCOM": true
+    },
+    "shellActions": {
+      "failures": 0,
+      "checks": 138,
+      "inputSent": false
+    }
+  },
+  "protectionBefore": {
+    "realTimeProtection": true,
+    "settingsChanged": false,
+    "smartAppControl": "Off"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.35",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.35-20261017-113809677",
+    "ChangedFiles": 18,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "required": [
+      "App icon right-click opens only its own menu without WinX flash",
+      "Each card including battery opens WinX without native power menu",
+      "Blank right-click opens no menu",
+      "Tray context menu and battery left-click remain functional",
+      "Mouse wheel and two-finger gestures still switch cards"
+    ],
+    "state": "UserConfirmedRemainingReopenBug",
+    "userReply": "还有异常，我说明一下",
+    "detail": "Existing WinX opened from a non-battery card: first battery right-click closes it; second opens it. Other cards reopen with one right-click.",
+    "observedCounters": {
+      "At": "2026-10-17T11:41:51.8017422+08:00",
+      "Taskbar": 590852,
+      "ExplorerPid": 36896,
+      "Menu.ContextSource": 3,
+      "Menu.ContextCount": 24,
+      "Menu.ContextSubmitted": 1,
+      "Menu.ContextError": null,
+      "Menu.ContextTarget": 2,
+      "Menu.BlankSuppressed": 5,
+      "Card.Visible": 0,
+      "Card.View": 2,
+      "Card.Errors": 0,
+      "Card.NativePowerCoverage": 9,
+      "Card.NativePowerWidth100": 10400,
+      "Card.NativePowerHeight100": 4400,
+      "Card.NativePowerTargetWidth100": 10400,
+      "Card.NativePowerTargetHeight100": 4400,
+      "Shell.LastResult": 1,
+      "Card.NativePowerHit": 1,
+      "Card.NativePowerClicks": 11,
+      "Shell.LastAction": 2
+    }
+  },
+  "review": {
+    "regressionRisk": "Battery pointer hit now requires ContainerGrid coverage; live click confirmation required",
+    "boundaryCases": "Native Controls, labeled panels, card child buttons, frame boundaries, disconnected tree, keyboard and handled events",
+    "maintainability": "Shared policy, existing revoker lifecycle, no new hooks or resident tasks"
+  },
+  "runtimeReadback": {
+    "Backend": "0.5.30",
+    "ExplorerPid": 36896,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "StartReady": true,
+    "StartItems": 49,
+    "QuickSettingsActive": true,
+    "QuickThemeActive": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "File": "latest.exe",
+        "Match": true
+      },
+      {
+        "File": "latest.dll",
+        "Match": true
+      },
+      {
+        "File": "start\\latest.dll",
+        "Match": true
+      },
+      {
+        "File": "panels\\latest.dll",
+        "Match": true
+      }
+    ],
+    "ConfigHashes": [
+      {
+        "Path": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\latest.ini",
+        "Same": true
+      },
+      {
+        "Path": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\hotcorners\\latest.ini",
+        "Same": true
+      }
+    ],
+    "Protection": {
+      "RealTimeProtectionEnabled": true,
+      "SmartAppControlState": "Off"
+    }
+  }
+}

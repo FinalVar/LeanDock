@@ -1,0 +1,124 @@
+{
+  "schema": 90,
+  "recordedAt": "2026-10-19T16:06:58.5166124+08:00",
+  "packageVersion": "0.8.60",
+  "controllerVersion": "0.3.24",
+  "backendVersion": "0.5.48",
+  "scope": "Remove right-bottom two-item automatic confirmation; preserve native Ctrl+Alt+Tab open/cancel and layout",
+  "previousVerification": "docs/verification-v0.8.59-before-remove-two-item.json",
+  "policy": {
+    "open": "Ctrl+Alt+Tab full chord for every item count",
+    "close": "Escape for actual marked foreground shell switcher",
+    "twoItemConfirmation": "removed end to end",
+    "automaticMaximization": "remains removed",
+    "additionalPolling": false,
+    "desktopInputAutomation": false
+  },
+  "checks": {
+    "hotCornerCore": 138,
+    "hotCornerConfig": 33,
+    "visibilityOwnership": 16,
+    "failures": 0,
+    "build": "passed",
+    "unchangedComponents": [
+      {
+        "Name": "include/switcher-layout-policy-latest.h",
+        "SHA256": "013DEEDCF036CF271ECF05326A5E429D76EBE96E592CADEF1CBC213C985036DE",
+        "MatchesDeployment": true
+      },
+      {
+        "Name": "include/switcher-visibility-latest.h",
+        "SHA256": "607E72B2EE141840DAED8C60C7650B06940480983D88CEBF4536360676F4CE7B",
+        "MatchesDeployment": true
+      },
+      {
+        "Name": "src/switcher-layout-latest.inc",
+        "SHA256": "4A7A72272070F35CAF5ED4262810D16B1DB9AE5974A1CA0E1F08575B87496D58",
+        "MatchesDeployment": true
+      },
+      {
+        "Name": "src/switcher-style-latest.inc",
+        "SHA256": "AD90B1DB773877FF8F996B02E29C6287A5B1877BE1B22FB05349599E9537E4EF",
+        "MatchesDeployment": true
+      },
+      {
+        "Name": "hotcorners/actions/latest.h",
+        "SHA256": "C7BA579C7ADB5847C1927721C15958078E9B79BBEC6B6CC0D3FC9522E5FE066D",
+        "MatchesDeployment": true
+      },
+      {
+        "Name": "hotcorners/core/latest.h",
+        "SHA256": "C13807B30A5C3E1906F12DADFCB3925F38F787BA941920DAB4874979CDD0500B",
+        "MatchesDeployment": true
+      },
+      {
+        "Name": "src/cards-latest.cpp",
+        "SHA256": "3B5D94987AB218BB5B8581AA1477FB1454B16BC4AF79E7307CF3329DA2F13223",
+        "MatchesDeployment": true
+      },
+      {
+        "Name": "start/latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "MatchesDeployment": true
+      },
+      {
+        "Name": "panels/latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "MatchesDeployment": true
+      }
+    ],
+    "runtimeRegression": "91 checks passed, 0 failed",
+    "generatorReproducible": true
+  },
+  "review": {
+    "maintainability": "Request sender, backend ticket handling and thumbnail Invoke removed together; existing generator and XAML lifecycle retained",
+    "boundaries": "All item counts use native user selection. Foreground identity is still checked before cancellation; no cross-process atomic focus guarantee is claimed",
+    "regression": "Layout, style, visibility ownership, input release, cards, Start and Quick Settings source/binaries unchanged before build",
+    "retiredSourceFiles": [
+      "include/switcher-confirm-policy-latest.h",
+      "tests/switcher-confirm-latest.cpp"
+    ]
+  },
+  "runtimeBefore": {
+    "ControllerPid": 6928,
+    "ExplorerPid": 7920,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "QuickThemeFailures": 1,
+    "QuickThemeRootReady": false,
+    "StartInitFailures": 1
+  },
+  "deployment": "pending",
+  "acceptance": {
+    "twoWindowsStayOpen": "pending user verification",
+    "secondCornerCloses": "pending user verification",
+    "nativeClickSelection": "pending user verification",
+    "layout": "unchanged code; no new visual acceptance claimed"
+  },
+  "sourcePublication": "Local working tree only; no commit or push in this task",
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 293888,
+      "SHA256": "A6BB3861B63DA925E1B063AC687E09E14457C3D99FDE39B9E5148B17C903B78A"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2175488,
+      "SHA256": "1A5CDECF269BBED00CBCC600A92B38D1C209C976D15ED73F9D7A2D607232A47C"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ]
+}

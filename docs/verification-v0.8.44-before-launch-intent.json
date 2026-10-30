@@ -1,0 +1,252 @@
+{
+  "schema": 74,
+  "recordedAt": "2026-10-17T21:44:18.9128738+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.44",
+  "controllerVersion": "0.3.14",
+  "backendVersion": "0.5.38",
+  "scope": "Native source-resolution budget separated from taskbar layout",
+  "previousVerification": "docs/verification-v0.8.43-before-icon-resolution.json",
+  "request": "User authorized high-resolution native resources before optical compensation",
+  "evidence": {
+    "before": "Seven native BitmapImage sources were 60x60; some display canvases reached 73.61 physical pixels",
+    "resource": "Antigravity RT_GROUP_ICON includes 256px image, independently verified PNG IHDR",
+    "nativePath": "Microsoft exact PDB + PE unwind boundaries + decoded direct calls; five resource/cache callers and one excluded layout caller",
+    "pins": {
+      "Module": "taskbar.dll",
+      "Sha256": "CA1E335AC1FAE5FF57519035302A2F365C4620D3A230F31F1231AF7331760741",
+      "Symbol": "public: struct tagSIZE __cdecl TaskbarHost::IconSizeInViewPixels(void)const",
+      "Rva": 167740,
+      "SourceCalls": [
+        {
+          "Kind": "Cache",
+          "Function": "IconContainer::RecreateStorage",
+          "ReturnRva": 166092
+        },
+        {
+          "Kind": "Win32",
+          "Function": "ShellIconLoaderV2::UpdateMembers",
+          "ReturnRva": 330957
+        },
+        {
+          "Kind": "Packaged",
+          "Function": "CWinRTAppIconLoader::RuntimeClassInitialize",
+          "ReturnRva": 245369
+        },
+        {
+          "Kind": "Placeholder",
+          "Function": "PlaceholderTileIconLoader::LoadPlaceholderTileIconAsync",
+          "ReturnRva": 1426326
+        },
+        {
+          "Kind": "Website",
+          "Function": "PinnedWebsiteIconLoader::RuntimeClassInitialize",
+          "ReturnRva": 1429984
+        }
+      ],
+      "DisplayCalls": [
+        {
+          "Function": "CTaskListWnd::GetIconSizeInViewPixels",
+          "ReturnRva": 1386168
+        }
+      ]
+    },
+    "analysisLimitation": "REA Taskbar.View function analysis timed out; no successful decompiler claim. Exact pinned PDB and native instructions used instead. No orphan Java process remained.",
+    "after": {
+      "RecordedAt": "2026-10-17T21:39:10.8578648+08:00",
+      "DisplayDips": 40,
+      "SourceDips": 80,
+      "Requests": {
+        "Cache": 1,
+        "Win32": 8,
+        "Packaged": 1
+      },
+      "Icons": [
+        {
+          "Slot": 1,
+          "SourceWidth": 120,
+          "SourceHeight": 120,
+          "DisplayWidthPixels": 60.0,
+          "DisplayHeightPixels": 60.0,
+          "Status": 1
+        },
+        {
+          "Slot": 2,
+          "SourceWidth": 120,
+          "SourceHeight": 120,
+          "DisplayWidthPixels": 60.0,
+          "DisplayHeightPixels": 60.0,
+          "Status": 1
+        },
+        {
+          "Slot": 3,
+          "SourceWidth": 120,
+          "SourceHeight": 120,
+          "DisplayWidthPixels": 72.0,
+          "DisplayHeightPixels": 72.0,
+          "Status": 2
+        },
+        {
+          "Slot": 4,
+          "SourceWidth": 120,
+          "SourceHeight": 120,
+          "DisplayWidthPixels": 64.0,
+          "DisplayHeightPixels": 64.0,
+          "Status": 2
+        },
+        {
+          "Slot": 5,
+          "SourceWidth": 120,
+          "SourceHeight": 120,
+          "DisplayWidthPixels": 60.0,
+          "DisplayHeightPixels": 60.0,
+          "Status": 1
+        },
+        {
+          "Slot": 6,
+          "SourceWidth": 120,
+          "SourceHeight": 120,
+          "DisplayWidthPixels": 73.38,
+          "DisplayHeightPixels": 73.38,
+          "Status": 2
+        }
+      ]
+    }
+  },
+  "tests": {
+    "opticalPolicy": {
+      "failures": 0,
+      "checks": 38
+    },
+    "nativeXaml": {
+      "highResolutionPng": 256,
+      "checks": 40,
+      "nativeLayoutDips": 40,
+      "desktopInput": false,
+      "failures": 0
+    },
+    "build": "Passed",
+    "imports": "Passed",
+    "runtimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 308736,
+        "SHA256": "57EA4B53579C69BE407EBD7200E0F3C4E7F25F39A91E51555417E24E880C1BC4"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2118144,
+        "SHA256": "7641D7E218A92FF5BD04105E935B4AF11E21FAB230DCE7D8F8C34DA98EFB5C24"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 397312,
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ]
+  },
+  "review": {
+    "maintainability": "One source-only adapter reusing existing upstream hook lifecycle; generated source and hash-checked call set",
+    "regression": "Only backend binary changes; native icon identity/source notifications and optical normalization retained",
+    "boundaries": "Exact native module, direct call validation, layout exclusion, invalid/asymmetric/large size pass-through, unload and in-flight calls"
+  },
+  "acceptance": {
+    "state": "Passed for current app icons: native source readback and user visual confirmation",
+    "recordedAt": "2026-10-17T21:44:18.9481931+08:00",
+    "userConfirmation": "更清晰，大小和居中正常",
+    "source": "Direct user reply after 0.8.44 deployment",
+    "screenshot": {
+      "file": "work/icon-quality-20261017/acceptance-latest.png",
+      "sha256": "A0BDDF511FDC68B0352652026C6DE7B847694AC927EB60FFBFBC0232426C2E57",
+      "observation": "Six large app icons show consistent visible size and vertical alignment; inherent artwork weight differs. Visual inspection, not a pixel equivalence claim."
+    },
+    "unverified": [
+      "Special dynamic icon updates and future applications",
+      "Multi-monitor DPI and sleep/resume"
+    ]
+  },
+  "preservedUserAcceptance": {
+    "keyboardWinX": {
+      "version": "0.8.43",
+      "confirmation": "两种情况位置都正常",
+      "scope": "Direct Win+X with Dock visible and hidden; not new keyboard-navigation or 0.8.44 retest"
+    }
+  },
+  "publication": {
+    "localDeployment": "0.8.44",
+    "localSource": "0.8.44",
+    "gitCommitted": false,
+    "gitPushed": false
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.44",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.44-20261017-213848791",
+    "ChangedFiles": 20,
+    "ConfigPreserved": true
+  },
+  "runtimeReadback": {
+    "At": "2026-10-17T21:39:09.2992503+08:00",
+    "Backend": "0.5.38",
+    "ExplorerPid": 12168,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "StartReady": true,
+    "StartItems": 49,
+    "QuickSettingsActive": true,
+    "QuickThemeActive": true,
+    "WindowLaunch": {
+      "ready": true,
+      "mode": "new-main-windows-once",
+      "candidates": 0,
+      "requests": 0,
+      "maximized": 0,
+      "declined": 0,
+      "failures": 0
+    },
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "File": "latest.exe",
+        "Match": true
+      },
+      {
+        "File": "latest.dll",
+        "Match": true
+      },
+      {
+        "File": "start\\latest.dll",
+        "Match": true
+      },
+      {
+        "File": "panels\\latest.dll",
+        "Match": true
+      }
+    ],
+    "ConfigHashes": [
+      {
+        "File": "latest.ini",
+        "Match": true
+      },
+      {
+        "File": "hotcorners/latest.ini",
+        "Match": true
+      }
+    ]
+  }
+}

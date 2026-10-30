@@ -1,0 +1,196 @@
+{
+  "schema": 109,
+  "recordedAt": "2026-10-23T02:10:31.5561487+08:00",
+  "packageVersion": "0.8.81",
+  "backendVersion": "0.5.66",
+  "architecture": "native-taskbar",
+  "state": "DeployedAccepted",
+  "scope": "Panel seconds, sampled CPU trend, per-adapter 3D identity, disk/calendar throttling and charging ring warning correction",
+  "currentBaselineAcceptance": "0.8.80 user: 做得还行；0.8.79 hover, sliders, dismiss and Start accepted",
+  "checks": {
+    "maintenance": 51,
+    "realMetricsProbe": {
+      "metricChecks": 78,
+      "cpu": 100,
+      "historySamples": 1,
+      "detailReads": 2,
+      "diskReads": 1,
+      "gpus": [
+        {
+          "luid": "D551",
+          "percent3D": 0
+        },
+        {
+          "luid": "E1D7",
+          "percent3D": 0
+        }
+      ],
+      "hiddenSamplingUnchanged": true
+    },
+    "themePolicy": 23,
+    "nativeXaml": 547,
+    "metricPolicy": 78,
+    "panelPolicy": 123,
+    "readOnlyPanelProbe": {
+      "policyChecks": 123,
+      "normalUser": true,
+      "volume": 0,
+      "mute": false,
+      "brightness": 100,
+      "wifi": 1,
+      "bluetooth": 0,
+      "reads": 2,
+      "writes": 0,
+      "hiddenReadsUnchanged": true,
+      "readOnly": true,
+      "stopMs": 0,
+      "visibleWindows": false,
+      "actualControlWritesTested": false,
+      "darkTheme": 1,
+      "hotspot": 0,
+      "hotspotCapability": 0,
+      "hotspotClients": 0,
+      "themePolicyChecks": 23
+    },
+    "offscreenScales": [
+      100,
+      125,
+      150,
+      200
+    ],
+    "desktopInputAutomation": false,
+    "hiddenProductionHost": {
+      "Passed": true,
+      "SurfaceCenter": 29,
+      "KeyCenter": 29,
+      "ReservedWidth": 78,
+      "NativeCardDip": [
+        72,
+        46
+      ],
+      "RestorePassed": true,
+      "VisibleWindows": false
+    }
+  },
+  "unchangedAcceptedCompanions": [
+    "latest.exe",
+    "start/latest.dll",
+    "panels/latest.dll"
+  ],
+  "remaining": [
+    "No reliable temperature source",
+    "Media title and status only; no playback controls in this panel",
+    "Real hotspot sharing, multi-monitor/DPI transition and sleep recovery not tested"
+  ],
+  "deployment": {
+    "State": "DeployedPendingPanelAcceptance",
+    "At": "2026-10-23T02:09:28.5020533+08:00",
+    "Version": "0.8.81",
+    "Architecture": "native-taskbar",
+    "Live": true,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "BackendVersion": "0.5.66",
+    "PackageFiles": 423,
+    "Mismatches": [],
+    "Preserved": [
+      {
+        "Name": "latest.ini",
+        "Unchanged": true
+      },
+      {
+        "Name": "hotcorners/latest.ini",
+        "Unchanged": true
+      },
+      {
+        "Name": "cards/latest.ini",
+        "Unchanged": true
+      },
+      {
+        "Name": "latest.exe",
+        "Unchanged": true
+      },
+      {
+        "Name": "start/latest.dll",
+        "Unchanged": true
+      },
+      {
+        "Name": "panels/latest.dll",
+        "Unchanged": true
+      }
+    ],
+    "TaskUnchanged": true,
+    "NativePinsRegistryUnchanged": true,
+    "NativePinShortcutsUnchanged": true,
+    "NativeTaskbarOwner": "C:\\Windows\\Explorer.EXE",
+    "IndependentDockProcesses": 0,
+    "OnDemandPanelProcesses": 0,
+    "CardProperties": {
+      "LeanDock.Card.Ready": 1,
+      "LeanDock.Card.Fits": 1,
+      "LeanDock.Card.Visible": 0,
+      "LeanDock.Card.PowerReady": 1,
+      "LeanDock.Card.PowerActive": 0,
+      "LeanDock.Card.Dashboard.Width100": 7200,
+      "LeanDock.Card.AggregateVersion": 1,
+      "LeanDock.Card.Left100": 98467,
+      "LeanDock.Card.Top100": 767,
+      "LeanDock.Card.Right100": 105667,
+      "LeanDock.Card.Bottom100": 5367,
+      "LeanDock.Card.ClockHourMinute": -1,
+      "LeanDock.Card.ClockMonthDay": -1,
+      "LeanDock.Card.ClockUpdates": -1,
+      "LeanDock.Card.BatteryPercent": -1,
+      "LeanDock.Card.PowerUpdates": -1,
+      "LeanDock.Card.Errors": 0,
+      "LeanDock.Card.PanelError": -1,
+      "LeanDock.Card.Sampling": 0,
+      "LeanDock.Card.NetworkActive": 0,
+      "LeanDock.Card.SurfaceCenterY100": 3067,
+      "LeanDock.Card.CenterDelta100": 0,
+      "LeanDock.Card.OffsetY100": 100,
+      "LeanDock.Aggregate.Left": 1477,
+      "LeanDock.Aggregate.Top": 1609,
+      "LeanDock.Aggregate.Right": 1585,
+      "LeanDock.Aggregate.Bottom": 1678,
+      "LeanDock.Aggregate.PanelPid": 0,
+      "LeanDock.Aggregate.PanelWindow": 0,
+      "LeanDock.Aggregate.ControlWindow": 0,
+      "LeanDock.Aggregate.Cookie": 0,
+      "LeanDock.Hide.KeepShown": 1
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.81-20261023-020848115",
+    "QuickTheme": {
+      "version": "0.2.0",
+      "pid": 7152,
+      "ownerPid": 19472,
+      "active": true,
+      "rootReady": false,
+      "tileInstalled": false,
+      "buttonReady": false,
+      "busy": false,
+      "workerPid": 0,
+      "dark": true,
+      "stateKnown": true,
+      "discoveries": 7,
+      "switches": 0,
+      "failures": 1,
+      "lastExit": 0,
+      "discoveryResult": 0,
+      "watchMode": "events"
+    },
+    "UserAcceptance": "Native 0.8.80 appearance accepted; 0.8.79 hover/sliders/Start accepted; 0.8.81 detail refinements pending actual UI acceptance"
+  },
+  "userAcceptance": {
+    "At": "2026-10-23T02:12:28.3513533+08:00",
+    "Version": "0.8.81",
+    "Question": "call_2e6709ebf4404cfaa2a7fed614d935b3:0",
+    "Answer": "显示和操作都正常",
+    "Scope": "Panel seconds, CPU trend, separate AMD/NVIDIA display, panel size, sliders and dismissal"
+  }
+}

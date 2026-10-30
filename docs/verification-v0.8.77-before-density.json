@@ -1,0 +1,99 @@
+{
+  "schema": 106,
+  "recordedAt": "2026-10-20T01:33:51.4897577+08:00",
+  "packageVersion": "0.8.77",
+  "controllerVersion": "0.3.33",
+  "backendVersion": "0.5.62",
+  "scope": "Simultaneous dense widgets with integrated Start, native battery subregion and independent sampling deadlines",
+  "previousVerification": "docs/verification-v0.8.76-before-dashboard.json",
+  "checks": {
+    "hiddenNativeXaml": "Passed: maximum numeric text, media collapse/expand, module boundaries, light-dark-light; no visible desktop window or input",
+    "core": 115,
+    "preferencesNetwork": 492,
+    "shellActions": 195,
+    "failures": 0,
+    "build": "Passed; controller and backend rebuilt; Start and panels hashes unchanged",
+    "desktopInputAutomation": false,
+    "geometry": 199,
+    "maintenance": 51,
+    "gridInvariants": "Passed (enumerated layout cases)"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.77",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.77-20261020-012709808",
+    "ChangedFiles": 27,
+    "ConfigPreserved": true
+  },
+  "realAcceptance": {
+    "state": "AcceptedPrimaryDashboardAndEmptyMedia",
+    "date": "2026-10-20",
+    "responses": [
+      "都能看清，密度和大小合适",
+      "这些操作都符合",
+      "当前没有媒体，入口已收起"
+    ],
+    "accepted": [
+      "Simultaneous information and readable density",
+      "Start, clock and battery click actions",
+      "CPU/memory/network display-only",
+      "Empty media collapsed"
+    ],
+    "pending": [
+      "Independent runtime observation of active numeric refresh",
+      "Playing media expansion and controls",
+      "Crowded app sizing and native overflow",
+      "Mixed DPI and multiple monitors"
+    ]
+  },
+  "limitations": [
+    "Initial recorder observed only hidden state: 133 samples, CPU count remained zero; this does not independently prove visible sampling or failure. A focused clarification was requested.",
+    "Active media control and crowded native app layout have not been accepted on the live Dock.",
+    "Hidden native XAML tests verify layout and theme, not native taskbar input ownership."
+  ],
+  "configuration": "Preserve latest.ini, hotcorners/latest.ini and cards/latest.ini byte-for-byte; LastPage remains stored but is not a dashboard selector",
+  "rollback": "Current-turn source/config/runtime snapshot and normal update transaction backup",
+  "observed": {
+    "dashboardWidthDip": 384,
+    "moduleCount": 4,
+    "moduleRectangles": [
+      {
+        "name": "ClockGroup",
+        "x": 0,
+        "width": 84,
+        "height": 44
+      },
+      {
+        "name": "MetricsCard",
+        "x": 92,
+        "width": 124,
+        "height": 44
+      },
+      {
+        "name": "LeanDockPowerCard",
+        "x": 224,
+        "width": 84,
+        "height": 44
+      },
+      {
+        "name": "NetworkCard",
+        "x": 316,
+        "width": 68,
+        "height": 44
+      }
+    ],
+    "nativeBatteryHitCoverage": 9,
+    "nativeBatteryWidthDip": 84,
+    "appButtonWidthDip": 52,
+    "widgetErrors": 0,
+    "runtimeHashesMatch": true,
+    "configurationHashesPreserved": true,
+    "quickThemeFailureCounter": "1 before and after update; closed-flyout visual tree remained undiscovered, no new failure counted"
+  }
+}

@@ -1,0 +1,199 @@
+{
+  "schema": 70,
+  "recordedAt": "2026-10-17T17:43:39.4258265+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.41",
+  "controllerVersion": "0.3.14",
+  "backendVersion": "0.5.35",
+  "scope": "Default one-shot maximization for newly opened resizable main windows",
+  "previousVerification": "docs/verification-v0.8.40-before-window-launch.json",
+  "tests": {
+    "build": "Passed",
+    "windowLaunchPolicy": {
+      "failures": 0,
+      "checks": 36,
+      "desktopInput": false
+    },
+    "windowLaunchNative": {
+      "failures": 0,
+      "inputDesktopSwitched": false,
+      "checks": 20,
+      "isolatedDesktop": true
+    },
+    "clientEdge": {
+      "failures": 0,
+      "checks": 38
+    },
+    "hotCorners": {
+      "failures": 0,
+      "configurationChecks": 26,
+      "coreChecks": 83,
+      "hostedInputTest": false
+    },
+    "imports": "Passed",
+    "runtimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 308736,
+        "SHA256": "57EA4B53579C69BE407EBD7200E0F3C4E7F25F39A91E51555417E24E880C1BC4"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2110464,
+        "SHA256": "4A434A24D02CD080FD8B91EE0B6684197001B188784D5AF8AC4718DAFA0E57A9"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 397312,
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ],
+    "freshChecks": 203
+  },
+  "rules": {
+    "implementation": "Existing controller; public WinEvent and ShowWindowAsync; bounded timer only",
+    "foregroundOnly": true,
+    "oncePerWindow": true,
+    "excluded": [
+      "Native dialogs",
+      "Owned popups",
+      "Tool/no-activate windows",
+      "Fixed-size windows",
+      "Minimized windows",
+      "Borderless fullscreen"
+    ],
+    "scope": "New resizable main windows from any launch entry",
+    "manualRestore": "Preserved; no re-maximize on activation/desktop switch",
+    "existingWindows": "Preserved at controller start"
+  },
+  "sourceReuse": {
+    "scope": "Window type filters; native event lifecycle and one-shot policy are local",
+    "license": "MIT",
+    "project": "Microsoft PowerToys FancyZones",
+    "revision": "471db8bf9ceb644d6fc4149e549e795957b10d30"
+  },
+  "review": {
+    "boundaries": "HWND ownership marker with PID/TID; existing and other-desktop baseline; one-shot and finite expiration",
+    "regression": "Only controller executable changed; Dock/Start/QuickSettings binaries remain byte-identical",
+    "maintainability": "No new resident executable or service; original upstream inputs and license retained"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.41",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.41-20261017-165614093",
+    "ChangedFiles": 19,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "state": "Passed for the user-tested application: first launch maximizes and manual restore is preserved",
+    "userConfirmed": true,
+    "recordedAt": "2026-10-17T17:43:39.4258265+08:00",
+    "userQuote": "首次最大化，手动还原也能保留",
+    "scenario": "Open a new application, manually restore it, return to the desktop and return to the application",
+    "observed": {
+      "At": "2026-10-17T17:40:59.1263398+08:00",
+      "WindowLaunch": {
+        "ready": true,
+        "mode": "new-main-windows-once",
+        "candidates": 6,
+        "requests": 1,
+        "maximized": 1,
+        "declined": 0,
+        "failures": 0
+      },
+      "Health": {
+        "State": "Ready",
+        "Unavailable": [],
+        "Pending": []
+      },
+      "ExplorerPid": 28168,
+      "DockReady": true,
+      "HotCornersReady": true,
+      "StartLayoutReady": true,
+      "QuickSettings": true,
+      "QuickTheme": true,
+      "Backend": "0.5.35"
+    },
+    "evidenceBoundary": "User feedback confirms the actual behavior; runtime counters separately confirm one maximize request and one completed maximization, with zero declines or failures",
+    "unverified": [
+      "Application-specific behavior beyond the user-tested application",
+      "Apps that override maximize after startup",
+      "Real multi-monitor launch placement",
+      "A complete Windows restart after this release"
+    ]
+  },
+  "priorUnresolved": {
+    "batteryRight": "Native menu rollback retained",
+    "iconClarity": "Not solved; retained 0.8.40 optics"
+  },
+  "publication": {
+    "gitCommitted": false,
+    "localSource": "Updated",
+    "gitPushed": false,
+    "localDeployment": "0.8.41"
+  },
+  "runtimeReadback": {
+    "At": "2026-10-17T16:56:27.616635+08:00",
+    "Backend": "0.5.35",
+    "ExplorerPid": 28168,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "StartReady": true,
+    "StartItems": 49,
+    "QuickSettingsActive": true,
+    "QuickThemeActive": true,
+    "WindowLaunch": {
+      "ready": true,
+      "mode": "new-main-windows-once",
+      "candidates": 0,
+      "requests": 0,
+      "maximized": 0,
+      "declined": 0,
+      "failures": 0
+    },
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "File": "latest.exe",
+        "Match": true
+      },
+      {
+        "File": "latest.dll",
+        "Match": true
+      },
+      {
+        "File": "start\\latest.dll",
+        "Match": true
+      },
+      {
+        "File": "panels\\latest.dll",
+        "Match": true
+      }
+    ],
+    "ConfigHashes": [
+      {
+        "File": "latest.ini",
+        "Match": true
+      },
+      {
+        "File": "hotcorners/latest.ini",
+        "Match": true
+      }
+    ]
+  }
+}

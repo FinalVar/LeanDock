@@ -1,0 +1,158 @@
+{
+  "schema": 77,
+  "recordedAt": "2026-10-17T22:59:00.6592884+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.47",
+  "controllerVersion": "0.3.17",
+  "backendVersion": "0.5.38",
+  "scope": "System app startup presentation gate and reuse of native Shell application identity for Explorer",
+  "previousVerification": "docs/verification-v0.8.46-before-system-launch.json",
+  "request": "仅开始菜单、Dock 大图标或快捷方式的这次新启动默认最大化，已有窗口保持原状",
+  "evidence": {
+    "previousUserFeedback": "没有最大化的，没生效",
+    "readOnlyObserver": "Exited automatically after 100 seconds; no input injection or focus changes",
+    "observedStart": {
+      "actualPid": 21816,
+      "expectedPid": 25888
+    },
+    "runtimeBefore": {
+      "maximized": 0,
+      "unresolved": 19,
+      "candidates": 0,
+      "requests": 0
+    },
+    "observedDockAutomationId": "Appid: net.aiuo.pi-desktop",
+    "systemAppObservation": {
+      "explorerEntryAppId": "Microsoft.Windows.Explorer",
+      "explorerEntryPath": "::{52205FD8-5DFB-447D-801A-D0B52F2E83E1}",
+      "shellResolverLiveCheck": "Returns Microsoft.Windows.Explorer for native Explorer-owned windows",
+      "packagedFrameObservation": "Settings/Clock use separate CoreWindow and ApplicationFrameWindow; pre-presentation admission previously permitted cloaked frame",
+      "causalityBoundary": "Explorer identity mismatch directly observed; exact failing system-app event sequence still requires runtime verification"
+    }
+  },
+  "tests": {
+    "policyChecks": 53,
+    "failures": 0,
+    "desktopInput": false,
+    "imports": "Passed",
+    "build": "Passed",
+    "nativeChecks": 58,
+    "inputDesktopUnchanged": true
+  },
+  "runtimeFiles": [
+    {
+      "Name": "latest.exe",
+      "Bytes": 343552,
+      "SHA256": "1ED78F092B33979C456F3E19FFAA65BEF4ED8B6186CB82C9E192CD01FDD13759"
+    },
+    {
+      "Name": "latest.dll",
+      "Bytes": 2118144,
+      "SHA256": "7641D7E218A92FF5BD04105E935B4AF11E21FAB230DCE7D8F8C34DA98EFB5C24"
+    },
+    {
+      "Name": "start\\latest.dll",
+      "Bytes": 397312,
+      "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+    },
+    {
+      "Name": "panels\\latest.dll",
+      "Bytes": 302592,
+      "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+    }
+  ],
+  "review": {
+    "regression": "Only controller binary changed; backend/Start/panels hashes unchanged; normal restore size remains intact",
+    "maintainability": "Shared raw input, bounded coalesced read-only MTA prefetch, no resident helper",
+    "boundaries": "Exact identity, pre-existing baseline exclusion, click serial and rectangle validation, one-shot foreground matching"
+  },
+  "acceptance": {
+    "state": "Deployed; exact binary/configuration and component readback passed; awaiting built-in app verification",
+    "unverified": [
+      "Settings, Clock, Sound Recorder and Explorer after correction",
+      "Special launch brokers, multi-monitor DPI and long stationary pointer"
+    ]
+  },
+  "preservedUserAcceptance": {
+    "iconQuality": "0.8.44: 更清晰，大小和居中正常",
+    "keyboardWinX": "0.8.43: 两种情况位置都正常"
+  },
+  "publication": {
+    "localSource": "0.8.47",
+    "gitPushed": false,
+    "localDeployment": "0.8.47",
+    "gitCommitted": false
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.47",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.47-20261017-225551986",
+    "ChangedFiles": 15,
+    "ConfigPreserved": true
+  },
+  "runtimeReadback": {
+    "At": "2026-10-17T22:56:52.1062129+08:00",
+    "Components": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Start": true,
+    "Corners": true,
+    "WindowLaunch": {
+      "ready": true,
+      "mode": "explicit-launch-new-window-only",
+      "candidates": 0,
+      "requests": 0,
+      "maximized": 0,
+      "declined": 0,
+      "failures": 0,
+      "dockClicks": 0,
+      "startClicks": 0,
+      "shortcutClicks": 0,
+      "unresolved": 0,
+      "existingSkipped": 0,
+      "previewHits": 0,
+      "markerDenied": 13,
+      "unresolvedSources": [
+        0,
+        0,
+        0
+      ]
+    },
+    "Runtime": [
+      {
+        "File": "latest.exe",
+        "Match": true
+      },
+      {
+        "File": "latest.dll",
+        "Match": true
+      },
+      {
+        "File": "start\\latest.dll",
+        "Match": true
+      },
+      {
+        "File": "panels\\latest.dll",
+        "Match": true
+      }
+    ],
+    "Config": [
+      {
+        "File": "latest.ini",
+        "Match": true
+      },
+      {
+        "File": "hotcorners\\latest.ini",
+        "Match": true
+      }
+    ]
+  }
+}

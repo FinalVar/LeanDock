@@ -1,0 +1,174 @@
+{
+  "schema": 72,
+  "recordedAt": "2026-10-17T20:31:24.9081429+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.43",
+  "controllerVersion": "0.3.14",
+  "backendVersion": "0.5.37",
+  "scope": "Native keyboard Win+X anchored to the current card; pointer presentation kept separate",
+  "previousVerification": "docs/verification-v0.8.42-before-keyboard-anchor.json",
+  "request": "用户要求单独按 Win+X 也在小组件卡片那里弹出",
+  "evidence": {
+    "module": "Taskbar.View.dll",
+    "moduleSHA256": "CF7E002533DEF6628BA121481A703A06FC30ACCAA5E5CADD1A412F65F2D8BA77",
+    "nativeEntry": "Existing verified ABI and XAML anchor reused",
+    "upstream": "Retained Styler per-XamlRoot lifecycle reviewed",
+    "previousMenuRegression": "0.8.42 direct-card UI acceptance still pending"
+  },
+  "tests": {
+    "shellActions": {
+      "failures": 0,
+      "inputSent": false,
+      "checks": 190
+    },
+    "cards": {
+      "failures": 0,
+      "checks": 115
+    },
+    "freshChecks": 305,
+    "build": "Passed",
+    "imports": "Passed",
+    "runtimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 308736,
+        "SHA256": "57EA4B53579C69BE407EBD7200E0F3C4E7F25F39A91E51555417E24E880C1BC4"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2116608,
+        "SHA256": "1BF00A20AD65905D7A86EEF11AAAF3DE8EA2A932983A03A566463BCC837E7C93"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 397312,
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ]
+  },
+  "rules": {
+    "keyboard": "Card horizontal center and fully shown Dock top minus 8 DIP; native keyboard focus and letters",
+    "pointer": "Existing click x, Pointer focus and real context gesture",
+    "cardUnavailable": "Original native placement",
+    "monitor": "Use shell-selected source XamlRoot; never cursor monitor",
+    "batteryRight": "Native power menu retained",
+    "blank": "Suppressed",
+    "applicationAndTray": "Native menus",
+    "noNewRuntime": "No process, service, timer, key hook or hotkey registration"
+  },
+  "review": {
+    "maintainability": "Reuse native entry and existing one-use flyout lifecycle; authoritative state generator updated",
+    "boundaries": "Stopped/detached/collapsed card, invalid span, source-root mismatch, hidden Dock, DPI and negative monitor coordinates",
+    "regression": "Only backend DLL changes; keyboard focus conversion deliberately omitted; subsequent card-right reopen tracks the same native flyout"
+  },
+  "acceptance": {
+    "state": "User confirmed Win+X placement with Dock both shown and hidden",
+    "unverified": [
+      "Keyboard letters, arrow navigation and native close behavior",
+      "Ordinary-card right click position and no letters after reload",
+      "Multiple physical monitors and sleep/resume behavior"
+    ],
+    "userConfirmed": "两种情况位置都正常"
+  },
+  "publication": {
+    "localDeployment": "0.8.43",
+    "localSource": "Updated",
+    "gitCommitted": false,
+    "gitPushed": false
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.43",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.43-20261017-203023175",
+    "ChangedFiles": 17,
+    "ConfigPreserved": true
+  },
+  "runtimeReadback": {
+    "At": "2026-10-17T20:30:34.9729609+08:00",
+    "Backend": "0.5.37",
+    "ExplorerPid": 15388,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "StartReady": true,
+    "StartItems": 49,
+    "QuickSettingsActive": true,
+    "QuickThemeActive": true,
+    "WindowLaunch": {
+      "ready": true,
+      "mode": "new-main-windows-once",
+      "candidates": 0,
+      "requests": 0,
+      "maximized": 0,
+      "declined": 0,
+      "failures": 0
+    },
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "File": "latest.exe",
+        "Match": true
+      },
+      {
+        "File": "latest.dll",
+        "Match": true
+      },
+      {
+        "File": "start\\latest.dll",
+        "Match": true
+      },
+      {
+        "File": "panels\\latest.dll",
+        "Match": true
+      }
+    ],
+    "ConfigHashes": [
+      {
+        "File": "latest.ini",
+        "Match": true
+      },
+      {
+        "File": "hotcorners/latest.ini",
+        "Match": true
+      }
+    ]
+  },
+  "runtimeHooks": {
+    "RecordedAt": "2026-10-17T20:31:03.7439075+08:00",
+    "ExplorerPid": 15388,
+    "TaskbarHash": "CF7E002533DEF6628BA121481A703A06FC30ACCAA5E5CADD1A412F65F2D8BA77",
+    "DockHash": "1BF00A20AD65905D7A86EEF11AAAF3DE8EA2A932983A03A566463BCC837E7C93",
+    "Hooks": [
+      {
+        "Name": "MenuEntry",
+        "Rva": 8124788,
+        "Bytes": "E91A1183FF415641574881EC98060000",
+        "PatchedToLeanDock": true,
+        "Relay": 140737410173587,
+        "Destination": 140737374136160
+      },
+      {
+        "Name": "FlyoutShow",
+        "Rva": 2962068,
+        "Bytes": "E9BDD7D1FF83EC30488B059D5D650048",
+        "PatchedToLeanDock": true,
+        "Relay": 140737410173526,
+        "Destination": 140737374131248
+      }
+    ]
+  }
+}

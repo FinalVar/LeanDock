@@ -1,0 +1,135 @@
+{
+  "schema": 68,
+  "recordedAt": "2026-10-17T16:31:15.4825484+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.39",
+  "backendVersion": "0.5.34",
+  "scope": "Restore native battery context menu as requested; increase native large-icon source budget",
+  "previousVerification": "docs/verification-v0.8.38-before-native-power-and-resolution.json",
+  "tests": {
+    "build": "Passed",
+    "runtimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 292352,
+        "SHA256": "3EBAE5829C94E93730051BAE310D5645A7DA9617FFF6EF6E0EE6A14464D7DADA"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2110464,
+        "SHA256": "0990636B8598D560ECE700CB689B6FAC4E3E927C899DEBCFBED8F05F72A54893"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 397312,
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ],
+    "shellActions": {
+      "failures": 0,
+      "inputSent": false,
+      "checks": 151
+    },
+    "iconOptics": {
+      "checks": 37,
+      "failures": 0
+    },
+    "iconView": {
+      "failures": 0,
+      "revision": "Same source measurement as 0.8.38; native source loader verified separately",
+      "inputSent": false,
+      "offscreen": true,
+      "checks": 31
+    },
+    "freshChecks": 188
+  },
+  "rules": {
+    "tray": "Native menu",
+    "blank": "No menu",
+    "card": "WinX except battery",
+    "application": "Native menu",
+    "batteryRight": "Original Windows power context menu",
+    "batteryLeft": "Native Quick Settings"
+  },
+  "userFeedback": {
+    "iconAlignment": "0.8.37 accepted",
+    "iconClarity": "60px source was enlarged to as much as 73.61px",
+    "batteryOverride": "User explicitly withdrew custom WinX after 0.8.38 failure"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.39",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.39-20261017-162532855",
+    "ChangedFiles": 19,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "required": [
+      "Native battery right menu and left Quick Settings",
+      "Other card right WinX",
+      "Actual icon source size and unchanged visible size"
+    ],
+    "state": "Battery reversion deployed; native input awaiting user observation; icon resolution experiment failed"
+  },
+  "runtimeReadback": {
+    "At": "2026-10-17T16:25:45.6383742+08:00",
+    "Backend": "0.5.34",
+    "ExplorerPid": 31468,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "StartReady": true,
+    "StartItems": 49,
+    "QuickSettingsActive": true,
+    "QuickThemeActive": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "File": "latest.exe",
+        "Match": true
+      },
+      {
+        "File": "latest.dll",
+        "Match": true
+      },
+      {
+        "File": "start\\latest.dll",
+        "Match": true
+      },
+      {
+        "File": "panels\\latest.dll",
+        "Match": true
+      }
+    ],
+    "ConfigHashes": [
+      {
+        "File": "latest.ini",
+        "Match": true
+      },
+      {
+        "File": "hotcorners/latest.ini",
+        "Match": true
+      }
+    ]
+  },
+  "iconReadback": {
+    "Conclusion": "ViewModel source-budget override did not increase actual resolution; remove ineffective adapter",
+    "SourcePixels": "All six BitmapImage sources remain 60x60",
+    "LoaderCounters": "Not observed",
+    "DisplayPixels": "60,60,72,64,60,73.61"
+  }
+}

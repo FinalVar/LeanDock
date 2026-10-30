@@ -1,0 +1,185 @@
+{
+  "schema": 96,
+  "recordedAt": "2026-10-19T19:13:55.2196988+08:00",
+  "packageVersion": "0.8.67",
+  "controllerVersion": "0.3.29",
+  "backendVersion": "0.5.53",
+  "scope": "Only restore right-bottom corner two-window swap after complete rollback to 0.8.60",
+  "previousVerification": "docs/verification-v0.8.66-before-focus-fix.json",
+  "policy": {
+    "exactlyTwo": "Map native keyboard focus to one of the two realized item containers; Invoke native thumbnail once for corner ticket only",
+    "otherCounts": "Native manual picker",
+    "keyboard": "Manual Ctrl+Alt+Tab unchanged",
+    "secondCorner": "Cancel visible picker",
+    "applicationPage": "Absent",
+    "winKeyInterception": "Absent",
+    "automaticMaximization": "Remains removed",
+    "additionalPolling": false,
+    "desktopInputAutomation": false
+  },
+  "checks": {
+    "confirmationPolicy": 23,
+    "hotCornerCore": 138,
+    "hotCornerConfig": 33,
+    "visibilityOwnership": 16,
+    "layout": 2073,
+    "runtimeRegression": 91,
+    "total": 2374,
+    "failures": 0,
+    "build": "passed",
+    "generatorReproducible": true,
+    "unchangedComponents": [
+      {
+        "Name": "include/switcher-layout-policy-latest.h",
+        "SHA256": "013DEEDCF036CF271ECF05326A5E429D76EBE96E592CADEF1CBC213C985036DE",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "include/switcher-visibility-latest.h",
+        "SHA256": "607E72B2EE141840DAED8C60C7650B06940480983D88CEBF4536360676F4CE7B",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "src/switcher-layout-latest.inc",
+        "SHA256": "4A7A72272070F35CAF5ED4262810D16B1DB9AE5974A1CA0E1F08575B87496D58",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "src/switcher-style-latest.inc",
+        "SHA256": "AD90B1DB773877FF8F996B02E29C6287A5B1877BE1B22FB05349599E9537E4EF",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "hotcorners/actions/latest.h",
+        "SHA256": "C7BA579C7ADB5847C1927721C15958078E9B79BBEC6B6CC0D3FC9522E5FE066D",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "hotcorners/core/latest.h",
+        "SHA256": "C13807B30A5C3E1906F12DADFCB3925F38F787BA941920DAB4874979CDD0500B",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "src/cards-latest.cpp",
+        "SHA256": "3B5D94987AB218BB5B8581AA1477FB1454B16BC4AF79E7307CF3329DA2F13223",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "start/latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "MatchesRollbackBaseline": true
+      },
+      {
+        "Name": "panels/latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "MatchesRollbackBaseline": true
+      }
+    ],
+    "carriedForwardUnchangedChecks": "Hotcorner core/config/visibility/layout passed in the same task and their source remains unchanged. Confirmation policy and runtime regressions rerun after focus fix."
+  },
+  "review": {
+    "maintainability": "Reuse existing NativeHotCorners and Styler lifecycle; generator is the source of hotcorner adaptations",
+    "boundaries": "One-use 1500 ms identity; low-priority weak dispatcher callback; Loaded/LayoutUpdated/GotFocus; close/unload/stop cancellation; native focused item mapped to current native list; no guessed index fallback",
+    "regression": "No changes to layout/style, native manual click handlers, cards, Start or panels",
+    "limitation": "Native Invoke returning success does not prove target foreground or animation. Exact A-to-B-to-A and keyboard/manual list behavior need user acceptance; OS foreground races are not atomic"
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.67",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.67-20261019-191546754",
+    "ChangedFiles": 13,
+    "ConfigPreserved": true
+  },
+  "acceptance": {
+    "twoWindowRoundTrip": "PASSED: user confirms 能正常来回互换 on 0.8.67",
+    "threeWindowsManual": "pending user verification",
+    "keyboardManual": "pending user verification",
+    "animations": "User reports brief switcher flash before automatic switch; improvement requested"
+  },
+  "previousAttempt": {
+    "version": "0.8.66",
+    "userResult": "No effect",
+    "evidence": "12 open requests, 2 realized native items, SelectedIndex=-1, invokeAccepted=0",
+    "cause": "Incorrect dependency on ListView.SelectedIndex",
+    "fix": "Use public XamlRoot-scoped keyboard focus and native item ancestry; observe GotFocus"
+  },
+  "runtimeAfter": {
+    "Live": true,
+    "ControllerPid": 25512,
+    "ExplorerPid": 10404,
+    "BackendVersion": "0.5.53",
+    "StartActive": true,
+    "QuickPositionActive": true,
+    "QuickThemeActive": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "Name": "latest.exe",
+        "SHA256": "3D0F863853EBE66DA4940DBD375F541D13CCF117447B5B0B115ACB85C24386E2",
+        "MatchesBuild": true
+      },
+      {
+        "Name": "latest.dll",
+        "SHA256": "F119750A7015FD595B6F530AAAAA984BB9823CAE5124B2A2503BC2BBD1D0EF3B",
+        "MatchesBuild": true
+      },
+      {
+        "Name": "start\\latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "MatchesBuild": true
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "MatchesBuild": true
+      }
+    ]
+  },
+  "passiveConfirmationObservation": {
+    "recordedAt": "2026-10-19T19:18:26.2727979+08:00",
+    "data": {
+      "schema": 4,
+      "autoConfirm": true,
+      "invokeAccepted": 0,
+      "keptOpen": 2,
+      "invokeErrors": 0,
+      "attachErrors": 0,
+      "lastCount": 5,
+      "lastSelected": -1,
+      "lastFocused": -1,
+      "listSource": "native-SwitchItemList",
+      "targetSource": "native-item-keyboard-focus",
+      "scope": "corner-ticket-only"
+    },
+    "interpretation": "Native list count 5, keptOpen 2, no native Invoke attempted, no attach/invoke errors. This is not user visual acceptance or proof of two-window behavior."
+  },
+  "userAcceptance": {
+    "recordedAt": "2026-10-19T19:23:47.6220883+08:00",
+    "twoWindowRoundTrip": "能正常来回互换",
+    "remainingIssue": "好像还是会跳几帧切换器，如果也能去掉更好",
+    "runtimeEvidence": {
+      "schema": 4,
+      "autoConfirm": true,
+      "invokeAccepted": 19,
+      "keptOpen": 8,
+      "invokeErrors": 0,
+      "attachErrors": 0,
+      "lastCount": 2,
+      "lastSelected": -1,
+      "lastFocused": 1,
+      "listSource": "native-SwitchItemList",
+      "targetSource": "native-item-keyboard-focus",
+      "scope": "corner-ticket-only"
+    }
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "schema": 103,
+  "recordedAt": "2026-10-19T23:42:39.3500046+08:00",
+  "packageVersion": "0.8.74",
+  "controllerVersion": "0.3.30",
+  "backendVersion": "0.5.59",
+  "scope": "Restore bottom-edge initialization after shell readiness and admit only measured maximized resize-border obstructions",
+  "previousVerification": "docs/verification-v0.8.73-before-edge-recovery.json",
+  "evidence": {
+    "taskbarStripPresent": true,
+    "taskbarWasTopmost": false,
+    "adapterWasReady": false,
+    "adapterFailures": 1,
+    "exactInitialFailureApi": "Unknown: previous build retained only a failure count",
+    "controllerStartedBeforeExplorerMilliseconds": 197,
+    "bottomHit": 15
+  },
+  "checks": {
+    "unchangedRuntime": [
+      "latest.dll",
+      "start/latest.dll",
+      "panels/latest.dll"
+    ],
+    "maintenance": 51,
+    "clientEdge": 72,
+    "hotcornersConfig": 33,
+    "total": 294,
+    "build": "Controller-only passed",
+    "hotcorners": 138
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.74",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.74-20261019-232931349",
+    "ChangedFiles": 18,
+    "ConfigPreserved": true,
+    "runtimeFiles": [
+      {
+        "Name": "latest.exe",
+        "SHA256": "50781863F43FFD3C1BEF20FEE7552AC59CCBAEE568E621828AC744E2465EB248",
+        "Match": true
+      },
+      {
+        "Name": "latest.dll",
+        "SHA256": "1169AAEA698173FEF5CD87E815C69958F66E83BCB2F7D0B0CF32CB18367F84E5",
+        "Match": true
+      },
+      {
+        "Name": "start\\latest.dll",
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+        "Match": true
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+        "Match": true
+      }
+    ],
+    "ClientEdge": {
+      "Supported": true,
+      "Ready": true,
+      "Stage": "ready",
+      "Error": 0,
+      "Attempts": 1,
+      "Recoveries": 0,
+      "RetryScheduled": false,
+      "Repairs": 5,
+      "GenericRepairs": 0,
+      "Failures": 0
+    },
+    "StartLayoutReady": true,
+    "QuickSettingsActive": true
+  },
+  "acceptance": {
+    "status": "Preliminary user acceptance of reveal; separate Qiye white edge unresolved",
+    "userReport": "看起来可以，但是像栖页这种黑色主题全屏启动底部会有白边",
+    "whiteEdgeExtent": "横贯整个屏幕底部",
+    "observedTaskbarOwnsBottomInDockSpan": true,
+    "applicationAndWorkAreaUnchanged": true,
+    "visualPixelCapturePerformed": false
+  },
+  "boundaries": [
+    "No application size or work-area changes",
+    "No input synthesis, foreground activation, overlay, resident polling or security changes",
+    "Other app names not provided; generic eligibility tested, actual other-app interaction not yet accepted",
+    "Next sign-in, sleep, true fullscreen and multi-monitor need live verification"
+  ],
+  "separateQiyeIssue": {
+    "installedVersion": "0.1.11",
+    "candidateSourceVersion": "0.2.0",
+    "dpi": 144,
+    "screenBottom": 1600,
+    "clientBottom": 1599,
+    "webviewBottom": 1599,
+    "framework": "Tao 0.37.1",
+    "sourceCause": "WM_NCCALCSIZE explicitly subtracts 1 pixel on the auto-hide taskbar edge",
+    "NonRudeHWND": 0,
+    "changed": false,
+    "handoff": "../../work/edge-regression-20261019/latest.md"
+  }
+}

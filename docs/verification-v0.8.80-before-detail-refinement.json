@@ -1,0 +1,211 @@
+{
+  "schema": 108,
+  "recordedAt": "2026-10-23T01:41:20.8225379+08:00",
+  "packageVersion": "0.8.80",
+  "backendVersion": "0.5.65",
+  "architecture": "native-taskbar",
+  "state": "DeployedPendingVisualSpacingAcceptance",
+  "scope": "Native aggregate key: remove decorative divider, reduce reserved width 100 to 78 DIP, center on actual Dock surface. Preserve native apps/tray and accepted hover control behavior.",
+  "previousUserAcceptance": {
+    "version": "0.8.78 restored",
+    "answer": "托盘回来了，应用操作和触发角正常"
+  },
+  "checks": {
+    "hiddenNativeXaml": 539,
+    "panelPolicy": 123,
+    "themePolicy": 23,
+    "ownershipLifecycle": 12,
+    "geometry": 199,
+    "shellActions": 195,
+    "maintenance": 51,
+    "readOnlyPanelProbe": {
+      "policyChecks": 123,
+      "normalUser": true,
+      "volume": 16,
+      "mute": false,
+      "brightness": 100,
+      "wifi": 1,
+      "bluetooth": 0,
+      "reads": 2,
+      "writes": 0,
+      "hiddenReadsUnchanged": true,
+      "readOnly": true,
+      "stopMs": 16,
+      "visibleWindows": false,
+      "actualControlWritesTested": false,
+      "darkTheme": 0,
+      "hotspot": 0,
+      "hotspotCapability": 0,
+      "hotspotClients": 0,
+      "themePolicyChecks": 23
+    },
+    "offscreenScales": [
+      100,
+      125,
+      150,
+      200
+    ],
+    "desktopInputAutomation": false,
+    "hiddenProductionHost": {
+      "Initialization": "Passed",
+      "LayoutUpdates": 1,
+      "NativeCardDip": [
+        72,
+        46
+      ],
+      "SubscriptionsAndStopRestored": true,
+      "VisibleTestWindows": false,
+      "SurfaceCenter": 29,
+      "KeyCenter": 29,
+      "ReservedWidth": 78
+    }
+  },
+  "unchangedAcceptedCompanions": [
+    "latest.exe",
+    "start/latest.dll",
+    "panels/latest.dll"
+  ],
+  "newInteractiveAcceptance": "0.8.79 hover, sliders, dismissal and Start accepted; 0.8.80 spacing and centering pending",
+  "remaining": [
+    "0.8.80 spacing and center need visual confirmation",
+    "native QuickTheme tile previously not discovered; panel uses retained theme command",
+    "hotspot real sharing untested",
+    "multi-monitor/DPI transition and sleep recovery need real verification"
+  ],
+  "candidateRevision": 1,
+  "priorCandidate": {
+    "State": "AutomaticallyRolledBack",
+    "Transaction": "before-0.8.79-20261023-011318448",
+    "Error": "Native taskbar owner identity mismatch",
+    "Investigated": "Hidden production fixture reproduced E_INVALIDARG when one XAML PathGeometry was assigned to multiple parents",
+    "Correction": "Distinct geometries, initialize before appending, restore layout only after ownership",
+    "CrashDumpAvailable": false,
+    "CurrentBaseline": "0.8.78 verified restored"
+  },
+  "userInteractionAcceptance": {
+    "Version": "0.8.79",
+    "Question": "call_e3b4684894f2415ebacd5b5da31d1bd4:1",
+    "Answer": "悬停、滑条、收起和开始菜单都正常",
+    "SubsequentChanges": "Separator and spacing/vertical alignment only"
+  },
+  "visualFeedback": {
+    "Image": "User screenshot codex-clipboard-76af15dd-543b-4bbc-84d4-ce918c958e57.png",
+    "Issues": [
+      "Unnecessary left divider",
+      "Excess side gaps",
+      "Key appears vertically off center"
+    ],
+    "Implementation": [
+      "Remove divider creation and ownership only; keep material/context lifecycle",
+      "Leading offset 17 to 6 DIP; right padding 100 to 78 DIP",
+      "Measure actual top-aligned BackgroundControl center instead of RootGrid center"
+    ],
+    "NewVisualAcceptance": "Not yet supplied after 0.8.80; runtime center delta is zero, Y adjustment +1 DIP"
+  },
+  "deployment": {
+    "State": "DeployedPendingVisualSpacingAcceptance",
+    "At": "2026-10-23T01:40:44.7230404+08:00",
+    "Version": "0.8.80",
+    "Architecture": "native-taskbar",
+    "Live": true,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "BackendVersion": "0.5.65",
+    "PackageFiles": 420,
+    "Mismatches": [],
+    "Preserved": [
+      {
+        "Name": "latest.ini",
+        "Unchanged": true
+      },
+      {
+        "Name": "hotcorners/latest.ini",
+        "Unchanged": true
+      },
+      {
+        "Name": "cards/latest.ini",
+        "Unchanged": true
+      },
+      {
+        "Name": "latest.exe",
+        "Unchanged": true
+      },
+      {
+        "Name": "start/latest.dll",
+        "Unchanged": true
+      },
+      {
+        "Name": "panels/latest.dll",
+        "Unchanged": true
+      }
+    ],
+    "TaskUnchanged": true,
+    "NativePinsRegistryUnchanged": true,
+    "NativePinShortcutsUnchanged": true,
+    "NativeTaskbarOwner": "C:\\Windows\\Explorer.EXE",
+    "IndependentDockProcesses": 0,
+    "OnDemandPanelProcesses": 0,
+    "CardProperties": {
+      "LeanDock.Card.Ready": 1,
+      "LeanDock.Card.Fits": 1,
+      "LeanDock.Card.Visible": 1,
+      "LeanDock.Card.PowerReady": 1,
+      "LeanDock.Card.PowerActive": 0,
+      "LeanDock.Card.Dashboard.Width100": 7200,
+      "LeanDock.Card.AggregateVersion": 1,
+      "LeanDock.Card.Left100": 94467,
+      "LeanDock.Card.Top100": 767,
+      "LeanDock.Card.Right100": 101667,
+      "LeanDock.Card.Bottom100": 5367,
+      "LeanDock.Card.ClockHourMinute": 140,
+      "LeanDock.Card.ClockMonthDay": 1023,
+      "LeanDock.Card.ClockUpdates": 2,
+      "LeanDock.Card.BatteryPercent": 96,
+      "LeanDock.Card.PowerUpdates": 2,
+      "LeanDock.Card.Errors": 0,
+      "LeanDock.Card.PanelError": -1,
+      "LeanDock.Card.Sampling": 0,
+      "LeanDock.Card.NetworkActive": 0,
+      "LeanDock.Card.SurfaceCenterY100": 3067,
+      "LeanDock.Card.CenterDelta100": 0,
+      "LeanDock.Card.OffsetY100": 100,
+      "LeanDock.Aggregate.Left": 1417,
+      "LeanDock.Aggregate.Top": 1515,
+      "LeanDock.Aggregate.Right": 1525,
+      "LeanDock.Aggregate.Bottom": 1584,
+      "LeanDock.Aggregate.PanelPid": 0,
+      "LeanDock.Aggregate.PanelWindow": 0,
+      "LeanDock.Aggregate.ControlWindow": 0,
+      "LeanDock.Aggregate.Cookie": 0,
+      "LeanDock.Hide.KeepShown": 2
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.80-20261023-014028916",
+    "QuickTheme": {
+      "version": "0.2.0",
+      "pid": 7152,
+      "ownerPid": 12048,
+      "active": true,
+      "rootReady": false,
+      "tileInstalled": false,
+      "buttonReady": false,
+      "busy": false,
+      "workerPid": 0,
+      "dark": true,
+      "stateKnown": true,
+      "discoveries": 6,
+      "switches": 0,
+      "failures": 1,
+      "lastExit": 0,
+      "discoveryResult": 0,
+      "watchMode": "events"
+    },
+    "UserAcceptance": "Native 0.8.78 restoration accepted; 0.8.79 hover, sliders, dismiss and Start accepted; new separator removal, spacing and centering pending visual acceptance"
+  },
+  "runtimeUpdateBackup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.80-20261023-014028916",
+  "runtimePackage": "artifacts/native-aggregate-0.8.80/latest"
+}

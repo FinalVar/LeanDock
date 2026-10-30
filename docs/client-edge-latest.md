@@ -1,83 +1,42 @@
-# GPT maximized window blocks Dock reveal
+# 底边唤出适配 0.8.74
 
-> 2026-10-12 更新：下文记录的候选已随 0.8.21 正常部署。旧的“尚未部署”表述是当时的历史边界；本次组件就绪不替代下文尚未完成的各项真实生命周期／界面验收。最新状态见 docs/verification-latest.json。
+## 当前事实与修正边界
 
+2026-10-19 重启后的实际加载版本为 0.8.73、控制器 0.3.29、后台 0.5.59；四个运行文件与构建收据哈希一致。用户报告 GPT 和其他某些最大化应用的底边出现缩放光标，无法唤出 Dock。未取得其他应用的具体名称，不把 GPT 实测扩展为其他应用已通过。
 
-## Current result and boundary
+只读几何与命中检查确认：
 
-On 2026-10-11 a one-shot public shell API correction was applied to the existing
-ChatGPT HWND. The user confirmed both ordinary maximization and restoring then
-maximizing again reveal Dock normally. This does **not** establish persistence
-across recreating the application window, application restart or sign-in.
+- 屏幕和工作区均为 (0,0)-(2560,1600)。隐藏任务栏位于 y=1598..1694，裁剪范围 x=894..1666，底边两像素仍在。
+- GPT 保持原生最大化，窗口矩形到 y=1600，可见 DWM 边框到 y=1598。底部 y=1599 的 WM_NCHITTEST 返回 HTBOTTOM=15。
+- 隐藏任务栏没有 WS_EX_TOPMOST；Dock 正下方的 WindowFromPoint 返回 GPT。故障是可点击层级被遮挡，不能由此认定需要新增任务栏工作区留白。
+- 控制器报告 clientEdgeReady=false、failures=1。控制器启动于 21:51:12.127，Explorer 启动于 21:51:12.325。旧实现启动时初始化一次，失败即完整退出，该功能没有恢复路径。
+- 当前独立只读探针的 COM 初始化、TaskbarList 创建、HrInit 和五组事件注册均成功。早期任务栏未就绪是与证据一致的解释；旧版没有记录具体 HRESULT，不能声称已追溯到那次失败的确切 API。
 
-The deployed package remains 0.8.18, controller 0.3.6. The controller 0.3.7
-candidate in the source tree compiled, but its test execution was blocked by
-Windows Code Integrity (3077 at 18:17:40–41, Asia/Shanghai). The existing
-maintenance signature preflight also refused the unsigned incoming runtime set
-while Smart App Control was On. No new runtime was deployed, no existing host
-was stopped, and the admission guard or security policy was not changed.
+## 实现
 
-## Evidence and mechanism
+只更新控制器与维护状态，不重建后台、开始菜单、快速设置 DLL。继续使用公开的 NonRudeHWND 与 ITaskbarList2::MarkFullscreenWindow(FALSE)，恢复属于 LeanDock 的原生任务栏层级，不调整应用尺寸、工作区或任务栏裁剪。
 
-The verified client is the app/ChatGPT.exe executable in package family
-OpenAI.Codex_2p2nqsd0c76g0, observed version 26.1007.2314.0.
-Its maximized window rectangle was (0,0)-(2560,1600), while the DWM visible frame
-ended at y=1598. The hidden taskbar occupied (0,1598)-(2560,1694), clipped to
-the Dock span, but did not have WS_EX_TOPMOST. WindowFromPoint in the clipped
-bottom two pixels returned the client, above the taskbar in native z-order.
+初始化移到原生后台 NativeActive 之后，使用已有的 Start AttachPolicy：失败完成资源清理后间隔 750 ms 最多三次。成功、预算耗尽或停止即撤销定时器；之后只能由符合预算条件的原生重新接入事件重试，不常驻轮询。拒绝访问或永久 COM 注册失败不自动重试。Explorer 生命周期变化清理旧连接及自有标记，然后等待新后台就绪。COM 初始化使用局部资源，发布前核对生命周期，迟到成功不能复活已经停止的组件。
 
-Setting NonRudeHWND=1, calling MarkFullscreenWindow(FALSE), and restoring the
-native taskbar's topmost state with NOMOVE, NOSIZE, NOACTIVATE and NOOWNERZORDER
-flags changed those hit tests to Shell_TrayWnd. Points outside the Dock span
-still returned the client. Client size and IsZoomed remained unchanged.
+GPT 包身份规则仍保留，供既有触发角规则使用。其他应用仅在以下证据全部成立时允许底边兼容修正：原生最大化、可调整大小、非置顶/工具窗、覆盖对应屏幕；同屏底部自动隐藏任务栏确实属于 LeanDock；底边裁剪区域仍存在；窗口实际占住 Dock 中心底边点；该点返回底部缩放命中；DWM 可见边框有有限内缩。普通窗口、其他位置的缩放命中、真正全屏可见边界或未知数据均不处理。泛用修正后若失去这些基本几何条件，撤销自有标记。已有外部 NonRudeHWND 值不覆盖、不清除。
 
-The documented contract specifically prevents Shell's automatic full-screen
-classification; MarkFullscreenWindow(FALSE) alone still permits that automatic
-classification. The app symptom is independently tracked in OpenAI issue 45369.
-The evidence supports this compatibility diagnosis; it does not prove the
-client's internal source-level cause.
+事件回调仅安排合并检查，不截获鼠标。单次跨进程只读命中查询上限 50 ms；不存在后台鼠标轮询。任务栏本身的原生位置/层级事件也会触发重新核对。
 
-## Pending automatic implementation
+状态增加初始化阶段、错误码、尝试/恢复次数、有限重试状态和泛用修复计数。维护健康检查单独展示 ClientEdge，后续更新须恢复原本就绪的底边组件，不能只看整体 Live。
 
-- include/client-edge-policy-latest.h defines the geometry, package identity
-  and property-ownership rules.
-- include/client-edge-latest.h runs in the existing controller. Native
-  foreground/show/location/state/destroy events coalesce into one posted
-  recheck. There is no new process, polling timer or interception of mouse input.
-- Only a resizable, natively maximized, visible client covering its monitor is
-  eligible. The identity uses Windows package-family metadata plus executable
-  suffix, not just the process name. No private Explorer interface is added.
-- Only the taskbar publishing LeanDock's geometry on that monitor is promoted;
-  the original Dock clipping and native reveal handling remain unchanged.
-- Existing NonRudeHWND values are preserved. The adapter tags its own property,
-  checks current HWND/PID/ownership on cleanup, closes event admission before
-  unhooking, and rejects stale queued work after shutdown. COM reentrancy is
-  bounded by an evaluation guard and a generation check.
-- Restoring the window, hiding/minimizing it, losing resizability, turning off
-  native auto-hide, or stopping the controller removes its owned mark. Other
-  applications and real fullscreen policies are not globally overridden.
+## 复用与归属
 
-## Validation still required
+审阅并保留 m417z Taskbar auto-hide when maximized 1.2.6 的原生隐藏/唤出路径，未替换其运行层。复用 LeanDock 已有 Start AttachPolicy 和控制器生命周期。新增通用边框识别为本地适配，不称为外部成熟实现直接移植。
 
-The native policy/property fixture compiled, but **no fixture checks ran** due
-to the application-control denial. The complete candidate controller also
-compiled without executing it. The current-window GUI success must not be used
-as acceptance of this event-driven candidate.
+微软依据：
+- https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist2-markfullscreenwindow
+- https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist-hrinit
+- https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowrect
 
-After Windows normally admits an appropriately trusted candidate and recovery
-set, run tests/client-edge-latest.ps1, build through build/latest.ps1, package
-and use the existing Update transaction. Do not bypass that transaction or
-rename/move a denied executable to retry it. Confirm all four components recover
-with protection On, then test client restart, repeat maximization, Dock-only
-bottom span, other applications, true fullscreen, explorer recreation and stop
-cleanup. Multi-monitor and secure-desktop behavior remain unverified.
+## 验证与回退
 
-The one-shot diagnostic added NonRudeHWND to the then-current HWND without the
-new adapter's ownership token. Before future automatic acceptance, restore only
-that recorded same-lifetime property (previous value zero), or use a naturally
-recreated client window; never erase a preexisting foreign mark.
+72 项底边规则/原生属性/生命周期检查通过，覆盖有限重试、预算耗尽、终止拒绝、迟到回调、初始化期间停止及当前系统真实 COM/事件注册与释放。测试只创建隐藏的自有窗口，不操作桌面输入、不发布实际应用的兼容标记。51 项维护检查、138 项触发角规则与 33 项配置检查通过。编译和实际唤出分别验收。
 
-Evidence retained outside the published source: work/edge-reveal, including
-read-only before/after hit tests, apply-current-latest.json, pending-build and
-admission-latest.json. None of those diagnostic scripts is an installed startup
-entry. The pending binary is a build artifact, not the deployed latest.exe.
+构建、部署、用户验收实时结果见 verification-latest.json。原 0.8.73 验收保留为 verification-v0.8.73-before-edge-recovery.json；旧底边文档保留为 client-edge-v0.8.73.md。
+
+独立现场材料位于主任务 work/edge-regression-20261019，修改前源码和控制器文件已备份；正式回退使用既有 Update 事务的备份，不直接覆盖部署文件。测试不等于下一次真实开机、睡眠恢复、多屏、全部应用或真正全屏的交互验收。

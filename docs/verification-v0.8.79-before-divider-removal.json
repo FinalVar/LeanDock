@@ -1,0 +1,82 @@
+{
+  "schema": 108,
+  "recordedAt": "2026-10-23T01:25:55.0917050+08:00",
+  "packageVersion": "0.8.79",
+  "backendVersion": "0.5.64",
+  "architecture": "native-taskbar",
+  "state": "BuiltPendingDeployment",
+  "scope": "Replace owned dashboard with 72x46 time/date/perimeter battery key; on-demand panel; native app/tray objects retained",
+  "previousUserAcceptance": {
+    "version": "0.8.78 restored",
+    "answer": "托盘回来了，应用操作和触发角正常"
+  },
+  "checks": {
+    "hiddenNativeXaml": 539,
+    "panelPolicy": 123,
+    "themePolicy": 23,
+    "ownershipLifecycle": 12,
+    "geometry": 199,
+    "shellActions": 195,
+    "maintenance": 51,
+    "readOnlyPanelProbe": {
+      "policyChecks": 123,
+      "normalUser": true,
+      "volume": 16,
+      "mute": false,
+      "brightness": 100,
+      "wifi": 1,
+      "bluetooth": 0,
+      "reads": 2,
+      "writes": 0,
+      "hiddenReadsUnchanged": true,
+      "readOnly": true,
+      "stopMs": 16,
+      "visibleWindows": false,
+      "actualControlWritesTested": false,
+      "darkTheme": 0,
+      "hotspot": 0,
+      "hotspotCapability": 0,
+      "hotspotClients": 0,
+      "themePolicyChecks": 23
+    },
+    "offscreenScales": [
+      100,
+      125,
+      150,
+      200
+    ],
+    "desktopInputAutomation": false,
+    "hiddenProductionHost": {
+      "Initialization": "Passed",
+      "LayoutUpdates": 1,
+      "NativeCardDip": [
+        72,
+        46
+      ],
+      "SubscriptionsAndStopRestored": true,
+      "VisibleTestWindows": false
+    }
+  },
+  "unchangedAcceptedCompanions": [
+    "latest.exe",
+    "start/latest.dll",
+    "panels/latest.dll"
+  ],
+  "newInteractiveAcceptance": "Pending",
+  "remaining": [
+    "new hover transfer and controls need user confirmation",
+    "native QuickTheme tile previously not discovered; panel uses retained theme command",
+    "hotspot real sharing untested",
+    "multi-monitor/DPI transition and sleep recovery need real verification"
+  ],
+  "candidateRevision": 2,
+  "priorCandidate": {
+    "State": "AutomaticallyRolledBack",
+    "Transaction": "before-0.8.79-20261023-011318448",
+    "Error": "Native taskbar owner identity mismatch",
+    "Investigated": "Hidden production fixture reproduced E_INVALIDARG when one XAML PathGeometry was assigned to multiple parents",
+    "Correction": "Distinct geometries, initialize before appending, restore layout only after ownership",
+    "CrashDumpAvailable": false,
+    "CurrentBaseline": "0.8.78 verified restored"
+  }
+}

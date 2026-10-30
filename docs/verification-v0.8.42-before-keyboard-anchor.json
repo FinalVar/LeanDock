@@ -1,0 +1,149 @@
+{
+  "schema": 71,
+  "recordedAt": "2026-10-17T20:05:46.8643752+08:00",
+  "timeZone": "Asia/Shanghai",
+  "packageVersion": "0.8.42",
+  "controllerVersion": "0.3.14",
+  "backendVersion": "0.5.36",
+  "scope": "Direct non-battery card context route into the retained native menu anchor and pointer-focus adapters",
+  "previousVerification": "docs/verification-v0.8.41-before-direct-card-context.json",
+  "evidence": {
+    "userReport": "Time/network cards also show accelerator letters and original taskbar menu placement after battery rollback",
+    "priorSource": "Menu anchor, focus and card implementations matched 0.8.38 and installed snapshot",
+    "runtimeHooks": "Both pinned native menu hooks verified active by passive process reads",
+    "priorContextCounters": "No context request observed in readback; exact failing event was not captured",
+    "rootCause": "Ancestor route suspected, not proven from the reported event"
+  },
+  "tests": {
+    "build": "Passed",
+    "shellActions": {
+      "failures": 0,
+      "inputSent": false,
+      "checks": 159
+    },
+    "cards": {
+      "checks": 115,
+      "failures": 0
+    },
+    "imports": "Passed",
+    "freshChecks": 274,
+    "runtimeFiles": [
+      {
+        "Name": "latest.exe",
+        "Bytes": 308736,
+        "SHA256": "57EA4B53579C69BE407EBD7200E0F3C4E7F25F39A91E51555417E24E880C1BC4"
+      },
+      {
+        "Name": "latest.dll",
+        "Bytes": 2113536,
+        "SHA256": "4BD72B8E5AFCA7357FFB62A09F07009AC41AFCCAF1D5763BCB411DCAED7E839D"
+      },
+      {
+        "Name": "start\\latest.dll",
+        "Bytes": 397312,
+        "SHA256": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627"
+      },
+      {
+        "Name": "panels\\latest.dll",
+        "Bytes": 302592,
+        "SHA256": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87"
+      }
+    ]
+  },
+  "rules": {
+    "card": "Own ContextRequested on card first; ancestor fallback observes Handled",
+    "batteryRight": "Native Windows menu rollback retained",
+    "keyboard": "Unchanged",
+    "application": "Native menu",
+    "tray": "Native menu",
+    "blank": "Suppressed",
+    "position": "Existing native XAML anchor, 8 DIP above Dock at click x",
+    "focus": "Existing Pointer focus conversion",
+    "lifecycle": "Weak Board reference and revoker; no timers or global input hooks"
+  },
+  "review": {
+    "boundaries": "Battery, keyboard, handled events, stopped Board and hidden card excluded",
+    "regression": "Only backend DLL changes; controller, Start and Quick Settings binaries unchanged",
+    "maintainability": "Reuses existing request, native anchor and focus paths"
+  },
+  "acceptance": {
+    "unverified": [
+      "Actual non-battery right-click menu placement and absent accelerator hints",
+      "Battery native right and left quick-settings regression",
+      "App/tray native menus and blank suppression after reload"
+    ],
+    "state": "Loaded; components and hashes verified; actual right-click menu acceptance pending"
+  },
+  "publication": {
+    "localDeployment": "0.8.42",
+    "localSource": "Updated",
+    "gitCommitted": false,
+    "gitPushed": false
+  },
+  "deployment": {
+    "State": "Applied",
+    "Version": "0.8.42",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.42-20261017-200452278",
+    "ChangedFiles": 14,
+    "ConfigPreserved": true
+  },
+  "runtimeReadback": {
+    "At": "2026-10-17T20:05:04.9974962+08:00",
+    "Backend": "0.5.36",
+    "ExplorerPid": 16108,
+    "DockReady": true,
+    "HotCornersReady": true,
+    "StartReady": true,
+    "StartItems": 49,
+    "QuickSettingsActive": true,
+    "QuickThemeActive": true,
+    "WindowLaunch": {
+      "ready": true,
+      "mode": "new-main-windows-once",
+      "candidates": 0,
+      "requests": 0,
+      "maximized": 0,
+      "declined": 0,
+      "failures": 0
+    },
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeHashes": [
+      {
+        "File": "latest.exe",
+        "Match": true
+      },
+      {
+        "File": "latest.dll",
+        "Match": true
+      },
+      {
+        "File": "start\\latest.dll",
+        "Match": true
+      },
+      {
+        "File": "panels\\latest.dll",
+        "Match": true
+      }
+    ],
+    "ConfigHashes": [
+      {
+        "File": "latest.ini",
+        "Match": true
+      },
+      {
+        "File": "hotcorners/latest.ini",
+        "Match": true
+      }
+    ]
+  }
+}
