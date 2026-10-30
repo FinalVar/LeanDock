@@ -26,7 +26,7 @@ if($LASTEXITCODE){throw 'Aggregate compilation failed'}
 foreach($sourceItem in $sourceItems){
  if((Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $sourceItem.Name)).Hash -ne $sourceItem.SHA256){throw 'Source changed during build'}
 }
-$result=[pscustomobject]@{Stage='candidate';Version='0.8.81';Executable=$exe;SHA256=(Get-FileHash -LiteralPath $exe).Hash;BuiltAt=(Get-Date -Format o);Inputs=$sourceItems}
+$result=[pscustomobject]@{Stage='candidate';Version='0.8.83';Executable=$exe;SHA256=(Get-FileHash -LiteralPath $exe).Hash;BuiltAt=(Get-Date -Format o);Inputs=$sourceItems}
 $result|ConvertTo-Json -Depth 4|Set-Content -LiteralPath (Join-Path $out 'latest.json') -Encoding utf8NoBOM
 Copy-Item -LiteralPath $exe -Destination (Join-Path $PSScriptRoot 'latest.exe') -Force
 $pin='#pragma once'+[Environment]::NewLine+'inline constexpr wchar_t AggregatePanelHash[]=L"'+$result.SHA256+'";'+[Environment]::NewLine

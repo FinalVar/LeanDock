@@ -103,9 +103,13 @@ class ControlBackend {
     uint64_t tetherAt=0;bool tetherSuccess=false;
     void HotspotOpen(){
         if(tetherCommand)return;
+        try{HotspotOpen(NetworkInfo::GetInternetConnectionProfile());}catch(...){tether=nullptr;tetherProfile.clear();}
+    }
+    void HotspotOpen(winrt::Windows::Networking::Connectivity::ConnectionProfile const& profile){
+        if(tetherCommand)return;
         // Follow Windows' current Internet profile. Do not choose a VPN/TUN
         // or reconfigure ICS, credentials, bands, drivers, or services ourselves.
-        try{auto profile=NetworkInfo::GetInternetConnectionProfile();
+        try{
             // An existing running hotspot remains stoppable even if Internet
             // connectivity changes. Never silently migrate a sharing session.
             if(tether&&tether.TetheringOperationalState()==TetherState::On)return;
@@ -116,11 +120,12 @@ class ControlBackend {
         }catch(...){tether=nullptr;tetherProfile.clear();}
     }
     void HotspotRead(Controls& s,bool refresh=false){
-        if(refresh&&!tetherCommand)HotspotOpen();
         s.hotspot=-1;s.hotspotClients=0;s.hotspotCapability=-1;s.hotspotLabel=L"不可用";
         s.hotspotBusy=bool(tetherCommand);
         try{
+            // One profile query serves both the refresh and the reading.
             auto profile=NetworkInfo::GetInternetConnectionProfile();
+            if(refresh&&!tetherCommand)HotspotOpen(profile);
             if(profile)s.hotspotCapability=int(TetherManager::GetTetheringCapabilityFromConnectionProfile(profile));
             if(!tether){s.hotspotLabel=profile?L"不可用":L"未连接网络";return;}
             const auto actual=tether.TetheringOperationalState();
@@ -170,21 +175,31 @@ class ControlBackend {
         }catch(...){s.completed[unsigned(command.target)]=command.serial;EndHotspot(s,L"热点不可控制，请检查热点设置");}
     }
     static void Error(Controls& s,const wchar_t* text){s.error=text;s.errorAt=GetTickCount64();}
+    winrt::com_ptr<IMMDeviceEnumerator> audioDevices;
+    winrt::com_ptr<IAudioEndpointVolume> audioVolume;
+    std::wstring audioId;
+    // Reuse the endpoint while Windows' default output stays the same device.
     winrt::com_ptr<IAudioEndpointVolume> Audio(){
-        winrt::com_ptr<IMMDeviceEnumerator> enumerator;winrt::com_ptr<IMMDevice> device;
-        winrt::com_ptr<IAudioEndpointVolume> volume;
-        winrt::check_hresult(CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_INPROC_SERVER,
-            __uuidof(IMMDeviceEnumerator),enumerator.put_void()));
-        winrt::check_hresult(enumerator->GetDefaultAudioEndpoint(eRender,eMultimedia,device.put()));
-        winrt::check_hresult(device->Activate(__uuidof(IAudioEndpointVolume),CLSCTX_INPROC_SERVER,nullptr,volume.put_void()));
-        return volume;
+        if(!audioDevices)winrt::check_hresult(CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_INPROC_SERVER,
+            __uuidof(IMMDeviceEnumerator),audioDevices.put_void()));
+        winrt::com_ptr<IMMDevice> device;
+        winrt::check_hresult(audioDevices->GetDefaultAudioEndpoint(eRender,eMultimedia,device.put()));
+        LPWSTR raw=nullptr;winrt::check_hresult(device->GetId(&raw));
+        std::wstring id(raw?raw:L"");CoTaskMemFree(raw);
+        if(!audioVolume||id!=audioId){
+            winrt::com_ptr<IAudioEndpointVolume> volume;
+            winrt::check_hresult(device->Activate(__uuidof(IAudioEndpointVolume),CLSCTX_INPROC_SERVER,nullptr,volume.put_void()));
+            audioVolume=std::move(volume);audioId=std::move(id);
+        }
+        return audioVolume;
     }
+    void AudioReset(){audioVolume=nullptr;audioDevices=nullptr;audioId.clear();}
     void AudioRead(Controls& s){
         s.volume=-1;s.mute=false;
         try{auto audio=Audio();float value=0;BOOL mute=FALSE;
             winrt::check_hresult(audio->GetMasterVolumeLevelScalar(&value));winrt::check_hresult(audio->GetMute(&mute));
             s.volume=int(std::lround(std::clamp(value,0.f,1.f)*100));s.mute=mute!=FALSE;
-        }catch(...){}
+        }catch(...){AudioReset();}
     }
     void Connect(){
         if(wmi)return;
@@ -218,6 +233,14 @@ class ControlBackend {
             winrt::check_hresult(VariantChangeType(&level.v,&level.v,0,VT_I4));
             if(level.v.lVal>=0&&level.v.lVal<=100&&name.v.vt==VT_BSTR){s.brightness=level.v.lVal;brightnessInstance=name.v.bstrVal;}
         }catch(...){wmi=nullptr;}
+    }
+    uint64_t brightnessAt=0;
+    // WMI brightness is a cross-process query. Every three seconds suffices
+    // for a hover panel; a change made in the panel is read back at once.
+    void BrightnessPoll(Controls& s,bool force){
+        const auto now=GetTickCount64();
+        if(!force&&brightnessAt&&now-brightnessAt<3000)return;
+        brightnessAt=now;BrightnessRead(s);
     }
     void BrightnessSet(int value){
         if(brightnessInstance.empty())winrt::throw_hresult(E_NOTIMPL);
@@ -303,10 +326,12 @@ public:
         }catch(...){EndChange(s,L"无线设备操作失败");}
         RadioRead(s);
     }
-    void Read(Controls& s){
-        ++s.reads;AudioRead(s);BrightnessRead(s);ThemeRead(s);HotspotRead(s,true);Pump(s);
+    // full=false is the first round after opening: WMI is left for ReadBrightness.
+    void Read(Controls& s,bool full=true){
+        ++s.reads;AudioRead(s);if(full)BrightnessPoll(s,false);ThemeRead(s);HotspotRead(s,true);Pump(s);
         if(!s.error.empty()&&GetTickCount64()-s.errorAt>5000)s.error.clear();
     }
+    void ReadBrightness(Controls& s){BrightnessPoll(s,true);}
     void Apply(ControlCommand command,Controls& s){
         if(command.target==Control::Hotspot){HotspotSet(std::move(command),s);return;}
         if(command.target==Control::DarkTheme){ThemeSet(command,s);return;}
@@ -321,14 +346,15 @@ public:
                 else{winrt::check_hresult(audio->SetMasterVolumeLevelScalar(std::clamp(command.value,0,100)/100.f,nullptr));
                     if(command.value>0)winrt::check_hresult(audio->SetMute(FALSE,nullptr));}}
             ++s.writes;s.error.clear();
-        }catch(...){Error(s,command.target==Control::Brightness?L"亮度调整失败，设备可能已断开":L"音频设备未能应用更改");}
+        }catch(...){if(command.target!=Control::Brightness)AudioReset();
+            Error(s,command.target==Control::Brightness?L"亮度调整失败，设备可能已断开":L"音频设备未能应用更改");}
         s.completed[unsigned(command.target)]=command.serial;
         // Actual device readback, never invent a successful value.
         if(command.target==Control::Brightness)BrightnessRead(s);else AudioRead(s);
     }
     void Close(Controls& s){
         if(enumeration)try{enumeration.Cancel();}catch(...){}enumeration=nullptr;
-        EndChange(s);radios.clear();wmi=nullptr;brightnessInstance.clear();
+        EndChange(s);radios.clear();wmi=nullptr;brightnessInstance.clear();brightnessAt=0;AudioReset();
         // Cancel our wait only. Never stop the user's active hotspot on hide/unload.
         EndHotspot(s);tether=nullptr;tetherProfile.clear();s.hotspotBusy=false;
     }

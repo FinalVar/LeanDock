@@ -204,7 +204,8 @@ def main():
     std::shared_ptr<LeanDockCards::Host> cards;
     bool cardsClosing=false;""")
             source = replace_once(source, "void UpdateClickThroughRegion(ClickThroughTaskbarState& state) {",
-                '#include "surface-latest.inc"\nvoid UpdateClickThroughRegion(ClickThroughTaskbarState& state) {')
+                '#include "layout-cost-latest.h"\n#include "surface-latest.inc"\nvoid UpdateClickThroughRegion(ClickThroughTaskbarState& state) {\n'
+                '    LeanDockLayoutCost::Scope cost(LeanDockLayoutCost::Surface);')
             source = replace_once(source, """    RECT currentRgnBox;
     bool hasRgn = GetWindowRgnBox(topLevelWnd, &currentRgnBox) != ERROR;
     auto appliedRgnBoxIt = g_clickThroughAppliedRgnBoxes.find(topLevelWnd);

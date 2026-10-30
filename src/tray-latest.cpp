@@ -20,6 +20,7 @@
 #include <winrt/Windows.UI.Xaml.Data.h>
 #include <winrt/Windows.UI.Xaml.Automation.h>
 #include "shell-menu-latest.h"
+#include "layout-cost-latest.h"
 #include "cards-dashboard-latest.h"
 #include "power-target-latest.h"
 #include <winrt/Windows.UI.Xaml.Input.h>
@@ -872,6 +873,7 @@ bool MapNativePowerHit(FrameworkElement const& battery,HWND taskbar) {
 // a measured, noninteractive zero-flow slot without an extra tray icon.
 // An unavailable dashboard restores the original compact native entry.
 void UpdateUnifiedDockGrid() {
+    LeanDockLayoutCost::Scope cost(LeanDockLayoutCost::Tray);
     if(!g_dockUnified||g_dockUnified->updating||g_unloading||
        g_dockUnified->threadId!=GetCurrentThreadId())return;
     auto root=g_dockUnified->root.get();

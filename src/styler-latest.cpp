@@ -7018,8 +7018,10 @@ bool IsTaskbarTopLevelWindow(HWND hWnd) {
 // Click-through taskbar: clip the top-level taskbar window to the union of the
 // TaskbarFrame and SystemTrayFrame rects so the empty areas become both
 // invisible and click-through.
+#include "layout-cost-latest.h"
 #include "surface-latest.inc"
 void UpdateClickThroughRegion(ClickThroughTaskbarState& state) {
+    LeanDockLayoutCost::Scope cost(LeanDockLayoutCost::Surface);
     auto taskbarFrame = state.taskbarFrame.get();
     if (!taskbarFrame) {
         Wh_Log(L"No live TaskbarFrame");

@@ -491,4 +491,6 @@ The native upstream modules and their existing notices remain unchanged. `aggreg
 
 Version 0.8.81 adds locally written visible-only CPU trend/clock and metric throttling. The GPU 3D grouping uses PDH adapter LUID/physical-engine identities matched to DXGI; Microsoft's DirectX article "GPUs in the task manager" is a behavior reference, not imported source. This view explicitly reports 3D, not total GPU load. Existing input, control workers, native tray/pins, component ownership and rollback remain retained.
 
+Version 0.8.83 reorders the locally written hover-panel sampling (inexpensive values first, deferred PDH/WMI opens, a 300 ms first rate interval), reuses the default audio endpoint while it is unchanged, prunes finished update backups beyond the newest five, and adds always-on call/time counters around LeanDock's tray and surface layout handlers. No third-party source is added.
+
 Version 0.8.82 adds STARTF_FORCEOFFFEEDBACK only to the native hover-panel launch. Microsoft's public STARTUPINFOW contract documents default GUI startup feedback and this opt-out: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/ns-processthreadsapi-startupinfow . This is an API contract reference, not copied source or a new dependency. Suspended creation, owner publication, child lifetime and all accepted panel binaries remain unchanged.

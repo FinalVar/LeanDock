@@ -201,7 +201,8 @@ try{
   ($plan.Files|Where-Object Name -EQ 'latest.json').NewHash=(Get-FileHash $oldReceipt).Hash
   $plan.State='Applied';$plan.CompletedAt=(Get-Date -Format o);Save-Plan $plan
   New-Item -ItemType File -Path (Join-Path $BackupPath 'committed')|Out-Null
-  [pscustomobject]@{State='Applied';Version=$manifest.Version;Live=$state.Live;ComponentHealth=$health;Backup=$BackupPath;ChangedFiles=$changes.Count;ConfigPreserved=$true}|ConvertTo-Json -Depth 6
+  $pruned=Remove-LeanDockOldBackups $Destination $BackupPath 5
+  [pscustomobject]@{State='Applied';Version=$manifest.Version;Live=$state.Live;ComponentHealth=$health;Backup=$BackupPath;ChangedFiles=$changes.Count;ConfigPreserved=$true;PrunedBackups=$pruned.Removed;PrunedBytes=$pruned.Bytes}|ConvertTo-Json -Depth 6
  }catch{
   $failure=$_;$plan.Error=$failure.Exception.Message;Save-Plan $plan
   try{if($mutated){Restore-Transaction $plan}else{New-Item -ItemType File -Path (Join-Path $BackupPath 'restored') -Force|Out-Null}}catch{

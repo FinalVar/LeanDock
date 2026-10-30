@@ -112,6 +112,28 @@ $pending=$before|ConvertTo-Json -Depth 5|ConvertFrom-Json
 $pending.StartLayoutReady=$false
 $confirmed=Confirm-Readiness $pending $required
 Check ($confirmed.StartLayoutReady -and $script:statusReads -eq 1) 'wait for companion after core readiness'
+# Backup retention: newest finished backups by timestamp (0.8.10 after 0.8.9),
+# never unfinished, manually flagged, non-update or linked backups.
+$deploy=Join-Path $work 'deploy';$backups=Join-Path $deploy 'backups'
+function New-Backup([string]$Name,[string]$Marker){
+ $d=Join-Path $backups $Name;New-Item -ItemType Directory (Join-Path $d 'original') -Force|Out-Null
+ 'old bytes'|Set-Content (Join-Path $d 'original/latest.dll')
+ if($Marker){New-Item -ItemType File (Join-Path $d $Marker)|Out-Null};$d
+}
+$finished=@(foreach($i in 1..8){New-Backup ('before-0.8.'+$i+'-2026100'+$i+'-120000000') 'committed'})
+$restoredBackup=New-Backup 'before-0.8.9-20261009-120000000' 'restored'
+$currentBackup=New-Backup 'before-0.8.10-20261010-120000000' 'committed'
+$unfinished=New-Backup 'before-0.8.0-20260901-000000000' $null
+$manual=New-Backup 'before-0.7.9-20260902-000000000' 'committed';New-Item -ItemType File (Join-Path $manual 'manual-recovery-required')|Out-Null
+$capsule=New-Backup 'capsule-20260903-120000' 'committed'
+$linked=New-Backup 'before-0.7.1-20260904-000000000' 'committed';New-Item -ItemType Junction -Path (Join-Path $linked 'link') -Target $outside|Out-Null
+$pruned=Remove-LeanDockOldBackups $deploy $currentBackup 5
+Check ($pruned.Removed -eq 5 -and $pruned.Bytes -gt 0) 'prune finished backups beyond the newest five'
+Check ((Test-Path $currentBackup) -and (Test-Path $restoredBackup) -and @($finished[5..7]|Where-Object {Test-Path $_}).Count -eq 3) 'keep current and four newest finished backups'
+Check (@($finished[0..4]|Where-Object {Test-Path $_}).Count -eq 0) 'remove older finished backups'
+Check ((Test-Path $unfinished) -and (Test-Path $manual) -and (Test-Path $capsule)) 'keep unfinished, manual-recovery and non-update backups'
+Check ((Test-Path $linked) -and (Test-Path $outside)) 'never delete through a reparse point'
+Check ((Remove-LeanDockOldBackups $deploy $currentBackup 5).Removed -eq 0) 'retention is idempotent'
 # Retain bounded fixtures for diagnosis. No recursive deletion in tests.
 $result=[pscustomobject]@{Checks=$checks;Failures=0;WindowsMutations=$false;Fixture=$work}
 $result|ConvertTo-Json|Tee-Object -FilePath (Join-Path $PSScriptRoot 'maintenance-latest.json')

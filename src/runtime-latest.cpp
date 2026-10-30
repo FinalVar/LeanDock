@@ -5,6 +5,7 @@
 #include "verify-latest.h"
 #include "settings-generated.h"
 #include "config-latest.h"
+#include "layout-cost-latest.h"
 #include "../vendor/minhook/include/MinHook.h"
 #include "../vendor/minhook/src/hde/hde64.h"
 #include <atomic>
@@ -252,16 +253,23 @@ extern "C" unsigned long long Native_hide_attention(unsigned key);
 static bool g_initializedCore[5]{};
 
 static void SaveState() {
+    struct Cost {unsigned long long calls,micros,worst;};
+    auto cost=[](LeanDockLayoutCost::Kind kind){auto& t=LeanDockLayoutCost::totals[kind];
+        return Cost{t.calls.load(),LeanDockLayoutCost::Micros(t.ticks.load()),LeanDockLayoutCost::Micros(t.worst.load())};};
+    const Cost tray=cost(LeanDockLayoutCost::Tray),surface=cost(LeanDockLayoutCost::Surface);
     unsigned elements=0;
     if(g_state==NativeActive)elements=Native_styler_count();
     size_t hooks;{std::lock_guard guard(g_hookMutex);hooks=g_hooks.size();}
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.5.67\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s,"
-        "\"attentionPolicy\":{\"active\":%s,\"blockedReveals\":%llu,\"ignoredFlashingChecks\":%llu,\"passedReveals\":%llu}}\n",
+        "{\"protocol\":1,\"version\":\"0.5.68\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s,"
+        "\"attentionPolicy\":{\"active\":%s,\"blockedReveals\":%llu,\"ignoredFlashingChecks\":%llu,\"passedReveals\":%llu},"
+        "\"layoutCost\":{\"tray\":{\"calls\":%llu,\"micros\":%llu,\"worstMicros\":%llu},"
+        "\"surface\":{\"calls\":%llu,\"micros\":%llu,\"worstMicros\":%llu}}}\n",
         GetCurrentProcessId(),g_ownerPid,g_state.load(),hooks,elements,g_fault?"true":"false",
         Native_hide_attention(0)?"true":"false",Native_hide_attention(1),
-        Native_hide_attention(2),Native_hide_attention(3));
+        Native_hide_attention(2),Native_hide_attention(3),
+        tray.calls,tray.micros,tray.worst,surface.calls,surface.micros,surface.worst);
     HANDLE file=CreateFileW(FilePath(L"latest-backend.json").c_str(),GENERIC_WRITE,
         FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,json,size,&written,nullptr);CloseHandle(file);}

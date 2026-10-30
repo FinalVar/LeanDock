@@ -1,180 +1,139 @@
 {
-  "version": "0.8.82",
-  "backendVersion": "0.5.67",
-  "panelVersion": "0.8.81",
-  "state": "DeployedAccepted",
-  "date": "2026-10-23T02:17:36.9661717+08:00",
-  "change": "Add STARTF_FORCEOFFFEEDBACK to native hover panel CreateProcess startup; retain all other lifecycle and input behavior",
-  "sourceEvidence": [
-    "src/cards-aggregate-latest.cpp ShowPanel previously used STARTF_USESHOWWINDOW only; GUI executable built with -mwindows",
-    "Microsoft STARTUPINFOW documents default GUI startup cursor when neither feedback flag is specified",
-    "aggregate sources contain no IDC_WAIT, IDC_APPSTARTING or SetCursor busy-cursor path"
-  ],
-  "reference": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/ns-processthreadsapi-startupinfow",
-  "preserved": [
-    "0.8.81 panel binary and SHA binding",
-    "0.8.78 accepted controller / Start / panels binaries",
-    "native tray/pins/menus/hotcorners",
-    "72x46 DIP key and 78 DIP reservation",
-    "ordinary Explorer token and suspended PID/cookie handshake",
-    "panel exits on close; no new resident process or global cursor change"
-  ],
-  "previousAcceptance": {
-    "version": "0.8.81",
-    "record": "docs/verification-v0.8.81-before-hover-cursor.json",
-    "answer": "显示和操作都正常",
-    "scope": "seconds, CPU trend, separate AMD/NVIDIA display, panel size, controls and closing"
-  },
+  "version": "0.8.83",
+  "date": "2026-10-31T00:20:29.2139251+08:00",
+  "state": "DeployedPendingUserAcceptance",
+  "backendVersion": "0.5.68",
+  "panelVersion": "0.8.83",
+  "change": "Panel shows first values without waiting for PDH/WMI (300 ms warm-up for rates, GPU and brightness right after the first frame); volume enumerator reused while the default device is unchanged; hotspot profile read once per sample; brightness polled every 3 s; Update keeps the current plus 4 newest finished backups; always-on layout cost counters in latest-backend.json",
   "checks": [
-    "BackendOnly build passed; only runtime version and hover startup flag changed",
-    "Production native hidden XAML Init/layout/power subscription/Stop restoration passed",
-    "Native key 72x46 DIP, reservation 78 DIP, center delta zero",
-    "Panel/controller/Start/panels binaries match accepted hashes",
-    "424 delivered files match package hashes; component health Ready",
-    "All 3 config files, login task, Taskband and native pin shortcuts unchanged",
-    "Panel/controller/Start/panels unchanged; no independent Dock or closed panel process",
-    "Runtime rollback recorded before-0.8.82-20261023-021953431"
+    "Aggregate panel and BackendOnly builds passed; only the existing hide-latest.cpp deprecation warning",
+    "Regenerated styler-latest.cpp and tray-latest.cpp differ from 0.8.82 only by the layout-cost include and scope",
+    "Controller / Start / panels binaries are the exact 0.8.78 accepted files",
+    "23 pre-deploy checks passed: runtime (91), grid, geometry, cards x4, attention, client-edge, clip-ownership, theme-notify, start-lifecycle, maintenance (including 6 backup-retention cases), shell-actions, quick-position, hotcorners, cards-aggregate, cards-aggregate-host, imports, panel lifecycle, 3 read-only probes",
+    "ValidateOnly passed before any change; Update Applied, Live, ComponentHealth Ready",
+    "latest.ini, hotcorners/latest.ini and cards/latest.ini unchanged",
+    "Post-deploy aggregate autotest passed with installed files and Explorer unchanged"
   ],
-  "pending": [],
-  "rollback": "Existing Update/Rollback transaction; no manual replacement of loaded DLL",
+  "preDeployValidation": {
+    "At": "2026-10-31T00:16:51+08:00",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.83-outputs/pre-deploy-20261031-001651",
+    "ProbeResult": {
+      "reads": 2,
+      "writes": 0,
+      "normalUser": true,
+      "readOnly": true,
+      "hiddenReadsUnchanged": true,
+      "hiddenSamplingUnchanged": true,
+      "stopMs": 0,
+      "brightness": 100,
+      "gpus": 2
+    },
+    "Note": "The runtime test was rerun separately after a path typo in the batch script; 91 checks passed"
+  },
+  "automatedValidation": {
+    "At": "2026-10-31T00:22:48.5368128+08:00",
+    "State": "AutomatedChecksPassed",
+    "ProbeCycles": 3,
+    "Stages": [
+      "native-geometry",
+      "native-host-lifetime",
+      "panel-lifecycle",
+      "probe-1",
+      "probe-2",
+      "probe-3",
+      "passive-observation"
+    ],
+    "InstalledFilesUnchanged": true,
+    "ExplorerUnchanged": true,
+    "ProbeLeftovers": [],
+    "Observation": "NotObserved",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.83-outputs/post-deploy/20261031-002120-6e55a5be"
+  },
   "deployment": {
-    "State": "DeployedPendingCursorAcceptance",
-    "At": "2026-10-23T02:20:08.2876735+08:00",
-    "Version": "0.8.82",
+    "State": "DeployedPendingUserAcceptance",
+    "At": "2026-10-31T00:20:29.2139251+08:00",
+    "Version": "0.8.83",
     "Architecture": "native-taskbar",
     "Live": true,
-    "DockReady": true,
-    "HotCornersReady": true,
     "ComponentHealth": {
       "State": "Ready",
       "Unavailable": [],
       "Pending": []
     },
-    "BackendVersion": "0.5.67",
-    "PackageFiles": 424,
-    "Mismatches": [],
-    "Preserved": [
-      {
-        "Name": "latest.ini",
-        "Unchanged": true
-      },
-      {
-        "Name": "hotcorners/latest.ini",
-        "Unchanged": true
-      },
-      {
-        "Name": "cards/latest.ini",
-        "Unchanged": true
-      },
-      {
-        "Name": "latest.exe",
-        "Unchanged": true
-      },
-      {
-        "Name": "start/latest.dll",
-        "Unchanged": true
-      },
-      {
-        "Name": "panels/latest.dll",
-        "Unchanged": true
-      },
-      {
-        "Name": "aggregate/latest.exe",
-        "Unchanged": true
-      }
+    "BackendVersion": "0.5.68",
+    "PackageFiles": 435,
+    "ChangedFiles": 201,
+    "RuntimeChanged": [
+      "aggregate/latest.exe",
+      "latest.dll"
     ],
-    "TaskUnchanged": true,
-    "NativePinsRegistryUnchanged": true,
-    "NativePinShortcutsUnchanged": true,
-    "NativeTaskbarOwner": "C:\\Windows\\Explorer.EXE",
-    "IndependentDockProcesses": 0,
-    "OnDemandPanelProcesses": 0,
-    "CardProperties": {
-      "LeanDock.Card.Ready": 1,
-      "LeanDock.Card.Fits": 1,
-      "LeanDock.Card.Visible": 0,
-      "LeanDock.Card.PowerReady": 1,
-      "LeanDock.Card.PowerActive": 0,
-      "LeanDock.Card.Dashboard.Width100": 7200,
-      "LeanDock.Card.AggregateVersion": 1,
-      "LeanDock.Card.Left100": 98467,
-      "LeanDock.Card.Top100": 767,
-      "LeanDock.Card.Right100": 105667,
-      "LeanDock.Card.Bottom100": 5367,
-      "LeanDock.Card.ClockHourMinute": -1,
-      "LeanDock.Card.ClockMonthDay": -1,
-      "LeanDock.Card.ClockUpdates": -1,
-      "LeanDock.Card.BatteryPercent": -1,
-      "LeanDock.Card.PowerUpdates": -1,
-      "LeanDock.Card.Errors": 0,
-      "LeanDock.Card.PanelError": -1,
-      "LeanDock.Card.Sampling": 0,
-      "LeanDock.Card.NetworkActive": 0,
-      "LeanDock.Card.SurfaceCenterY100": 3067,
-      "LeanDock.Card.CenterDelta100": 0,
-      "LeanDock.Card.OffsetY100": 100,
-      "LeanDock.Aggregate.Left": 1477,
-      "LeanDock.Aggregate.Top": 1609,
-      "LeanDock.Aggregate.Right": 1585,
-      "LeanDock.Aggregate.Bottom": 1678,
-      "LeanDock.Aggregate.PanelPid": 0,
-      "LeanDock.Aggregate.PanelWindow": 0,
-      "LeanDock.Aggregate.ControlWindow": 0,
-      "LeanDock.Aggregate.Cookie": 0,
-      "LeanDock.Hide.KeepShown": 1
+    "RuntimeFiles": {
+      "latest.exe": "FCA312C81D1BF8D8AA2E1E54A37590E584E93940F488C531187909ED9B8F6899",
+      "latest.dll": "A01D0D727B41C678FEA3CDBD29E4536CDC80D6519B82B6AF63B108E52703C2B9",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "E887362A4F766CF4B9EF73F04216FFC08C8F57847DB8D8D74EFABBCD3D70A8AE"
     },
-    "Backup": "C:\\Users\\x\\Documents\\Codex\\Tools\\NativeTaskbarDock\\backups\\before-0.8.82-20261023-021953431",
-    "QuickTheme": {
-      "version": "0.2.0",
-      "pid": 7152,
-      "ownerPid": 29704,
-      "active": true,
-      "rootReady": false,
-      "tileInstalled": false,
-      "buttonReady": false,
-      "busy": false,
-      "workerPid": 0,
-      "dark": true,
-      "stateKnown": true,
-      "discoveries": 8,
-      "switches": 0,
-      "failures": 1,
-      "lastExit": 0,
-      "discoveryResult": 0,
-      "watchMode": "events"
+    "Backup": "backups/before-0.8.83-20261031-002009994",
+    "Components": {
+      "DockReady": true,
+      "HotCornersReady": true,
+      "StartLayoutReady": true,
+      "ClientEdgeReady": true,
+      "QuickTheme": "0.2.0",
+      "HotCorners": "1.0.12-integrated"
     },
-    "UserAcceptance": "Native 0.8.80 appearance accepted; 0.8.79 hover/sliders/Start accepted; 0.8.81 user confirmed display and operation normal"
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ],
+    "Runner": "PowerShell 7 in the signed-in desktop session (elevated); Windows PowerShell 5.1 misreads the UTF-8 receipt",
+    "BackupCleanup": {
+      "RecycledBeforeUpdate": 122,
+      "RecycledMiB": 195.7,
+      "PrunedByUpdate": 1,
+      "PrunedBytes": 4646472,
+      "Remaining": "51 directories, 183.1 MiB (capsule-era, pre-0.7 and unfinished backups are outside the rule)",
+      "InstallDirectoryMiB": {
+        "Before": 388,
+        "After": 194.9
+      }
+    },
+    "LayoutCostAfterRestart": {
+      "tray": {
+        "calls": 15,
+        "micros": 4573,
+        "worstMicros": 745
+      },
+      "surface": {
+        "calls": 15,
+        "micros": 8838,
+        "worstMicros": 4216
+      }
+    }
   },
-  "userAcceptance": {
-    "At": "2026-10-23T12:17:35.2205806+08:00",
-    "QuestionItem": "call_4feae4efb187421398179f42351a4c34:0",
-    "Answer": "繁忙圈消失，面板正常",
-    "Scope": "Repeated real hover: no transient busy cursor; panel opens and closes normally",
-    "Source": "Direct user reply in current conversation"
+  "rollback": "Existing Update/Rollback transaction with backups/before-0.8.83-20261031-002009994; older backups recycled, not deleted",
+  "preserved": [
+    "0.8.78 accepted controller / Start / panels binaries",
+    "native tray/pins/menus/hotcorners",
+    "72x46 DIP key and 78 DIP reservation",
+    "panel exits on close; no new resident process, polling while hidden, or global cursor change"
+  ],
+  "previousAcceptance": {
+    "version": "0.8.82",
+    "record": "docs/verification-v0.8.82-before-performance-pass.json",
+    "answer": "繁忙圈消失，面板正常",
+    "scope": "Repeated real hover: no transient busy cursor; panel opens and closes normally"
   },
-  "automatedValidation": {
-    "At": "2026-10-23T02:31:51+08:00",
-    "State": "AutomatedChecksPassed",
-    "ProbeCycles": 3,
-    "Observation": "NotObserved",
-    "Evidence": "outputs/native-aggregate-autotest-20261023/latest.json",
-    "Note": "Historical observer had no natural hover sample; user acceptance above is separate evidence"
-  },
-  "lifecycleValidation": {
-    "At": "2026-10-23T12:32:21.1788112+08:00",
-    "State": "AutomatedChecksPassed",
-    "Evidence": "outputs/native-aggregate-lifecycle-20261023/regression/latest.json",
-    "LifecycleAssertions": 314,
-    "PanelCloseCases": 19,
-    "WorkerCycles": 22,
-    "MaximumWorkerStopMs": 328,
-    "OwnedPanelWindows": 0,
-    "InstalledFilesUnchanged": true,
-    "ExplorerUnchanged": true,
-    "IsolatedProbeLeftovers": [],
-    "Observation": "NotObserved",
-    "OffscreenReview": "200% fixed light/dark fixtures reviewed; no clipping or overlaps",
-    "RuntimeChanges": [],
-    "Note": "Hidden fixtures exercise actual production classes; notification injection into own HWNDs does not verify real sleep/host restart. Corrected single-PeekMessage test expectation, not production code."
-  }
+  "pending": [
+    "User hover: first values appear sooner and all fields still fill in (CPU, network, GPU, brightness)",
+    "layoutCost over a normal working day, to decide whether LayoutUpdated work needs reducing"
+  ],
+  "sourceEvidence": [
+    "2026-10-30 measurement on this PC: PDH GPU wildcard open + first collect 307 ms (203 ms CPU), later refresh 0.5 ms; WMI ROOT\\WMI connect 55 ms, brightness query ~7 ms (first 26.6 ms); GetInternetConnectionProfile ~6.5 ms per call",
+    "Before 0.8.83 the first detail sample ran PDH and WMI before the first publish, so the panel was empty for ~0.4 s and rates needed ~1 s",
+    "Install directory held 173 update backups (376.5 MiB) because Update never removed any"
+  ],
+  "userAcceptance": null
 }

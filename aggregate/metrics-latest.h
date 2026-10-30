@@ -201,14 +201,15 @@ class Metrics {
         if(networkAt&&now>networkAt)s.network=L"↓ "+Rate(down*1000/(now-networkAt))+L"　↑ "+Rate(up*1000/(now-networkAt));
         networkPrevious=std::move(next);networkAt=now;
     }
-    void Details(Sample& s) {
+    void Details(Sample& s,bool gpu=true) {
         ++s.detailReads;
         MEMORYSTATUSEX mem{sizeof(mem)};
         if(GlobalMemoryStatusEx(&mem)){
             s.memory=mem.dwMemoryLoad;s.capacity=Fixed(double(mem.ullTotalPhys-mem.ullAvailPhys)/1073741824)+
                 L" / "+Fixed(double(mem.ullTotalPhys)/1073741824)+L" GB";
         }
-        Gpu(s);Network(s);
+        if(gpu)Gpu(s);
+        Network(s);
         const auto now=GetTickCount64();
         if(!disksAt||now-disksAt>=10000){
         disksAt=now;++s.diskReads;s.disks.clear();
@@ -247,11 +248,18 @@ class Metrics {
         }
         MediaRead(s);
     }
+    // A hover panel is read in its first second. Rates (CPU, network, GPU)
+    // need two samples, so the first interval after opening is shorter.
+    static constexpr uint64_t WarmupMs=300;
+    void Publish(Sample& s){
+        s.at=GetTickCount64();{std::lock_guard lock(mutex);data=s;}
+        if(visible&&notify)PostMessageW(notify,WM_APP+28,0,0);
+    }
     void Run(std::stop_token stop) {
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
         workerThread=GetCurrentThreadId();CoEnableCallCancellation(nullptr);
         auto controls=std::make_unique<ControlBackend>();
-        uint64_t nextSample=0,nextDetails=0;bool opened=false;
+        uint64_t nextSample=0,nextDetails=0;unsigned samples=0,details=0;bool opened=false,slow=false;
         while(!stop.stop_requested()){
             Sample s;{std::lock_guard lock(mutex);s=data;}
             std::vector<ControlCommand> pending;
@@ -259,11 +267,11 @@ class Metrics {
             {std::lock_guard lock(waitMutex);changed=false;refresh=refreshControls;refreshControls=false;pending=commands.Take();}
             const auto now=GetTickCount64();const bool show=visible;
             if(refresh&&opened){controls->Close(s);opened=false;}
-            if(show&&!opened){controls->Open();opened=true;nextDetails=nextSample=0;cpuReady=false;s.history.clear();}
+            if(show&&!opened){controls->Open();opened=true;nextDetails=nextSample=0;samples=details=0;cpuReady=false;s.history.clear();}
             bool publish=false;
             // Commands wake this thread, but must not increase CPU/history or
-            // network sampling frequency beyond the existing one-second rate.
-            if(show&&now>=nextSample){nextSample=now+1000;
+            // network sampling frequency beyond one second after the warm-up.
+            if(show&&now>=nextSample){nextSample=now+(samples++?1000:WarmupMs);
             FILETIME i{},k{},u{};
             if(GetActiveProcessorCount(ALL_PROCESSOR_GROUPS)<=64&&GetSystemTimes(&i,&k,&u)){
                 auto ii=Ticks(i),kk=Ticks(k),uu=Ticks(u);
@@ -272,19 +280,27 @@ class Metrics {
                 idle=ii;kernel=kk;user=uu;cpuReady=true;
             }
             publish=true;}
-            if(show&&now>=nextDetails){nextDetails=now+1000;
-                try{Details(s);controls->Read(s);}catch(...){Log(L"detail-sample-error");}publish=true;}
+            if(show&&now>=nextDetails){nextDetails=now+(details++?1000:WarmupMs);
+                // Opening PDH (~0.3 s) and WMI waits until the first values are shown.
+                slow=details==1;
+                try{Details(s,!slow);controls->Read(s,!slow);}catch(...){Log(L"detail-sample-error");}publish=true;}
             for(auto& command:pending){if(stop.stop_requested())break;controls->Apply(std::move(command),s);publish=true;}
             if(!stop.stop_requested()&&controls->Pending()){controls->Pump(s);publish=true;}
             if(!show&&opened){
-                controls->Close(s);opened=false;publish=true;
+                controls->Close(s);opened=false;publish=true;slow=false;
                 networkPrevious.clear();networkAt=0;s.network=L"—";
                 if(query){PdhCloseQuery(query);query=nullptr;counter=nullptr;}
                 if(metadata){try{metadata.Cancel();}catch(...){}metadata=nullptr;}
                 if(request){try{request.Cancel();}catch(...){}request=nullptr;}
             }
-            if(publish){s.at=GetTickCount64();{std::lock_guard lock(mutex);data=std::move(s);}
-                if(visible&&notify)PostMessageW(notify,WM_APP+28,0,0);}
+            if(publish)Publish(s);
+            if(slow&&show&&!stop.stop_requested()){
+                slow=false;
+                try{Gpu(s);controls->ReadBrightness(s);}catch(...){Log(L"detail-sample-error");}
+                // A GPU rate needs a real interval after PDH's first collection.
+                nextDetails=GetTickCount64()+WarmupMs;
+                Publish(s);
+            }
             auto delay=std::max<int64_t>(1,int64_t(nextSample)-int64_t(GetTickCount64()));
             if(show)delay=std::min(delay,std::max<int64_t>(1,int64_t(nextDetails)-int64_t(GetTickCount64())));
             if(controls->Pending())delay=std::min<int64_t>(delay,50);

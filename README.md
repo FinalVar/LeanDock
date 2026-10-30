@@ -9,7 +9,7 @@
 
 <img src="docs/assets/badge-platform.svg" alt="platform: Windows 11">
 <img src="docs/assets/badge-cpp.svg" alt="C++23">
-<img src="docs/assets/badge-version.svg" alt="version 0.8.82">
+<img src="docs/assets/badge-version.svg" alt="version 0.8.83">
 <img src="docs/assets/badge-license.svg" alt="license: GPL-3.0">
 
 <br><br>
@@ -155,7 +155,7 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 |:--|:--|
 | `Status` | 查看运行状态和各组件是否就绪 |
 | `Start` ／ `Stop` | 启动或停止，Stop 会把任务栏恢复原样 |
-| `Update` ／ `Rollback` | 带备份的更新，以及回到上一次更新前 |
+| `Update` ／ `Rollback` | 带备份的更新（只留最近 5 份备份），以及回到上一次更新前 |
 | `Install` ／ `Uninstall` | 注册或移除开机启动的计划任务（需要管理员）；Uninstall 不删文件 |
 | `PauseCorners` ／ `ResumeCorners` ／ `ReloadCorners` | 暂停、恢复触发角，或改完配置后重新读取 |
 | `Resources` | 测量资源占用 |
@@ -198,6 +198,7 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 - **当前维护线只重建 Explorer 组件**：`.\build\latest.ps1 -BackendOnly`。控制进程、开始菜单和快速设置组件沿用 0.8.78 验收过的二进制，因为工作区里 hotcorners 的源码还有未审查的改动。
 - 任务栏适配代码由 `build/generate-latest.py` 生成，触发角接入由 `build/adapt-hotcorners-latest.py` 生成。改生成器，不要只改生成出来的文件。
 - `tests/` 下每个 `*-latest.ps1` 检查一个模块，例如 `tests\latest.ps1`（运行层）、`tests\aggregate-autotest-latest.ps1`（时间键和面板）。它们不接管正在用的 Dock，也不发送真实按键；测试通过不等于实际用起来没问题。
+- `latest-backend.json` 里的 `layoutCost` 记录 Dock 每次重新排版时 LeanDock 回调的次数和累计耗时（微秒），用来判断这条路径值不值得优化。运行 `Status` 会刷新它。
 - 每个版本的检查和验收记录在 [docs/verification-latest.json](docs/verification-latest.json)，历史版本在 `docs/verification-v*.json`。
 - 和早期设计稿的逐项对照：[docs/aggregate-comparison-latest.md](docs/aggregate-comparison-latest.md)。
 - 改写前的旧 README（逐版本的改动说明）：[docs/readme-v0.8.82.md](docs/readme-v0.8.82.md)。
@@ -214,6 +215,7 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 | 10 月 17 日起 | 0.8.35 – 0.8.77 | 打磨图标清晰度、右键菜单、窗口切换器，以及与最大化窗口的相处 |
 | 10 月 20 日 | 胶囊 0.9.x | 试过用一条独立的胶囊 Dock 取代任务栏，最后决定放弃。代码留在 `capsule/` 作为历史 |
 | 10 月 23 日 | 0.8.78 – 0.8.82 | 回到原生任务栏，小组件区换成一颗聚合时间键 |
+| 10 月 31 日 | 0.8.83 | 详情面板打开后更快出数；更新只保留最近 5 份备份 |
 
 ## 🙏 致谢
 

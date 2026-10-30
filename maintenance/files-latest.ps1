@@ -131,3 +131,31 @@ function Restore-LeanDockFiles($Plan,[string]$BackupRoot){
   else{$target=Resolve-LeanDockChild $Plan.Destination $f.Name;if(Test-Path -LiteralPath $target){Remove-Item -LiteralPath $target -Force}}
  }
 }
+function Remove-LeanDockOldBackups([string]$Destination,[string]$Current,[int]$Keep=5){
+ # Rollback uses the receipt's latest backup. Keep a few finished ones, never
+ # an unfinished transaction or one that needs manual recovery. Best effort:
+ # a backup that cannot be removed safely is left in place, never fatal.
+ $removed=[Collections.Generic.List[string]]::new();$bytes=0L
+ try{
+  $root=Resolve-LeanDockChild $Destination 'backups'
+  if(-not (Test-Path -LiteralPath $root -PathType Container)){return [pscustomobject]@{Removed=0;Bytes=0}}
+  $finished=@(foreach($d in Get-ChildItem -LiteralPath $root -Directory -Force){
+   if($d.Name -notmatch '^before-.+-(\d{8}-\d{9})$' -or ($d.Attributes -band [IO.FileAttributes]::ReparsePoint)){continue}
+   $at=$Matches[1]
+   if($d.FullName -ieq [IO.Path]::GetFullPath($Current).TrimEnd('\')){continue}
+   if(Test-Path -LiteralPath (Join-Path $d.FullName 'manual-recovery-required')){continue}
+   if(-not ((Test-Path -LiteralPath (Join-Path $d.FullName 'committed')) -or (Test-Path -LiteralPath (Join-Path $d.FullName 'restored')))){continue}
+   [pscustomobject]@{Dir=$d;At=$at}
+  })
+  foreach($old in @($finished|Sort-Object At -Descending|Select-Object -Skip ([math]::Max(0,$Keep-1)))){
+   try{
+    $items=@(Get-ChildItem -LiteralPath $old.Dir.FullName -Recurse -Force)
+    if(@($items|Where-Object {$_.Attributes -band [IO.FileAttributes]::ReparsePoint}).Count){continue}
+    $size=($items|Where-Object {-not $_.PSIsContainer}|Measure-Object Length -Sum).Sum
+    Remove-Item -LiteralPath $old.Dir.FullName -Recurse -Force
+    $removed.Add($old.Dir.Name);$bytes+=[long]$size
+   }catch{}
+  }
+ }catch{}
+ [pscustomobject]@{Removed=$removed.Count;Bytes=$bytes}
+}
