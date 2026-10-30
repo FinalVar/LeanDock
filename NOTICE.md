@@ -2,6 +2,72 @@
 
 LeanDock (legacy NativeTaskbarDock). Distributed with corresponding source under GNU GPL version 3; see LICENSE.txt. This is a dedicated derivative, not an official Windhawk release. Current package and component versions are recorded in build/latest.json and docs/verification-latest.json.
 
+Version 0.8.78 narrows only locally owned dashboard layout: a two-row battery
+module and a shared media-control row. It reuses the original battery geometry,
+native quick-settings mapping, media handlers and unload ownership. The retained
+m417z Styler binding/value restoration and current LeanDock cleanup were reviewed;
+no new third-party code, background task, input hook or external runtime is added.
+The invisible XAML fixture loads the same battery markup and media layout helper
+as production, and checks text, fill and distinct control rectangles.
+
+The 0.8.77 dashboard keeps LeanDock's native XAML, media session, network,
+power mapping and lifecycle implementations. The dashboard layout, independent
+deadline scheduling and bounded app compression are local adaptation. The
+existing m417z taskbar size implementation (upstream/size.cpp, version 1.3.10)
+and LeanDock's binding-preserving tray property owner were reviewed; no second
+launcher, replacement input stack or new third-party runtime was imported.
+High-resolution icon sources and optical compensation are retained. Historical
+carousel references below describe earlier design work, not the current runtime.
+
+The 0.8.76 AppBar query/cache adapter is original LeanDock integration. It retains
+m417z's native hide/reveal implementation and the existing event/MinHook
+lifecycle; it does not copy Windows implementation code. Microsoft public
+symbols, static analysis of the exact installed Explorer/shell32 and a hidden private
+desktop test establish the version-bound call and wire contract. Tao 0.37.1
+(Apache-2.0) and Chromium's Windows autohide queries (BSD) were inspected to
+understand client behavior; neither runtime is vendored or patched. The Tao
+geometry fixture is a local test of the documented observed rule, not a real
+application acceptance result. The public NonRudeHWND contract remains the
+only application-side state adaptation. See docs/appbar-compatibility-latest.md.
+
+The 0.8.74 bottom-edge recovery keeps the existing public NonRudeHWND /
+ITaskbarList2 adapter and reuses LeanDock's Start AttachPolicy (three bounded
+readiness attempts, then event-driven renewal). The retained m417z auto-hide
+1.2.6 native reveal/hide implementation was reviewed and is unchanged.
+Generic resize-border admission and readiness reporting are local adaptation;
+no new upstream implementation, polling engine or input hook was imported.
+Microsoft contracts consulted:
+https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist2-markfullscreenwindow
+https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist-hrinit
+https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowrect
+
+The launch-maximization feature used in 0.8.41-0.8.57 was removed in 0.8.58
+at the user's request. It is no longer compiled or run. The corresponding
+Microsoft PowerToys FancyZonesWindowProcessing source, MIT license and
+revision 471db8bf9ceb644d6fc4149e549e795957b10d30 remain in
+upstream/window-launch as historical attribution and recovery reference.
+The removed feature also adapted GetWindowAppId from m417z's GPL-3.0
+Taskbar auto-hide when maximized 1.2.6 (upstream/hide.cpp). That original
+source remains required by the independent native taskbar hiding module.
+Center New Windows 1.0.1, crazyboyybs, MIT, revision
+a8b6141258658b1fbae949d1902f4ae76e55c0fc, was design reference only;
+its injection runtime was never imported. See docs/window-launch-latest.md
+for removal scope and rollback evidence.
+
+The 0.8.43 keyboard Win+X placement reuses the existing native menu entry,
+XAML anchor and upstream Styler per-root lifecycle. The card target and
+keyboard/pointer focus separation are local adaptations; no additional
+upstream implementation, hotkey registration or input hook was imported.
+
+The 0.8.35 context-menu policy is a local adaptation of the retained XAML
+event/lifecycle integration. It preserves native application/tray menus and
+the existing Win+X anchor; only card right-clicks request Win+X, and blank
+right-clicks are consumed. Native TaskListButton template names were checked
+against the retained Taskbar Styler source. Battery handler order was checked
+against the pinned SystemTray.dll and matching Microsoft public PDB; no native
+implementation was copied. Static evidence and runtime limits are recorded in
+docs/cards-latest.md.
+
 The 0.8.31 card-input adapter adapts InputSite window discovery and function
 hook placement from Taskbar Volume Control 1.3.1 by m417z (GPL-3.0), commit
 131f90d6611b96811af101f4b8177dd24e40ed13, retrieved 2026-10-17:
@@ -321,6 +387,14 @@ the unchanged layout component. See docs/start-recovery-latest.md.
 ## GPT maximized hot-corner compatibility (2026-10-13)
 NativeHotCorners remains the retained implementation. The integration now shares the existing client-edge package identity and maximization policy; it does not add another runtime or copy additional third-party code. The generator adds a narrowly scoped fullscreen exception and reason-level diagnostics. Public contracts: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iszoomed and https://learn.microsoft.com/en-us/windows/win32/winmsg/window-styles .
 
+Version 0.8.48 adds the native persistent app switcher (Ctrl+Alt+Tab) to the
+same retained NativeHotCorners runtime. Chord construction, held-key checks,
+and partial-submission cleanup are local adapters; no additional third-party
+implementation or runtime is incorporated. Original Win+Tab, event delivery,
+spatial rearming, fullscreen suppression and session lifecycle are retained.
+Public contracts: https://support.microsoft.com/en-gb/accessibility/windows/keyboard-shortcuts-in-windows
+and https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput .
+
 ### Card gesture recognition (0.8.32)
 The 0.8.31 DefWindowProc conversion was tested and rejected: 13 admitted
 DM_POINTERHITTEST messages produced no pointer/wheel stream. That path is
@@ -343,3 +417,78 @@ reference and both callback and real Windows COM regressions are retained.
 Pinch rejection, per-gesture paging, lifecycle bounds and diagnostics are
 local integration. No Chromium browser event injection or taskbar-volume
 SendInput/focus behavior is included. Real hardware acceptance is separate.
+
+Version 0.8.36 icon optical sizing is local code using the public Windows
+WriteableBitmap/RenderTargetBitmap APIs and the preserved styler's element lifetime. It measures
+alpha bounds rather than app names, preserves native icon source/layout, and
+adds a bounded aspect-preserving drawing transform. This is not upstream icon
+normalization code or an image asset replacement. API reference and acceptance
+limits are in docs/icon-optics-latest.md.
+
+Version 0.8.44 adds a local source-resolution adapter to the retained
+taskbar-icon-size lifecycle. Microsoft matching symbols and decoded call sites
+identify five resource/cache callers of TaskbarHost::IconSizeInViewPixels; the
+layout caller is excluded. Only source requests receive extra pixel budget.
+The Windows loaders, image-list cache, resource identity, DPI and change
+notifications remain native. No Microsoft implementation source is copied.
+Pinned call-site provenance and real-pixel verification limits are documented
+in docs/icon-optics-latest.md.
+
+Version 0.8.49 reuses the retained Windows 11 Taskbar Styler rule parser,
+XAML diagnostics attachment, UI-thread ownership and property restoration.
+Reference: m417z, ramensoftware/windhawk-mods, Windows 11 Taskbar Styler 1.10,
+commit 162bca0d6b4fe4da2c63c21f17921a165d5870fa (GPL-3.0), already retained
+as the upstream implementation. The additional switcher selectors, hash gate,
+diagnostics, single-use corner request and native thumbnail Invoke adaptation
+are local code. No alternative switcher implementation is imported.
+
+The installed Microsoft Switcher PRI/XBF was inspected offline with chausner
+PriTools (765d4544fd48aaaebf848b5b1b24ade2cf1770a0) and XbfTools
+(dbeadcd75f30fb8dea3109039e0082854cb9a89d), both Apache-2.0. These are analysis
+tools, not packaged/runtime dependencies. Their source and licenses remain in
+the task's isolated research output. Selectors and layout values were checked
+against decoded resources; no Microsoft implementation source is copied.
+Exact system hashes, public API references, limitations and acceptance gates
+are recorded in docs/switcher-style-latest.md.
+
+Version 0.8.53 adds a local, independently written preview-size policy and
+per-root typed RowHeight ownership. Native DynamicFlowPanel remains responsible
+for layout, thumbnail rendering and interaction. Offline Ghidra analysis of the
+exact installed Microsoft binary established the minimum-row selection and
+24-DIP row spacing; it is evidence, not redistributed Microsoft source or a
+new runtime dependency. No private vtable offsets or layout-enum writes are
+added. The retained upstream property parser and lifecycle remain in use.
+
+Version 0.8.37 renders a neutral same-source sample to avoid native visual
+offsets and clipping in the measured bounds, then applies the correction
+before the preserved native transform. Sampling uses an offscreen zero-size
+container on the existing tree, bounded frame retries, and explicit cleanup.
+
+Version 0.8.59 adds locally written native-switcher visibility ownership and a corner open/cancel decision. It retains the NativeHotCorners input/latch protections and the existing m417z Taskbar Styler XAML lifecycle. No new third-party implementation, global polling, UI thread or replacement switcher is introduced. The prior two-item confirmation and layout algorithm remain in use.
+
+Version 0.8.60 removes the locally written two-item automatic confirmation request and thumbnail Invoke path. NativeHotCorners input/latch protections and the existing switcher visibility, layout and m417z Taskbar Styler lifecycle remain. No new third-party code is introduced.
+
+Version 0.8.66, after the full rollback of the second-page experiment to 0.8.60, restores only the local corner-scoped two-item confirmation policy at the user's new request. It reuses the retained pre-0.8.60 single-use request and native thumbnail Invoke path, with deferred dispatcher execution, root lifetime/close cancellation, realized-item checks and foreground revalidation. NativeHotCorners input/latch protection and m417z Taskbar Styler loading, template compatibility and unload responsibility are unchanged. The new guards are local adaptations, not attributed to upstream. No new third-party dependency, application page, Win-key interceptor, replacement switcher or polling loop is added.
+
+Version 0.8.67 corrects the failed 0.8.66 assumption that native ListView.SelectedIndex identifies the switch target. It reads the current XAML island's keyboard focus through public FocusManager.GetFocusedElement(XamlRoot), maps the focused descendant to the existing native item container, and observes/removes GotFocus alongside root lifecycle events. No native selection or private offsets are modified.
+
+Version 0.8.68 changes only the corner confirmation dispatcher priority from Low to Normal to avoid waiting for an idle input queue. The user accepted 0.8.67 two-window round trips but reported picker flash. Native invocation, weak callbacks, request identity and lifetime guards are unchanged; no new third-party code or visual suppression is introduced. Normal follows the public CoreDispatcher guidance; High is deliberately not used.
+
+Version 0.8.69 adapts the pre-display hook boundary from L3r0y, Alt+Tab window delayer 1.2.0, ramensoftware/windhawk-mods commit b07c7e0d65abbbf7d10547608004595ce07189e0 (MIT under the repository license policy). Unmodified upstream source, policy, attribution and MIT terms are retained in upstream/switcher-delayer. Unlike upstream's withheld ShowWindow, the local adapter preserves native ShowWindow/focus and temporarily owns only the requested host's DWM cloak, with exact system hash/RVA gating, a bounded one-shot watchdog, scoped uncloak interception and explicit Stop/resume restoration. Microsoft symbols and local disassembly are compatibility evidence, not copied implementation source.
+
+
+Version 0.8.70 extends the same local adapter to native uncloak calls inside the verified DisplayAltTab scope for reused hosts. Native close cloak is retained when ownership is released; no additional upstream algorithm, private offset or hook is introduced. These lifecycle fixes and hidden-window regression tests are local adaptations.
+
+
+Version 0.8.72 adds a locally written, public-XAML stale clip reconciliation policy. Microsoft microsoft-ui-xaml commit 1af995b98a02d86b1951c4babe35caa269a6d569 (MIT), ScrollContentPresenter::ArrangeOverride/UpdateClip, was reviewed as a contract reference only; no implementation code or new runtime dependency is imported. The reference source and license remain in the isolated investigation directory. The running Windows.UI.Xaml binary is not claimed to equal this WinUI source revision. Existing m417z diagnostics attachment and root lifetime are retained; the native clip object, native focus and input paths remain intact.
+
+
+Version 0.8.73 corrects local native-XAML COM-peer retention. Existing public geometry, native focus/input and layout policy remain. The no-window native regression compiles production retain/release helpers and demonstrates weak-peer expiry and explicit release. No new upstream source or dependency is added.
+
+### 2026-10-23 native aggregate adaptation
+
+The native upstream modules and their existing notices remain unchanged. `aggregate/` adapts selected locally maintained LeanDock capsule 0.9.8 material/popup/control/metrics code; `origins-latest.json` records the exact imported source hashes. This is source reuse of those components, not reuse of capsule's independent taskbar receiver, app list, pinning, guard or taskbar hiding. The native XAML stadium ring ports the existing arc-length mapping into PathGeometry; the native host owns layout/subscriptions, and the ordinary-user popup owns graphics/device workers and their cancellation. No new third-party runtime or license has been introduced.
+
+Version 0.8.81 adds locally written visible-only CPU trend/clock and metric throttling. The GPU 3D grouping uses PDH adapter LUID/physical-engine identities matched to DXGI; Microsoft's DirectX article "GPUs in the task manager" is a behavior reference, not imported source. This view explicitly reports 3D, not total GPU load. Existing input, control workers, native tray/pins, component ownership and rollback remain retained.
+
+Version 0.8.82 adds STARTF_FORCEOFFFEEDBACK only to the native hover-panel launch. Microsoft's public STARTUPINFOW contract documents default GUI startup feedback and this opt-out: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/ns-processthreadsapi-startupinfow . This is an API contract reference, not copied source or a new dependency. Suspended creation, owner publication, child lifetime and all accepted panel binaries remain unchanged.
