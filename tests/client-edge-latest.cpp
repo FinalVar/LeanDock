@@ -43,6 +43,27 @@ int main() {
     Check(ResizeObstruction(true,HTBOTTOM,0,RECT{-1920,-1080,0,-2},RECT{-1920,-1080,0,0},96),"negative monitor border evidence");
     Check(BorderInset(0,RECT{0,0,2560,1576},monitor,144),"144 DPI boundary");
     Check(!BorderInset(0,RECT{0,0,2560,1575},monitor,144),"144 DPI excessive border");
+    {
+        // Fullscreen applications other than games keep the auto-hide Dock.
+        using namespace LeanDockFullscreen;
+        Check(Covers(WS_POPUP,exact,monitor)&&Covers(WS_POPUP|WS_THICKFRAME,overscan,monitor),"captionless full-monitor frames are fullscreen");
+        Check(!Covers(WS_OVERLAPPEDWINDOW,exact,monitor),"a captioned window is never fullscreen");
+        Check(!Covers(WS_POPUP,gap,monitor)&&!Covers(WS_POPUP,exact,RECT{0,0,0,0}),"exposed edge or invalid monitor is not fullscreen");
+        Check(Game(L"D:\\SteamLibrary\\steamapps\\common\\Hades\\Hades.exe",L"",false),"Steam library is a game");
+        Check(Game(L"C:\\Program Files\\Epic Games\\Fortnite\\FortniteClient.exe",L"",false),"Epic library is a game");
+        Check(Game(L"C:\\XboxGames\\Forza\\Content\\forza.exe",L"",false),"Xbox app library is a game");
+        Check(Game(L"C:\\STEAM\\STEAMAPPS\\COMMON\\x\\y.exe",L"",false),"library match ignores case");
+        Check(Game(L"C:\\Program Files\\VideoLAN\\VLC\\vlc.exe",L"",true),"exclusive Direct3D fullscreen is a game");
+        Check(Game(nullptr,L"",false),"an unidentified process counts as a game");
+        Check(!Game(L"C:\\Program Files\\VideoLAN\\VLC\\vlc.exe",L"",false),"a player is not a game");
+        Check(!Game(L"C:\\Program Files\\WindowsApps\\Microsoft.WindowsTerminal_1.23.0_x64__8wekyb3d8bbwe\\WindowsTerminal.exe",L"",false),"Windows Terminal is not a game");
+        Check(!Game(L"C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.2314.0_x64__2p2nqsd0c76g0\\app\\ChatGPT.exe",L"",false),"ChatGPT is not a game");
+        Check(!Game(L"C:\\Games\\notes\\epic games.exe",L"",false),"a library name must be a folder");
+        Check(Game(L"D:\\Games\\osu!\\osu!.exe",L"vlc.exe; osu!.exe",false),"listed file name is a game");
+        Check(!Game(L"D:\\Games\\osu!\\osu!.exe",L"su!.exe;osu",false),"partial names do not match");
+        Check(Listed(L"C:\\a\\Game.EXE",L" game.exe ")&&Listed(L"game.exe",L";;game.exe;"),"entries trimmed, case-insensitive, empty entries skipped");
+        Check(!Listed(L"C:\\a\\game.exe",L"")&&!Listed(L"C:\\a\\game.exe",L" ; ")&&!Listed(L"C:\\a\\",L";"),"empty list or name matches nothing");
+    }
 
     // Native property lifecycle tests affect only this hidden test-owned HWND.
     HWND w=CreateWindowExW(0,L"STATIC",L"LeanDock edge property fixture",WS_POPUP,0,0,1,1,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);

@@ -1,5 +1,16 @@
 # 底边唤出适配 0.8.74
 
+## 0.8.90：全屏应用（控制器 0.3.34）
+
+用户报告视频播放器、游戏、ChatGPT、Windows 终端等全屏后叫不出 Dock，四个触发角也不响应。原因是两处有意的保护：Windows 把无标题栏、盖满屏幕的前台窗口当作全屏窗口，降低自动隐藏任务栏的层级；触发角沿用上游 NativeHotCorners 的 PauseOnFullscreen，对同样的窗口暂停四角。用户选择只在游戏里保持不触发。
+
+- 新增 `include/fullscreen-app-policy-latest.h`：`Covers`（无完整标题栏、DWM 边框覆盖整块显示器）与 `Game`（`SHQueryUserNotificationState` 为独占 Direct3D 全屏；或可执行文件位于游戏平台库目录；或文件名列在 `hotcorners/latest.ini` 的 `Games=`；无法读取进程路径也算游戏）。
+- Dock：`Evaluate` 在原有最大化分支之外，对前台的 `FullscreenApp` 走同一套 NonRudeHWND 取得、`MarkFullscreenWindow(FALSE)` 与任务栏 TOPMOST 修复。排除 Explorer 自己的窗口（桌面、任务栏、任务视图）、`Windows.UI.Core.CoreWindow`（开始、搜索等外壳界面）和工具窗口；置顶的全屏窗口不排除。窗口退出全屏、变成游戏或不再覆盖屏幕时，按原有规则撤销自己的标记。F11 这类不换前台的切换由已挂的位置变化事件触发重新判断。状态新增 `clientEdgeFullscreenRepairs`。
+- 触发角：生成器末尾一段把 `Fullscreen()` 的结果再与 `Game()` 相与，`PauseOnFullscreen=1` 的含义变为“全屏游戏时暂停”。状态新增 `fullscreenAppEntries`。
+- 构建：控制器只能以已验收源码为底。2026-10-31 先把 artifacts/widgets-density-0.8.78-accepted/latest 原样复制后 `build/latest.ps1 -ControllerOnly` 重编，生成的触发角源码哈希相同，`latest.exe` 与 FCA312C8 只差 PE 头的 3 字节链接时间戳；再在该副本上只换入上述文件重编，得到 CD380B5E…（构建输入存于 artifacts/controller-0.3.34-fullscreen/latest）。工作树里另有的开始菜单关闭改动没有带入。面板主题开关按控制器哈希核对，`aggregate/theme-control-latest.h` 同步为新哈希。
+- 测试：client-edge 89 项（新增全屏与游戏判断）、hotcorners 核心 138 项、配置 37 项（新增 Games= 读取、拒绝时保留、状态字段）。
+- 未验证：真实全屏下碰底边能否叫出 Dock、Dock 是否显示在置顶全屏窗口之上、隐藏时是否在全屏视频底部留下可见细线，都要用户实机确认；用户电脑上没有游戏，游戏判断只有规则测试。
+
 ## 当前事实与修正边界
 
 2026-10-19 重启后的实际加载版本为 0.8.73、控制器 0.3.29、后台 0.5.59；四个运行文件与构建收据哈希一致。用户报告 GPT 和其他某些最大化应用的底边出现缩放光标，无法唤出 Dock。未取得其他应用的具体名称，不把 GPT 实测扩展为其他应用已通过。

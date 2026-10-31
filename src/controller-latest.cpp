@@ -43,7 +43,7 @@ static void SaveStatus() {
     char json[4096],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
     // Error messages are fixed internal labels, never window titles or application text.
     int size=snprintf(json,sizeof(json),
-        "{\"version\":\"0.3.33\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
+        "{\"version\":\"0.3.34\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
         GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockStart::target,LeanDockStartProtocol::Adjustments))),static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),LeanDockPanels::failures,LeanDockStart::supported?"true":"false",(LeanDockStart::target && LeanDockStart::Query(LeanDockStart::target))?"true":"false",(LeanDockStart::blocked || LeanDockStart::attachPolicy.stopped)?"true":"false",LeanDockStart::failures,error);
     HWND taskbar=FindWindowW(L"Shell_TrayWnd",nullptr);
     const bool appBarReady=LeanDockClientEdge::active && g_state==NativeActive && g_explorerPid &&
@@ -58,9 +58,10 @@ static void SaveStatus() {
         LeanDockStart::attachPolicy.attempts,LeanDockStart::attachPolicy.recoveries,LeanDockStart::retryTimer?"true":"false",LeanDockStart::attachReceipt?"true":"false",LeanDockStart::lastAttachError);
     size+=snprintf(json+size,sizeof(json)-size,"\"clientEdgeReady\":%s,\"clientEdgeRepairs\":%u,\"clientEdgeFailures\":%u,",
         LeanDockClientEdge::active?"true":"false",LeanDockClientEdge::repairs,LeanDockClientEdge::failures);
-    size+=snprintf(json+size,sizeof(json)-size,"\"clientEdgeStage\":\"%s\",\"clientEdgeError\":%lu,\"clientEdgeInitAttempts\":%u,\"clientEdgeRecoveries\":%u,\"clientEdgeRetryScheduled\":%s,\"clientEdgeGenericRepairs\":%u,",
+    size+=snprintf(json+size,sizeof(json)-size,"\"clientEdgeStage\":\"%s\",\"clientEdgeError\":%lu,\"clientEdgeInitAttempts\":%u,\"clientEdgeRecoveries\":%u,\"clientEdgeRetryScheduled\":%s,\"clientEdgeGenericRepairs\":%u,\"clientEdgeFullscreenRepairs\":%u,",
         LeanDockClientEdge::lastStage,static_cast<DWORD>(LeanDockClientEdge::lastError),LeanDockClientEdge::initAttempts,
-        LeanDockClientEdge::initPolicy.recoveries,LeanDockClientEdge::retryTimer?"true":"false",LeanDockClientEdge::genericRepairs);
+        LeanDockClientEdge::initPolicy.recoveries,LeanDockClientEdge::retryTimer?"true":"false",LeanDockClientEdge::genericRepairs,
+        LeanDockClientEdge::fullscreenRepairs);
     size+=snprintf(json+size,sizeof(json)-size,"\"quickPositionSupported\":%s,\"quickPositionActive\":%s,\"quickPositionBlocked\":%s,\"quickPositionFailures\":%u,\"quickPositionAdjustments\":%llu,\"quickPositionWindow\":%llu,\"quickPositionRecoveries\":%u,\"quickPositionLastExitKnown\":%s,\"quickPositionLastExitCode\":%lu}\n",
         LeanDockQuickHost::supported?"true":"false",LeanDockQuickHost::Query()?"true":"false",LeanDockQuickHost::blocked?"true":"false",LeanDockQuickHost::failures,
         static_cast<unsigned long long>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),

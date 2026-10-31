@@ -14,6 +14,7 @@
 #include "protocol-latest.h"
 #include "switcher-visibility-latest.h"
 #include "../hotcorners/fullscreen/latest.h"
+#include "fullscreen-app-policy-latest.h"
 #include "start-menu-state-latest.h"
 #include "../hotcorners/start-menu/policy-latest.h"
 
@@ -38,7 +39,8 @@ static uint64_t blockReasons[6]{},maximizedClientEntries,lastBlockAt;
 static BlockReason lastBlockReason=BlockReason::None;
 static DWORD lastBlockPid;
 static int lastBlockCorner=-1;
-static bool maximizedClientAllowed,lastBlockMaximized;
+static bool maximizedClientAllowed,fullscreenAppAllowed,lastBlockMaximized;
+static uint64_t fullscreenAppEntries;
 static unsigned long lastBlockStyle;
 static const char* BlockName(BlockReason reason) {
     switch(reason) {
@@ -116,7 +118,9 @@ static bool LoadConfig() {
     for (int c = 0; c < 4; ++c)
         if (!ReadNumber(delayKeys[c], delay, 0, 1500, next.cornerDelay[c])) return false;
     next.delay = delay; next.cooldown = cooldown; next.pixels = pixels; next.rearm = rearm; next.fullscreen = fullscreen != 0;
-    config = next; return true;
+    wchar_t games[std::size(LeanDockFullscreen::listed)];
+    GetPrivateProfileStringW(L"HotCorners", L"Games", L"", games, std::size(games), iniPath);
+    config = next; wmemcpy(LeanDockFullscreen::listed, games, std::size(games)); return true;
 }
 static BOOL CALLBACK EnumMonitor(HMONITOR h, HDC, RECT*, LPARAM) {
     MONITORINFO info = { sizeof(info) };
@@ -173,7 +177,8 @@ static bool Fullscreen(HMONITOR target) {
     const bool client=maximized && (style&WS_THICKFRAME) &&
         LeanDockClientEdgePolicy::ClientWindow(foreground);
     const bool suppress=nhc::SuppressFullscreen(style,rect,mi.rcMonitor,maximized,client);
-    maximizedClientAllowed=!suppress;return suppress;
+    const bool game=suppress && LeanDockFullscreen::Game(foreground);
+    maximizedClientAllowed=!suppress;fullscreenAppAllowed=suppress && !game;return game;
 }
 static BlockReason Blocked(nhc::Target target) {
     if(paused)return BlockReason::Paused;
@@ -252,11 +257,13 @@ static void Evaluate(bool expiry) {
     nhc::Point p = { point.x, point.y };
     nhc::Target hit = nhc::Hit(monitors, monitorCount, p, config);
     // Stay inexpensive outside corners: no foreground/desktop queries there.
-    maximizedClientAllowed=false;
+    maximizedClientAllowed=false;fullscreenAppAllowed=false;
     const BlockReason reason=hit.monitor>=0 ? Blocked(hit) : BlockReason::None;
     const bool blocked=reason!=BlockReason::None;
     if(maximizedClientAllowed && !nhc::Equal(engine.latched,hit) && !nhc::Equal(engine.waiting,hit))
         ++maximizedClientEntries;
+    if(fullscreenAppAllowed && !nhc::Equal(engine.latched,hit) && !nhc::Equal(engine.waiting,hit))
+        ++fullscreenAppEntries;
     if (!expiry) {
         bool newBlock = blocked && !nhc::Equal(engine.latched, hit);
         engine.Observe(monitors, monitorCount, p, config, GetTickCount64(), blocked);
@@ -281,7 +288,7 @@ static bool WriteStatus(bool running = true) {
         "  \"uptimeMs\":%llu,\"rawEvents\":%llu,\"evaluations\":%llu,\"monitors\":%d,\n"
         "  \"delayMs\":%u,\"cornerDelayMs\":{\"topLeft\":%u,\"topRight\":%u,\"bottomLeft\":%u,\"bottomRight\":%u},\"cooldownMs\":%u,\"cornerPixels\":%d,\"rearmPixels\":%d,\"fullscreenSuppression\":%s,\n"
         "  \"actions\":[\"%s\",\"%s\",\"%s\",\"%s\"],\"activations\":[%llu,%llu,%llu,%llu],\n"
-        "  \"switcherToggle\":{\"openRequests\":%llu,\"closeRequests\":%llu,\"stateChanged\":%llu},\n  \"blockedEntries\":%llu,\"failures\":%llu,\"lastError\":%lu,\n  \"maximizedClientEntries\":%llu,\"blockReasons\":{\"paused\":%llu,\"locked\":%llu,\"inputHeld\":%llu,\"inputDesktop\":%llu,\"fullscreen\":%llu},\n  \"lastBlock\":{\"reason\":\"%s\",\"pid\":%lu,\"corner\":%d,\"tick\":%llu,\"maximized\":%s,\"style\":%lu}\n}\n",
+        "  \"switcherToggle\":{\"openRequests\":%llu,\"closeRequests\":%llu,\"stateChanged\":%llu},\n  \"blockedEntries\":%llu,\"failures\":%llu,\"lastError\":%lu,\n  \"maximizedClientEntries\":%llu,\"fullscreenAppEntries\":%llu,\"blockReasons\":{\"paused\":%llu,\"locked\":%llu,\"inputHeld\":%llu,\"inputDesktop\":%llu,\"fullscreen\":%llu},\n  \"lastBlock\":{\"reason\":\"%s\",\"pid\":%lu,\"corner\":%d,\"tick\":%llu,\"maximized\":%s,\"style\":%lu}\n}\n",
         (unsigned long)GetCurrentProcessId(), running ? "true" : "false", paused ? "true" : "false", locked ? "true" : "false",
         rawRegistered ? "true" : "false", DefaultInputDesktop() ? "true" : "false", timerArmed ? "true" : "false",
         (unsigned long long)(GetTickCount64() - started), (unsigned long long)rawEvents, (unsigned long long)mouseEvaluations, monitorCount,
@@ -290,7 +297,7 @@ static bool WriteStatus(bool running = true) {
         (unsigned long long)activations[0], (unsigned long long)activations[1], (unsigned long long)activations[2], (unsigned long long)activations[3],
         (unsigned long long)switcherOpenRequests,(unsigned long long)switcherCloseRequests,(unsigned long long)switcherStateChanged,
         (unsigned long long)blockedEntries, (unsigned long long)failures, (unsigned long)lastErrorCode,
-        (unsigned long long)maximizedClientEntries,
+        (unsigned long long)maximizedClientEntries,(unsigned long long)fullscreenAppEntries,
         (unsigned long long)blockReasons[1],(unsigned long long)blockReasons[2],
         (unsigned long long)blockReasons[3],(unsigned long long)blockReasons[4],(unsigned long long)blockReasons[5],
         BlockName(lastBlockReason),(unsigned long)lastBlockPid,lastBlockCorner,(unsigned long long)lastBlockAt,

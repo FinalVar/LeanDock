@@ -263,5 +263,27 @@ replace_once('''            if (LaunchAction(action)) { ++activations[corner]; L
     '            DispatchCorner(action,corner);')
 replace_once('    case WM_TIMER:\n        if(w!=kDwell)return false;',
     '    case WM_TIMER:\n        if(w==kStartDismiss){ContinueAfterStart();return true;}\n        if(w!=kDwell)return false;')
+# Fullscreen applications keep the corners; only games pause them, as for the
+# Dock (include/fullscreen-app-policy-latest.h). PauseOnFullscreen=1 means
+# "in fullscreen games"; Games= lists more of them by file name.
+replace_once('#include "../hotcorners/fullscreen/latest.h"',
+    '#include "../hotcorners/fullscreen/latest.h"\n#include "fullscreen-app-policy-latest.h"')
+replace_once('    config = next; return true;',
+'''    wchar_t games[std::size(LeanDockFullscreen::listed)];
+    GetPrivateProfileStringW(L"HotCorners", L"Games", L"", games, std::size(games), iniPath);
+    config = next; wmemcpy(LeanDockFullscreen::listed, games, std::size(games)); return true;''')
+replace_once('static bool maximizedClientAllowed,lastBlockMaximized;',
+    'static bool maximizedClientAllowed,fullscreenAppAllowed,lastBlockMaximized;\nstatic uint64_t fullscreenAppEntries;')
+replace_once('    maximizedClientAllowed=!suppress;return suppress;',
+'''    const bool game=suppress && LeanDockFullscreen::Game(foreground);
+    maximizedClientAllowed=!suppress;fullscreenAppAllowed=suppress && !game;return game;''')
+replace_once('    maximizedClientAllowed=false;\n','    maximizedClientAllowed=false;fullscreenAppAllowed=false;\n')
+replace_once('        ++maximizedClientEntries;',
+'''        ++maximizedClientEntries;
+    if(fullscreenAppAllowed && !nhc::Equal(engine.latched,hit) && !nhc::Equal(engine.waiting,hit))
+        ++fullscreenAppEntries;''')
+replace_once(r'\"maximizedClientEntries\":%llu,', r'\"maximizedClientEntries\":%llu,\"fullscreenAppEntries\":%llu,')
+replace_once('        (unsigned long long)maximizedClientEntries,\n',
+    '        (unsigned long long)maximizedClientEntries,(unsigned long long)fullscreenAppEntries,\n')
 (root/'src/hotcorners-latest.cpp').write_text(text,encoding='utf-8',newline='\n')
 print('NativeHotCorners adapted as an event handler in the existing controller.')

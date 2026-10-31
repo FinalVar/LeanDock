@@ -9,7 +9,7 @@
 
 <img src="docs/assets/badge-platform.svg" alt="platform: Windows 11">
 <img src="docs/assets/badge-cpp.svg" alt="C++23">
-<img src="docs/assets/badge-version.svg" alt="version 0.8.89">
+<img src="docs/assets/badge-version.svg" alt="version 0.8.90">
 <img src="docs/assets/badge-license.svg" alt="license: GPL-3.0">
 
 <br><br>
@@ -98,6 +98,7 @@ Dock 就是 Windows 自己的任务栏换了身衣服。拖拽、跳转列表、
 
 - **毛玻璃**：居中、圆角、实时背景模糊，跟着系统深浅色走。
 - **会让路**：只有窗口真正挡住 Dock 时才藏起来；鼠标碰一下底边，它就回来。
+- **全屏也叫得出**：视频播放器、浏览器、终端、ChatGPT 这类应用全屏时，碰底边照样能叫出 Dock（Windows 原本会把自动隐藏的任务栏压在全屏窗口后面）。只有游戏例外，见下面“触发角”。
 - **不打扰**：来消息不会把 Dock 弹出来，只在图标下面亮一个小红点。
 - **图标清楚**：按两倍分辨率取图，自动对齐大小和居中；应用多到放不下时，按钮会自动缩小。
 - **托盘还在**：通知托盘留在 Dock 里，排成两行。
@@ -110,6 +111,8 @@ Dock 就是 Windows 自己的任务栏换了身衣服。拖拽、跳转列表、
 </picture>
 
 右下角打开的是 Ctrl+Alt+Tab 切换器：已经开着的时候再碰一次就关掉。每个角的动作和延迟都能在 `hotcorners/latest.ini` 里改，详见 [hotcorners/README.md](hotcorners/README.md)。
+
+应用全屏时触发角照常可用，只有**游戏全屏**时触发角和 Dock 都不响应，免得推屏幕边缘时把游戏切走。算作游戏的是：独占全屏的 3D 程序；装在 Steam、Epic、Xbox、Riot、WeGame、HoYoPlay、GOG、Ubisoft、EA 游戏库目录里的程序；以及 `hotcorners/latest.ini` 里 `Games=` 列出的程序（按文件名，用分号隔开，比如 `Games=osu!.exe;javaw.exe`）。认不出身份的程序（比如带反作弊保护的）也按游戏处理。
 
 ## 🧩 顺手的小改进
 
@@ -242,6 +245,7 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 | 10 月 31 日 | 0.8.87 | Wi-Fi 的小箭头直接打开网络列表（新版 Windows 上原来只打开快速设置首页） |
 | 10 月 31 日 | 0.8.88 | Wi-Fi 列表做进面板里（整页滑入，能连接、输密码、断开），不再弹系统界面；其余磁贴去掉通往设置页的箭头 |
 | 10 月 31 日 | 0.8.89 | 蓝牙、移动热点、声音也做成面板二级页：已配对设备和连接、热点名称密码和已连设备、输出设备和各应用音量 |
+| 10 月 31 日 | 0.8.90 | 应用全屏时也能叫出 Dock、用触发角，只有游戏全屏时不响应 |
 
 ## 🙏 致谢
 

@@ -7,6 +7,7 @@
 #include <array>
 #include <iterator>
 #include "client-edge-policy-latest.h"
+#include "fullscreen-app-policy-latest.h"
 #include "dock-geometry-latest.h"
 #include "start-attach-policy-latest.h"
 #include "appbar-query-policy-latest.h"
@@ -15,17 +16,20 @@
 // and put above the auto-hide taskbar. Use Microsoft's NonRudeHWND contract,
 // then refresh that classification and the native taskbar's z-order.
 // Other maximized windows need a measured resize obstruction or a full client
-// under the active AppBar compatibility policy. No resizing or input synthesis.
+// under the active AppBar compatibility policy. True fullscreen applications
+// get the same contract unless they are games (fullscreen-app-policy-latest.h),
+// so the auto-hide Dock still reveals over players, browsers and terminals.
+// No resizing or input synthesis.
 namespace LeanDockClientEdge {
 inline constexpr UINT Recheck=WM_APP+421;
-struct OwnedWindow {HWND window{};DWORD pid{};bool generic{};};
+struct OwnedWindow {HWND window{};DWORD pid{};bool generic{},fullscreen{};};
 inline std::array<OwnedWindow,32> owned{};
 inline std::array<HWINEVENTHOOK,6> hooks{};
 inline HWND host;
 inline ITaskbarList2* shell;
 inline bool active,pending,comOwned,evaluating,again,stopping,enabled,initializing;
 inline unsigned generation;
-inline unsigned repairs,failures,genericRepairs,initAttempts;
+inline unsigned repairs,failures,genericRepairs,fullscreenRepairs,initAttempts;
 inline HRESULT lastError;
 inline const char* lastStage="not-started";
 inline LeanDockStart::AttachPolicy initPolicy;
@@ -38,6 +42,18 @@ inline bool Maximized(HWND w) {
     RECT r{};MONITORINFO m{sizeof(m)};
     if(!GetWindowRect(w,&r) || !GetMonitorInfoW(MonitorFromWindow(w,MONITOR_DEFAULTTONULL),&m))return false;
     return LeanDockClientEdgePolicy::Eligible(IsWindowVisible(w),IsIconic(w),IsZoomed(w),GetWindowLongPtrW(w,GWL_STYLE),r,m.rcMonitor);
+}
+// A fullscreen window that is not a game. Explorer's own surfaces (desktop,
+// taskbar, Task View) and shell experiences such as Start are never marked.
+inline bool FullscreenApp(HWND w) {
+    if(!w || GetAncestor(w,GA_ROOT)!=w || !IsWindowVisible(w) || IsIconic(w) || w==GetShellWindow() ||
+       (GetWindowLongPtrW(w,GWL_EXSTYLE)&WS_EX_TOOLWINDOW) || Pid(w)==Pid(FindWindowW(L"Shell_TrayWnd",nullptr)))return false;
+    wchar_t cls[64]{};GetClassNameW(w,cls,std::size(cls));
+    if(!wcscmp(cls,L"Windows.UI.Core.CoreWindow"))return false;
+    RECT frame{};MONITORINFO m{sizeof(m)};
+    if(!GetMonitorInfoW(MonitorFromWindow(w,MONITOR_DEFAULTTONULL),&m) ||
+       (FAILED(DwmGetWindowAttribute(w,DWMWA_EXTENDED_FRAME_BOUNDS,&frame,sizeof(frame))) && !GetWindowRect(w,&frame)))return false;
+    return LeanDockFullscreen::Covers(GetWindowLongPtrW(w,GWL_STYLE),frame,m.rcMonitor) && !LeanDockFullscreen::Game(w);
 }
 inline bool Client(HWND w) {
     return LeanDockClientEdgePolicy::ClientWindow(w);
@@ -102,6 +118,9 @@ inline bool ResizeObstruction(HWND w) {
     return false;
 }
 inline bool AutoHide() {APPBARDATA data{sizeof(data)};return (NativeBarQuery(ABM_GETSTATE,data)&ABS_AUTOHIDE)!=0;}
+inline bool Kept(const OwnedWindow& e) {
+    return e.fullscreen?FullscreenApp(e.window):Maximized(e.window) && (!e.generic || GenericFrame(e.window));
+}
 inline bool Tracked(HWND w){for(const auto& e:owned)if(e.window==w)return true;return false;}
 inline void Forget(OwnedWindow& e) {
     // Properties die with the HWND. If the numeric handle was reused, do not
@@ -138,20 +157,22 @@ inline void Evaluate() {
     const unsigned epoch=generation;
     const bool autoHide=AutoHide();
     for(auto& e:owned)if(e.window && (!autoHide || Pid(e.window)!=e.pid ||
-        GetPropW(e.window,LeanDockClientEdgePolicy::Owner)!=Token() || !Maximized(e.window) ||
-        (e.generic && !GenericFrame(e.window))))Forget(e);
+        GetPropW(e.window,LeanDockClientEdgePolicy::Owner)!=Token() || !Kept(e)))Forget(e);
     if(!active || generation!=epoch)return;
     HWND foreground=GetForegroundWindow();
-    if(!autoHide || !Maximized(foreground))return;
-    const bool knownClient=Client(foreground);
-    if(!knownClient && !Tracked(foreground) && !CompatibleFullClient(foreground) && !ResizeObstruction(foreground))return;
-    if(!active || generation!=epoch || GetForegroundWindow()!=foreground || !Maximized(foreground))return;
+    if(!autoHide)return;
+    const bool maximized=Maximized(foreground),fullscreen=!maximized && FullscreenApp(foreground);
+    if(!maximized && !fullscreen)return;
+    const bool knownClient=maximized && Client(foreground);
+    if(maximized && !knownClient && !Tracked(foreground) && !CompatibleFullClient(foreground) && !ResizeObstruction(foreground))return;
+    auto still=[&]{return fullscreen?FullscreenApp(foreground):Maximized(foreground);};
+    if(!active || generation!=epoch || GetForegroundWindow()!=foreground || !still())return;
     bool acquired=false;
     if(!GetPropW(foreground,LeanDockClientEdgePolicy::NonRude)) {
         OwnedWindow* slot=nullptr;for(auto& e:owned)if(!e.window){slot=&e;break;}
         if(!slot){++failures;return;}
         if(!LeanDockClientEdgePolicy::Acquire(foreground,Token())){++failures;return;}
-        *slot={foreground,Pid(foreground),!knownClient};acquired=true;
+        *slot={foreground,Pid(foreground),!knownClient,fullscreen};acquired=true;
     }
     // A shell restart / later reclassification may demote the native taskbar
     // while this HWND still carries NonRude. Recheck only on native events.
@@ -165,9 +186,9 @@ inline void Evaluate() {
             ++failures;if(acquired)for(auto& e:owned)if(e.window==foreground)Forget(e);
             return;
         }
-        if(GetForegroundWindow()==foreground && Maximized(foreground) &&
+        if(GetForegroundWindow()==foreground && still() &&
            (TaskbarZOrder(foreground,true) || acquired)){
-            ++repairs;if(!knownClient)++genericRepairs;
+            ++repairs;if(fullscreen)++fullscreenRepairs;else if(!knownClient)++genericRepairs;
         }
     }
 }

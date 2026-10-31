@@ -41,9 +41,18 @@ int main(){
     Check(LoadConfig()&&config.actions[3]==nhc::TaskView,"legacy Win Tab configuration remains available");
     WritePrivateProfileStringW(L"HotCorners",L"BottomRight",L"APP-SWITCHER",file.c_str());
     Check(LoadConfig()&&config.actions[3]==nhc::AppSwitcher,"switcher configuration accepts case-insensitive spelling");
+    Check(LeanDockFullscreen::listed[0]==0,"no extra games listed by default");
+    WritePrivateProfileStringW(L"HotCorners",L"Games",L"osu!.exe; Minecraft.exe",file.c_str());
+    Check(LoadConfig()&&LeanDockFullscreen::Listed(L"D:\\Games\\osu!\\osu!.exe",LeanDockFullscreen::listed),"listed games loaded");
+    WritePrivateProfileStringW(L"HotCorners",L"BottomRight",L"unknown-switcher",file.c_str());
+    WritePrivateProfileStringW(L"HotCorners",L"Games",L"other.exe",file.c_str());
+    Check(!LoadConfig()&&LeanDockFullscreen::Listed(L"x\\minecraft.exe",LeanDockFullscreen::listed),"rejected configuration keeps the game list");
+    WritePrivateProfileStringW(L"HotCorners",L"BottomRight",L"app-switcher",file.c_str());
+    WritePrivateProfileStringW(L"HotCorners",L"Games",nullptr,file.c_str());
+    Check(LoadConfig()&&LeanDockFullscreen::listed[0]==0,"removing Games= clears the list");
     RecordBlock(BlockReason::InputHeld,2);
     RecordBlock(BlockReason::Fullscreen,3);
-    maximizedClientEntries=4;
+    maximizedClientEntries=4;fullscreenAppEntries=5;
     switcherOpenRequests=2; switcherCloseRequests=1; switcherStateChanged=3;
     Check(WriteStatus(false),"per-corner status written");
     FILE* output=_wfopen(statusPath,L"rb");char json[4096]{};
@@ -52,7 +61,7 @@ int main(){
     Check(strstr(json,"\"cornerDelayMs\":{\"topLeft\":500,\"topRight\":0,\"bottomLeft\":0,\"bottomRight\":0}")!=nullptr,"status exposes effective delays");
     Check(strstr(json,"\"blockedEntries\":2,")!=nullptr,"diagnostic entries retain total count");
     Check(strstr(json,"\"inputHeld\":1,\"inputDesktop\":0,\"fullscreen\":1")!=nullptr,"input and fullscreen suppression remain distinguishable");
-    Check(strstr(json,"\"maximizedClientEntries\":4,")!=nullptr,"applied maximized-client exception is observable");
+    Check(strstr(json,"\"maximizedClientEntries\":4,\"fullscreenAppEntries\":5,")!=nullptr,"maximized-client and fullscreen-app exceptions are observable");
     Check(strstr(json,"\"switcherToggle\":{\"openRequests\":2,\"closeRequests\":1,\"stateChanged\":3}")!=nullptr,"toggle request counts are observable without claiming visual closure");
     Check(strstr(json,"\"lastBlock\":{\"reason\":\"fullscreen\"")!=nullptr&&strstr(json,"\"corner\":3,")!=nullptr,"last blocked corner and reason survive status serialization");
     Check(!initialized&&!rawRegistered&&!timerArmed&&!activations[0]&&!activations[2]&&!activations[3],"no production controls or input actions used");
