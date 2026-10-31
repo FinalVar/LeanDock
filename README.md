@@ -9,7 +9,7 @@
 
 <img src="docs/assets/badge-platform.svg" alt="platform: Windows 11">
 <img src="docs/assets/badge-cpp.svg" alt="C++23">
-<img src="docs/assets/badge-version.svg" alt="version 0.8.83">
+<img src="docs/assets/badge-version.svg" alt="version 0.8.88">
 <img src="docs/assets/badge-license.svg" alt="license: GPL-3.0">
 
 <br><br>

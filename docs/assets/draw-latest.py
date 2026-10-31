@@ -6,6 +6,7 @@ src/cards-aggregate-xaml-latest.inc and docs/material-latest.md. The Dock order
 (apps, time key, tray) matches the real screenshot in screenshot.png.
 These are illustrations, not screenshots.
 """
+import re
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent
@@ -292,4 +293,9 @@ if __name__ == "__main__":
     for label, value, color in BADGES:
         slug = label.lower().replace("+", "p")
         (OUT / f"badge-{slug}.svg").write_text(badge(label, value, color), encoding="utf-8")
+    # The README's alt text repeats the version; keep it in step with the badge.
+    readme = OUT.parents[1] / "README.md"
+    version = next(value for label, value, _ in BADGES if label == "version")
+    text_ = readme.read_text(encoding="utf-8")
+    readme.write_text(re.sub(r'(badge-version\.svg" alt=")version [^"]*"', rf'\g<1>version {version}"', text_), encoding="utf-8")
     print("written to", OUT)
