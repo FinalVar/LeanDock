@@ -9,7 +9,7 @@
 
 <img src="docs/assets/badge-platform.svg" alt="platform: Windows 11">
 <img src="docs/assets/badge-cpp.svg" alt="C++23">
-<img src="docs/assets/badge-version.svg" alt="version 0.8.93">
+<img src="docs/assets/badge-version.svg" alt="version 0.8.95">
 <img src="docs/assets/badge-license.svg" alt="license: GPL-3.0">
 
 <br><br>
@@ -112,6 +112,8 @@ Dock 就是 Windows 自己的任务栏换了身衣服。拖拽、跳转列表、
 </picture>
 
 右下角打开的是 Ctrl+Alt+Tab 切换器：已经开着的时候再碰一次就关掉。每个角的动作和延迟都能在 `hotcorners/latest.ini` 里改，详见 [hotcorners/README.md](hotcorners/README.md)。
+
+左下角回到桌面后，再打开任何一个窗口（点 Dock、双击桌面上的文件夹），其他窗口都留在下面，不会一起冒出来。全屏的终端、播放器这类没有最小化按钮的窗口不去最小化（Windows Terminal 被最小化后再点回来会退出全屏），而是压在桌面下面；点它的 Dock 图标就原样回来，全屏仍是全屏。还没用别的窗口时在桌面上再碰一次左下角，所有窗口回到原来的位置。键盘上的 Win+D 仍是 Windows 原来的行为。做法见 [docs/desktop-sweep-latest.md](docs/desktop-sweep-latest.md)。
 
 应用全屏时触发角照常可用，只有两种情况下触发角和 Dock 都不响应：
 
@@ -252,6 +254,7 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 | 10 月 31 日 | 0.8.90 | 应用全屏时也能叫出 Dock、用触发角，只有游戏全屏时不响应 |
 | 10 月 31 日 | 0.8.91 | 全屏时只在碰到底边时才放出 Dock；全屏远程控制时把底边和四角交给远程电脑 |
 | 11 月 1 日 | 0.8.93 | 从全屏应用回到桌面时 Dock 照常露出；Dock 收回后马上把全屏交还 Windows，免打扰立即恢复 |
+| 11 月 1 日 | 0.8.94 – 0.8.95 | 左下角回桌面后再打开一个窗口，全屏终端等不再跟着冒出来；点回来仍是全屏 |
 
 ## 🙏 致谢
 

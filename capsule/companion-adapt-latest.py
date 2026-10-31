@@ -93,7 +93,7 @@ text = '#include "companion-host-latest.h"\n' + text
 text = one(text, "    LeanDockStart::Stop();", "    LeanDockSearchHost::Stop();\n    LeanDockStart::Stop();")
 text = one(text, "    LeanDockStart::Start(g_directory);", "    LeanDockStart::Start(g_directory);\n    LeanDockSearchHost::Start(g_directory);")
 text = one(text, "    const bool appBarReady=", "    size+=LeanDockSearchHost::Status(json+size,sizeof(json)-size);\n    const bool appBarReady=")
-text = one(text, '\\"version\\":\\"0.3.37\\"', '\\"version\\":\\"0.4.0-capsule\\"')
+text = one(text, '\\"version\\":\\"0.3.39\\"', '\\"version\\":\\"0.4.0-capsule\\"')
 text = one(text, "WaitForSingleObject(process,15000)", "WaitForSingleObject(process,30000)")
 text = one(text, '    if(count==2&&!wcscmp(args[1],L"--cards"))',
            '    if(count==2&&!wcscmp(args[1],L"--capsule-token-probe")){LocalFree(args);return LeanDockCompanion::Probe(g_directory);}\n'

@@ -293,5 +293,31 @@ replace_once('        ++maximizedClientEntries;',
 replace_once(r'\"maximizedClientEntries\":%llu,', r'\"maximizedClientEntries\":%llu,\"fullscreenAppEntries\":%llu,')
 replace_once('        (unsigned long long)maximizedClientEntries,\n',
     '        (unsigned long long)maximizedClientEntries,(unsigned long long)fullscreenAppEntries,\n')
+# Win+D only covers the windows it cannot minimize; the desktop corner also
+# minimizes those, and returns them when it leaves the desktop again
+# (include/desktop-sweep-latest.h).
+replace_once('#include "fullscreen-app-policy-latest.h"',
+    '#include "fullscreen-app-policy-latest.h"\n#include "desktop-sweep-latest.h"')
+replace_once('static bool LaunchAction(nhc::Action action) {',
+'''static bool SendAction(nhc::Action action);
+static bool LaunchAction(nhc::Action action) {
+    const bool desktop=action==nhc::ShowDesktop;
+    if(desktop)LeanDockDesktopSweep::Prepare(window);
+    const bool sent=SendAction(action);
+    if(desktop)LeanDockDesktopSweep::Sent(sent);
+    return sent;
+}
+static bool SendAction(nhc::Action action) {''')
+replace_once('        if(w!=kDwell)return false;',
+    '        if(LeanDockDesktopSweep::Timer(hwnd,w))return true;\n        if(w!=kDwell)return false;')
+replace_once('    paused=true;Reset();\n    RAWINPUTDEVICE remove',
+    '    paused=true;Reset();LeanDockDesktopSweep::Stop();\n    RAWINPUTDEVICE remove')
+replace_once('initialized=true;Log("integrated-started");',
+    'LeanDockDesktopSweep::log=[](const char* e,unsigned c){Log(e,c);};initialized=true;Log("integrated-started");')
+replace_once(r'\"fullscreenAppEntries\":%llu,',
+    r'\"fullscreenAppEntries\":%llu,\"desktopSweep\":{\"sweeps\":%llu,\"minimized\":%llu,\"restored\":%llu,\"ended\":%llu,\"burials\":%llu,\"buried\":%u,\"open\":%s},')
+replace_once('(unsigned long long)fullscreenAppEntries,\n',
+    '(unsigned long long)fullscreenAppEntries,(unsigned long long)LeanDockDesktopSweep::sweeps,(unsigned long long)LeanDockDesktopSweep::minimized,\n'
+    '        (unsigned long long)LeanDockDesktopSweep::restored,(unsigned long long)LeanDockDesktopSweep::ended,(unsigned long long)LeanDockDesktopSweep::burials,LeanDockDesktopSweep::buriedCount,LeanDockDesktopSweep::open ? "true" : "false",\n')
 (root/'src/hotcorners-latest.cpp').write_text(text,encoding='utf-8',newline='\n')
 print('NativeHotCorners adapted as an event handler in the existing controller.')
