@@ -260,8 +260,13 @@ class ControlBackend {
             nullptr,arguments.get(),nullptr,call.put()));
         winrt::com_ptr<IWbemClassObject> result;auto hr=call->GetResultObject(1500,result.put());
         if(hr==WBEM_S_TIMEDOUT)winrt::throw_hresult(HRESULT_FROM_WIN32(WAIT_TIMEOUT));
-        winrt::check_hresult(hr);if(!result)winrt::throw_hresult(E_UNEXPECTED);
-        Value returned;winrt::check_hresult(result->Get(L"ReturnValue",0,&returned.v,nullptr,nullptr));
+        winrt::check_hresult(hr);
+        // WmiSetBrightness is declared void: a completed call yields no
+        // out-parameter object (measured on this machine, 2026-10-31). Only
+        // an explicit non-zero status fails; the caller reads the level back.
+        if(!result)return;
+        Value returned;
+        if(FAILED(result->Get(L"ReturnValue",0,&returned.v,nullptr,nullptr))||returned.v.vt==VT_NULL||returned.v.vt==VT_EMPTY)return;
         winrt::check_hresult(VariantChangeType(&returned.v,&returned.v,0,VT_I4));
         if(returned.v.lVal)winrt::throw_hresult(E_FAIL);
     }

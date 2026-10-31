@@ -1,5 +1,5 @@
 #pragma once
-#include "effects-latest.h"
+#include "glass-latest.h"
 #include "policy-latest.h"
 #include <winrt/Windows.UI.Composition.Desktop.h>
 #include <winrt/Windows.System.h>
@@ -28,8 +28,26 @@ struct Scene {
     comp::CompositionColorBrush tint{nullptr},stroke{nullptr};
     comp::DropShadow soft{nullptr},tight{nullptr};
     // Floating panels: liquid-glass layers and the staggered content bands.
-    comp::SpriteVisual glass{nullptr},lens{nullptr};
-    comp::CompositionBrush shape{nullptr},ring{nullptr},band{nullptr};
+    // DWM delivers the host backdrop already blurred and composition will not
+    // transform it (no refraction), so the body is partly transparent and the
+    // real desktop shows through sharp, while a rim of fully frosted, more
+    // vivid backdrop, an edge shade and specular lines give the glass depth.
+    struct Look {
+        float saturation,amplitude,exponent,offset,glass; // body: tone curve, layer opacity
+        Color tint;
+        float rimSaturation,rimAmplitude,rimExponent,rimOffset,rim; // frosted rim band
+        Color shade,hairline,halo;float haloBlur;
+    };
+    // Light: black behind becomes ~0.53 and white stays white (dark text
+    // keeps ~4.8:1 over a black window); dark: white behind becomes ~0.39.
+    static Look Defaults(bool light) {
+        return light?Look{1.7f,.45f,.6f,.55f,.88f,{20,255,255,255},2.6f,.55f,.7f,.42f,1,{26,0,0,0},{22,0,0,0},{255,255,255,255},6}:
+                     Look{1.6f,.45f,1.5f,0,.88f,{64,16,18,22},2.4f,.6f,1.2f,.02f,1,{16,255,255,255},{70,0,0,0},{200,0,0,0},6};
+    }
+    Look look{};bool tuned=false; // tuned: a fixture set look; Theme keeps it
+    static constexpr float HostBlur=28; // approximates DWM's blur (real-desktop check, 2026-10-31)
+    comp::SpriteVisual glass{nullptr},frost{nullptr},shade{nullptr};
+    comp::CompositionBrush shape{nullptr},ring{nullptr},band{nullptr},edge{nullptr};
     comp::CompositionLinearGradientBrush rimLight{nullptr},innerLight{nullptr};
     comp::CompositionRadialGradientBrush sheen{nullptr},glint{nullptr};
     comp::CompositionSurfaceBrush contentBrush{nullptr};
@@ -64,25 +82,45 @@ struct Scene {
         if(source)v.Brush(Masked(source,mask));
         body.Children().InsertAtTop(v);return v;
     }
-    // Backdrop -> blur -> saturation, then out=k*c+o. A compressed, lifted
-    // (light) or lowered (dark) range keeps text contrast on any wallpaper.
-    comp::CompositionEffectBrush Glass(float amount,float saturation,float k,float o) {
-        auto blur=winrt::make_self<GaussianBlurEffect>();
-        blur->BlurAmount=amount;blur->BorderMode=D2D1_BORDER_MODE_HARD;
-        blur->Source=comp::CompositionEffectSourceParameter(L"backdrop");
-        auto tone=winrt::make_self<ColorMatrixEffect>();tone->Source=*blur;tone->ClampOutput=true;
+    // Backdrop -> optional blur -> saturation -> optional gamma curve
+    // out=amplitude*c^exponent+offset (the light glass lifts dark desktop
+    // regions more than bright ones; the dark glass lowers bright ones).
+    comp::CompositionEffectBrush Glass(float amount,float saturation,float amplitude=1,float exponent=1,float offset=0) {
+        wge::IGraphicsEffectSource source=comp::CompositionEffectSourceParameter(L"backdrop");
+        // DWM blurs the host backdrop before handing it over; the probe's
+        // plain backdrop gets an equivalent blur so its renders match.
+        if(!host&&!amount)amount=HostBlur;
+        if(amount>0){
+            auto blur=winrt::make_self<GaussianBlurEffect>();
+            blur->BlurAmount=amount;blur->BorderMode=D2D1_BORDER_MODE_HARD;blur->Source=source;source=*blur;
+        }
+        auto tone=winrt::make_self<ColorMatrixEffect>();tone->ClampOutput=true;tone->Source=source;
         const float s=saturation,inv=1-s,r=.2126f,g=.7152f,b=.0722f;
-        const float matrix[20]={(inv*r+s)*k,inv*r*k,inv*r*k,0,
-                                inv*g*k,(inv*g+s)*k,inv*g*k,0,
-                                inv*b*k,inv*b*k,(inv*b+s)*k,0,
-                                0,0,0,1,o,o,o,0};
+        const float matrix[20]={inv*r+s,inv*r,inv*r,0, inv*g,inv*g+s,inv*g,0, inv*b,inv*b,inv*b+s,0, 0,0,0,1, 0,0,0,0};
         std::copy(std::begin(matrix),std::end(matrix),tone->Matrix);
-        auto effect=compositor.CreateEffectFactory(*tone).CreateBrush();
-        // The probe has no window: it samples a fixture wallpaper behind the
-        // panel in its own tree, through the same effect graph.
+        wge::IGraphicsEffect top=*tone;
+        if(amplitude!=1||exponent!=1||offset!=0){
+            auto gamma=winrt::make_self<GammaTransferEffect>();gamma->Source=*tone;
+            gamma->Amplitude=amplitude;gamma->Exponent=exponent;gamma->Offset=offset;top=*gamma;
+        }
+        return Sampled(compositor.CreateEffectFactory(top).CreateBrush());
+    }
+    // The probe has no window: it samples a fixture wallpaper behind the
+    // panel in its own tree, through the same effect graph.
+    comp::CompositionEffectBrush Sampled(comp::CompositionEffectBrush const& effect) {
         effect.SetSourceParameter(L"backdrop",host?compositor.CreateHostBackdropBrush().as<comp::CompositionBrush>():
             compositor.CreateBackdropBrush().as<comp::CompositionBrush>());
         return effect;
+    }
+    // 1 at the rim fading to 0 inward, from stepped vector outlines so it
+    // follows every resize.
+    comp::CompositionBrush Falloff(int steps,float step,float power) {
+        auto falloff=compositor.CreateShapeVisual();
+        for(int i=0;i<steps;++i){
+            const float a=std::pow(1-float(i)/steps,power);
+            Outline(falloff,.5f+step*i,step).StrokeBrush(compositor.CreateColorBrush(Color{uint8_t(255*a),255,255,255}));
+        }
+        return ShapeMask(falloff);
     }
     static void Stops(comp::CompositionGradientBrush const& brush,comp::Compositor const& c,
                       std::initializer_list<std::pair<float,Color>> stops) {
@@ -151,20 +189,15 @@ struct Scene {
         shadowVisual(floating?22:15,floating?9:10,soft);shadowVisual(1.5f,1,tight);
 
         glass=Layer(nullptr,nullptr);
-        if(floating){
-            // Edge lensing: near the rim the backdrop is sharper and more
-            // vivid than the frosted centre, fading out over ~9 DIP. Built
-            // from stepped vector outlines, so it follows every resize.
-            auto falloff=compositor.CreateShapeVisual();
-            for(int i=0;i<6;++i){
-                const float a=std::pow(1-i/6.f,1.6f);
-                Outline(falloff,.75f+1.5f*i,1.5f).StrokeBrush(compositor.CreateColorBrush(Color{uint8_t(255*a),255,255,255}));
-            }
-            band=ShapeMask(falloff);
-            lens=Layer(nullptr,nullptr);
-        }
         tint=compositor.CreateColorBrush();
         Layer(tint,mask);
+        if(floating){
+            // A frosted rim over ~13 DIP, and a narrower band of edge
+            // thickness that reads even over a plain white window.
+            band=Falloff(9,1.5f,1.3f);edge=Falloff(5,1.5f,1.8f);
+            frost=Layer(nullptr,nullptr);
+            shade=Layer(nullptr,nullptr);
+        }
         if(floating){
             // Pointer-following specular light: a broad sheen on the body and
             // a tight glint confined to the 1.5 DIP rim.
@@ -177,6 +210,7 @@ struct Scene {
             Outline(rim,.5f,1).StrokeBrush(rimLight);
             innerLight=compositor.CreateLinearGradientBrush();innerLight.StartPoint({0,0});innerLight.EndPoint({0,1});
             Outline(rim,1.5f,1).StrokeBrush(innerLight);
+            stroke=compositor.CreateColorBrush();Outline(rim,0,.75f).StrokeBrush(stroke);
             body.Children().InsertAtTop(rim);
             auto edge=compositor.CreateShapeVisual();
             Outline(edge,.75f,1.5f).StrokeBrush(compositor.CreateColorBrush(Color{255,255,255,255}));
@@ -209,27 +243,33 @@ struct Scene {
         soft.Color(light?Color{255,15,20,30}:Color{255,0,0,0});
         tight.Color(light?Color{255,15,20,30}:Color{255,0,0,0});
         if(!floating){
-            glass.Brush(Masked(Glass(22,1.6f,1,0),shape));
+            glass.Brush(Masked(Glass(22,1.6f),shape));
             tint.Color(light?Color{158,246,247,250}:Color{148,30,32,38});
             stroke.Color(light?Color{153,255,255,255}:Color{23,255,255,255});
             soft.Opacity(light?.20f:.45f);tight.Opacity(light?.12f:.35f);
             return;
         }
+        if(!tuned)look=Defaults(light);
         // "Transparency effects" off in Settings: an opaque pane, no lensing.
-        glass.IsVisible(clear);lens.IsVisible(clear);
+        glass.IsVisible(clear);frost.IsVisible(clear);
         if(clear){
-            glass.Brush(Masked(Glass(30,1.8f,.5f,light?.47f:0),shape));
-            lens.Brush(Masked(Glass(5,2.1f,.56f,light?.42f:0),band));
+            glass.Brush(Masked(Glass(0,look.saturation,look.amplitude,look.exponent,look.offset),shape));glass.Opacity(look.glass);
+            frost.Brush(Masked(Glass(0,look.rimSaturation,look.rimAmplitude,look.rimExponent,look.rimOffset),band));frost.Opacity(look.rim);
         }
-        tint.Color(!clear?(light?Color{255,243,244,247}:Color{255,32,34,40}):
-                   light?Color{158,250,251,253}:Color{158,28,30,36});
+        shade.Brush(Masked(compositor.CreateColorBrush(look.shade),edge));
+        tint.Color(!clear?(light?Color{255,243,244,247}:Color{255,32,34,40}):look.tint);
+        stroke.Color(look.hairline);
+        for(auto const& v:bands)if(auto shadow=v.Shadow())if(auto halo=shadow.try_as<comp::DropShadow>())Halo(halo);
         constexpr Color none{0,255,255,255};
         auto white=[](float a){return Color{uint8_t(std::lround(255*a)),255,255,255};};
-        Stops(rimLight,compositor,{{0,white(light?.95f:.32f)},{.5f,white(light?.55f:.12f)},{1,white(light?.30f:.06f)}});
-        Stops(innerLight,compositor,{{0,white(light?.55f:.12f)},{.35f,none},{1,none}});
-        Stops(sheen,compositor,{{0,white(light?.30f:.075f)},{1,none}});
-        Stops(glint,compositor,{{0,white(light?1:.6f)},{.6f,white(light?.25f:.12f)},{1,none}});
-        soft.Opacity(light?.18f:.50f);tight.Opacity(light?.10f:.40f);
+        // Light from the top left, reflected again inside the bottom right.
+        Stops(rimLight,compositor,light?
+            std::initializer_list<std::pair<float,Color>>{{0,white(1)},{.3f,white(.45f)},{.5f,white(.15f)},{.7f,white(.4f)},{1,white(.85f)}}:
+            std::initializer_list<std::pair<float,Color>>{{0,white(.6f)},{.3f,white(.2f)},{.5f,white(.06f)},{.7f,white(.16f)},{1,white(.4f)}});
+        Stops(innerLight,compositor,{{0,white(light?.7f:.18f)},{.3f,none},{1,none}});
+        Stops(sheen,compositor,{{0,white(light?.22f:.06f)},{1,none}});
+        Stops(glint,compositor,{{0,white(light?1:.7f)},{.6f,white(light?.3f:.15f)},{1,none}});
+        soft.Opacity(light?.22f:.55f);tight.Opacity(light?.14f:.45f);
     }
     void Scalar(wchar_t const* name,float end,int ms,int delay,Curve curve,bool linear=false) {
         auto a=compositor.CreateScalarKeyFrameAnimation();
@@ -272,6 +312,9 @@ struct Scene {
         const size_t count=std::max<size_t>(1,cuts.size()>1?cuts.size()-1:1);
         while(bands.size()<count){
             auto v=compositor.CreateSpriteVisual();v.Brush(contentBrush);v.Clip(compositor.CreateInsetClip());
+            // A soft halo of the glass colour keeps text legible over a
+            // busy desktop showing through.
+            if(floating){auto halo=compositor.CreateDropShadow();halo.Mask(contentBrush);Halo(halo);v.Shadow(halo);}
             content.Children().InsertAtTop(v);bands.push_back(v);
         }
         while(bands.size()>count){content.Children().Remove(bands.back());bands.pop_back();}
@@ -282,6 +325,7 @@ struct Scene {
         }
     }
     void Light(float x,float y){props.InsertVector2(L"Light",{x,y});}
+    void Halo(comp::DropShadow const& halo){halo.Color(look.halo);halo.BlurRadius(look.haloBlur);halo.Offset({0,0,0});}
     // Panel reveal and leave. One table drives the compositor animations
     // and RevealFrame/LeaveFrame, the static frames the offscreen probe uses
     // (a detached capture tree does not advance compositor animations).
@@ -352,7 +396,7 @@ struct Scene {
         try{
             if(target){target.Root(nullptr);target.Close();}
             target=nullptr;motion=nullptr;content=nullptr;body=nullptr;root=nullptr;props=nullptr;
-            tint=nullptr;stroke=nullptr;soft=nullptr;tight=nullptr;glass=nullptr;lens=nullptr;shape=nullptr;ring=nullptr;band=nullptr;
+            tint=nullptr;stroke=nullptr;soft=nullptr;tight=nullptr;glass=nullptr;frost=nullptr;shade=nullptr;edge=nullptr;shape=nullptr;ring=nullptr;band=nullptr;
             rimLight=nullptr;innerLight=nullptr;sheen=nullptr;glint=nullptr;contentBrush=nullptr;bands.clear();
             if(ownsCompositor&&compositor)compositor.Close();compositor=nullptr;
             if(dispatcher){

@@ -1,69 +1,39 @@
 {
-  "version": "0.8.84",
-  "date": "2026-10-31T02:50:14+08:00",
+  "version": "0.8.85",
+  "date": "2026-10-31T13:18:55+08:00",
   "state": "DeployedAwaitingUserAcceptance",
-  "backendVersion": "0.5.69",
-  "panelVersion": "0.8.84",
-  "change": "Hover panel redesign: two-stage hover (child starts hidden and samples after 120 ms on the key, shown at 400 ms with rates already computed); GPU 3D load from public D3DKMT node statistics instead of PDH; liquid-glass composition material, system accent colors, staged reveal and 150 ms leave animation, interaction transitions; in-place surface redraw. Hit areas, layout and sampling boundaries unchanged. Design notes: docs/panel-latest.md",
+  "backendVersion": "0.5.70",
+  "panelVersion": "0.8.85",
+  "change": "Panel material rebuilt after user rejection of 0.8.84: the glass layer covers 88% so DWM shows the sharp desktop through; a gamma curve replaces the linear compression; frosted rim band, edge-thickness band, specular rim lines and a content-alpha halo behind text. Fixes the void WmiSetBrightness result reported as failure. Details: docs/panel-latest.md",
   "checks": [
-    "Aggregate panel and BackendOnly builds passed; only the existing hide-latest.cpp deprecation warning",
-    "Regenerated styler-latest.cpp and tray-latest.cpp identical to the committed generated files",
+    "Real-desktop material check (tests/aggregate-glass-latest.ps1, panel shown ~1 s and the area read with GDI): raw host backdrop confirmed pre-blurred by DWM; light and dark over the user wallpaper, a white browser page, a dark terminal and a dense text/colour fixture",
+    "Transform of a backdrop brush rejected by the compositor (SetSourceParameter E_INVALIDARG), so no refraction layer ships",
+    "WmiSetBrightness same-value call through the panel sequence: ExecMethod S_OK, GetResultObject S_OK with a null object; now treated as success",
+    "Aggregate panel and BackendOnly builds passed; only the existing hide-latest.cpp deprecation warning; regenerated styler/tray identical",
     "Controller / Start / panels binaries are the exact 0.8.78 accepted files (FCA312C8 / 070939A5 / 9F5976F7)",
-    "23 pre-deploy checks passed: runtime (91), grid, geometry, cards x4, attention, client-edge, clip-ownership, theme-notify, start-lifecycle, maintenance, shell-actions, quick-position, hotcorners, cards-aggregate, cards-aggregate-host, imports, panel-lifecycle, 3 hidden probes",
-    "Hidden probe: 130 policy checks (new D3DKMT adapter-type, node-busy and transition-state cases), 86 metric checks; GPUs D58B and E20E as in 0.8.83; readOnly, no writes, no visible windows",
-    "Lifecycle fixture extended with standby reveal gate (332 checks): a hidden child never shows without its own reveal cookie, a reveal for a replaced cookie is stale, standby quit has no leave delay",
-    "Offscreen material capture (Windows.Graphics.Capture of the real composition tree over a fixture wallpaper): light/dark glass, reveal and leave filmstrips stepped from the shared timing table, reviewed visually",
-    "ValidateOnly passed before any change; Update Applied, Live, ComponentHealth Ready; only latest.dll and aggregate/latest.exe changed",
-    "latest.ini, hotcorners/latest.ini and cards/latest.ini unchanged",
+    "23 pre-deploy checks passed, including runtime (91), lifecycle with the standby reveal gate, and 3 hidden probes (130 policy, 86 metric checks, brightness read 100, no writes)",
+    "ValidateOnly passed; Update Applied, Live, ComponentHealth Ready; only latest.dll and aggregate/latest.exe changed; configs unchanged; StartAttachment 0 recoveries / 0 failures",
     "Post-deploy autotest AutomatedChecksPassed; installed files and Explorer unchanged during probes; no probe leftovers"
   ],
   "preDeployValidation": {
-    "At": "2026-10-31T02:43:59+08:00",
-    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.84-outputs/pre-deploy-20261031-024359",
-    "ProbeResult": {
-      "policyChecks": 130,
-      "metricChecks": 86,
-      "reads": 2,
-      "writes": 0,
-      "normalUser": true,
-      "readOnly": true,
-      "hiddenReadsUnchanged": true,
-      "hiddenSamplingUnchanged": true,
-      "stopMs": 0,
-      "gpus": 2
-    },
-    "Lifecycle": {
-      "checks": 332,
-      "closeCases": 20,
-      "maximumStopMs": 47,
-      "ownedPanelWindows": 0
-    },
-    "MaterialEvidence": "control-panel-probe/material-light.png, material-dark.png, material-reveal.png, material-leave.png in each probe directory",
-    "Note": "The suite ran before the reveal-gate cases were added; the extended lifecycle fixture was then run alone and passed. Neither changes the panel binary"
+    "At": "2026-10-31T13:15:31+08:00",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.85-outputs/pre-deploy-20261031-131531",
+    "RealDesktopEvidence": "C:/Users/x/Documents/Codex/Tools/_build/glass-check/glass-*.png"
   },
   "automatedValidation": {
-    "At": "2026-10-31T02:52:27.0046645+08:00",
+    "At": "2026-10-31T13:20:50.6985014+08:00",
     "State": "AutomatedChecksPassed",
     "ProbeCycles": 3,
-    "Stages": [
-      "native-geometry",
-      "native-host-lifetime",
-      "panel-lifecycle",
-      "probe-1",
-      "probe-2",
-      "probe-3",
-      "passive-observation"
-    ],
     "InstalledFilesUnchanged": true,
     "ExplorerUnchanged": true,
     "ProbeLeftovers": [],
     "Observation": "NotObserved",
-    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.84-outputs/post-deploy/20261031-025035-35f4bc23"
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.85-outputs/post-deploy/20261031-131909-84cda264"
   },
   "deployment": {
     "State": "DeployedAwaitingUserAcceptance",
-    "At": "2026-10-31T02:50:14+08:00",
-    "Version": "0.8.84",
+    "At": "2026-10-31T13:18:55+08:00",
+    "Version": "0.8.85",
     "Architecture": "native-taskbar",
     "Live": true,
     "ComponentHealth": {
@@ -71,29 +41,21 @@
       "Unavailable": [],
       "Pending": []
     },
-    "BackendVersion": "0.5.69",
-    "PackageFiles": 439,
-    "ChangedFiles": 29,
+    "BackendVersion": "0.5.70",
+    "PackageFiles": 442,
+    "ChangedFiles": 16,
     "RuntimeChanged": [
       "aggregate/latest.exe",
       "latest.dll"
     ],
     "RuntimeFiles": {
       "latest.exe": "FCA312C81D1BF8D8AA2E1E54A37590E584E93940F488C531187909ED9B8F6899",
-      "latest.dll": "A473A8C3E1435246D9F193F3A5C0A5FBDA3C6CA51B5AB6E4BBDAD01EF041A104",
+      "latest.dll": "29E17962783D36F68CAFFAD8D0D853C0E70D05657B74B3F4184E7A70D5B0F074",
       "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
       "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
-      "aggregate/latest.exe": "87E07FFAC3869684F19311942902A8720756F837A7CBC8A9B984F8C9A52BF004"
+      "aggregate/latest.exe": "A850353816A6927433636D8DC1F04F8A00E936256C9F43A2E98D7698B558827E"
     },
-    "Backup": "backups/before-0.8.84-20261031-025005007",
-    "Components": {
-      "DockReady": true,
-      "HotCornersReady": true,
-      "StartLayoutReady": true,
-      "ClientEdgeReady": true,
-      "QuickTheme": "0.2.0",
-      "HotCorners": "1.0.12-integrated"
-    },
+    "Backup": "backups/before-0.8.85-20261031-131847373",
     "ConfigPreserved": [
       "latest.ini",
       "hotcorners/latest.ini",
@@ -102,15 +64,11 @@
     "Runner": "PowerShell 7 in the signed-in desktop session (elevated)",
     "BackupCleanup": {
       "PrunedByUpdate": 1,
-      "PrunedBytes": 2244075,
-      "Remaining": "51 directories, 186 MiB (capsule-era, pre-0.7 and unfinished backups are outside the rule)"
-    },
-    "StatusNotes": [
-      "StartAttachment reports Recoveries 1 / Failures 1 after the Explorer reload (0.8.83: 0 / 0); StartLayoutReady and ComponentHealth Ready, so the existing recovery path reattached",
-      "QuickTheme rootReady/buttonReady false and failures 1, the same as after the 0.8.83 deploy (quick settings not open)"
-    ]
+      "PrunedBytes": 53558,
+      "Remaining": "51 directories, 190 MiB"
+    }
   },
-  "rollback": "Existing Update/Rollback transaction with backups/before-0.8.84-20261031-025005007",
+  "rollback": "Existing Update/Rollback transaction with backups/before-0.8.85-20261031-131847373",
   "preserved": [
     "0.8.78 accepted controller / Start / panels binaries",
     "native tray/pins/menus/hotcorners",
@@ -120,40 +78,20 @@
     "panel launched only from the real hover on the native key, hash-checked, ordinary token, suspended until PID/cookie are published"
   ],
   "previousAcceptance": {
-    "version": "0.8.83",
-    "record": "docs/verification-v0.8.83.json",
-    "answer": "面板出数确实快了",
-    "scope": "Real hover after deployment: first values appear sooner"
+    "version": "0.8.84",
+    "record": "docs/verification-v0.8.84-before-glass-rework.json",
+    "answer": "根本没有液态玻璃效果，云母都算不上，还有这种bug",
+    "scope": "Rejected: material near-opaque; brightness error shown"
   },
   "notVerified": [
-    "Real HostBackdrop glass over the live desktop (offscreen capture used a BackdropBrush over a fixture wallpaper)",
-    "Real hover timing: 120 ms hidden prime, reveal at 400 ms, values complete at reveal",
-    "Compositor playback of the reveal/leave animations on the live desktop (filmstrips are stepped static frames)",
-    "Pointer-following highlight, accent colors under the user's actual theme, dark mode and transparency-off fallback on the live desktop",
-    "Leave then quick re-hover hand-off while the previous panel fades out",
-    "Busy cursor absence with the additional short standby launch on brief rests"
+    "The user's own judgement of the new glass on real hover",
+    "Legibility over every background: dense high-contrast content behind can drop secondary text to 2-3:1 (halo mitigates)",
+    "Real hover timing and reveal hand-off from 0.8.84 (still awaiting the user's view)",
+    "Brightness drag on the real panel after the fix (method behaviour verified with a same-value call)"
   ],
   "pending": [
-    "User visual and timing acceptance of the redesigned panel",
+    "User visual acceptance of the 0.8.85 glass",
     "Retake docs/assets/screenshot.png after acceptance",
-    "layoutCost over a normal working day, to decide whether LayoutUpdated work needs reducing"
-  ],
-  "sourceEvidence": [
-    "2026-10-31 on this PC: D3DKMT node running time equals PDH GPU Engine values for the same engines (AMD 3D 0.50%, Copy 0.13% over 2 s); indirect-display alias (type 0x342) and software adapter (0x105) excluded",
-    "PDH GPU wildcard open + first collect measured at 307 ms in 0.8.83; D3DKMT needs no query construction",
-    "Before 0.8.84 the panel process started only at the 400 ms hover delay, so rates appeared ~0.3 s after the panel"
-  ],
-  "layoutCostAfterRestart": {
-    "tray": {
-      "calls": 293,
-      "micros": 99106,
-      "worstMicros": 1054
-    },
-    "surface": {
-      "calls": 304,
-      "micros": 93167,
-      "worstMicros": 6101
-    },
-    "At": "2026-10-31T02:53 (includes autotest probes)"
-  }
+    "layoutCost over a normal working day"
+  ]
 }
