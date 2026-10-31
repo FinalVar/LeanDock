@@ -9,4 +9,7 @@ bool Dispatch(HWND owner,UINT message,WPARAM w,LPARAM l,LRESULT& result);
 bool Snapshot();
 bool Ready();
 bool Validate(const wchar_t* root);
+// Called on coalesced pointer movement, also while the corners are paused
+// (the Dock over fullscreen applications follows the pointer too).
+extern void (*pointerObserver)();
 }

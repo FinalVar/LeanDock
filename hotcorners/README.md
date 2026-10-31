@@ -24,7 +24,9 @@ Start，至多再关闭一层，不重新计时。过渡等待上限
 
 进入有延迟的角落后才启动等待定时器，提前离开触发区会取消；再次进入重新计时，不累计短暂停留。零延迟角在输入事件中直接触发。拖拽、按键修饰、全屏抑制以及暂停／锁屏／显示器变化清理规则继续有效。Windows 忙碌时定时器可能稍后调度，但不能在设定时间前触发。
 
-全屏抑制只针对游戏（0.8.90 起）。`PauseOnFullscreen=1` 表示前台是全屏游戏时四角不响应；其他全屏应用（播放器、浏览器、终端等）照常触发。`PauseOnFullscreen=0` 则任何时候都触发。判断规则与 Dock 的全屏呼出共用 `../include/fullscreen-app-policy-latest.h`：独占全屏的 Direct3D 程序；可执行文件位于 `\steamapps\common\`、`\Epic Games\`、`\XboxGames\`、`\Riot Games\`、`\WeGameApps\`、`\HoYoPlay\games\`、`\GOG Galaxy\Games\`、`\GOG Games\`、`\Ubisoft Game Launcher\games\`、`\EA Games\` 之下；或文件名列在 `Games=`（分号分隔，不区分大小写，整名匹配）。无法读取进程路径时按游戏处理。`Games=` 随配置一起读取，配置被拒绝时保留上一份名单。状态里的 `blockReasons.fullscreen` 只计游戏造成的拦截，`fullscreenAppEntries` 记录全屏应用中被放行的进入次数。
+全屏抑制只针对游戏和远程控制客户端（0.8.90 起只针对游戏，0.8.91 加入远程控制）。`PauseOnFullscreen=1` 表示前台是全屏游戏或全屏远程控制时四角不响应，四角留给远程电脑；其他全屏应用（播放器、浏览器、终端等）照常触发。远程控制客户端按文件名固定识别：`mstsc.exe`、`msrdc.exe`、`GameViewer.exe`（UU 远程）、`ToDesk.exe`、`SunloginClient.exe`、`AnyDesk.exe`、`TeamViewer.exe`、`rustdesk.exe`、`parsecd.exe`、`Moonlight.exe`、`vmconnect.exe`、`vmware.exe`、`VirtualBoxVM.exe`。`PauseOnFullscreen=0` 则任何时候都触发。判断规则与 Dock 的全屏呼出共用 `../include/fullscreen-app-policy-latest.h`：独占全屏的 Direct3D 程序；可执行文件位于 `\steamapps\common\`、`\Epic Games\`、`\XboxGames\`、`\Riot Games\`、`\WeGameApps\`、`\HoYoPlay\games\`、`\GOG Galaxy\Games\`、`\GOG Games\`、`\Ubisoft Game Launcher\games\`、`\EA Games\` 之下；或文件名列在 `Games=`（分号分隔，不区分大小写，整名匹配）。无法读取进程路径时按游戏处理。`Games=` 随配置一起读取，配置被拒绝时保留上一份名单。状态里的 `blockReasons.fullscreen` 只计游戏和远程控制造成的拦截，`fullscreenAppEntries` 记录全屏应用中被放行的进入次数。
+
+鼠标的原始输入事件（合并后）同时转给 Dock 的全屏判断（`pointerObserver`），四角暂停时也照转，Dock 不另挂鼠标钩子或轮询。
 
 配置更新后使用部署目录的 `latest.ps1 -Action ReloadCorners`。管理器 `Status` 返回的 `HotCorners.cornerDelayMs` 是运行实例实际采用的各角延迟，不能只看磁盘配置。
 

@@ -263,9 +263,9 @@ replace_once('''            if (LaunchAction(action)) { ++activations[corner]; L
     '            DispatchCorner(action,corner);')
 replace_once('    case WM_TIMER:\n        if(w!=kDwell)return false;',
     '    case WM_TIMER:\n        if(w==kStartDismiss){ContinueAfterStart();return true;}\n        if(w!=kDwell)return false;')
-# Fullscreen applications keep the corners; only games pause them, as for the
-# Dock (include/fullscreen-app-policy-latest.h). PauseOnFullscreen=1 means
-# "in fullscreen games"; Games= lists more of them by file name.
+# Fullscreen applications keep the corners; only games and remote clients
+# pause them, as for the Dock (include/fullscreen-app-policy-latest.h).
+# PauseOnFullscreen=1 means "in those"; Games= lists more games by file name.
 replace_once('#include "../hotcorners/fullscreen/latest.h"',
     '#include "../hotcorners/fullscreen/latest.h"\n#include "fullscreen-app-policy-latest.h"')
 replace_once('    config = next; return true;',
@@ -275,8 +275,16 @@ replace_once('    config = next; return true;',
 replace_once('static bool maximizedClientAllowed,lastBlockMaximized;',
     'static bool maximizedClientAllowed,fullscreenAppAllowed,lastBlockMaximized;\nstatic uint64_t fullscreenAppEntries;')
 replace_once('    maximizedClientAllowed=!suppress;return suppress;',
-'''    const bool game=suppress && LeanDockFullscreen::Game(foreground);
-    maximizedClientAllowed=!suppress;fullscreenAppAllowed=suppress && !game;return game;''')
+'''    const bool quiet=suppress && LeanDockFullscreen::Quiet(foreground);
+    maximizedClientAllowed=!suppress;fullscreenAppAllowed=suppress && !quiet;return quiet;''')
+# The Dock over fullscreen applications follows the pointer through the same
+# coalesced raw input, also while the corners are paused.
+replace_once('bool Validate(const wchar_t* root) {return Paths(root) && LoadConfig();}',
+    'void (*pointerObserver)()=nullptr;\nbool Validate(const wchar_t* root) {return Paths(root) && LoadConfig();}')
+replace_once('            if(!paused && !locked && !evalPending)evalPending=PostMessageW(hwnd,kEvaluate,0,0)!=FALSE;',
+    '            if(!locked && !evalPending && (!paused || pointerObserver))evalPending=PostMessageW(hwnd,kEvaluate,0,0)!=FALSE;')
+replace_once('    case kEvaluate:evalPending=false;if(!paused && !locked)Evaluate(false);return true;',
+    '    case kEvaluate:evalPending=false;if(pointerObserver && !locked)pointerObserver();if(!paused && !locked)Evaluate(false);return true;')
 replace_once('    maximizedClientAllowed=false;\n','    maximizedClientAllowed=false;fullscreenAppAllowed=false;\n')
 replace_once('        ++maximizedClientEntries;',
 '''        ++maximizedClientEntries;

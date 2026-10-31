@@ -6,14 +6,17 @@
 
 // Which fullscreen windows keep the auto-hide Dock and the hot corners away.
 // Windows hides an auto-hide taskbar behind any fullscreen window, and the
-// upstream hot corners paused for all of them. LeanDock does so only for
-// games, so players, browsers, terminals and other applications keep both.
-// A game is exclusive Direct3D fullscreen, a program installed in a game
-// store's library, or a file name listed in hotcorners/latest.ini Games=.
+// upstream hot corners paused for all of them. LeanDock stays quiet only for
+// games and remote-control clients (whose screen edges belong to the remote
+// computer), so players, browsers, terminals and other applications keep
+// both. A game is exclusive Direct3D fullscreen, a program installed in a
+// game store's library, or a file name listed in hotcorners/latest.ini Games=.
 namespace LeanDockFullscreen {
 inline constexpr const wchar_t* Libraries[]={
     L"\\steamapps\\common\\",L"\\Epic Games\\",L"\\XboxGames\\",L"\\Riot Games\\",L"\\WeGameApps\\",
     L"\\HoYoPlay\\games\\",L"\\GOG Galaxy\\Games\\",L"\\GOG Games\\",L"\\Ubisoft Game Launcher\\games\\",L"\\EA Games\\"};
+inline constexpr wchar_t RemoteClients[]=L"mstsc.exe;msrdc.exe;GameViewer.exe;ToDesk.exe;SunloginClient.exe;"
+    L"AnyDesk.exe;TeamViewer.exe;rustdesk.exe;parsecd.exe;Moonlight.exe;vmconnect.exe;vmware.exe;VirtualBoxVM.exe";
 // Games= from the hot-corner settings: file names separated by ';'.
 inline wchar_t listed[1024];
 inline bool Contains(const wchar_t* text,const wchar_t* part) {
@@ -36,12 +39,12 @@ inline bool Listed(const wchar_t* image,const wchar_t* list) {
 }
 // image is null when the process cannot be identified (protected or gone);
 // that counts as a game, so an anti-cheat-protected title stays undisturbed.
-inline bool Game(const wchar_t* image,const wchar_t* list,bool exclusive) {
+inline bool Quiet(const wchar_t* image,const wchar_t* list,bool exclusive) {
     if(exclusive || !image)return true;
     for(auto library:Libraries)if(Contains(image,library))return true;
-    return Listed(image,list);
+    return Listed(image,RemoteClients) || Listed(image,list);
 }
-inline bool Game(HWND w) {
+inline bool Quiet(HWND w) {
     QUERY_USER_NOTIFICATION_STATE state{};
     const bool exclusive=SUCCEEDED(SHQueryUserNotificationState(&state)) && state==QUNS_RUNNING_D3D_FULL_SCREEN;
     DWORD pid=0;GetWindowThreadProcessId(w,&pid);
@@ -49,12 +52,22 @@ inline bool Game(HWND w) {
     if(HANDLE p=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,pid)) {
         known=QueryFullProcessImageNameW(p,0,image,&size)!=FALSE;CloseHandle(p);
     }
-    return Game(known?image:nullptr,listed,exclusive);
+    return Quiet(known?image:nullptr,listed,exclusive);
 }
 // No caption and the frame covers the whole monitor: the shape Windows'
 // fullscreen detection and the hot corners' fullscreen rule both look for.
 inline bool Covers(LONG_PTR style,const RECT& frame,const RECT& monitor) {
     return (style&WS_CAPTION)!=WS_CAPTION && monitor.right>monitor.left && monitor.bottom>monitor.top &&
         frame.left<=monitor.left && frame.top<=monitor.top && frame.right>=monitor.right && frame.bottom>=monitor.bottom;
+}
+// Whether the Dock should be above a fullscreen application right now: the
+// pointer on the hidden Dock's strip (the auto-hide taskbar keeps its top
+// rows on screen; region is in window coordinates, the whole window when it
+// has none), or the Dock out or sliding (more than that strip on screen).
+inline bool Wanted(const RECT& tray,const RECT& region,POINT pointer,const RECT& monitor) {
+    if(tray.bottom<=tray.top || monitor.bottom<=monitor.top)return false;
+    if(tray.top<monitor.bottom-8)return true;
+    const POINT local{pointer.x-tray.left,pointer.y-tray.top};
+    return PtInRect(&tray,pointer) && PtInRect(&region,local);
 }
 }

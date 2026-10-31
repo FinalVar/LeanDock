@@ -177,8 +177,8 @@ static bool Fullscreen(HMONITOR target) {
     const bool client=maximized && (style&WS_THICKFRAME) &&
         LeanDockClientEdgePolicy::ClientWindow(foreground);
     const bool suppress=nhc::SuppressFullscreen(style,rect,mi.rcMonitor,maximized,client);
-    const bool game=suppress && LeanDockFullscreen::Game(foreground);
-    maximizedClientAllowed=!suppress;fullscreenAppAllowed=suppress && !game;return game;
+    const bool quiet=suppress && LeanDockFullscreen::Quiet(foreground);
+    maximizedClientAllowed=!suppress;fullscreenAppAllowed=suppress && !quiet;return quiet;
 }
 static BlockReason Blocked(nhc::Target target) {
     if(paused)return BlockReason::Paused;
@@ -316,6 +316,7 @@ static bool Paths(const wchar_t* root) {
     MakePath(iniPath,L"latest.ini");MakePath(logPath,L"latest.log");MakePath(statusPath,L"latest-status.json");
     return true;
 }
+void (*pointerObserver)()=nullptr;
 bool Validate(const wchar_t* root) {return Paths(root) && LoadConfig();}
 bool Ready() {return initialized && rawRegistered;}
 bool Snapshot() {return initialized && WriteStatus();}
@@ -351,11 +352,11 @@ bool Dispatch(HWND hwnd,UINT message,WPARAM w,LPARAM l,LRESULT& result) {
         RAWINPUT input;UINT bytes=sizeof(input);
         if(GetRawInputData((HRAWINPUT)l,RID_INPUT,&input,&bytes,sizeof(RAWINPUTHEADER))!=(UINT)-1 && input.header.dwType==RIM_TYPEMOUSE){
             ++rawEvents;
-            if(!paused && !locked && !evalPending)evalPending=PostMessageW(hwnd,kEvaluate,0,0)!=FALSE;
+            if(!locked && !evalPending && (!paused || pointerObserver))evalPending=PostMessageW(hwnd,kEvaluate,0,0)!=FALSE;
         }
         result=DefWindowProcW(hwnd,message,w,l);return true;
     }
-    case kEvaluate:evalPending=false;if(!paused && !locked)Evaluate(false);return true;
+    case kEvaluate:evalPending=false;if(pointerObserver && !locked)pointerObserver();if(!paused && !locked)Evaluate(false);return true;
     case WM_TIMER:
         if(w==kStartDismiss){ContinueAfterStart();return true;}
         if(w!=kDwell)return false;

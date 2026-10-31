@@ -43,7 +43,7 @@ static void SaveStatus() {
     char json[4096],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
     // Error messages are fixed internal labels, never window titles or application text.
     int size=snprintf(json,sizeof(json),
-        "{\"version\":\"0.3.34\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
+        "{\"version\":\"0.3.35\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
         GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockStart::target,LeanDockStartProtocol::Adjustments))),static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),LeanDockPanels::failures,LeanDockStart::supported?"true":"false",(LeanDockStart::target && LeanDockStart::Query(LeanDockStart::target))?"true":"false",(LeanDockStart::blocked || LeanDockStart::attachPolicy.stopped)?"true":"false",LeanDockStart::failures,error);
     HWND taskbar=FindWindowW(L"Shell_TrayWnd",nullptr);
     const bool appBarReady=LeanDockClientEdge::active && g_state==NativeActive && g_explorerPid &&
@@ -337,6 +337,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
             DestroyWindow(g_window);ReleaseMutex(mutex);CloseHandle(mutex);return 26;
         }
     }
+    NativeCorners::pointerObserver=LeanDockClientEdge::Pointer;
     if(!NativeCorners::Initialize(g_window,g_directory)){
         if(!g_dockSupported){SaveStatus();DestroyWindow(g_window);ReleaseMutex(mutex);CloseHandle(mutex);return 25;}
     }

@@ -17,9 +17,11 @@
 // then refresh that classification and the native taskbar's z-order.
 // Other maximized windows need a measured resize obstruction or a full client
 // under the active AppBar compatibility policy. True fullscreen applications
-// get the same contract unless they are games (fullscreen-app-policy-latest.h),
-// so the auto-hide Dock still reveals over players, browsers and terminals.
-// No resizing or input synthesis.
+// that are not games or remote clients (fullscreen-app-policy-latest.h) get
+// the same contract on demand only: while the pointer is on the hidden Dock's
+// strip or the Dock is out. Otherwise Windows keeps treating them as
+// fullscreen (automatic do-not-disturb and the rest), exactly as without
+// LeanDock. No resizing or input synthesis.
 namespace LeanDockClientEdge {
 inline constexpr UINT Recheck=WM_APP+421;
 struct OwnedWindow {HWND window{};DWORD pid{};bool generic{},fullscreen{};};
@@ -30,6 +32,10 @@ inline ITaskbarList2* shell;
 inline bool active,pending,comOwned,evaluating,again,stopping,enabled,initializing;
 inline unsigned generation;
 inline unsigned repairs,failures,genericRepairs,fullscreenRepairs,initAttempts;
+inline HWND candidate; // the fullscreen application in front at the last evaluation
+// Set when the hot corners' raw input reaches Pointer(). Without it a
+// fullscreen application stays marked while in front, as before 0.8.91.
+inline bool pointerFeed;
 inline HRESULT lastError;
 inline const char* lastStage="not-started";
 inline LeanDockStart::AttachPolicy initPolicy;
@@ -43,8 +49,9 @@ inline bool Maximized(HWND w) {
     if(!GetWindowRect(w,&r) || !GetMonitorInfoW(MonitorFromWindow(w,MONITOR_DEFAULTTONULL),&m))return false;
     return LeanDockClientEdgePolicy::Eligible(IsWindowVisible(w),IsIconic(w),IsZoomed(w),GetWindowLongPtrW(w,GWL_STYLE),r,m.rcMonitor);
 }
-// A fullscreen window that is not a game. Explorer's own surfaces (desktop,
-// taskbar, Task View) and shell experiences such as Start are never marked.
+// A fullscreen window that is not a game or remote client. Explorer's own
+// surfaces (desktop, taskbar, Task View) and shell experiences such as Start
+// are never marked.
 inline bool FullscreenApp(HWND w) {
     if(!w || GetAncestor(w,GA_ROOT)!=w || !IsWindowVisible(w) || IsIconic(w) || w==GetShellWindow() ||
        (GetWindowLongPtrW(w,GWL_EXSTYLE)&WS_EX_TOOLWINDOW) || Pid(w)==Pid(FindWindowW(L"Shell_TrayWnd",nullptr)))return false;
@@ -53,7 +60,27 @@ inline bool FullscreenApp(HWND w) {
     RECT frame{};MONITORINFO m{sizeof(m)};
     if(!GetMonitorInfoW(MonitorFromWindow(w,MONITOR_DEFAULTTONULL),&m) ||
        (FAILED(DwmGetWindowAttribute(w,DWMWA_EXTENDED_FRAME_BOUNDS,&frame,sizeof(frame))) && !GetWindowRect(w,&frame)))return false;
-    return LeanDockFullscreen::Covers(GetWindowLongPtrW(w,GWL_STYLE),frame,m.rcMonitor) && !LeanDockFullscreen::Game(w);
+    return LeanDockFullscreen::Covers(GetWindowLongPtrW(w,GWL_STYLE),frame,m.rcMonitor) && !LeanDockFullscreen::Quiet(w);
+}
+// The pointer on the hidden Dock's on-screen strip of this window's monitor,
+// or the Dock out: the only times a fullscreen application is marked. Any
+// taskbar on that monitor counts (a native secondary one too); this only
+// reads its position, and z-order repair stays limited to LeanDock's own.
+inline bool DockWanted(HWND w) {
+    if(!pointerFeed)return true;
+    POINT p{};MONITORINFO m{sizeof(m)};
+    const HMONITOR monitor=MonitorFromWindow(w,MONITOR_DEFAULTTONULL);
+    if(!monitor || !GetCursorPos(&p) || !GetMonitorInfoW(monitor,&m))return false;
+    for(const wchar_t* cls:{L"Shell_TrayWnd",L"Shell_SecondaryTrayWnd"}) {
+        HWND tray=nullptr;
+        while((tray=FindWindowExW(nullptr,tray,cls,nullptr))) {
+            RECT r{},region{};
+            if(MonitorFromWindow(tray,MONITOR_DEFAULTTONULL)!=monitor || !GetWindowRect(tray,&r))continue;
+            if(GetWindowRgnBox(tray,&region)==ERROR)region={0,0,r.right-r.left,r.bottom-r.top};
+            if(LeanDockFullscreen::Wanted(r,region,p,m.rcMonitor))return true;
+        }
+    }
+    return false;
 }
 inline bool Client(HWND w) {
     return LeanDockClientEdgePolicy::ClientWindow(w);
@@ -119,7 +146,8 @@ inline bool ResizeObstruction(HWND w) {
 }
 inline bool AutoHide() {APPBARDATA data{sizeof(data)};return (NativeBarQuery(ABM_GETSTATE,data)&ABS_AUTOHIDE)!=0;}
 inline bool Kept(const OwnedWindow& e) {
-    return e.fullscreen?FullscreenApp(e.window):Maximized(e.window) && (!e.generic || GenericFrame(e.window));
+    return e.fullscreen?FullscreenApp(e.window) && DockWanted(e.window):
+        Maximized(e.window) && (!e.generic || GenericFrame(e.window));
 }
 inline bool Tracked(HWND w){for(const auto& e:owned)if(e.window==w)return true;return false;}
 inline void Forget(OwnedWindow& e) {
@@ -162,10 +190,12 @@ inline void Evaluate() {
     HWND foreground=GetForegroundWindow();
     if(!autoHide)return;
     const bool maximized=Maximized(foreground),fullscreen=!maximized && FullscreenApp(foreground);
+    candidate=fullscreen?foreground:nullptr;
     if(!maximized && !fullscreen)return;
+    if(fullscreen && !Tracked(foreground) && !DockWanted(foreground))return;
     const bool knownClient=maximized && Client(foreground);
     if(maximized && !knownClient && !Tracked(foreground) && !CompatibleFullClient(foreground) && !ResizeObstruction(foreground))return;
-    auto still=[&]{return fullscreen?FullscreenApp(foreground):Maximized(foreground);};
+    auto still=[&]{return fullscreen?FullscreenApp(foreground) && DockWanted(foreground):Maximized(foreground);};
     if(!active || generation!=epoch || GetForegroundWindow()!=foreground || !still())return;
     bool acquired=false;
     if(!GetPropW(foreground,LeanDockClientEdgePolicy::NonRude)) {
@@ -207,6 +237,13 @@ inline void CALLBACK Event(HWINEVENTHOOK,DWORD event,HWND w,LONG object,LONG chi
     // High-volume accessibility children never queue a full application scan.
     if(event==EVENT_SYSTEM_FOREGROUND || tray || Tracked(w) || w==GetForegroundWindow())Queue();
 }
+// Pointer movement, coalesced from the hot corners' raw input. Only a change
+// in whether the fullscreen application in front wants the Dock queues an
+// evaluation; otherwise this returns after one cursor and taskbar read.
+inline void Pointer() {
+    pointerFeed=true;
+    if(active && candidate && DockWanted(candidate)!=Tracked(candidate))Queue();
+}
 inline bool Dispatch(UINT message) {
     if(message!=Recheck)return false;
     pending=false;Evaluate();return true;
@@ -214,7 +251,7 @@ inline bool Dispatch(UINT message) {
 inline void Stop() {
     if(stopping)return;
     stopping=true;
-    enabled=false;active=false;pending=false;again=false;++generation;
+    enabled=false;active=false;pending=false;again=false;candidate=nullptr;++generation;
     if(host)RemovePropW(host,LeanDockAppBar::ControllerReady);
     if(HWND tray=FindWindowW(L"Shell_TrayWnd",nullptr))PostMessageW(tray,LeanDockAppBar::RefreshMessage(),0,0);
     if(retryTimer)KillTimer(nullptr,retryTimer);
