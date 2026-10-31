@@ -3,9 +3,11 @@
 // a second, reads that screen area with GDI and writes PNGs. Unlike the hidden
 // probe this needs the real host backdrop, so it does show windows; it never
 // sends input, takes focus, or touches the running panel or Explorer.
-// Usage: latest.exe --glass-check <output dir> [--raw] [--backdrop] [--light|--dark] [--wifi]
-//        [--name suffix] [--set field=value ...] (Scene::Look fields, alpha 0-255)
-// --wifi shows the Wi-Fi page with fixture networks instead of the main page.
+// Usage: latest.exe --glass-check <output dir> [--raw] [--backdrop] [--light|--dark]
+//        [--page wifi|bluetooth|hotspot|sound] [--name suffix] [--set field=value ...]
+//        (Scene::Look fields, alpha 0-255)
+// --page shows that second page with fixture content instead of the main
+// page (--wifi is short for --page wifi).
 #define wWinMain AggregateProductionEntry
 #include "../aggregate/latest.cpp"
 #undef wWinMain
@@ -53,11 +55,12 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     int count=0;auto args=CommandLineToArgvW(GetCommandLineW(),&count);
     if(count<3||wcscmp(args[1],L"--glass-check")){LocalFree(args);return 2;}
-    const std::wstring output=args[2];bool raw=false,backdrop=false,wifi=false;int theme=-1;std::wstring suffix;
+    const std::wstring output=args[2];bool raw=false,backdrop=false;int theme=-1;std::wstring suffix,page;
     std::vector<std::pair<std::wstring,float>> sets;
     for(int i=3;i<count;++i){
         if(!wcscmp(args[i],L"--raw"))raw=true;else if(!wcscmp(args[i],L"--backdrop"))backdrop=true;
-        else if(!wcscmp(args[i],L"--wifi"))wifi=true;
+        else if(!wcscmp(args[i],L"--wifi"))page=L"wifi";
+        else if(!wcscmp(args[i],L"--page")&&i+1<count)page=args[++i];
         else if(!wcscmp(args[i],L"--light"))theme=1;else if(!wcscmp(args[i],L"--dark"))theme=0;
         else if(!wcscmp(args[i],L"--name")&&i+1<count)suffix=args[++i];
         else if(!wcscmp(args[i],L"--set")&&i+1<count){std::wstring v=args[++i];auto at=v.find(L'=');
@@ -106,16 +109,23 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
         }else popup.Paint([&](ID2D1DeviceContext* dc){
             PaintControlPanel(draw,dc,data,power,L"13:26:08",L"10月23日",L"农历九月十四",layout,PanelPart::None,gesture,motion,0);
         },layout.Cuts());
-        if(wifi&&!raw){
-            Sample s=data;s.wifiList=FixtureNetworks();WifiView view;view.expanded=L"@NRadio-B066-2.4G";view.password=L"secret12";
-            view.focus=WifiView::Focus::Password;WifiLayout rows(s.wifiList,view,layout.height);
-            popup.PaintPage([&](ID2D1DeviceContext* dc){PaintWifiPage(draw,dc,s,rows,view,{PageHit::Row,L"LANSVEHD"},1,1);});
+        if(!page.empty()&&!raw){
+            Sample s=data;const float h=layout.height;
+            popup.PaintPage([&](ID2D1DeviceContext* dc){
+                if(page==L"bluetooth"){s.bluetooth=1;s.bluetoothList=FixtureDevices();BluetoothView view;view.expanded=L"aep:WH-1000XM4";
+                    PaintBluetoothPage(draw,dc,s,BluetoothLayout(s.bluetoothList,view,h),view,{},0,1);}
+                else if(page==L"hotspot"){s.hotspot=1;s.hotspotInfo=FixtureHotspot();PaintHotspotPage(draw,dc,s,HotspotView{},{},0,1,h,false);}
+                else if(page==L"sound"){s.sound=FixtureSound();SoundView view;
+                    PaintSoundPage(draw,dc,s,SoundLayout(s.sound,h),view,{},0,SoundDrag{},[](std::wstring const&){return static_cast<IWICBitmapSource*>(nullptr);});}
+                else{s.wifiList=FixtureNetworks();WifiView view;view.expanded=L"@NRadio-B066-2.4G";view.password=L"secret12";
+                    view.focus=WifiView::Focus::Password;PaintWifiPage(draw,dc,s,WifiLayout(s.wifiList,view,h),view,{PageHit::Row,L"LANSVEHD"},1,1);}
+            });
             popup.scene.Navigate(true,false);
         }
         popup.scene.Light(60,30);
         popup.Show(true);Pump(1100);
         RECT area{LONG(left-40*dpi),LONG(top-30*dpi),LONG(left+(PanelWidth+40)*dpi),LONG(top+(layout.height+10)*dpi)};
-        std::wstring name=output+L"\\glass"+(raw?L"-raw":L"")+(wifi?L"-wifi":L"")+(backdrop?L"-fixture":L"-desktop")+(theme==0?L"-dark":theme==1?L"-light":L"")+
+        std::wstring name=output+L"\\glass"+(raw?L"-raw":L"")+(page.empty()?L"":L"-"+page)+(backdrop?L"-fixture":L"-desktop")+(theme==0?L"-dark":theme==1?L"-light":L"")+
             (suffix.empty()?L"":L"-"+suffix)+L".png";
         Grab(draw,area,name);
         popup.Hide();if(fixture)DestroyWindow(fixture);Pump(50);popup.Destroy();}

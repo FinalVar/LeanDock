@@ -4,23 +4,24 @@
 #include <array>
 
 namespace Capsule {
-// Tiles without a second page (theme; Bluetooth and hotspot until theirs
-// exist) toggle across their whole width and never open system UI.
+// The arrows open the second pages; the theme tile has none and toggles
+// across its whole width. Nothing here opens system UI.
 enum class PanelPart { None, Volume, Mute, Brightness, Wifi, WifiMore, Bluetooth, BluetoothMore,
-    DarkTheme, Hotspot, HotspotMore };
-inline constexpr float PanelWidth=300,SliderLeft=60,SliderRight=244;
+    DarkTheme, Hotspot, HotspotMore, VolumeMore };
+inline constexpr float PanelWidth=300,SliderLeft=60,SliderRight=218;
 inline PanelPart PanelHit(float x,float y){
     if(y>=60&&y<104){
         if(x>=14&&x<146)return x>=114?PanelPart::WifiMore:PanelPart::Wifi;
-        if(x>=154&&x<286)return PanelPart::Bluetooth;
+        if(x>=154&&x<286)return x>=254?PanelPart::BluetoothMore:PanelPart::Bluetooth;
     }
     if(y>=110&&y<154){
         if(x>=14&&x<146)return PanelPart::DarkTheme;
-        if(x>=154&&x<286)return PanelPart::Hotspot;
+        if(x>=154&&x<286)return x>=254?PanelPart::HotspotMore:PanelPart::Hotspot;
     }
     if(y>=164&&y<200){if(x>=14&&x<48)return PanelPart::Mute;
-        if(x>=52&&x<250)return PanelPart::Volume;}
-    if(y>=206&&y<242&&x>=52&&x<250)return PanelPart::Brightness;
+        if(x>=52&&x<224)return PanelPart::Volume;
+        if(x>=256&&x<288)return PanelPart::VolumeMore;}
+    if(y>=206&&y<242&&x>=52&&x<224)return PanelPart::Brightness;
     return PanelPart::None;
 }
 inline bool PanelSlider(PanelPart p){return p==PanelPart::Volume||p==PanelPart::Brightness;}
@@ -33,7 +34,7 @@ inline bool PanelEnabled(PanelPart p,Controls const& s){
     case PanelPart::Bluetooth:return RadioControllable(s.bluetooth)&&!s.wifiBusy&&!s.bluetoothBusy&&!s.hotspotBusy;
     case PanelPart::DarkTheme:return s.darkTheme>=0&&s.themeAvailable&&!s.themeBusy;
     case PanelPart::Hotspot:return s.hotspot>=0&&!s.hotspotBusy&&!s.wifiBusy&&!s.bluetoothBusy;
-    case PanelPart::WifiMore:case PanelPart::BluetoothMore:case PanelPart::HotspotMore:return true;
+    case PanelPart::WifiMore:case PanelPart::BluetoothMore:case PanelPart::HotspotMore:case PanelPart::VolumeMore:return true;
     default:return false;
     }
 }
@@ -82,7 +83,7 @@ struct Tween {
     void Go(float value,uint64_t now,uint32_t duration){if(value!=to){from=At(now);to=value;at=now;ms=duration;}}
     void Snap(float value){from=to=value;ms=0;}
 };
-inline constexpr unsigned PanelParts=unsigned(PanelPart::HotspotMore)+1;
+inline constexpr unsigned PanelParts=unsigned(PanelPart::VolumeMore)+1;
 struct PanelMotion {
     std::array<Tween,PanelParts> hover;std::array<Tween,4> on;Tween volume,brightness;
     bool ready=false;
@@ -138,6 +139,25 @@ inline void PaintCpuTrend(Drawing& draw,ID2D1DeviceContext* dc,std::deque<CpuPoi
     winrt::com_ptr<ID2D1SolidColorBrush> line;winrt::check_hresult(dc->CreateSolidColorBrush(color,line.put()));
     dc->DrawGeometry(path(false).get(),line.get(),1.5f,round.get());
     dot(points.back());
+}
+// A value slider: track, accent fill and thumb. position is 0-100; lift
+// (0-1) grows the thumb's dot under the pointer; dim greys a muted one.
+inline void PaintSlider(Drawing& draw,ID2D1DeviceContext* dc,float left,float right,float y,float position,bool enabled,float lift,bool dim=false){
+    auto& c=draw.colors;
+    draw.Round(dc,{left,y-2,right-left,4},2,c.track);
+    if(!enabled)return;
+    const auto tone=dim?c.secondary:c.accent;
+    const float x=left+(right-left)*std::clamp(position,0.f,100.f)/100.f;
+    if(x>left+.5f){
+        auto fill=draw.Gradient(dc,{left,y},{right,y},{{0,Alpha(tone,.82f)},{1,tone}});
+        draw.Fill(dc,{left,y-2,x-left,4},2,fill.get());
+    }
+    draw.Round(dc,{x-9.5f,y-8.5f,19,19},9.5f,Ink(0x000000,c.light?.10f:.35f));
+    draw.Round(dc,{x-9,y-9,18,18},9,c.thumb);
+    auto ring=draw.Gradient(dc,{0,y-9},{0,y+9},{{0,Ink(0xFFFFFF,c.light?.9f:.18f)},{1,Ink(c.light?0x000000:0xFFFFFF,c.light?.10f:.05f)}});
+    dc->DrawEllipse({{x,y},8.5f,8.5f},ring.get(),1);
+    const float dot=4.5f+1.5f*lift;
+    draw.Round(dc,{x-dot,y-dot,2*dot,2*dot},dot,tone);
 }
 inline void PanelGlyph(Drawing& draw,ID2D1DeviceContext* dc,const wchar_t* text,Rect rect,D2D1_COLOR_F color,float size=17){
     auto layout=draw.Layout(text,size,float(rect.w),float(rect.h),false,false,L"Segoe Fluent Icons");
@@ -197,35 +217,25 @@ inline void PaintControlPanel(Drawing& draw,ID2D1DeviceContext* dc,Sample const&
         PanelGlyph(draw,dc,L"\xE76C",{x+100,y+6,32,32},sub,10);
     };
     tile(0,14,60,L"Wi-Fi",s.wifi,s.wifiBusy,PanelPart::Wifi,PanelPart::WifiMore,L"\xE701",RadioLabel(s.wifi));
-    tile(1,154,60,L"蓝牙",s.bluetooth,s.bluetoothBusy,PanelPart::Bluetooth,PanelPart::None,L"\xE702",RadioLabel(s.bluetooth));
+    tile(1,154,60,L"蓝牙",s.bluetooth,s.bluetoothBusy,PanelPart::Bluetooth,PanelPart::BluetoothMore,L"\xE702",RadioLabel(s.bluetooth));
     tile(2,14,110,L"深色主题",s.darkTheme,s.themeBusy,PanelPart::DarkTheme,PanelPart::None,L"\xE708",ThemeControl::Label(s.darkTheme));
-    tile(3,154,110,L"移动热点",s.hotspot,s.hotspotBusy,PanelPart::Hotspot,PanelPart::None,L"\xEC15",s.hotspotLabel);
+    tile(3,154,110,L"移动热点",s.hotspot,s.hotspotBusy,PanelPart::Hotspot,PanelPart::HotspotMore,L"\xEC15",s.hotspotLabel);
     auto slider=[&](float y,int actual,Tween const& eased,PanelPart part,const wchar_t* glyph){
         const bool enabled=actual>=0;auto ink=enabled?c.text:c.secondary;
         const float position=gesture.pressed==part?float(gesture.preview):eased.At(now);
         if(part==PanelPart::Volume&&enabled){const float h=motion.hover[unsigned(PanelPart::Mute)].At(now);
             if(h>0)draw.Round(dc,{14,y-18,34,36},10,Alpha(c.hover,h));}
         PanelGlyph(draw,dc,glyph,{14,y-18,34,36},ink);
-        draw.Round(dc,{SliderLeft,y-2,SliderRight-SliderLeft,4},2,c.track);
-        if(enabled){
-            const float x=SliderLeft+(SliderRight-SliderLeft)*std::clamp(position,0.f,100.f)/100.f;
-            if(x>SliderLeft+.5f){
-                auto fill=draw.Gradient(dc,{SliderLeft,y},{SliderRight,y},{{0,Alpha(c.accent,.82f)},{1,c.accent}});
-                draw.Fill(dc,{SliderLeft,y-2,x-SliderLeft,4},2,fill.get());
-            }
-            const float lift=std::max(motion.hover[unsigned(part)].At(now),gesture.pressed==part?1.f:0.f);
-            draw.Round(dc,{x-9.5f,y-8.5f,19,19},9.5f,Ink(0x000000,c.light?.10f:.35f));
-            draw.Round(dc,{x-9,y-9,18,18},9,c.thumb);
-            auto ring=draw.Gradient(dc,{0,y-9},{0,y+9},{{0,Ink(0xFFFFFF,c.light?.9f:.18f)},{1,Ink(c.light?0x000000:0xFFFFFF,c.light?.10f:.05f)}});
-            dc->DrawEllipse({{x,y},8.5f,8.5f},ring.get(),1);
-            const float dot=4.5f+1.5f*lift;
-            draw.Round(dc,{x-dot,y-dot,2*dot,2*dot},dot,c.accent);
-        }
+        const float lift=std::max(motion.hover[unsigned(part)].At(now),gesture.pressed==part?1.f:0.f);
+        PaintSlider(draw,dc,SliderLeft,SliderRight,y,position,enabled,lift);
         const int shown=gesture.pressed==part?gesture.preview:enabled?int(std::lround(position)):-1;
-        draw.Text(dc,shown>=0?std::to_wstring(shown):L"—",{252,y-10,34,20},12.5f,ink,false,true);
+        draw.Text(dc,shown>=0?std::to_wstring(shown):L"—",{222,y-10,32,20},12.5f,ink,false,true);
     };
     slider(182,s.volume,motion.volume,PanelPart::Volume,s.mute?L"\xE74F":L"\xE767");
     slider(224,s.brightness,motion.brightness,PanelPart::Brightness,L"\xE706");
+    // Output devices and app volumes: the sound page.
+    if(const float h=motion.hover[unsigned(PanelPart::VolumeMore)].At(now);h>0)draw.Round(dc,{256,166,30,32},8,Alpha(c.hover,h));
+    PanelGlyph(draw,dc,L"\xE76C",{256,166,30,32},c.secondary,10);
     draw.Rule(dc,14,252,286,c.hair);
     auto row=[&](float y,const wchar_t* label,std::wstring main,std::wstring secondary=L"",D2D1_COLOR_F const* tone=nullptr){
         draw.Text(dc,label,{14,y,40,20},12,c.secondary);

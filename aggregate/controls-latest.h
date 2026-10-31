@@ -2,11 +2,14 @@
 #include "platform-latest.h"
 #include "theme-control-latest.h"
 #include "wifi-latest.h"
+#include "bluetooth-latest.h"
+#include "sound-latest.h"
 #include <mmdeviceapi.h>
 #include <endpointvolume.h>
 #include <wbemidl.h>
 #include <winrt/Windows.Devices.Radios.h>
 #include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.Networking.h>
 #include <winrt/Windows.Networking.Connectivity.h>
 #include <winrt/Windows.Networking.NetworkOperators.h>
 #include <array>
@@ -14,11 +17,16 @@
 #include <stop_token>
 
 namespace Capsule {
-enum class Control : unsigned { Volume, Brightness, Mute, Wifi, Bluetooth, DarkTheme, Hotspot, WifiConnect, WifiDisconnect, Count };
+// Panel pages. Second-level pages slide over the main page inside the panel.
+enum class PanelPage : int { Main, Wifi, Bluetooth, Hotspot, Sound };
+enum class Control : unsigned { Volume, Brightness, Mute, Wifi, Bluetooth, DarkTheme, Hotspot, WifiConnect, WifiDisconnect,
+    BluetoothConnect, OutputDevice, AppVolume, AppMute, HotspotConfigure, Count };
 using RadioAccess=winrt::Windows::Devices::Radios::RadioAccessStatus;
 using AccessRequest=winrt::Windows::Foundation::IAsyncOperation<RadioAccess>;
+// Page commands name their network, device, endpoint or app in key; only
+// Wi-Fi and hotspot commands carry a secret.
 struct ControlCommand {Control target{};int value{};uint64_t serial{};AccessRequest access{nullptr};
-    std::wstring ssid,user,secret;}; // Wi-Fi page commands only
+    std::wstring key,user,secret;};
 // One latest value per control: dragging cannot build an unbounded queue or
 // apply old brightness values after the pointer has already been released.
 struct ControlQueue {
@@ -32,6 +40,15 @@ struct ControlQueue {
         for(auto& c:values)if(c){out.push_back(std::move(*c));c.reset();}
         std::sort(out.begin(),out.end(),[](auto const& a,auto const& b){return a.serial<b.serial;});return out;}
 };
+struct HotspotClient {std::wstring name,address;};
+// What the hotspot page shows. Read only while that page is open; the key
+// itself never enters this struct (see Metrics::HotspotKey).
+struct HotspotInfo {
+    std::wstring ssid,source,failure;int band=-1;size_t keyLength=0;unsigned maxClients=0;
+    std::array<bool,3> bands{}; // TetheringWiFiBand Auto, 2.4 GHz, 5 GHz this adapter accepts
+    std::vector<HotspotClient> clients;
+    bool ready=false,saving=false;
+};
 struct Controls {
     int volume=-1,brightness=-1,wifi=-1,bluetooth=-1,darkTheme=-1,hotspot=-1;
     bool themeBusy=false,themeAvailable=false;
@@ -41,7 +58,7 @@ struct Controls {
     bool hotspotBusy=false;
     bool mute=false,radioAllowed=false,wifiBusy=false,bluetoothBusy=false;
     std::wstring error;
-    WifiList wifiList;
+    WifiList wifiList;BluetoothList bluetoothList;SoundList sound;HotspotInfo hotspotInfo;
     uint64_t errorAt=0,reads=0,writes=0;
     std::array<uint64_t,unsigned(Control::Count)> completed{};
 };
@@ -170,7 +187,7 @@ class ControlBackend {
         }catch(...){EndHotspot(s,L"热点操作失败，请重试");}
     }
     void HotspotSet(ControlCommand command,Controls& s){
-        if(tetherCommand||change){s.completed[unsigned(command.target)]=command.serial;return;}
+        if(tetherCommand||change||configure){s.completed[unsigned(command.target)]=command.serial;return;}
         try{
             HotspotRead(s,true);
             if(s.hotspot==command.value){s.completed[unsigned(command.target)]=command.serial;return;}
@@ -179,6 +196,21 @@ class ControlBackend {
             tetherCommand=std::move(command);tetherAt=GetTickCount64();tetherSuccess=false;s.error.clear();
             HotspotRead(s);
         }catch(...){s.completed[unsigned(command.target)]=command.serial;EndHotspot(s,L"热点不可控制，请检查热点设置");}
+    }
+    winrt::Windows::Foundation::IAsyncAction configure{nullptr};
+    uint64_t configureAt=0,configureSerial=0;
+    void ConfigurePump(Controls& s){
+        if(!configure)return;
+        auto& h=s.hotspotInfo;AsyncStatus status=AsyncStatus::Error;
+        try{status=configure.Status();}catch(...){}
+        if(status==AsyncStatus::Started&&GetTickCount64()-configureAt<15000)return;
+        if(status==AsyncStatus::Completed){++s.writes;h.failure.clear();}
+        else{
+            if(status==AsyncStatus::Started)try{configure.Cancel();}catch(...){}
+            Log(L"hotspot-configure-failed",int(status));
+            h.failure=status==AsyncStatus::Started?L"保存热点设置超时，请核对系统设置":L"系统未能保存热点设置";
+        }
+        configure=nullptr;h.saving=false;s.completed[unsigned(Control::HotspotConfigure)]=configureSerial;
     }
     static void Error(Controls& s,const wchar_t* text){s.error=text;s.errorAt=GetTickCount64();}
     winrt::com_ptr<IMMDeviceEnumerator> audioDevices;
@@ -294,6 +326,50 @@ class ControlBackend {
         if(error)Error(s,error);change.reset();RadioRead(s);
     }
 public:
+    // The hotspot page: settings and clients of the manager the tile controls.
+    // The passphrase goes to key for Metrics' own buffer; nothing here keeps it.
+    void HotspotDetails(Controls& s,std::wstring& key){
+        using winrt::Windows::Networking::HostNameType;
+        auto& h=s.hotspotInfo;
+        h.ready=true;h.ssid.clear();h.band=-1;h.keyLength=0;h.bands={};h.clients.clear();h.maxClients=0;h.source=tetherProfile;
+        if(!tether)return;
+        try{
+            h.maxClients=tether.MaxClientCount();
+            auto config=tether.GetCurrentAccessPointConfiguration();
+            h.ssid=config.Ssid();h.band=int(config.Band());
+            for(int band=0;band<3;++band)try{h.bands[band]=config.IsBandSupported(winrt::Windows::Networking::NetworkOperators::TetheringWiFiBand(band));}catch(...){}
+            {const auto pass=config.Passphrase();key.assign(pass.data(),pass.size());h.keyLength=pass.size();}
+            if(tether.TetheringOperationalState()==TetherState::On)for(auto const& client:tether.GetTetheringClients()){
+                HotspotClient c;std::wstring ip;
+                for(auto const& host:client.HostNames()){
+                    if(host.Type()==HostNameType::DomainName&&c.name.empty()){
+                        c.name=host.DisplayName();if(auto dot=c.name.find(L'.');dot!=std::wstring::npos&&dot>0)c.name.resize(dot);}
+                    else if(host.Type()==HostNameType::Ipv4&&ip.empty())ip=host.DisplayName();
+                }
+                c.address=ip.empty()?std::wstring(client.MacAddress()):ip;
+                h.clients.push_back(std::move(c));
+            }
+        }catch(...){Log(L"hotspot-details-failed",winrt::to_hresult());}
+    }
+    // Settings change only while the hotspot is off; the page offers no edit
+    // otherwise. The key is wiped once WinRT has its copy.
+    void HotspotConfigure(ControlCommand& c,Controls& s){
+        using winrt::Windows::Networking::NetworkOperators::TetheringWiFiBand;
+        auto wipe=[&]{SecureZeroMemory(c.secret.data(),c.secret.size()*sizeof(wchar_t));c.secret.clear();};
+        auto& h=s.hotspotInfo;
+        if(configure||tetherCommand){wipe();s.completed[unsigned(c.target)]=c.serial;return;}
+        try{
+            if(!tether||tether.TetheringOperationalState()!=TetherState::Off)winrt::throw_hresult(E_NOT_VALID_STATE);
+            auto config=tether.GetCurrentAccessPointConfiguration();
+            config.Ssid(c.key);if(!c.secret.empty())config.Passphrase(c.secret);wipe();
+            if(c.value>=0&&c.value<3)config.Band(TetheringWiFiBand(c.value));
+            configure=tether.ConfigureAccessPointAsync(config);configureAt=GetTickCount64();configureSerial=c.serial;
+            h.saving=true;h.failure.clear();
+        }catch(...){
+            wipe();Log(L"hotspot-configure-failed",winrt::to_hresult());
+            h.saving=false;h.failure=L"现在不能修改热点设置";s.completed[unsigned(c.target)]=c.serial;
+        }
+    }
     void Open(){
         theme.Refresh();
         if(enumeration)try{enumeration.Cancel();}catch(...){}enumeration=nullptr;radios.clear();
@@ -301,10 +377,10 @@ public:
         try{enumeration=Radio::GetRadiosAsync();enumAt=GetTickCount64();}catch(...){}
         HotspotOpen();
     }
-    bool Pending()const{return bool(enumeration)||bool(change)||bool(tetherCommand)||theme.Pending();}
+    bool Pending()const{return bool(enumeration)||bool(change)||bool(tetherCommand)||bool(configure)||theme.Pending();}
     void Pump(Controls& s){
         if(theme.Pending())ThemePump(s);
-        HotspotPump(s);
+        HotspotPump(s);ConfigurePump(s);
         if(enumeration)try{auto status=enumeration.Status();
             if(status==AsyncStatus::Completed){auto list=enumeration.GetResults();radios.assign(list.begin(),list.end());enumeration=nullptr;}
             else if(status!=AsyncStatus::Started||GetTickCount64()-enumAt>3000){enumeration.Cancel();enumeration=nullptr;}
@@ -347,7 +423,7 @@ public:
         if(command.target==Control::Hotspot){HotspotSet(std::move(command),s);return;}
         if(command.target==Control::DarkTheme){ThemeSet(command,s);return;}
         if(command.target==Control::Wifi||command.target==Control::Bluetooth){
-            if(change||tetherCommand){s.completed[unsigned(command.target)]=command.serial;return;}
+            if(change||tetherCommand||configure){s.completed[unsigned(command.target)]=command.serial;return;}
             s.error.clear();change=RadioChange{std::move(command),GetTickCount64()};Pump(s);return;
         }
         try{
@@ -366,8 +442,11 @@ public:
     void Close(Controls& s){
         if(enumeration)try{enumeration.Cancel();}catch(...){}enumeration=nullptr;
         EndChange(s);radios.clear();wmi=nullptr;brightnessInstance.clear();brightnessAt=0;AudioReset();
-        // Cancel our wait only. Never stop the user's active hotspot on hide/unload.
+        // Cancel our wait only. Never stop the user's active hotspot on hide/unload;
+        // a settings change already sent finishes in the system without us.
         EndHotspot(s);tether=nullptr;tetherProfile.clear();s.hotspotBusy=false;
+        if(configure){s.completed[unsigned(Control::HotspotConfigure)]=configureSerial;configure=nullptr;}
+        s.hotspotInfo.saving=false;
     }
     ~ControlBackend(){Controls ignored;Close(ignored);}
 };

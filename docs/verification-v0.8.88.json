@@ -1,0 +1,104 @@
+{
+  "version": "0.8.88",
+  "date": "2026-10-31T15:11:59+08:00",
+  "state": "DeployedAwaitingUserAcceptance",
+  "backendVersion": "0.5.73",
+  "panelVersion": "0.8.88",
+  "change": "Panel second-level pages: a Wi-Fi page slides in over the main page (list, connect with password or enterprise user, disconnect, toggle). No panel control opens system UI any more: the Wi-Fi chevron navigates in-panel; the Bluetooth, hotspot and dark-theme chevrons are removed and those tiles toggle across their full width. Rows come from the WLAN service cache; a WinRT scan refreshes it (30 s limit); WinRT connects. Passwords are wiped after use and never logged.",
+  "userReport": {
+    "At": "2026-10-31",
+    "Answer": "你是不是误解了，不是说的进不了WiFi列表，是进去变成系统默认的样式，这整套面板只做了一级界面，到二级或其他界面就露馅了",
+    "Scope": "Chosen: in-panel pages for Wi-Fi, Bluetooth, hotspot and volume details; whole-page slide with a back arrow; system UI never opened. 0.8.88 delivers the framework and the Wi-Fi page."
+  },
+  "checks": [
+    "Hidden probe: 158 policy checks including the new Wi-Fi model checks (ordering, layout, hit areas, form readiness, wrong-password retry, scroll-into-view, wipe); offscreen renders wifi-dpi-100/200.png reviewed",
+    "Real-desktop glass check with --wifi (light/dark, desktop and fixture backdrop): the page shares the main page glass, reviewed 2026-10-31",
+    "One-off read-only harness ran the production Metrics worker on the Wi-Fi page for 16 s on the user PC: cached list on first read, scan finished at 10.1 s, 13 access points of NWAFU merged to one saved, connected row; list cleared when the page closed",
+    "Scan timing measured on the user PC: 10.1 s, 5.2 s, 5.8 s (the first build cancelled at 10 s and never refreshed; limit is now 30 s)",
+    "Self-review before commit: a replaced queued connect command and password buffer growth could leave key copies; fixed (wipe on replace, capacity reserved up front) and redeployed as the same 0.8.88 at 15:11",
+    "Aggregate panel and BackendOnly builds passed; controller / Start / panels binaries are the exact 0.8.78 accepted files",
+    "23 pre-deploy checks passed",
+    "Update Applied, Live, ComponentHealth Ready; configs unchanged",
+    "Post-deploy autotest AutomatedChecksPassed; installed files and Explorer unchanged; no probe leftovers"
+  ],
+  "preDeployValidation": {
+    "At": "2026-10-31T15:08:27+08:00",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.88-outputs/pre-deploy-20261031-150827"
+  },
+  "automatedValidation": {
+    "At": "2026-10-31T15:14:00.0019271+08:00",
+    "State": "AutomatedChecksPassed",
+    "ProbeCycles": 3,
+    "InstalledFilesUnchanged": true,
+    "ExplorerUnchanged": true,
+    "ProbeLeftovers": [],
+    "Observation": "NotObserved",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.88-outputs/post-deploy/20261031-151213-fcbd2214"
+  },
+  "deployment": {
+    "State": "DeployedAwaitingUserAcceptance",
+    "At": "2026-10-31T15:11:59+08:00",
+    "Version": "0.8.88",
+    "Architecture": "native-taskbar",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "BackendVersion": "0.5.73",
+    "PackageFiles": 448,
+    "ChangedFiles": 12,
+    "RuntimeChanged": [
+      "aggregate/latest.exe",
+      "latest.dll"
+    ],
+    "RuntimeFiles": {
+      "latest.exe": "FCA312C81D1BF8D8AA2E1E54A37590E584E93940F488C531187909ED9B8F6899",
+      "latest.dll": "F2FD568AA875E5FAD1906829337AF484E4FB5C9F630E175C4A9BDAAA52D24C1F",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "A8C24C5CBDB64AEEB7F1833482F899702057347FC2DCC10C2FF5D2266B696078"
+    },
+    "Backup": "backups/before-0.8.87-20261031-141312220",
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ],
+    "Runner": "PowerShell 7 in the signed-in desktop session (elevated)",
+    "BackupCleanup": {
+      "PrunedByUpdate": 1,
+      "PrunedBytes": 81170,
+      "Remaining": "51 directories, 199 MiB"
+    }
+  },
+  "rollback": "Existing Update/Rollback transaction with backups/before-0.8.88-20261031-151149640",
+  "preserved": [
+    "0.8.78 accepted controller / Start / panels binaries",
+    "native tray/pins/menus/hotcorners",
+    "72x46 DIP key and 78 DIP reservation",
+    "panel hit areas and 300 DIP layout",
+    "panel exits on close; no new resident process, polling while hidden, or global cursor change",
+    "panel launched only from the real hover on the native key, hash-checked, ordinary token, suspended until PID/cookie are published"
+  ],
+  "previousAcceptance": {
+    "version": "0.8.87",
+    "record": "docs/verification-v0.8.87.json",
+    "answer": "你是不是误解了，不是说的进不了WiFi列表，是进去变成系统默认的样式，这整套面板只做了一级界面，到二级或其他界面就露馅了",
+    "scope": "The chevron reached the list, but system UI itself was the problem; replaced by in-panel pages"
+  },
+  "notVerified": [
+    "A real hover and click into the Wi-Fi page and back (slide feel)",
+    "Whether clicking the password field obtains keyboard focus under the foreground lock (SetForegroundWindow on the NOACTIVATE panel)",
+    "A real connection to a password-protected or enterprise network (only an open network is nearby; covered by model and offscreen checks only)",
+    "Mouse-wheel scrolling on the real panel",
+    "The user judgement of the 0.8.86 glass"
+  ],
+  "pending": [
+    "User acceptance of the Wi-Fi page style",
+    "Bluetooth, hotspot and volume-detail pages",
+    "Retake docs/assets/screenshot.png after acceptance",
+    "layoutCost over a normal working day"
+  ]
+}

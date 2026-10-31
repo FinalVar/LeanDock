@@ -1,6 +1,9 @@
 #include "popup-latest.h"
 #include "control-panel-latest.h"
 #include "wifi-page-latest.h"
+#include "bluetooth-page-latest.h"
+#include "hotspot-page-latest.h"
+#include "sound-page-latest.h"
 #include "control-tests-latest.h"
 #include "../include/aggregate-bridge-latest.h"
 #include <cwchar>
@@ -16,7 +19,10 @@ struct Panel {
     PanelGesture gesture;PanelPart hover=PanelPart::None;PanelMotion motion;
     PanelValueRequest volumeRequest,brightnessRequest;
     // Second-level page state; page credentials are wiped on every exit.
-    PanelPage page=PanelPage::Main;WifiView wifi;PageTarget pageHover,pagePressed;Tween pageFade;bool escapeHeld=false;
+    PanelPage page=PanelPage::Main;WifiView wifi;BluetoothView bluetooth;HotspotView hotspot;SoundView sound;
+    PageTarget pageHover,pagePressed;Tween pageFade;bool escapeHeld=false;
+    SoundDrag drag;PanelValueRequest appRequest;std::wstring appRequestKey;
+    std::vector<std::pair<std::wstring,winrt::com_ptr<IWICBitmap>>> icons; // app icons by program path, this panel only
     uint64_t outside=0,startedAt=0;bool closing=false,started=false,revealed=false,animating=false;float dpi=1;
     int paintedSecond=-1,calendarDay=-1;
     std::wstring calendarDate,calendarLunar;
@@ -29,7 +35,8 @@ struct Panel {
     bool Valid()const{return bar&&IsWindow(bar)&&GetPropW(bar,Bridge::CookieProp)==HANDLE(cookie)&&
         GetPropW(bar,Bridge::PidProp)==HANDLE(uintptr_t(GetCurrentProcessId()))&&
         owner&&WaitForSingleObject(owner,0)==WAIT_TIMEOUT;}
-    void Cancel(){gesture.Cancel();hover=PanelPart::None;}
+    void Cancel(){gesture.Cancel();hover=PanelPart::None;drag.Cancel();}
+    void Forget(){wifi.Reset();bluetooth.Reset();hotspot.Reset();sound.Reset();}
     // animate: a dismissal the user caused, faded out unless motion is off.
     // Lock, suspend, owner loss and WM_CLOSE end at once.
     void Quit(bool animate=false){
@@ -43,7 +50,7 @@ struct Panel {
     }
     void Finish(){if(control)KillTimer(control,LeaveTimer);if(popup.window)popup.Hide();PostQuitMessage(0);}
     void Close(){
-        closing=true;wifi.Reset();if(control)for(auto timer:{TickTimer,FrameTimer,LeaveTimer})KillTimer(control,timer);
+        closing=true;Forget();if(control)for(auto timer:{TickTimer,FrameTimer,LeaveTimer})KillTimer(control,timer);
         popup.Hide();metrics.Visible(false);metrics.Stop();
         if(Valid()){
             for(auto name:{Bridge::WindowProp,Bridge::ControlProp,Bridge::PendingProp})RemovePropW(bar,name);
@@ -70,26 +77,56 @@ struct Panel {
         }
         const auto clock=PanelClock(time.wHour,time.wMinute,time.wSecond);
         PanelLayout layout(data,0); // The tray remains in native Explorer, always.
-        const float height=gesture.Dragging()?popup.height:layout.height;
+        const float height=gesture.Dragging()||drag.active?popup.height:layout.height;
         if(height!=popup.height){popup.height=height;popup.scene.Dimensions(PanelWidth,PanelWidth,height);}
         Position();if(closing)return;
         auto display=data;const auto now=GetTickCount64();
         display.volume=volumeRequest.Display(data.volume,data.completed[unsigned(Control::Volume)],now);
         display.brightness=brightnessRequest.Display(data.brightness,data.completed[unsigned(Control::Brightness)],now);
+        for(auto& app:display.sound.apps)
+            if(app.key==appRequestKey)app.volume=appRequest.Display(app.volume,data.completed[unsigned(Control::AppVolume)],now);
+        Settle(data);
         motion.Update(display,page==PanelPage::Main?hover:PanelPart::None,gesture,now,revealed&&Animations());
         if(page==PanelPage::Main)
             popup.Paint([&](ID2D1DeviceContext* dc){PaintControlPanel(draw,dc,display,power,clock,calendarDate,calendarLunar,layout,hover,gesture,motion,now);},
                 layout.Cuts());
-        else{
-            // A page keeps the main page's height, so going back never resizes.
-            WifiLayout rows(display.wifiList,wifi,popup.height);wifi.scroll=rows.Clamp(wifi.scroll);
-            popup.PaintPage([&](ID2D1DeviceContext* dc){
-                PaintWifiPage(draw,dc,display,rows,wifi,pageHover,pageFade.At(now),motion.on[0].At(now));});
-        }
+        // A page keeps the main page's height, so going back never resizes.
+        else popup.PaintPage([&](ID2D1DeviceContext* dc){PaintPage(dc,display,now);});
         // Frames run only while a hover, toggle or slider transition does.
         if(const bool active=motion.Active(now)||pageFade.Active(now);active!=animating&&control){
             animating=active;if(active)SetTimer(control,FrameTimer,16,nullptr);else KillTimer(control,FrameTimer);
         }
+    }
+    void PaintPage(ID2D1DeviceContext* dc,Sample const& s,uint64_t now){
+        const bool footer=!s.error.empty();const float fade=pageFade.At(now);
+        switch(page){
+        case PanelPage::Wifi:{WifiLayout rows(s.wifiList,wifi,popup.height,footer);wifi.scroll=rows.Clamp(wifi.scroll);
+            PaintWifiPage(draw,dc,s,rows,wifi,pageHover,fade,motion.on[0].At(now));break;}
+        case PanelPage::Bluetooth:{BluetoothLayout rows(s.bluetoothList,bluetooth,popup.height,footer);bluetooth.scroll=rows.Clamp(bluetooth.scroll);
+            PaintBluetoothPage(draw,dc,s,rows,bluetooth,pageHover,fade,motion.on[1].At(now));break;}
+        case PanelPage::Hotspot:PaintHotspotPage(draw,dc,s,hotspot,pageHover,fade,motion.on[3].At(now),popup.height,footer);break;
+        case PanelPage::Sound:{SoundLayout rows(s.sound,popup.height,footer);sound.scroll=rows.Clamp(sound.scroll);
+            PaintSoundPage(draw,dc,s,rows,sound,pageHover,fade,drag,[this](std::wstring const& path){return Icon(path);});break;}
+        default:break;
+        }
+        PaintPageFooter(draw,dc,popup.height,s.error);
+    }
+    // The program's icon at this panel's DPI, loaded once per panel.
+    IWICBitmapSource* Icon(std::wstring const& path){
+        for(auto const& [p,bitmap]:icons)if(p==path)return bitmap.get();
+        winrt::com_ptr<IWICBitmap> bitmap;HICON icon=nullptr;const UINT size=UINT(std::lround(20*dpi));
+        if(!path.empty()&&SHDefExtractIconW(path.c_str(),0,0,&icon,nullptr,size)==S_OK&&icon){
+            try{if(auto art=draw.Artwork(draw.Icon(icon));art.image)bitmap=draw.RasterArtwork(art,size,size);}catch(...){}
+            DestroyIcon(icon);
+        }
+        icons.emplace_back(path,bitmap);return bitmap.get();
+    }
+    // A hotspot save has finished: back to the details, or the form again
+    // with the old key to retry.
+    void Settle(Sample const& data){
+        if(!hotspot.saving||data.completed[unsigned(Control::HotspotConfigure)]<hotspot.serial||data.hotspotInfo.saving)return;
+        hotspot.saving=false;
+        if(data.hotspotInfo.failure.empty())hotspot.Reset();else metrics.HotspotKey(hotspot.password);
     }
     void Light(POINT p){popup.scene.Light(float((p.x-popup.rect.x)/dpi),float((p.y-popup.rect.y)/dpi));}
     // Shown only once the owner publishes this cookie as revealed: the real
@@ -108,69 +145,113 @@ struct Panel {
     void Navigate(PanelPage to){
         if(to==page||closing)return;
         if(GetCapture()==popup.window)ReleaseCapture();
-        Cancel();wifi.Reset();pageHover=pagePressed={};page=to;metrics.Page(to);
+        Cancel();Forget();pageHover=pagePressed={};page=to;metrics.Page(to);
         Paint();if(closing)return;
         popup.scene.Navigate(to!=PanelPage::Main,revealed&&Animations());
     }
     // Typing needs keyboard focus, which this panel otherwise never takes.
     // The click that leads here was our own input, so Windows allows it.
-    void Focus(WifiView::Focus field){
-        wifi.focus=field;SetForegroundWindow(popup.window);SetFocus(popup.window);
-        ImmAssociateContext(popup.window,nullptr); // Passwords are typed without an IME.
+    // Keys and user names are typed without an IME; a hotspot name may be
+    // Chinese, so that field gets the default one, composing under the box.
+    void TakeKeyboard(Rect const* ime=nullptr){
+        SetForegroundWindow(popup.window);SetFocus(popup.window);
+        if(!ime){ImmAssociateContext(popup.window,nullptr);return;}
+        ImmAssociateContextEx(popup.window,nullptr,IACE_DEFAULT);
+        if(HIMC context=ImmGetContext(popup.window)){
+            // Client pixels; the panel draws 32 DIP inside its window.
+            COMPOSITIONFORM at{CFS_POINT,{LONG(std::lround((32+ime->x+10)*popup.dpi)),LONG(std::lround((32+ime->y+ime->h+4)*popup.dpi))},{}};
+            ImmSetCompositionWindow(context,&at);ImmReleaseContext(popup.window,context);
+        }
     }
+    void Focus(WifiView::Focus field){wifi.focus=field;TakeKeyboard();}
+    void Focus(HotspotView::Focus field){
+        hotspot.focus=field;TakeKeyboard(field==HotspotView::Focus::Name?&HotspotNameBox:nullptr);
+    }
+    bool Typing()const{
+        return (page==PanelPage::Wifi&&wifi.focus!=WifiView::Focus::None)||
+            (page==PanelPage::Hotspot&&hotspot.focus!=HotspotView::Focus::None);
+    }
+    void Unfocus(){wifi.focus=WifiView::Focus::None;hotspot.focus=HotspotView::Focus::None;}
     void Submit(Sample const& data,WifiRow const* row){
         if(!row||!data.wifiList.connecting.empty())return;
-        if(row->net.connected){metrics.WifiDisconnect();return;}
+        if(row->net.connected){metrics.Send(Control::WifiDisconnect,0);return;}
         if(!WifiFormReady(*row,wifi))return;
         metrics.WifiConnect(row->net.ssid,row->user?wifi.user:std::wstring(),wifi.password);
         wifi.focus=WifiView::Focus::None;wifi.reveal=false;
     }
-    static void Paste(std::wstring& text,size_t limit){
+    void EditHotspot(Sample const& data){
+        if(!HotspotEditable(data))return;
+        hotspot.Wipe();hotspot.editing=true;hotspot.saving=false;hotspot.serial=0;
+        hotspot.name=data.hotspotInfo.ssid;hotspot.band=data.hotspotInfo.band;metrics.HotspotKey(hotspot.password);
+        Focus(HotspotView::Focus::Name);
+    }
+    void SaveHotspot(Sample const& data){
+        if(hotspot.saving||HotspotProblem(hotspot.name,hotspot.password)||!HotspotEditable(data))return;
+        const int band=hotspot.band>=0&&hotspot.band<3&&data.hotspotInfo.bands[size_t(hotspot.band)]?hotspot.band:-1;
+        hotspot.serial=metrics.HotspotConfigure(hotspot.name,band,hotspot.password); // wipes the key
+        hotspot.saving=hotspot.serial!=0;hotspot.focus=HotspotView::Focus::None;hotspot.reveal=false;
+    }
+    static void Paste(std::wstring& text,size_t limit,bool ascii){
         if(!OpenClipboard(nullptr))return;
         if(HANDLE data=GetClipboardData(CF_UNICODETEXT))if(auto p=static_cast<const wchar_t*>(GlobalLock(data))){
-            for(;*p&&text.size()<limit;++p)if(*p>=0x20)text.push_back(*p);
+            for(;*p&&text.size()<limit;++p)if(*p>=0x20&&(!ascii||*p<0x7F))text.push_back(*p);
             GlobalUnlock(data);}
         CloseClipboard();
     }
+    // Backspace clears the character it removes, so a wiped field leaves
+    // nothing behind past its end.
+    static void Edit(std::wstring& text,WPARAM key,size_t limit,bool ascii){
+        if(key==0x08){if(!text.empty()){text.back()=0;text.pop_back();}}
+        else if(key==0x16)Paste(text,limit,ascii);
+        else if(key>=0x20&&key!=0x7F&&text.size()<limit&&(!ascii||key<0x7F))text.push_back(wchar_t(key));
+    }
     // Characters arrive as WM_CHAR; Escape leaves the field, not the panel.
     bool Key(UINT message,WPARAM key){
-        if(page!=PanelPage::Wifi||wifi.focus==WifiView::Focus::None)return false;
+        if(!Typing())return false;
         if(message==WM_KEYDOWN){
             if(key!=VK_ESCAPE)return false;
-            wifi.focus=WifiView::Focus::None;escapeHeld=true;Paint();return true;
+            Unfocus();escapeHeld=true;Paint();return true;
         }
-        const bool user=wifi.focus==WifiView::Focus::User;auto& text=user?wifi.user:wifi.password;
-        const size_t limit=user?128:63;
-        if(key==0x0D||key==0x09){
-            const auto data=metrics.Read();WifiLayout rows(data.wifiList,wifi,popup.height);auto row=rows.Find(wifi.expanded);
-            if(key==0x0D)Submit(data,row);
-            else if(row&&row->user)wifi.focus=user?WifiView::Focus::Password:WifiView::Focus::User;
+        if(page==PanelPage::Wifi){
+            const bool user=wifi.focus==WifiView::Focus::User;
+            if(key==0x0D||key==0x09){
+                const auto data=metrics.Read();WifiLayout rows(data.wifiList,wifi,popup.height);auto row=rows.Find(wifi.expanded);
+                if(key==0x0D)Submit(data,row);
+                else if(row&&row->user)wifi.focus=user?WifiView::Focus::Password:WifiView::Focus::User;
+            }
+            else Edit(user?wifi.user:wifi.password,key,user?128:63,false);
+        }else{
+            const bool name=hotspot.focus==HotspotView::Focus::Name;
+            if(key==0x0D)SaveHotspot(metrics.Read());
+            else if(key==0x09)Focus(name?HotspotView::Focus::Password:HotspotView::Focus::Name);
+            // The SSID limit is 32 bytes; HotspotProblem checks the encoded length.
+            else Edit(name?hotspot.name:hotspot.password,key,name?32:63,!name);
         }
-        else if(key==0x08){if(!text.empty())text.pop_back();}
-        else if(key==0x16)Paste(text,limit);
-        else if(key>=0x20&&key!=0x7F&&text.size()<limit)text.push_back(wchar_t(key));
         Paint();return true;
     }
-    void PageInput(UINT message,float x,float y){
-        const auto data=metrics.Read();WifiLayout rows(data.wifiList,wifi,popup.height);
-        const auto target=WifiHit(rows,wifi,x,y);const auto now=GetTickCount64();
-        if(message==WM_MOUSEMOVE){
-            popup.scene.Light(x,y);
-            if(!(target==pageHover)){pageHover=target;pageFade.Snap(0);if(target.hit!=PageHit::None)pageFade.Go(1,now,120);Paint();}
-            return;
+    PageTarget PageHitAt(Sample const& data,float x,float y){
+        const bool footer=!data.error.empty();
+        switch(page){
+        case PanelPage::Wifi:return WifiHit(WifiLayout(data.wifiList,wifi,popup.height,footer),wifi,x,y);
+        case PanelPage::Bluetooth:return BluetoothHit(BluetoothLayout(data.bluetoothList,bluetooth,popup.height,footer),bluetooth,x,y);
+        case PanelPage::Hotspot:return HotspotHit(hotspot,x,y);
+        case PanelPage::Sound:return SoundHit(SoundLayout(data.sound,popup.height,footer),sound,x,y);
+        default:return {};
         }
-        if(message==WM_LBUTTONDOWN){pagePressed=target;SetCapture(popup.window);return;}
-        if(message!=WM_LBUTTONUP)return;
-        const auto pressed=pagePressed;pagePressed={};
-        if(GetCapture()==popup.window)ReleaseCapture();
-        if(!(pressed==target))return;
+    }
+    void SendDrag(){
+        if(drag.key.empty()){Set(Control::Volume,drag.preview);return;}
+        if(const auto serial=metrics.Send(Control::AppVolume,drag.preview,drag.key)){
+            appRequest={serial,GetTickCount64(),drag.preview};appRequestKey=drag.key;}
+    }
+    void WifiClick(Sample const& data,PageTarget const& target){
+        WifiLayout rows(data.wifiList,wifi,popup.height,!data.error.empty());
         switch(target.hit){
-        case PageHit::Back:Navigate(PanelPage::Main);return;
         case PageHit::Toggle:if(PanelEnabled(PanelPart::Wifi,data))metrics.Set(Control::Wifi,data.wifi==1?0:1);break;
         case PageHit::Row:
             if(wifi.expanded==target.key){wifi.Wipe();wifi.expanded.clear();break;}
             wifi.Wipe();wifi.expanded=target.key;
-            if(WifiLayout open(data.wifiList,wifi,popup.height);auto row=open.Find(target.key)){
+            if(WifiLayout open(data.wifiList,wifi,popup.height,!data.error.empty());auto row=open.Find(target.key)){
                 wifi.scroll=open.Reveal(*row,wifi.scroll);
                 if(row->form)Focus(row->user?WifiView::Focus::User:WifiView::Focus::Password);
             }
@@ -180,6 +261,89 @@ struct Panel {
         case PageHit::Reveal:wifi.reveal=!wifi.reveal;break;
         case PageHit::Primary:Submit(data,rows.Find(target.key));break;
         default:wifi.focus=WifiView::Focus::None;break;
+        }
+    }
+    void BluetoothClick(Sample const& data,PageTarget const& target){
+        switch(target.hit){
+        case PageHit::Toggle:if(PanelEnabled(PanelPart::Bluetooth,data))metrics.Set(Control::Bluetooth,data.bluetooth==1?0:1);break;
+        case PageHit::Row:
+            bluetooth.expanded=bluetooth.expanded==target.key?std::wstring():target.key;
+            if(BluetoothLayout open(data.bluetoothList,bluetooth,popup.height,!data.error.empty());auto row=open.Find(target.key))
+                bluetooth.scroll=open.Reveal(row->y,row->h,bluetooth.scroll);
+            break;
+        case PageHit::Primary:
+            if(!data.bluetoothList.busy.empty())break;
+            for(auto const& d:data.bluetoothList.devices)if(d.id==target.key)metrics.Send(Control::BluetoothConnect,d.connected?0:1,d.id);
+            break;
+        default:break;
+        }
+    }
+    void HotspotClick(Sample const& data,PageTarget const& target){
+        switch(target.hit){
+        case PageHit::Toggle:if(PanelEnabled(PanelPart::Hotspot,data))metrics.Set(Control::Hotspot,data.hotspot==1?0:1);break;
+        case PageHit::Reveal:
+            if(hotspot.editing)hotspot.reveal=!hotspot.reveal;
+            else if(data.hotspotInfo.ssid.empty())break;
+            else if(hotspot.reveal)hotspot.Hide();
+            else{metrics.HotspotKey(hotspot.shown);hotspot.reveal=true;}
+            break;
+        case PageHit::Secondary:if(hotspot.editing){if(!hotspot.saving)hotspot.Reset();}else EditHotspot(data);break;
+        case PageHit::Name:Focus(HotspotView::Focus::Name);break;
+        case PageHit::Field:Focus(HotspotView::Focus::Password);break;
+        case PageHit::Option:if(const int band=target.key[0]-L'0';data.hotspotInfo.bands[size_t(band)])hotspot.band=band;break;
+        case PageHit::Primary:SaveHotspot(data);break;
+        default:hotspot.focus=HotspotView::Focus::None;break;
+        }
+    }
+    void SoundClick(Sample const& data,PageTarget const& target){
+        switch(target.hit){
+        case PageHit::Mute:
+            if(target.key.empty()){if(data.volume>=0)metrics.Set(Control::Mute,!data.mute);break;}
+            for(auto const& app:data.sound.apps)if(app.key==target.key)metrics.Send(Control::AppMute,app.mute?0:1,app.key);
+            break;
+        case PageHit::Row:metrics.Send(Control::OutputDevice,0,target.key);break;
+        default:break;
+        }
+    }
+    void PageInput(UINT message,float x,float y){
+        const auto data=metrics.Read();const auto now=GetTickCount64();
+        if(drag.active){
+            if(message==WM_MOUSEMOVE){popup.scene.Light(x,y);if(drag.Send(x,now))SendDrag();Paint();}
+            else if(message==WM_LBUTTONUP){
+                if(drag.Send(x,now,true))SendDrag();
+                drag.Cancel();if(GetCapture()==popup.window)ReleaseCapture();Paint();
+            }
+            return;
+        }
+        const auto target=PageHitAt(data,x,y);
+        if(message==WM_MOUSEMOVE){
+            popup.scene.Light(x,y);
+            if(!(target==pageHover)){pageHover=target;pageFade.Snap(0);if(target.hit!=PageHit::None)pageFade.Go(1,now,120);Paint();}
+            return;
+        }
+        if(message==WM_LBUTTONDOWN){
+            // Sliders follow the pointer from the press, as on the main page.
+            if(page==PanelPage::Sound&&target.hit==PageHit::Slider){
+                const bool master=target.key.empty();
+                const bool enabled=master?data.volume>=0:std::any_of(data.sound.apps.begin(),data.sound.apps.end(),
+                    [&](AudioApp const& a){return a.key==target.key&&a.volume>=0;});
+                if(!enabled)return;
+                drag.Begin(target.key,master?SliderLeft:AppSliderLeft,SoundRight,x);SetCapture(popup.window);
+                if(drag.Send(x,now))SendDrag();Paint();return;
+            }
+            pagePressed=target;SetCapture(popup.window);return;
+        }
+        if(message!=WM_LBUTTONUP)return;
+        const auto pressed=pagePressed;pagePressed={};
+        if(GetCapture()==popup.window)ReleaseCapture();
+        if(!(pressed==target))return;
+        if(target.hit==PageHit::Back){Navigate(PanelPage::Main);return;}
+        switch(page){
+        case PanelPage::Wifi:WifiClick(data,target);break;
+        case PanelPage::Bluetooth:BluetoothClick(data,target);break;
+        case PanelPage::Hotspot:HotspotClick(data,target);break;
+        case PanelPage::Sound:SoundClick(data,target);break;
+        default:break;
         }
         Paint();
     }
@@ -209,6 +373,9 @@ struct Panel {
             case PanelPart::DarkTheme:metrics.Set(Control::DarkTheme,data.darkTheme==1?0:1);break;
             case PanelPart::Hotspot:metrics.Set(Control::Hotspot,data.hotspot==1?0:1);break;
             case PanelPart::WifiMore:Navigate(PanelPage::Wifi);break;
+            case PanelPart::BluetoothMore:Navigate(PanelPage::Bluetooth);break;
+            case PanelPart::HotspotMore:Navigate(PanelPage::Hotspot);break;
+            case PanelPart::VolumeMore:Navigate(PanelPage::Sound);break;
             default:break;
         }
         Cancel();if(GetCapture()==popup.window)ReleaseCapture();Paint();
@@ -217,7 +384,7 @@ struct Panel {
         if(closing)return;
         if(!Valid()||!IsWindowVisible(bar)||std::abs(GetDpiForWindow(bar)/96.f-dpi)>.01f){Quit();return;}
         // Escape closes the panel unless it was spent leaving a text field.
-        const bool typing=wifi.focus!=WifiView::Focus::None;
+        const bool typing=Typing();
         if(!(GetAsyncKeyState(VK_ESCAPE)&0x8000))escapeHeld=false;
         else if(!escapeHeld&&!typing){Quit(true);return;}
         if(!revealed){
@@ -231,11 +398,11 @@ struct Panel {
         if(!popup.Hit(cursor.x,cursor.y))Light(cursor);
         // Before the reveal only the key counts: a pass-over ends the standby.
         const bool inside=PtInRect(&anchor,cursor)||popup.Hit(cursor.x,cursor.y)||GetCapture()==popup.window;
-        if(typing&&GetForegroundWindow()!=popup.window){wifi.focus=WifiView::Focus::None;Paint();}
+        if(typing&&GetForegroundWindow()!=popup.window){Unfocus();Paint();}
         if(inside)outside=0;
         else if(GetAsyncKeyState(VK_LBUTTON)&0x8000||GetAsyncKeyState(VK_RBUTTON)&0x8000){Quit(true);return;}
         // While typing, a pointer drifting off the panel does not close it.
-        else if(wifi.focus!=WifiView::Focus::None)outside=0;
+        else if(typing)outside=0;
         else if(!outside)outside=GetTickCount64();
         else if(GetTickCount64()-outside>=250)Quit(true);
         // Clock remains live even when a device query is slow. Reuse this
@@ -279,7 +446,15 @@ struct Panel {
         popup.click=[this](UINT m,float x,float y){Input(m,x,y);};
         popup.pointerCancel=[this]{Cancel();pagePressed={};};popup.cancel=[this]{Quit();};
         popup.key=[this](UINT m,WPARAM k){return Key(m,k);};
-        popup.wheel=[this](int delta){if(page==PanelPage::Main)return;wifi.scroll-=float(delta)/WHEEL_DELTA*WifiRowHeight;Paint();};
+        popup.wheel=[this](int delta){
+            const float step=float(delta)/WHEEL_DELTA*48;
+            switch(page){
+            case PanelPage::Wifi:wifi.scroll-=step;break;
+            case PanelPage::Bluetooth:bluetooth.scroll-=step;break;
+            case PanelPage::Sound:sound.scroll-=step;break;
+            default:return;
+            }
+            Paint();};
         if(!Valid())return 22;
         SetPropW(bar,Bridge::ControlProp,control);SetPropW(bar,Bridge::WindowProp,popup.window);
         Paint();if(closing)return 23;
@@ -299,7 +474,7 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
         if(count==2&&!wcscmp(args[1],L"--hidden-probe")){
             LocalFree(args);winrt::init_apartment(winrt::apartment_type::single_threaded);
             {Capsule::Drawing draw;Capsule::Popup popup;popup.Init(draw,1,300,408,14,false);
-             Capsule::RenderControlPanel(draw);Capsule::RenderWifiPage(draw);
+             Capsule::RenderControlPanel(draw);Capsule::RenderWifiPage(draw);Capsule::RenderPages(draw);
              // Visual fixture only; a host without visual capture still passes.
              try{Capsule::RenderMaterial(draw,popup.scene);}catch(...){Capsule::Log(L"material-probe-failed",winrt::to_hresult());}
              if(IsWindowVisible(popup.window))winrt::throw_hresult(E_UNEXPECTED);

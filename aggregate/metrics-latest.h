@@ -79,6 +79,10 @@ class Metrics {
     Sample data;
     std::atomic<bool> visible=false;
     std::atomic<PanelPage> page=PanelPage::Main;
+    // The hotspot key while that page is open, guarded by mutex. Reserved
+    // up front so assigning never leaves a copy behind; wiped on leaving.
+    std::wstring hotspotKey=[]{std::wstring k;k.reserve(64);return k;}();
+    void WipeKey(){std::lock_guard lock(mutex);SecureZeroMemory(hotspotKey.data(),hotspotKey.size()*sizeof(wchar_t));hotspotKey.clear();}
     ControlQueue commands;
     bool changed=false,accepting=true,refreshControls=false;
     uint64_t serial=0;
@@ -229,7 +233,15 @@ class Metrics {
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
         workerThread=GetCurrentThreadId();CoEnableCallCancellation(nullptr);
         auto controls=std::make_unique<ControlBackend>();auto wifi=std::make_unique<WifiBackend>();
-        uint64_t nextSample=0,nextDetails=0,sampledAt=0,detailedAt=0;unsigned samples=0,details=0;bool opened=false,slow=false;
+        auto bluetooth=std::make_unique<BluetoothBackend>();auto sound=std::make_unique<SoundBackend>();
+        uint64_t nextSample=0,nextDetails=0,sampledAt=0,detailedAt=0;unsigned samples=0,details=0;bool opened=false,slow=false,hotspot=false;
+        std::wstring key;key.reserve(64);
+        // Hotspot page reads pass the key through this buffer only.
+        auto readHotspot=[&](Sample& s){
+            controls->HotspotDetails(s,key);
+            {std::lock_guard lock(mutex);hotspotKey.assign(key);}
+            SecureZeroMemory(key.data(),key.size()*sizeof(wchar_t));key.clear();
+        };
         while(!stop.stop_requested()){
             Sample s;{std::lock_guard lock(mutex);s=data;}
             std::vector<ControlCommand> pending;
@@ -259,22 +271,44 @@ class Metrics {
             if(show&&now>=nextDetails){nextDetails=now+(details++?1000:WarmupMs);detailedAt=now;
                 // WMI brightness waits until the first values are published.
                 slow=details==1;
-                try{Details(s);controls->Read(s,!slow);}catch(...){Log(L"detail-sample-error");}publish=true;}
-            // The Wi-Fi page reads networks only while it is open.
-            if(const bool listing=show&&page==PanelPage::Wifi;listing!=wifi->Active()){
-                if(listing)wifi->Open();else wifi->Close(s.wifiList);publish=true;}
+                try{Details(s);controls->Read(s,!slow);if(hotspot)readHotspot(s);}catch(...){Log(L"detail-sample-error");}publish=true;}
+            // Each page reads its devices only while it is open.
+            const auto current=show?page.load():PanelPage::Main;
+            if(const bool on=current==PanelPage::Wifi;on!=wifi->Active()){if(on)wifi->Open();else wifi->Close(s.wifiList);publish=true;}
+            if(const bool on=current==PanelPage::Bluetooth;on!=bluetooth->Active()){
+                if(on)bluetooth->Open();else bluetooth->Close(s.bluetoothList);publish=true;}
+            if(const bool on=current==PanelPage::Sound;on!=sound->Active()){if(on)sound->Open();else sound->Close(s.sound);publish=true;}
+            if(const bool on=current==PanelPage::Hotspot;on!=hotspot){
+                hotspot=on;publish=true;
+                if(on){try{readHotspot(s);}catch(...){}}
+                else{WipeKey();const bool saving=s.hotspotInfo.saving;s.hotspotInfo=HotspotInfo{};s.hotspotInfo.saving=saving;}
+            }
             for(auto& command:pending){if(stop.stop_requested())break;
-                if(command.target==Control::WifiConnect){
-                    if(wifi->Active())wifi->Connect(command.ssid,command.user,command.secret,s.wifiList);
-                    SecureZeroMemory(command.secret.data(),command.secret.size()*sizeof(wchar_t));
-                    s.completed[unsigned(command.target)]=command.serial;
-                }else if(command.target==Control::WifiDisconnect){
-                    if(wifi->Active())wifi->Disconnect(s.writes,s.wifiList);
-                    s.completed[unsigned(command.target)]=command.serial;
-                }else controls->Apply(std::move(command),s);
+                auto done=[&]{s.completed[unsigned(command.target)]=command.serial;};
+                auto fail=[&](const wchar_t* error){if(error){s.error=error;s.errorAt=GetTickCount64();}};
+                switch(command.target){
+                case Control::WifiConnect:
+                    if(wifi->Active())wifi->Connect(command.key,command.user,command.secret,s.wifiList);
+                    SecureZeroMemory(command.secret.data(),command.secret.size()*sizeof(wchar_t));done();break;
+                case Control::WifiDisconnect:if(wifi->Active())wifi->Disconnect(s.writes,s.wifiList);done();break;
+                case Control::BluetoothConnect:if(bluetooth->Active())bluetooth->Connect(command.key,command.value!=0,s.bluetoothList);done();break;
+                case Control::OutputDevice:if(sound->Active())fail(sound->Select(command.key,s.sound,s.writes));done();break;
+                case Control::AppVolume:if(sound->Active())fail(sound->App(command.key,command.value,0,s.sound,s.writes));done();break;
+                case Control::AppMute:if(sound->Active())fail(sound->App(command.key,-1,command.value,s.sound,s.writes));done();break;
+                // Completes when the system has stored the settings.
+                case Control::HotspotConfigure:controls->HotspotConfigure(command,s);
+                    SecureZeroMemory(command.secret.data(),command.secret.size()*sizeof(wchar_t));break;
+                default:controls->Apply(std::move(command),s);break;
+                }
                 publish=true;}
-            if(!stop.stop_requested()&&controls->Pending()){controls->Pump(s);publish=true;}
+            if(!stop.stop_requested()&&controls->Pending()){
+                const auto saved=s.completed[unsigned(Control::HotspotConfigure)];controls->Pump(s);publish=true;
+                // A finished settings change shows at once, not at the next detail tick.
+                if(hotspot&&s.completed[unsigned(Control::HotspotConfigure)]!=saved)try{readHotspot(s);}catch(...){}
+            }
             if(!stop.stop_requested()&&wifi->Active()&&wifi->Pump(s.wifiList,s.writes))publish=true;
+            if(!stop.stop_requested()&&bluetooth->Active()&&bluetooth->Pump(s.bluetoothList,s.writes))publish=true;
+            if(!stop.stop_requested()&&sound->Active()&&sound->Pump(s.sound))publish=true;
             if(!show&&opened){
                 controls->Close(s);opened=false;publish=true;slow=false;
                 networkPrevious.clear();networkAt=0;s.network=L"—";
@@ -290,12 +324,13 @@ class Metrics {
             }
             auto delay=std::max<int64_t>(1,int64_t(nextSample)-int64_t(GetTickCount64()));
             if(show)delay=std::min(delay,std::max<int64_t>(1,int64_t(nextDetails)-int64_t(GetTickCount64())));
-            if(controls->Pending()||wifi->Pending())delay=std::min<int64_t>(delay,50);
+            const bool busy=controls->Pending()||wifi->Pending()||bluetooth->Pending();
+            if(busy)delay=std::min<int64_t>(delay,50);
             std::unique_lock waitLock(waitMutex);
-            if(!show&&!controls->Pending()&&!wifi->Pending())wake.wait(waitLock,stop,[&]{return changed||!commands.Empty();});
+            if(!show&&!busy)wake.wait(waitLock,stop,[&]{return changed||!commands.Empty();});
             else wake.wait_for(waitLock,stop,std::chrono::milliseconds(delay),[&]{return changed||!commands.Empty();});
         }
-        controls.reset();wifi.reset();
+        controls.reset();wifi.reset();bluetooth.reset();sound.reset();WipeKey();
         if(metadata)try{metadata.Cancel();}catch(...){}
         if(request)try{request.Cancel();}catch(...){}
         metadata=nullptr;request=nullptr;manager=nullptr;
@@ -321,21 +356,36 @@ public:
         auto id=++serial;commands.Put({target,value,id,std::move(access)});wake.notify_all();return id;
     }
     void Page(PanelPage value){if(page.exchange(value)!=value){std::lock_guard lock(waitMutex);changed=true;wake.notify_all();}}
-    // Wi-Fi page commands. The password is moved into the queue and wiped
-    // by the worker once used; it is never logged.
+    // Page commands with a secret (Wi-Fi password, hotspot key).
     uint64_t WifiConnect(std::wstring ssid,std::wstring user,std::wstring& secret){
-        ControlCommand command{Control::WifiConnect,0,0,nullptr,std::move(ssid),std::move(user),secret};
+        return Secret({Control::WifiConnect,0,0,nullptr,std::move(ssid),std::move(user)},secret);
+    }
+    // band: TetheringWiFiBand, or -1 to keep it; an empty secret keeps the key.
+    uint64_t HotspotConfigure(std::wstring name,int band,std::wstring& secret){
+        return Secret({Control::HotspotConfigure,band,0,nullptr,std::move(name)},secret);
+    }
+    // Page commands without a secret: Wi-Fi disconnect, Bluetooth connect,
+    // output device and app volume or mute.
+    uint64_t Send(Control target,int value,std::wstring key={}){
+        if(!visible)return 0;std::lock_guard lock(waitMutex);if(!accepting)return 0;
+        auto id=++serial;commands.Put({target,value,id,nullptr,std::move(key)});wake.notify_all();return id;
+    }
+    // Copies the hotspot key into out (the page's own reserved buffer).
+    void HotspotKey(std::wstring& out){std::lock_guard lock(mutex);out.assign(hotspotKey);}
+    Sample Read(){std::lock_guard lock(mutex);return data;}
+private:
+    // The secret is copied once into a heap buffer reserved up front, so the
+    // moves through the queue hand over the pointer instead of leaving short
+    // in-place copies behind. The worker wipes it once used; never logged.
+    uint64_t Secret(ControlCommand command,std::wstring& secret){
+        command.secret.reserve(64);command.secret.assign(secret);
         SecureZeroMemory(secret.data(),secret.size()*sizeof(wchar_t));secret.clear();
         auto wipe=[&]{SecureZeroMemory(command.secret.data(),command.secret.size()*sizeof(wchar_t));return uint64_t(0);};
         if(!visible)return wipe();
         std::lock_guard lock(waitMutex);if(!accepting)return wipe();
         command.serial=++serial;const auto id=command.serial;commands.Put(std::move(command));wake.notify_all();return id;
     }
-    uint64_t WifiDisconnect(){
-        if(!visible)return 0;std::lock_guard lock(waitMutex);if(!accepting)return 0;
-        auto id=++serial;commands.Put({Control::WifiDisconnect,0,id});wake.notify_all();return id;
-    }
-    Sample Read(){std::lock_guard lock(mutex);return data;}
+public:
     void Stop(){if(worker.joinable()){
         {std::lock_guard lock(waitMutex);accepting=false;
          for(auto& c:commands.Take())SecureZeroMemory(c.secret.data(),c.secret.size()*sizeof(wchar_t));}

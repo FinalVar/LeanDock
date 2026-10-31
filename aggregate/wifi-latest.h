@@ -7,8 +7,6 @@
 #include <winrt/Windows.Security.Credentials.h>
 
 namespace Capsule {
-// Panel pages. Second-level pages slide over the main page inside the panel.
-enum class PanelPage : int { Main, Wifi };
 struct WifiNetwork {
     std::wstring ssid;int bars=0,rssi=-200;
     bool secure=false,enterprise=false,psk=false,saved=false,connected=false;

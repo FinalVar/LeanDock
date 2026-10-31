@@ -2,10 +2,11 @@
 #include "control-panel-latest.h"
 
 // The Wi-Fi page: networks, connect, disconnect and password entry inside
-// the panel. Like the main page it is one painted surface; the painter has no
-// device queries, system writes or input synthesis.
+// the panel, and the parts the other pages share. Like the main page each
+// page is one painted surface; painters have no device queries, system
+// writes or input synthesis.
 namespace Capsule {
-enum class PageHit { None, Back, Toggle, Row, User, Field, Reveal, Primary };
+enum class PageHit { None, Back, Toggle, Row, User, Field, Reveal, Primary, Secondary, Name, Option, Slider, Mute };
 struct PageTarget {
     PageHit hit=PageHit::None;std::wstring key; // key: the row's SSID
     bool operator==(PageTarget const&)const=default;
@@ -22,16 +23,30 @@ struct WifiView {
     }
     void Reset(){Wipe();expanded.clear();scroll=0;}
 };
-inline constexpr float PageListTop=58,WifiRowHeight=48;
+inline constexpr float PageListTop=58,WifiRowHeight=48,PageFooter=26;
+// A scrolling list under the page header. A page with an error to show
+// keeps a footer line free for it below the list.
+struct PageList {
+    float top=PageListTop,bottom=0,view=0,content=0;
+    PageList(float height,bool footer,float from=PageListTop):top(from),bottom(height-8-(footer?PageFooter:0)),view(bottom-from){}
+    float Clamp(float scroll)const{return std::clamp(scroll,0.f,std::max(0.f,content-view));}
+    // The scroll that shows the whole span, or as much of it from the top.
+    float Reveal(float y,float h,float scroll)const{
+        if(y+h>scroll+view)scroll=y+h-view;
+        if(y<scroll)scroll=y;
+        return Clamp(scroll);
+    }
+    bool Inside(float x,float y)const{return y>=top&&y<bottom&&x>=8&&x<292;}
+};
 struct WifiRow {
     WifiNetwork net;float y=0,h=WifiRowHeight;
     bool open=false,status=false,form=false,user=false;
     Rect userBox,passwordBox,reveal,button; // list coordinates, before scrolling
 };
-struct WifiLayout {
-    std::vector<WifiRow> rows;float top=PageListTop,bottom=0,view=0,content=0;
-    WifiLayout(WifiList const& list,WifiView const& v,float height){
-        bottom=height-8;view=bottom-top;float y=0;
+struct WifiLayout : PageList {
+    std::vector<WifiRow> rows;
+    WifiLayout(WifiList const& list,WifiView const& v,float height,bool footer=false):PageList(height,footer){
+        float y=0;
         for(auto const& net:list.networks){
             WifiRow r;r.net=net;r.y=y;r.open=net.ssid==v.expanded;
             if(r.open){
@@ -48,16 +63,10 @@ struct WifiLayout {
         }
         content=y;
     }
-    float Clamp(float scroll)const{return std::clamp(scroll,0.f,std::max(0.f,content-view));}
     WifiRow const* Find(std::wstring const& ssid)const{
         for(auto const& r:rows)if(r.net.ssid==ssid)return &r;return nullptr;
     }
-    // The scroll that shows the whole row, or as much of it from the top.
-    float Reveal(WifiRow const& r,float scroll)const{
-        if(r.y+r.h>scroll+view)scroll=r.y+r.h-view;
-        if(r.y<scroll)scroll=r.y;
-        return Clamp(scroll);
-    }
+    float Reveal(WifiRow const& r,float scroll)const{return PageList::Reveal(r.y,r.h,scroll);}
 };
 inline bool WifiFormReady(WifiRow const& r,WifiView const& v){
     return !r.form||(!v.password.empty()&&(!r.user||!v.user.empty()));
@@ -65,7 +74,7 @@ inline bool WifiFormReady(WifiRow const& r,WifiView const& v){
 inline PageTarget WifiHit(WifiLayout const& l,WifiView const& v,float x,float y){
     if(Rect{8,8,36,36}.Contains(x,y))return {PageHit::Back};
     if(Rect{232,12,58,32}.Contains(x,y))return {PageHit::Toggle};
-    if(y<l.top||y>=l.bottom||x<8||x>=292)return {};
+    if(!l.Inside(x,y))return {};
     const float at=y-l.top+v.scroll;
     for(auto const& r:l.rows){
         if(at<r.y||at>=r.y+r.h)continue;
@@ -149,6 +158,15 @@ inline void PaintField(Drawing& draw,ID2D1DeviceContext* dc,Rect r,std::wstring 
         PanelGlyph(draw,dc,L"\xE7B3",eye,reveal?c.text:c.secondary,13);
     }
 }
+inline void PaintScrollbar(Drawing& draw,ID2D1DeviceContext* dc,PageList const& l,float scroll){
+    if(l.content<=l.view)return;
+    const float thumb=std::max(24.f,l.view*l.view/l.content),y=l.top+(l.view-thumb)*scroll/(l.content-l.view);
+    draw.Round(dc,{294,y,2.5,thumb},1.25f,Alpha(draw.colors.text,.24f));
+}
+// The last control error (radio, audio...), on every page, for five seconds.
+inline void PaintPageFooter(Drawing& draw,ID2D1DeviceContext* dc,float height,std::wstring const& error){
+    if(!error.empty())draw.Text(dc,error,{14,height-8-PageFooter+3,272,22},11,draw.colors.danger);
+}
 inline void PaintPageHeader(Drawing& draw,ID2D1DeviceContext* dc,const wchar_t* title,float backHover){
     auto& c=draw.colors;
     if(backHover>0)draw.Round(dc,{8,8,36,36},8,Alpha(c.hover,backHover));
@@ -199,9 +217,6 @@ inline void PaintWifiPage(Drawing& draw,ID2D1DeviceContext* dc,Sample const& s,W
         else PaintButton(draw,dc,at(r.button),connecting?L"正在连接":L"连接",true,!busy&&WifiFormReady(r,v),lit(PageHit::Primary,r.net.ssid));
     }
     dc->PopAxisAlignedClip();
-    if(l.content>l.view){
-        const float thumb=std::max(24.f,l.view*l.view/l.content),y=l.top+(l.view-thumb)*v.scroll/(l.content-l.view);
-        draw.Round(dc,{294,y,2.5,thumb},1.25f,Alpha(c.text,.24f));
-    }
+    PaintScrollbar(draw,dc,l,v.scroll);
 }
 }

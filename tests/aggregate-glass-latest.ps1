@@ -14,7 +14,7 @@ try{
  & (Join-Path $sdk "bin/$sdkVersion/x64/rc.exe") /nologo /I (Join-Path $sdk "Include/$sdkVersion/um") /I (Join-Path $sdk "Include/$sdkVersion/shared") /fo $resource 'latest.rc'
  if($LASTEXITCODE){throw 'Glass check manifest compilation failed'}
 }finally{Pop-Location}
-& (Join-Path $CompilerRoot 'bin/clang++.exe') -target x86_64-w64-mingw32 -std=c++23 -O1 -static -mwindows -municode -DWIN32_LEAN_AND_MEAN -DUNICODE -D_UNICODE -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -DNTDDI_VERSION=0x0A000008 -include windowsx.h (Join-Path $PSScriptRoot 'aggregate-glass-latest.cpp') $resource -o $target -lole32 -loleaut32 -lruntimeobject -ldwmapi -lshcore -lshell32 -lshlwapi -ladvapi32 -lwtsapi32 -lgdi32 -luuid -ld3d11 -ld2d1 -ldwrite -lwindowscodecs -ldxgi -liphlpapi -lpowrprof -lbcrypt -lwbemuuid -lwlanapi -limm32
+& (Join-Path $CompilerRoot 'bin/clang++.exe') -target x86_64-w64-mingw32 -std=c++23 -O1 -static -mwindows -municode -DWIN32_LEAN_AND_MEAN -DUNICODE -D_UNICODE -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -DNTDDI_VERSION=0x0A000008 -include windowsx.h (Join-Path $PSScriptRoot 'aggregate-glass-latest.cpp') $resource -o $target -lole32 -loleaut32 -lruntimeobject -ldwmapi -lshcore -lshell32 -lshlwapi -ladvapi32 -lwtsapi32 -lgdi32 -luuid -ld3d11 -ld2d1 -ldwrite -lwindowscodecs -ldxgi -liphlpapi -lpowrprof -lbcrypt -lwbemuuid -lwlanapi -limm32 -lversion
 if($LASTEXITCODE){throw 'Glass check compilation failed'}
 # One case per line of extra arguments, e.g. '--backdrop --raw'; blank = real desktop.
 $cases=if($CasesFile){@(Get-Content -LiteralPath $CasesFile)}else{@('--backdrop','--backdrop --raw','')}
