@@ -95,6 +95,13 @@ struct Panel {
         if(serial)(target==Control::Volume?volumeRequest:brightnessRequest)={serial,GetTickCount64(),value};
     }
     void Open(wchar_t const* uri){ShellExecuteW(popup.window,L"open",uri,nullptr,nullptr,SW_SHOWNORMAL);Quit(true);}
+    // Where ShellHost runs Quick Settings (build 26300), ms-availablenetworks:
+    // only shows their main page; ms-controlcenter:wifi opens the network
+    // list itself (checked 2026-10-31). Older systems keep the old link.
+    static wchar_t const* WifiList(){
+        return RegGetValueW(HKEY_CLASSES_ROOT,L"ms-controlcenter\\shell\\open\\command",nullptr,RRF_RT_ANY,nullptr,nullptr,nullptr)?
+            L"ms-availablenetworks:":L"ms-controlcenter:wifi";
+    }
     void Input(UINT message,float x,float y){
         const auto hit=PanelHit(x,y);const auto data=metrics.Read();
         if(message==WM_MOUSEMOVE){
@@ -119,7 +126,7 @@ struct Panel {
             case PanelPart::Bluetooth:metrics.Set(Control::Bluetooth,data.bluetooth==1?0:1);break;
             case PanelPart::DarkTheme:metrics.Set(Control::DarkTheme,data.darkTheme==1?0:1);break;
             case PanelPart::Hotspot:metrics.Set(Control::Hotspot,data.hotspot==1?0:1);break;
-            case PanelPart::WifiMore:Open(L"ms-availablenetworks:");break;
+            case PanelPart::WifiMore:Open(WifiList());break;
             case PanelPart::BluetoothMore:Open(L"ms-settings:bluetooth");break;
             case PanelPart::DarkThemeMore:Open(L"ms-settings:themes");break;
             case PanelPart::HotspotMore:Open(L"ms-settings:network-mobilehotspot");break;

@@ -83,6 +83,10 @@ PDH 的“GPU Engine”计数器和任务管理器读的是同一组内核节点
 
 拖亮度条时面板显示“亮度调整失败，设备可能已断开”，但亮度其实已经改了。`WmiSetBrightness` 在 WMI 里声明为无返回值的方法，调用成功时 `GetResultObject` 返回 S_OK 和空对象（实机核对：同值设置，`exec 0`、`result 0 object=null`）；原代码把空对象当成失败。现在只有明确的非零返回值才算失败，之后照旧读回实际亮度。这段代码来自胶囊版，不是 0.8.84 引入的。
 
+## Wi-Fi 箭头只打开快速设置首页（0.8.87 修复）
+
+用户在 Windows 26H2（build 26300）上点 Wi-Fi 开关右边的箭头，出来的是快速设置首页，不是网络列表。这一版的快速设置由 `ShellHost.exe` 承载，注册了 `ms-controlcenter:` 协议；`ms-availablenetworks:` 仍能用，但只到首页。系统自己的投屏面板用 `ms-controlcenter:wifi`，2026-10-31 在实机上用它直接打开了 WLAN 列表页。现在注册了 `ms-controlcenter` 的系统用新链接，没注册的照旧用 `ms-availablenetworks:`。新链接打开的列表出现在屏幕下方中间，不贴着托盘，这由系统决定。
+
 ## 验证与边界
 
 - `--hidden-probe` 新增：D3DKMT 适配器类型、节点占用计算、过渡状态机的断言；把真实的浮动 `Scene` 放到一张测试壁纸上，用 `BackdropBrush` 代替只在真实窗口后面才有的 HostBackdrop，通过 Windows.Graphics.Capture 读出浅/深色静态图和入场、收起的逐帧图（`control-panel-probe/material-*.png`）。脱离窗口的捕获树不会推进合成动画，所以逐帧图由 `RevealFrame`/`LeaveFrame` 按与真实动画同一张时序表（`Scene::Timing`）摆出各时刻的静态值；它验证时序和观感，不验证合成器实际播放。不显示窗口、不截屏、不发送输入。截图失败只记日志，不判定探针失败。

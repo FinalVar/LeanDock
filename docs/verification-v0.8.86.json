@@ -1,0 +1,94 @@
+{
+  "version": "0.8.86",
+  "date": "2026-10-31T13:55:43+08:00",
+  "state": "Superseded",
+  "backendVersion": "0.5.71",
+  "panelVersion": "0.8.86",
+  "change": "Calmer panel glass after the user found 0.8.85 glaring: the glass covers the whole panel again (no sharp desktop show-through), no text halo, no vivid frosted rim, saturation 1.3. Keeps the gamma tone curve, edge-thickness band and specular rim lines. Details: docs/panel-latest.md",
+  "checks": [
+    "Real-desktop material check before the change: 0.8.84, 0.8.85 and calmer candidates rendered over the same test backdrop and the live desktop",
+    "Real-desktop check of the built 0.8.86: light over the user wallpaper, light and dark over the test backdrop; no ghosting, text crisp",
+    "Aggregate panel and BackendOnly builds passed; controller / Start / panels binaries are the exact 0.8.78 accepted files (FCA312C8 / 070939A5 / 9F5976F7)",
+    "23 pre-deploy checks passed (runtime, lifecycle, 3 hidden probes)",
+    "ValidateOnly passed; Update Applied, Live, ComponentHealth Ready; configs unchanged",
+    "Post-deploy autotest AutomatedChecksPassed; installed files and Explorer unchanged during probes; no probe leftovers"
+  ],
+  "preDeployValidation": {
+    "At": "2026-10-31T13:52:18+08:00",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.86-outputs/pre-deploy-20261031-135218",
+    "RealDesktopEvidence": "C:/Users/x/Documents/Codex/Tools/_build/glass-check/glass-*-v086.png"
+  },
+  "automatedValidation": {
+    "At": "2026-10-31T13:57:42.0762801+08:00",
+    "State": "AutomatedChecksPassed",
+    "ProbeCycles": 3,
+    "InstalledFilesUnchanged": true,
+    "ExplorerUnchanged": true,
+    "ProbeLeftovers": [],
+    "Observation": "NotObserved",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.86-outputs/post-deploy/20261031-135552-b6831612"
+  },
+  "deployment": {
+    "State": "DeployedAwaitingUserAcceptance",
+    "At": "2026-10-31T13:55:43+08:00",
+    "Version": "0.8.86",
+    "Architecture": "native-taskbar",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "BackendVersion": "0.5.71",
+    "PackageFiles": 443,
+    "ChangedFiles": 16,
+    "RuntimeChanged": [
+      "aggregate/latest.exe",
+      "latest.dll"
+    ],
+    "RuntimeFiles": {
+      "latest.exe": "FCA312C81D1BF8D8AA2E1E54A37590E584E93940F488C531187909ED9B8F6899",
+      "latest.dll": "7E0D3CC92AAD9760A28350EA15FA75F1B335B05BA2872AA56B0CDA4DECA01ABC",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "8D252CB6EEB05A51052B1F7B7A2AE0D6D1F8DCA08C484A88511976CE7504674C"
+    },
+    "Backup": "backups/before-0.8.86-20261031-135534579",
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ],
+    "Runner": "PowerShell 7 in the signed-in desktop session (elevated)",
+    "BackupCleanup": {
+      "PrunedByUpdate": 1,
+      "PrunedBytes": 63343,
+      "Remaining": "51 directories, 194 MiB"
+    }
+  },
+  "rollback": "Existing Update/Rollback transaction with backups/before-0.8.86-20261031-135534579",
+  "preserved": [
+    "0.8.78 accepted controller / Start / panels binaries",
+    "native tray/pins/menus/hotcorners",
+    "72x46 DIP key and 78 DIP reservation",
+    "panel hit areas and 300 DIP layout",
+    "panel exits on close; no new resident process, polling while hidden, or global cursor change",
+    "panel launched only from the real hover on the native key, hash-checked, ordinary token, suspended until PID/cookie are published"
+  ],
+  "previousAcceptance": {
+    "version": "0.8.85",
+    "record": "docs/verification-v0.8.85.json",
+    "answer": "你自己看最新的，闪花眼，都没有原来的好",
+    "scope": "Rejected: glaring, ghosted, worse than before"
+  },
+  "notVerified": [
+    "The user's own judgement of the calmer glass on real hover",
+    "Brightness drag on the real panel after the 0.8.85 fix"
+  ],
+  "pending": [
+    "User visual acceptance of the 0.8.86 glass",
+    "Retake docs/assets/screenshot.png after acceptance",
+    "layoutCost over a normal working day"
+  ],
+  "note": "Superseded by 0.8.87 (Wi-Fi link fix) before the user judged the 0.8.86 glass; the material is unchanged in 0.8.87"
+}
