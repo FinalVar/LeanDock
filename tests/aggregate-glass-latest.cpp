@@ -80,11 +80,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
             for(auto const& [name,v]:sets){
                 if(name==L"saturation")look.saturation=v;else if(name==L"amplitude")look.amplitude=v;
                 else if(name==L"exponent")look.exponent=v;else if(name==L"offset")look.offset=v;
-                else if(name==L"glass")look.glass=v;else if(name==L"tint")alpha(look.tint,v);
-                else if(name==L"rimSaturation")look.rimSaturation=v;else if(name==L"rimAmplitude")look.rimAmplitude=v;
-                else if(name==L"rimExponent")look.rimExponent=v;else if(name==L"rimOffset")look.rimOffset=v;else if(name==L"rim")look.rim=v;
+                else if(name==L"tint")alpha(look.tint,v);
                 else if(name==L"shade")alpha(look.shade,v);else if(name==L"hairline")alpha(look.hairline,v);
-                else if(name==L"halo")alpha(look.halo,v);else if(name==L"haloBlur")look.haloBlur=v;
             }
             popup.scene.tuned=true;popup.scene.Theme(theme);
         }
@@ -101,10 +98,9 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
         }
         PanelGesture gesture;PanelMotion motion;motion.Update(data,PanelPart::None,gesture,0,false);
         if(raw){
-            // The host backdrop exactly as delivered: no blur, tone, tint,
-            // lensing, rim or content.
-            auto& s=popup.scene;s.glass.Brush(s.Masked(s.Glass(0,1,1,0),s.shape));
-            s.tint.Color({0,0,0,0});if(s.frost)s.frost.IsVisible(false);
+            // The host backdrop exactly as delivered: no tone, tint, rim or
+            // content.
+            auto& s=popup.scene;s.glass.Brush(s.Masked(s.Glass(0,1),s.shape));s.tint.Color({0,0,0,0});
         }else popup.Paint([&](ID2D1DeviceContext* dc){
             PaintControlPanel(draw,dc,data,power,L"13:26:08",L"10月23日",L"农历九月十四",layout,PanelPart::None,gesture,motion,0);
         },layout.Cuts());

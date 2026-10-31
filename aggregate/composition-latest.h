@@ -29,25 +29,24 @@ struct Scene {
     comp::DropShadow soft{nullptr},tight{nullptr};
     // Floating panels: liquid-glass layers and the staggered content bands.
     // DWM delivers the host backdrop already blurred and composition will not
-    // transform it (no refraction), so the body is partly transparent and the
-    // real desktop shows through sharp, while a rim of fully frosted, more
-    // vivid backdrop, an edge shade and specular lines give the glass depth.
+    // transform it (no refraction). The body is that backdrop through a tone
+    // curve; an edge shade and specular lines give the glass depth. 0.8.85
+    // also let the sharp desktop through, haloed the text and added a vivid
+    // frosted rim: the user found it glaring, so all three are gone.
     struct Look {
-        float saturation,amplitude,exponent,offset,glass; // body: tone curve, layer opacity
-        Color tint;
-        float rimSaturation,rimAmplitude,rimExponent,rimOffset,rim; // frosted rim band
-        Color shade,hairline,halo;float haloBlur;
+        float saturation,amplitude,exponent,offset; // body tone curve
+        Color tint,shade,hairline;
     };
     // Light: black behind becomes ~0.53 and white stays white (dark text
     // keeps ~4.8:1 over a black window); dark: white behind becomes ~0.39.
     static Look Defaults(bool light) {
-        return light?Look{1.7f,.45f,.6f,.55f,.88f,{20,255,255,255},2.6f,.55f,.7f,.42f,1,{26,0,0,0},{22,0,0,0},{255,255,255,255},6}:
-                     Look{1.6f,.45f,1.5f,0,.88f,{64,16,18,22},2.4f,.6f,1.2f,.02f,1,{16,255,255,255},{70,0,0,0},{200,0,0,0},6};
+        return light?Look{1.3f,.45f,.6f,.55f,{20,255,255,255},{26,0,0,0},{22,0,0,0}}:
+                     Look{1.3f,.45f,1.5f,0,{64,16,18,22},{16,255,255,255},{70,0,0,0}};
     }
     Look look{};bool tuned=false; // tuned: a fixture set look; Theme keeps it
     static constexpr float HostBlur=28; // approximates DWM's blur (real-desktop check, 2026-10-31)
-    comp::SpriteVisual glass{nullptr},frost{nullptr},shade{nullptr};
-    comp::CompositionBrush shape{nullptr},ring{nullptr},band{nullptr},edge{nullptr};
+    comp::SpriteVisual glass{nullptr},shade{nullptr};
+    comp::CompositionBrush shape{nullptr},ring{nullptr},edge{nullptr};
     comp::CompositionLinearGradientBrush rimLight{nullptr},innerLight{nullptr};
     comp::CompositionRadialGradientBrush sheen{nullptr},glint{nullptr};
     comp::CompositionSurfaceBrush contentBrush{nullptr};
@@ -192,10 +191,9 @@ struct Scene {
         tint=compositor.CreateColorBrush();
         Layer(tint,mask);
         if(floating){
-            // A frosted rim over ~13 DIP, and a narrower band of edge
-            // thickness that reads even over a plain white window.
-            band=Falloff(9,1.5f,1.3f);edge=Falloff(5,1.5f,1.8f);
-            frost=Layer(nullptr,nullptr);
+            // A band of edge thickness that reads even over a plain white
+            // window.
+            edge=Falloff(5,1.5f,1.8f);
             shade=Layer(nullptr,nullptr);
         }
         if(floating){
@@ -251,15 +249,11 @@ struct Scene {
         }
         if(!tuned)look=Defaults(light);
         // "Transparency effects" off in Settings: an opaque pane, no lensing.
-        glass.IsVisible(clear);frost.IsVisible(clear);
-        if(clear){
-            glass.Brush(Masked(Glass(0,look.saturation,look.amplitude,look.exponent,look.offset),shape));glass.Opacity(look.glass);
-            frost.Brush(Masked(Glass(0,look.rimSaturation,look.rimAmplitude,look.rimExponent,look.rimOffset),band));frost.Opacity(look.rim);
-        }
+        glass.IsVisible(clear);
+        if(clear)glass.Brush(Masked(Glass(0,look.saturation,look.amplitude,look.exponent,look.offset),shape));
         shade.Brush(Masked(compositor.CreateColorBrush(look.shade),edge));
         tint.Color(!clear?(light?Color{255,243,244,247}:Color{255,32,34,40}):look.tint);
         stroke.Color(look.hairline);
-        for(auto const& v:bands)if(auto shadow=v.Shadow())if(auto halo=shadow.try_as<comp::DropShadow>())Halo(halo);
         constexpr Color none{0,255,255,255};
         auto white=[](float a){return Color{uint8_t(std::lround(255*a)),255,255,255};};
         // Light from the top left, reflected again inside the bottom right.
@@ -312,9 +306,6 @@ struct Scene {
         const size_t count=std::max<size_t>(1,cuts.size()>1?cuts.size()-1:1);
         while(bands.size()<count){
             auto v=compositor.CreateSpriteVisual();v.Brush(contentBrush);v.Clip(compositor.CreateInsetClip());
-            // A soft halo of the glass colour keeps text legible over a
-            // busy desktop showing through.
-            if(floating){auto halo=compositor.CreateDropShadow();halo.Mask(contentBrush);Halo(halo);v.Shadow(halo);}
             content.Children().InsertAtTop(v);bands.push_back(v);
         }
         while(bands.size()>count){content.Children().Remove(bands.back());bands.pop_back();}
@@ -325,7 +316,6 @@ struct Scene {
         }
     }
     void Light(float x,float y){props.InsertVector2(L"Light",{x,y});}
-    void Halo(comp::DropShadow const& halo){halo.Color(look.halo);halo.BlurRadius(look.haloBlur);halo.Offset({0,0,0});}
     // Panel reveal and leave. One table drives the compositor animations
     // and RevealFrame/LeaveFrame, the static frames the offscreen probe uses
     // (a detached capture tree does not advance compositor animations).
@@ -396,7 +386,7 @@ struct Scene {
         try{
             if(target){target.Root(nullptr);target.Close();}
             target=nullptr;motion=nullptr;content=nullptr;body=nullptr;root=nullptr;props=nullptr;
-            tint=nullptr;stroke=nullptr;soft=nullptr;tight=nullptr;glass=nullptr;frost=nullptr;shade=nullptr;edge=nullptr;shape=nullptr;ring=nullptr;band=nullptr;
+            tint=nullptr;stroke=nullptr;soft=nullptr;tight=nullptr;glass=nullptr;shade=nullptr;edge=nullptr;shape=nullptr;ring=nullptr;
             rimLight=nullptr;innerLight=nullptr;sheen=nullptr;glint=nullptr;contentBrush=nullptr;bands.clear();
             if(ownsCompositor&&compositor)compositor.Close();compositor=nullptr;
             if(dispatcher){
