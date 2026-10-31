@@ -1,8 +1,10 @@
 #include "popup-latest.h"
 #include "control-panel-latest.h"
+#include "wifi-page-latest.h"
 #include "control-tests-latest.h"
 #include "../include/aggregate-bridge-latest.h"
 #include <cwchar>
+#include <imm.h>
 
 // Reuses the accepted 0.9.8 detail painter and device workers, but not its Dock,
 // app list, tray receiver, taskbar hiding, guard or startup mechanism.
@@ -13,6 +15,8 @@ struct Panel {
     Drawing draw;Popup popup;Metrics metrics;Power power;
     PanelGesture gesture;PanelPart hover=PanelPart::None;PanelMotion motion;
     PanelValueRequest volumeRequest,brightnessRequest;
+    // Second-level page state; page credentials are wiped on every exit.
+    PanelPage page=PanelPage::Main;WifiView wifi;PageTarget pageHover,pagePressed;Tween pageFade;bool escapeHeld=false;
     uint64_t outside=0,startedAt=0;bool closing=false,started=false,revealed=false,animating=false;float dpi=1;
     int paintedSecond=-1,calendarDay=-1;
     std::wstring calendarDate,calendarLunar;
@@ -39,7 +43,7 @@ struct Panel {
     }
     void Finish(){if(control)KillTimer(control,LeaveTimer);if(popup.window)popup.Hide();PostQuitMessage(0);}
     void Close(){
-        closing=true;if(control)for(auto timer:{TickTimer,FrameTimer,LeaveTimer})KillTimer(control,timer);
+        closing=true;wifi.Reset();if(control)for(auto timer:{TickTimer,FrameTimer,LeaveTimer})KillTimer(control,timer);
         popup.Hide();metrics.Visible(false);metrics.Stop();
         if(Valid()){
             for(auto name:{Bridge::WindowProp,Bridge::ControlProp,Bridge::PendingProp})RemovePropW(bar,name);
@@ -72,11 +76,18 @@ struct Panel {
         auto display=data;const auto now=GetTickCount64();
         display.volume=volumeRequest.Display(data.volume,data.completed[unsigned(Control::Volume)],now);
         display.brightness=brightnessRequest.Display(data.brightness,data.completed[unsigned(Control::Brightness)],now);
-        motion.Update(display,hover,gesture,now,revealed&&Animations());
-        popup.Paint([&](ID2D1DeviceContext* dc){PaintControlPanel(draw,dc,display,power,clock,calendarDate,calendarLunar,layout,hover,gesture,motion,now);},
-            layout.Cuts());
+        motion.Update(display,page==PanelPage::Main?hover:PanelPart::None,gesture,now,revealed&&Animations());
+        if(page==PanelPage::Main)
+            popup.Paint([&](ID2D1DeviceContext* dc){PaintControlPanel(draw,dc,display,power,clock,calendarDate,calendarLunar,layout,hover,gesture,motion,now);},
+                layout.Cuts());
+        else{
+            // A page keeps the main page's height, so going back never resizes.
+            WifiLayout rows(display.wifiList,wifi,popup.height);wifi.scroll=rows.Clamp(wifi.scroll);
+            popup.PaintPage([&](ID2D1DeviceContext* dc){
+                PaintWifiPage(draw,dc,display,rows,wifi,pageHover,pageFade.At(now),motion.on[0].At(now));});
+        }
         // Frames run only while a hover, toggle or slider transition does.
-        if(const bool active=motion.Active(now);active!=animating&&control){
+        if(const bool active=motion.Active(now)||pageFade.Active(now);active!=animating&&control){
             animating=active;if(active)SetTimer(control,FrameTimer,16,nullptr);else KillTimer(control,FrameTimer);
         }
     }
@@ -94,15 +105,86 @@ struct Panel {
         const auto serial=metrics.Set(target,value);
         if(serial)(target==Control::Volume?volumeRequest:brightnessRequest)={serial,GetTickCount64(),value};
     }
-    void Open(wchar_t const* uri){ShellExecuteW(popup.window,L"open",uri,nullptr,nullptr,SW_SHOWNORMAL);Quit(true);}
-    // Where ShellHost runs Quick Settings (build 26300), ms-availablenetworks:
-    // only shows their main page; ms-controlcenter:wifi opens the network
-    // list itself (checked 2026-10-31). Older systems keep the old link.
-    static wchar_t const* WifiList(){
-        return RegGetValueW(HKEY_CLASSES_ROOT,L"ms-controlcenter\\shell\\open\\command",nullptr,RRF_RT_ANY,nullptr,nullptr,nullptr)?
-            L"ms-availablenetworks:":L"ms-controlcenter:wifi";
+    void Navigate(PanelPage to){
+        if(to==page||closing)return;
+        if(GetCapture()==popup.window)ReleaseCapture();
+        Cancel();wifi.Reset();pageHover=pagePressed={};page=to;metrics.Page(to);
+        Paint();if(closing)return;
+        popup.scene.Navigate(to!=PanelPage::Main,revealed&&Animations());
+    }
+    // Typing needs keyboard focus, which this panel otherwise never takes.
+    // The click that leads here was our own input, so Windows allows it.
+    void Focus(WifiView::Focus field){
+        wifi.focus=field;SetForegroundWindow(popup.window);SetFocus(popup.window);
+        ImmAssociateContext(popup.window,nullptr); // Passwords are typed without an IME.
+    }
+    void Submit(Sample const& data,WifiRow const* row){
+        if(!row||!data.wifiList.connecting.empty())return;
+        if(row->net.connected){metrics.WifiDisconnect();return;}
+        if(!WifiFormReady(*row,wifi))return;
+        metrics.WifiConnect(row->net.ssid,row->user?wifi.user:std::wstring(),wifi.password);
+        wifi.focus=WifiView::Focus::None;wifi.reveal=false;
+    }
+    static void Paste(std::wstring& text,size_t limit){
+        if(!OpenClipboard(nullptr))return;
+        if(HANDLE data=GetClipboardData(CF_UNICODETEXT))if(auto p=static_cast<const wchar_t*>(GlobalLock(data))){
+            for(;*p&&text.size()<limit;++p)if(*p>=0x20)text.push_back(*p);
+            GlobalUnlock(data);}
+        CloseClipboard();
+    }
+    // Characters arrive as WM_CHAR; Escape leaves the field, not the panel.
+    bool Key(UINT message,WPARAM key){
+        if(page!=PanelPage::Wifi||wifi.focus==WifiView::Focus::None)return false;
+        if(message==WM_KEYDOWN){
+            if(key!=VK_ESCAPE)return false;
+            wifi.focus=WifiView::Focus::None;escapeHeld=true;Paint();return true;
+        }
+        const bool user=wifi.focus==WifiView::Focus::User;auto& text=user?wifi.user:wifi.password;
+        const size_t limit=user?128:63;
+        if(key==0x0D||key==0x09){
+            const auto data=metrics.Read();WifiLayout rows(data.wifiList,wifi,popup.height);auto row=rows.Find(wifi.expanded);
+            if(key==0x0D)Submit(data,row);
+            else if(row&&row->user)wifi.focus=user?WifiView::Focus::Password:WifiView::Focus::User;
+        }
+        else if(key==0x08){if(!text.empty())text.pop_back();}
+        else if(key==0x16)Paste(text,limit);
+        else if(key>=0x20&&key!=0x7F&&text.size()<limit)text.push_back(wchar_t(key));
+        Paint();return true;
+    }
+    void PageInput(UINT message,float x,float y){
+        const auto data=metrics.Read();WifiLayout rows(data.wifiList,wifi,popup.height);
+        const auto target=WifiHit(rows,wifi,x,y);const auto now=GetTickCount64();
+        if(message==WM_MOUSEMOVE){
+            popup.scene.Light(x,y);
+            if(!(target==pageHover)){pageHover=target;pageFade.Snap(0);if(target.hit!=PageHit::None)pageFade.Go(1,now,120);Paint();}
+            return;
+        }
+        if(message==WM_LBUTTONDOWN){pagePressed=target;SetCapture(popup.window);return;}
+        if(message!=WM_LBUTTONUP)return;
+        const auto pressed=pagePressed;pagePressed={};
+        if(GetCapture()==popup.window)ReleaseCapture();
+        if(!(pressed==target))return;
+        switch(target.hit){
+        case PageHit::Back:Navigate(PanelPage::Main);return;
+        case PageHit::Toggle:if(PanelEnabled(PanelPart::Wifi,data))metrics.Set(Control::Wifi,data.wifi==1?0:1);break;
+        case PageHit::Row:
+            if(wifi.expanded==target.key){wifi.Wipe();wifi.expanded.clear();break;}
+            wifi.Wipe();wifi.expanded=target.key;
+            if(WifiLayout open(data.wifiList,wifi,popup.height);auto row=open.Find(target.key)){
+                wifi.scroll=open.Reveal(*row,wifi.scroll);
+                if(row->form)Focus(row->user?WifiView::Focus::User:WifiView::Focus::Password);
+            }
+            break;
+        case PageHit::User:Focus(WifiView::Focus::User);break;
+        case PageHit::Field:Focus(WifiView::Focus::Password);break;
+        case PageHit::Reveal:wifi.reveal=!wifi.reveal;break;
+        case PageHit::Primary:Submit(data,rows.Find(target.key));break;
+        default:wifi.focus=WifiView::Focus::None;break;
+        }
+        Paint();
     }
     void Input(UINT message,float x,float y){
+        if(page!=PanelPage::Main){PageInput(message,x,y);return;}
         const auto hit=PanelHit(x,y);const auto data=metrics.Read();
         if(message==WM_MOUSEMOVE){
             popup.scene.Light(x,y);
@@ -126,10 +208,7 @@ struct Panel {
             case PanelPart::Bluetooth:metrics.Set(Control::Bluetooth,data.bluetooth==1?0:1);break;
             case PanelPart::DarkTheme:metrics.Set(Control::DarkTheme,data.darkTheme==1?0:1);break;
             case PanelPart::Hotspot:metrics.Set(Control::Hotspot,data.hotspot==1?0:1);break;
-            case PanelPart::WifiMore:Open(WifiList());break;
-            case PanelPart::BluetoothMore:Open(L"ms-settings:bluetooth");break;
-            case PanelPart::DarkThemeMore:Open(L"ms-settings:themes");break;
-            case PanelPart::HotspotMore:Open(L"ms-settings:network-mobilehotspot");break;
+            case PanelPart::WifiMore:Navigate(PanelPage::Wifi);break;
             default:break;
         }
         Cancel();if(GetCapture()==popup.window)ReleaseCapture();Paint();
@@ -137,7 +216,10 @@ struct Panel {
     void Tick(){
         if(closing)return;
         if(!Valid()||!IsWindowVisible(bar)||std::abs(GetDpiForWindow(bar)/96.f-dpi)>.01f){Quit();return;}
-        if(GetAsyncKeyState(VK_ESCAPE)&0x8000){Quit(true);return;}
+        // Escape closes the panel unless it was spent leaving a text field.
+        const bool typing=wifi.focus!=WifiView::Focus::None;
+        if(!(GetAsyncKeyState(VK_ESCAPE)&0x8000))escapeHeld=false;
+        else if(!escapeHeld&&!typing){Quit(true);return;}
         if(!revealed){
             if(Bridge::Revealed(bar,cookie))Reveal();
             else if(GetTickCount64()-startedAt>=StandbyLimit){Quit();return;}
@@ -149,8 +231,11 @@ struct Panel {
         if(!popup.Hit(cursor.x,cursor.y))Light(cursor);
         // Before the reveal only the key counts: a pass-over ends the standby.
         const bool inside=PtInRect(&anchor,cursor)||popup.Hit(cursor.x,cursor.y)||GetCapture()==popup.window;
+        if(typing&&GetForegroundWindow()!=popup.window){wifi.focus=WifiView::Focus::None;Paint();}
         if(inside)outside=0;
         else if(GetAsyncKeyState(VK_LBUTTON)&0x8000||GetAsyncKeyState(VK_RBUTTON)&0x8000){Quit(true);return;}
+        // While typing, a pointer drifting off the panel does not close it.
+        else if(wifi.focus!=WifiView::Focus::None)outside=0;
         else if(!outside)outside=GetTickCount64();
         else if(GetTickCount64()-outside>=250)Quit(true);
         // Clock remains live even when a device query is slow. Reuse this
@@ -192,7 +277,9 @@ struct Panel {
         startedAt=GetTickCount64();metrics.Start(control);metrics.Visible(true);started=true;
         popup.Init(draw,dpi,PanelWidth,408,14,false);
         popup.click=[this](UINT m,float x,float y){Input(m,x,y);};
-        popup.pointerCancel=[this]{Cancel();};popup.cancel=[this]{Quit();};
+        popup.pointerCancel=[this]{Cancel();pagePressed={};};popup.cancel=[this]{Quit();};
+        popup.key=[this](UINT m,WPARAM k){return Key(m,k);};
+        popup.wheel=[this](int delta){if(page==PanelPage::Main)return;wifi.scroll-=float(delta)/WHEEL_DELTA*WifiRowHeight;Paint();};
         if(!Valid())return 22;
         SetPropW(bar,Bridge::ControlProp,control);SetPropW(bar,Bridge::WindowProp,popup.window);
         Paint();if(closing)return 23;
@@ -212,7 +299,7 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
         if(count==2&&!wcscmp(args[1],L"--hidden-probe")){
             LocalFree(args);winrt::init_apartment(winrt::apartment_type::single_threaded);
             {Capsule::Drawing draw;Capsule::Popup popup;popup.Init(draw,1,300,408,14,false);
-             Capsule::RenderControlPanel(draw);
+             Capsule::RenderControlPanel(draw);Capsule::RenderWifiPage(draw);
              // Visual fixture only; a host without visual capture still passes.
              try{Capsule::RenderMaterial(draw,popup.scene);}catch(...){Capsule::Log(L"material-probe-failed",winrt::to_hresult());}
              if(IsWindowVisible(popup.window))winrt::throw_hresult(E_UNEXPECTED);

@@ -4,17 +4,19 @@
 #include <array>
 
 namespace Capsule {
+// Tiles without a second page (theme; Bluetooth and hotspot until theirs
+// exist) toggle across their whole width and never open system UI.
 enum class PanelPart { None, Volume, Mute, Brightness, Wifi, WifiMore, Bluetooth, BluetoothMore,
-    DarkTheme, DarkThemeMore, Hotspot, HotspotMore };
+    DarkTheme, Hotspot, HotspotMore };
 inline constexpr float PanelWidth=300,SliderLeft=60,SliderRight=244;
 inline PanelPart PanelHit(float x,float y){
     if(y>=60&&y<104){
         if(x>=14&&x<146)return x>=114?PanelPart::WifiMore:PanelPart::Wifi;
-        if(x>=154&&x<286)return x>=254?PanelPart::BluetoothMore:PanelPart::Bluetooth;
+        if(x>=154&&x<286)return PanelPart::Bluetooth;
     }
     if(y>=110&&y<154){
-        if(x>=14&&x<146)return x>=114?PanelPart::DarkThemeMore:PanelPart::DarkTheme;
-        if(x>=154&&x<286)return x>=254?PanelPart::HotspotMore:PanelPart::Hotspot;
+        if(x>=14&&x<146)return PanelPart::DarkTheme;
+        if(x>=154&&x<286)return PanelPart::Hotspot;
     }
     if(y>=164&&y<200){if(x>=14&&x<48)return PanelPart::Mute;
         if(x>=52&&x<250)return PanelPart::Volume;}
@@ -31,7 +33,7 @@ inline bool PanelEnabled(PanelPart p,Controls const& s){
     case PanelPart::Bluetooth:return RadioControllable(s.bluetooth)&&!s.wifiBusy&&!s.bluetoothBusy&&!s.hotspotBusy;
     case PanelPart::DarkTheme:return s.darkTheme>=0&&s.themeAvailable&&!s.themeBusy;
     case PanelPart::Hotspot:return s.hotspot>=0&&!s.hotspotBusy&&!s.wifiBusy&&!s.bluetoothBusy;
-    case PanelPart::WifiMore:case PanelPart::BluetoothMore:case PanelPart::DarkThemeMore:case PanelPart::HotspotMore:return true;
+    case PanelPart::WifiMore:case PanelPart::BluetoothMore:case PanelPart::HotspotMore:return true;
     default:return false;
     }
 }
@@ -181,21 +183,23 @@ inline void PaintControlPanel(Drawing& draw,ID2D1DeviceContext* dc,Sample const&
         auto edge=draw.Gradient(dc,{0,y},{0,y+22},{{0,Alpha(c.controlEdge,1-.55f*on)},{1,Alpha(c.controlEdge,0)}});
         draw.Stroke(dc,{x+.5,y+.5,131,43},11.5f,edge.get());
         const auto wash=Mix(c.hover,Ink(0xFFFFFF,.14f),on);
-        const float hb=motion.hover[unsigned(body)].At(now),hm=motion.hover[unsigned(more)].At(now);
-        if(hb>0){dc->PushAxisAlignedClip({x,y,x+100,y+44},D2D1_ANTIALIAS_MODE_ALIASED);draw.Round(dc,box,12,Alpha(wash,hb));dc->PopAxisAlignedClip();}
+        const bool split=more!=PanelPart::None;
+        const float hb=motion.hover[unsigned(body)].At(now),hm=split?motion.hover[unsigned(more)].At(now):0;
+        if(hb>0){dc->PushAxisAlignedClip({x,y,x+(split?100:132),y+44},D2D1_ANTIALIAS_MODE_ALIASED);draw.Round(dc,box,12,Alpha(wash,hb));dc->PopAxisAlignedClip();}
         if(hm>0){dc->PushAxisAlignedClip({x+100,y,x+132,y+44},D2D1_ANTIALIAS_MODE_ALIASED);draw.Round(dc,box,12,Alpha(wash,hm));dc->PopAxisAlignedClip();}
         const auto ink=Mix(state<0?c.secondary:c.text,c.onAccent,on);
         const auto sub=Mix(c.secondary,Alpha(c.onAccent,.78f),on);
         PanelGlyph(draw,dc,glyph,{x+6,y+8,26,28},ink,18);
-        draw.Text(dc,name,{x+37,y+5,62,20},13,ink,true);
-        draw.Text(dc,busy?L"正在切换":label,{x+37,y+24,64,16},10.5f,sub);
+        draw.Text(dc,name,{x+37,y+5,split?62.f:90.f,20},13,ink,true);
+        draw.Text(dc,busy?L"正在切换":label,{x+37,y+24,split?64.f:90.f,16},10.5f,sub);
+        if(!split)return;
         draw.Line(dc,x+100,y+12,x+100,y+32,Alpha(ink,.16f));
         PanelGlyph(draw,dc,L"\xE76C",{x+100,y+6,32,32},sub,10);
     };
     tile(0,14,60,L"Wi-Fi",s.wifi,s.wifiBusy,PanelPart::Wifi,PanelPart::WifiMore,L"\xE701",RadioLabel(s.wifi));
-    tile(1,154,60,L"蓝牙",s.bluetooth,s.bluetoothBusy,PanelPart::Bluetooth,PanelPart::BluetoothMore,L"\xE702",RadioLabel(s.bluetooth));
-    tile(2,14,110,L"深色主题",s.darkTheme,s.themeBusy,PanelPart::DarkTheme,PanelPart::DarkThemeMore,L"\xE708",ThemeControl::Label(s.darkTheme));
-    tile(3,154,110,L"移动热点",s.hotspot,s.hotspotBusy,PanelPart::Hotspot,PanelPart::HotspotMore,L"\xEC15",s.hotspotLabel);
+    tile(1,154,60,L"蓝牙",s.bluetooth,s.bluetoothBusy,PanelPart::Bluetooth,PanelPart::None,L"\xE702",RadioLabel(s.bluetooth));
+    tile(2,14,110,L"深色主题",s.darkTheme,s.themeBusy,PanelPart::DarkTheme,PanelPart::None,L"\xE708",ThemeControl::Label(s.darkTheme));
+    tile(3,154,110,L"移动热点",s.hotspot,s.hotspotBusy,PanelPart::Hotspot,PanelPart::None,L"\xEC15",s.hotspotLabel);
     auto slider=[&](float y,int actual,Tween const& eased,PanelPart part,const wchar_t* glyph){
         const bool enabled=actual>=0;auto ink=enabled?c.text:c.secondary;
         const float position=gesture.pressed==part?float(gesture.preview):eased.At(now);

@@ -1,6 +1,7 @@
 #pragma once
 #include "platform-latest.h"
 #include "theme-control-latest.h"
+#include "wifi-latest.h"
 #include <mmdeviceapi.h>
 #include <endpointvolume.h>
 #include <wbemidl.h>
@@ -13,15 +14,19 @@
 #include <stop_token>
 
 namespace Capsule {
-enum class Control : unsigned { Volume, Brightness, Mute, Wifi, Bluetooth, DarkTheme, Hotspot, Count };
+enum class Control : unsigned { Volume, Brightness, Mute, Wifi, Bluetooth, DarkTheme, Hotspot, WifiConnect, WifiDisconnect, Count };
 using RadioAccess=winrt::Windows::Devices::Radios::RadioAccessStatus;
 using AccessRequest=winrt::Windows::Foundation::IAsyncOperation<RadioAccess>;
-struct ControlCommand {Control target{};int value{};uint64_t serial{};AccessRequest access{nullptr};};
+struct ControlCommand {Control target{};int value{};uint64_t serial{};AccessRequest access{nullptr};
+    std::wstring ssid,user,secret;}; // Wi-Fi page commands only
 // One latest value per control: dragging cannot build an unbounded queue or
 // apply old brightness values after the pointer has already been released.
 struct ControlQueue {
     std::array<std::optional<ControlCommand>,unsigned(Control::Count)> values;
-    void Put(ControlCommand c){values[unsigned(c.target)]=std::move(c);}
+    void Put(ControlCommand c){
+        if(auto& old=values[unsigned(c.target)])SecureZeroMemory(old->secret.data(),old->secret.size()*sizeof(wchar_t));
+        values[unsigned(c.target)]=std::move(c);
+    }
     bool Empty()const{for(auto const& c:values)if(c)return false;return true;}
     std::vector<ControlCommand> Take(){std::vector<ControlCommand> out;
         for(auto& c:values)if(c){out.push_back(std::move(*c));c.reset();}
@@ -36,6 +41,7 @@ struct Controls {
     bool hotspotBusy=false;
     bool mute=false,radioAllowed=false,wifiBusy=false,bluetoothBusy=false;
     std::wstring error;
+    WifiList wifiList;
     uint64_t errorAt=0,reads=0,writes=0;
     std::array<uint64_t,unsigned(Control::Count)> completed{};
 };

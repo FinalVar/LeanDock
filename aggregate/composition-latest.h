@@ -23,7 +23,8 @@ struct Scene {
     winrt::Windows::System::DispatcherQueueController dispatcher{nullptr};
     comp::Compositor compositor{nullptr};
     comp::Desktop::DesktopWindowTarget target{nullptr};
-    comp::ContainerVisual root{nullptr},motion{nullptr},body{nullptr},content{nullptr};
+    comp::ContainerVisual root{nullptr},motion{nullptr},body{nullptr},content{nullptr},mainLayer{nullptr};
+    comp::SpriteVisual pageLayer{nullptr};comp::CompositionSurfaceBrush pageBrush{nullptr};
     comp::CompositionPropertySet props{nullptr};
     comp::CompositionColorBrush tint{nullptr},stroke{nullptr};
     comp::DropShadow soft{nullptr},tight{nullptr};
@@ -45,6 +46,7 @@ struct Scene {
     }
     Look look{};bool tuned=false; // tuned: a fixture set look; Theme keeps it
     static constexpr float HostBlur=28; // approximates DWM's blur (real-desktop check, 2026-10-31)
+    static constexpr float PageShift=36; // how far a page slides in or out
     comp::SpriteVisual glass{nullptr},shade{nullptr};
     comp::CompositionBrush shape{nullptr},ring{nullptr},edge{nullptr};
     comp::CompositionLinearGradientBrush rimLight{nullptr},innerLight{nullptr};
@@ -223,6 +225,7 @@ struct Scene {
             body.Children().InsertAtTop(outline);
         }
         content=compositor.CreateContainerVisual();body.Children().InsertAtTop(content);
+        mainLayer=compositor.CreateContainerVisual();content.Children().InsertAtTop(mainLayer);
         Expression(content,L"Offset",L"Vector3(p.Width-p.Full,0,0)");
         auto clip=compositor.CreateInsetClip();content.Clip(clip);
         Expression(clip,L"LeftInset",L"Max(0,p.Full-p.Width)");
@@ -306,9 +309,9 @@ struct Scene {
         const size_t count=std::max<size_t>(1,cuts.size()>1?cuts.size()-1:1);
         while(bands.size()<count){
             auto v=compositor.CreateSpriteVisual();v.Brush(contentBrush);v.Clip(compositor.CreateInsetClip());
-            content.Children().InsertAtTop(v);bands.push_back(v);
+            mainLayer.Children().InsertAtTop(v);bands.push_back(v);
         }
-        while(bands.size()>count){content.Children().Remove(bands.back());bands.pop_back();}
+        while(bands.size()>count){mainLayer.Children().Remove(bands.back());bands.pop_back();}
         for(size_t i=0;i<count;++i){
             const float top=cuts.size()>1?cuts[i]:0,bottom=cuts.size()>1?cuts[i+1]:height;
             bands[i].Size({full,height});auto clip=bands[i].Clip().as<comp::InsetClip>();
@@ -316,6 +319,35 @@ struct Scene {
         }
     }
     void Light(float x,float y){props.InsertVector2(L"Light",{x,y});}
+    // A second-level page: its own surface over the main bands.
+    void PageContent(comp::ICompositionSurface const& surface) {
+        if(!pageLayer){
+            pageBrush=compositor.CreateSurfaceBrush();pageBrush.Stretch(comp::CompositionStretch::Fill);
+            pageLayer=compositor.CreateSpriteVisual();pageLayer.Brush(pageBrush);pageLayer.Opacity(0);pageLayer.Offset({PageShift,0,0});
+            content.Children().InsertAtTop(pageLayer);
+        }
+        if(pageBrush.Surface()!=surface)pageBrush.Surface(surface);
+        pageLayer.Size({full,height});
+    }
+    // The page slides in from the right while the main page drifts left
+    // and fades, as in Windows quick settings; back reverses both. Each run
+    // starts from the current values, so a quick back-and-forth never jumps.
+    void Navigate(bool toPage,bool enabled) {
+        if(!pageLayer)return;
+        auto run=[&](comp::Visual const& v,float x,float alpha,int ms,int delay){
+            if(!enabled){v.StopAnimation(L"Offset");v.StopAnimation(L"Opacity");v.Offset({x,0,0});v.Opacity(alpha);return;}
+            const auto settle=compositor.CreateCubicBezierEasingFunction({float(Settle.x1),float(Settle.y1)},{float(Settle.x2),float(Settle.y2)});
+            auto offset=compositor.CreateVector3KeyFrameAnimation();
+            offset.InsertExpressionKeyFrame(0,L"this.StartingValue");offset.InsertKeyFrame(1,{x,0,0},settle);
+            offset.Duration(std::chrono::milliseconds(ms));offset.DelayTime(std::chrono::milliseconds(delay));
+            auto fade=compositor.CreateScalarKeyFrameAnimation();
+            fade.InsertExpressionKeyFrame(0,L"this.StartingValue");fade.InsertKeyFrame(1,alpha,settle);
+            fade.Duration(std::chrono::milliseconds(std::max(1,ms*2/3)));fade.DelayTime(std::chrono::milliseconds(delay));
+            v.StartAnimation(L"Offset",offset);v.StartAnimation(L"Opacity",fade);
+        };
+        if(toPage){run(mainLayer,-PageShift,0,220,0);run(pageLayer,0,1,300,40);}
+        else{run(pageLayer,PageShift,0,220,0);run(mainLayer,0,1,300,40);}
+    }
     // Panel reveal and leave. One table drives the compositor animations
     // and RevealFrame/LeaveFrame, the static frames the offscreen probe uses
     // (a detached capture tree does not advance compositor animations).
@@ -385,7 +417,7 @@ struct Scene {
         if(closed)return;closed=true;
         try{
             if(target){target.Root(nullptr);target.Close();}
-            target=nullptr;motion=nullptr;content=nullptr;body=nullptr;root=nullptr;props=nullptr;
+            target=nullptr;motion=nullptr;content=nullptr;mainLayer=nullptr;pageLayer=nullptr;pageBrush=nullptr;body=nullptr;root=nullptr;props=nullptr;
             tint=nullptr;stroke=nullptr;soft=nullptr;tight=nullptr;glass=nullptr;shade=nullptr;edge=nullptr;shape=nullptr;ring=nullptr;
             rimLight=nullptr;innerLight=nullptr;sheen=nullptr;glint=nullptr;contentBrush=nullptr;bands.clear();
             if(ownsCompositor&&compositor)compositor.Close();compositor=nullptr;

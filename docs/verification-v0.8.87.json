@@ -1,0 +1,97 @@
+{
+  "version": "0.8.87",
+  "date": "2026-10-31T14:13:24+08:00",
+  "state": "DeployedAwaitingUserAcceptance",
+  "backendVersion": "0.5.72",
+  "panelVersion": "0.8.87",
+  "change": "The Wi-Fi chevron opens ms-controlcenter:wifi (the network list) when that protocol is registered, else ms-availablenetworks: as before. Panel material is the 0.8.86 calm glass, unchanged.",
+  "userReport": {
+    "At": "2026-10-31",
+    "Answer": "你看看剪切板，我点了wifi角符号就这样了",
+    "Scope": "Clipboard screenshot 13:59:43: the Quick Settings main page opened instead of the Wi-Fi list"
+  },
+  "checks": [
+    "ms-controlcenter registered on the user PC (ShellHost.exe url=%1); Start-Process ms-controlcenter:wifi opened the WLAN list page, screenshot taken 2026-10-31",
+    "Aggregate panel and BackendOnly builds passed; controller / Start / panels binaries are the exact 0.8.78 accepted files",
+    "23 pre-deploy checks passed",
+    "ValidateOnly passed; Update Applied, Live, ComponentHealth Ready; configs unchanged",
+    "Post-deploy autotest AutomatedChecksPassed; installed files and Explorer unchanged; no probe leftovers"
+  ],
+  "preDeployValidation": {
+    "At": "2026-10-31T14:09:31+08:00",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.87-outputs/pre-deploy-20261031-140931"
+  },
+  "automatedValidation": {
+    "At": "2026-10-31T14:15:35.1660715+08:00",
+    "State": "AutomatedChecksPassed",
+    "ProbeCycles": 3,
+    "InstalledFilesUnchanged": true,
+    "ExplorerUnchanged": true,
+    "ProbeLeftovers": [],
+    "Observation": "NotObserved",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.87-outputs/post-deploy/20261031-141334-18475b4b"
+  },
+  "deployment": {
+    "State": "DeployedAwaitingUserAcceptance",
+    "At": "2026-10-31T14:13:24+08:00",
+    "Version": "0.8.87",
+    "Architecture": "native-taskbar",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "BackendVersion": "0.5.72",
+    "PackageFiles": 444,
+    "ChangedFiles": 14,
+    "RuntimeChanged": [
+      "aggregate/latest.exe",
+      "latest.dll"
+    ],
+    "RuntimeFiles": {
+      "latest.exe": "FCA312C81D1BF8D8AA2E1E54A37590E584E93940F488C531187909ED9B8F6899",
+      "latest.dll": "3C7294E9E07F95B52F2126B438255292882138DB2D4525541F155A2D2C025457",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "EF495438F126198E1315994B5A31C8AF390B6818228704E46CF2BB853AA583B0"
+    },
+    "Backup": "backups/before-0.8.87-20261031-141312220",
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ],
+    "Runner": "PowerShell 7 in the signed-in desktop session (elevated)",
+    "BackupCleanup": {
+      "PrunedByUpdate": 1,
+      "PrunedBytes": 81170,
+      "Remaining": "51 directories, 199 MiB"
+    }
+  },
+  "rollback": "Existing Update/Rollback transaction with backups/before-0.8.87-20261031-141312220",
+  "preserved": [
+    "0.8.78 accepted controller / Start / panels binaries",
+    "native tray/pins/menus/hotcorners",
+    "72x46 DIP key and 78 DIP reservation",
+    "panel hit areas and 300 DIP layout",
+    "panel exits on close; no new resident process, polling while hidden, or global cursor change",
+    "panel launched only from the real hover on the native key, hash-checked, ordinary token, suspended until PID/cookie are published"
+  ],
+  "previousAcceptance": {
+    "version": "0.8.85",
+    "record": "docs/verification-v0.8.85.json",
+    "answer": "你自己看最新的，闪花眼，都没有原来的好",
+    "scope": "Rejected: glaring, ghosted, worse than before"
+  },
+  "notVerified": [
+    "A real click on the panel's Wi-Fi chevron (the link itself was verified)",
+    "The user's judgement of the 0.8.86 glass",
+    "Brightness drag on the real panel after the 0.8.85 fix"
+  ],
+  "pending": [
+    "User acceptance of the glass and the Wi-Fi chevron",
+    "Retake docs/assets/screenshot.png after acceptance",
+    "layoutCost over a normal working day"
+  ]
+}

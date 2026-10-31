@@ -78,6 +78,7 @@ class Metrics {
     std::condition_variable_any wake;
     Sample data;
     std::atomic<bool> visible=false;
+    std::atomic<PanelPage> page=PanelPage::Main;
     ControlQueue commands;
     bool changed=false,accepting=true,refreshControls=false;
     uint64_t serial=0;
@@ -227,7 +228,7 @@ class Metrics {
     void Run(std::stop_token stop) {
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
         workerThread=GetCurrentThreadId();CoEnableCallCancellation(nullptr);
-        auto controls=std::make_unique<ControlBackend>();
+        auto controls=std::make_unique<ControlBackend>();auto wifi=std::make_unique<WifiBackend>();
         uint64_t nextSample=0,nextDetails=0,sampledAt=0,detailedAt=0;unsigned samples=0,details=0;bool opened=false,slow=false;
         while(!stop.stop_requested()){
             Sample s;{std::lock_guard lock(mutex);s=data;}
@@ -259,8 +260,21 @@ class Metrics {
                 // WMI brightness waits until the first values are published.
                 slow=details==1;
                 try{Details(s);controls->Read(s,!slow);}catch(...){Log(L"detail-sample-error");}publish=true;}
-            for(auto& command:pending){if(stop.stop_requested())break;controls->Apply(std::move(command),s);publish=true;}
+            // The Wi-Fi page reads networks only while it is open.
+            if(const bool listing=show&&page==PanelPage::Wifi;listing!=wifi->Active()){
+                if(listing)wifi->Open();else wifi->Close(s.wifiList);publish=true;}
+            for(auto& command:pending){if(stop.stop_requested())break;
+                if(command.target==Control::WifiConnect){
+                    if(wifi->Active())wifi->Connect(command.ssid,command.user,command.secret,s.wifiList);
+                    SecureZeroMemory(command.secret.data(),command.secret.size()*sizeof(wchar_t));
+                    s.completed[unsigned(command.target)]=command.serial;
+                }else if(command.target==Control::WifiDisconnect){
+                    if(wifi->Active())wifi->Disconnect(s.writes,s.wifiList);
+                    s.completed[unsigned(command.target)]=command.serial;
+                }else controls->Apply(std::move(command),s);
+                publish=true;}
             if(!stop.stop_requested()&&controls->Pending()){controls->Pump(s);publish=true;}
+            if(!stop.stop_requested()&&wifi->Active()&&wifi->Pump(s.wifiList,s.writes))publish=true;
             if(!show&&opened){
                 controls->Close(s);opened=false;publish=true;slow=false;
                 networkPrevious.clear();networkAt=0;s.network=L"—";
@@ -276,12 +290,12 @@ class Metrics {
             }
             auto delay=std::max<int64_t>(1,int64_t(nextSample)-int64_t(GetTickCount64()));
             if(show)delay=std::min(delay,std::max<int64_t>(1,int64_t(nextDetails)-int64_t(GetTickCount64())));
-            if(controls->Pending())delay=std::min<int64_t>(delay,50);
+            if(controls->Pending()||wifi->Pending())delay=std::min<int64_t>(delay,50);
             std::unique_lock waitLock(waitMutex);
-            if(!show&&!controls->Pending())wake.wait(waitLock,stop,[&]{return changed||!commands.Empty();});
+            if(!show&&!controls->Pending()&&!wifi->Pending())wake.wait(waitLock,stop,[&]{return changed||!commands.Empty();});
             else wake.wait_for(waitLock,stop,std::chrono::milliseconds(delay),[&]{return changed||!commands.Empty();});
         }
-        controls.reset();
+        controls.reset();wifi.reset();
         if(metadata)try{metadata.Cancel();}catch(...){}
         if(request)try{request.Cancel();}catch(...){}
         metadata=nullptr;request=nullptr;manager=nullptr;
@@ -306,9 +320,25 @@ public:
         std::lock_guard lock(waitMutex);if(!accepting)return 0;
         auto id=++serial;commands.Put({target,value,id,std::move(access)});wake.notify_all();return id;
     }
+    void Page(PanelPage value){if(page.exchange(value)!=value){std::lock_guard lock(waitMutex);changed=true;wake.notify_all();}}
+    // Wi-Fi page commands. The password is moved into the queue and wiped
+    // by the worker once used; it is never logged.
+    uint64_t WifiConnect(std::wstring ssid,std::wstring user,std::wstring& secret){
+        ControlCommand command{Control::WifiConnect,0,0,nullptr,std::move(ssid),std::move(user),secret};
+        SecureZeroMemory(secret.data(),secret.size()*sizeof(wchar_t));secret.clear();
+        auto wipe=[&]{SecureZeroMemory(command.secret.data(),command.secret.size()*sizeof(wchar_t));return uint64_t(0);};
+        if(!visible)return wipe();
+        std::lock_guard lock(waitMutex);if(!accepting)return wipe();
+        command.serial=++serial;const auto id=command.serial;commands.Put(std::move(command));wake.notify_all();return id;
+    }
+    uint64_t WifiDisconnect(){
+        if(!visible)return 0;std::lock_guard lock(waitMutex);if(!accepting)return 0;
+        auto id=++serial;commands.Put({Control::WifiDisconnect,0,id});wake.notify_all();return id;
+    }
     Sample Read(){std::lock_guard lock(mutex);return data;}
     void Stop(){if(worker.joinable()){
-        {std::lock_guard lock(waitMutex);accepting=false;commands.Take();}
+        {std::lock_guard lock(waitMutex);accepting=false;
+         for(auto& c:commands.Take())SecureZeroMemory(c.secret.data(),c.secret.size()*sizeof(wchar_t));}
         worker.request_stop();wake.notify_all();
         if(auto id=workerThread.load())CoCancelCall(id,0);
         worker.join();}notify=nullptr;}

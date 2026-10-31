@@ -1,5 +1,6 @@
 #pragma once
 #include "control-panel-latest.h"
+#include "wifi-page-latest.h"
 #include <winrt/Windows.Graphics.Capture.h>
 #include <winrt/Windows.Graphics.DirectX.Direct3D11.h>
 
@@ -52,7 +53,7 @@ inline unsigned VerifyThemeModel(){
     Controls state;state.darkTheme=0;
     check(!PanelEnabled(PanelPart::DarkTheme,state));state.themeAvailable=true;
     check(PanelEnabled(PanelPart::DarkTheme,state));state.themeBusy=true;
-    check(!PanelEnabled(PanelPart::DarkTheme,state));check(PanelEnabled(PanelPart::DarkThemeMore,state));
+    check(!PanelEnabled(PanelPart::DarkTheme,state));
     state.themeBusy=false;state.darkTheme=2;check(PanelEnabled(PanelPart::DarkTheme,state));
     state.darkTheme=-1;check(!PanelEnabled(PanelPart::DarkTheme,state));
     return count;
@@ -63,12 +64,12 @@ inline unsigned VerifyControlModel(){
     for(auto scale:{1.f,1.25f,1.5f,1.75f,2.f}){
         auto hit=[&](float x,float y){return PanelHit((x*scale)/scale,(y*scale)/scale);};
         check(hit(20,80)==PanelPart::Wifi);check(hit(135,80)==PanelPart::WifiMore);
-        check(hit(170,80)==PanelPart::Bluetooth);check(hit(275,80)==PanelPart::BluetoothMore);
+        check(hit(170,80)==PanelPart::Bluetooth);check(hit(275,80)==PanelPart::Bluetooth);
         check(hit(24,182)==PanelPart::Mute);check(hit(140,182)==PanelPart::Volume);
         check(hit(140,224)==PanelPart::Brightness);check(hit(150,80)==PanelPart::None);
         check(hit(14,286)==PanelPart::None);check(hit(140,252)==PanelPart::None);
-        check(hit(20,130)==PanelPart::DarkTheme);check(hit(135,130)==PanelPart::DarkThemeMore);
-        check(hit(170,130)==PanelPart::Hotspot);check(hit(275,130)==PanelPart::HotspotMore);
+        check(hit(20,130)==PanelPart::DarkTheme);check(hit(135,130)==PanelPart::DarkTheme);
+        check(hit(170,130)==PanelPart::Hotspot);check(hit(275,130)==PanelPart::Hotspot);
         check(hit(30,107)==PanelPart::None);check(hit(150,130)==PanelPart::None);
     }
     check(SliderValue(-100)==0);check(SliderValue(500)==100);
@@ -87,7 +88,7 @@ inline unsigned VerifyControlModel(){
     check(PanelEnabled(PanelPart::Wifi,state));state.bluetoothBusy=true;check(!PanelEnabled(PanelPart::Wifi,state));
     state.bluetoothBusy=false;state.wifi=3;check(!PanelEnabled(PanelPart::Wifi,state));
     check(!PanelEnabled(PanelPart::DarkTheme,state));check(!PanelEnabled(PanelPart::Hotspot,state));
-    check(PanelEnabled(PanelPart::DarkThemeMore,state));check(PanelEnabled(PanelPart::HotspotMore,state));
+    check(PanelEnabled(PanelPart::HotspotMore,state));
     state.darkTheme=0;state.themeAvailable=true;state.hotspot=0;state.wifi=1;
     check(PanelEnabled(PanelPart::DarkTheme,state));check(PanelEnabled(PanelPart::Hotspot,state));
     state.hotspotBusy=true;check(!PanelEnabled(PanelPart::Hotspot,state));check(!PanelEnabled(PanelPart::Wifi,state));
@@ -117,9 +118,56 @@ inline unsigned VerifyControlModel(){
     check(content.height>empty.height&&content.trayY+52<content.height);
     return count;
 }
+inline WifiList FixtureNetworks(){
+    WifiList w;w.ready=true;
+    auto add=[&](std::wstring ssid,int bars,int kind,bool saved,bool connected){ // kind: 0 open, 1 personal, 2 enterprise
+        WifiNetwork n;n.ssid=std::move(ssid);n.bars=bars;n.secure=kind>0;n.psk=kind==1;n.enterprise=kind==2;
+        n.saved=saved;n.connected=connected;w.networks.push_back(std::move(n));};
+    add(L"NWAFU",4,0,true,true);add(L"@NRadio-B066-2.4G",3,1,false,false);add(L"LANSVEHD",2,1,false,false);
+    add(L"eduroam",3,2,false,false);add(L"德莉莎大人的胖次",2,1,false,false);add(L"TP-LINK_5G_8A2C",1,1,true,false);
+    add(L"ChinaNet-Free",1,0,false,false);add(L"Xiaomi_9E31",2,1,false,false);add(L"CMCC-Lab",0,1,false,false);
+    SortNetworks(w.networks);return w;
+}
+inline unsigned VerifyWifiModel(){
+    unsigned count=0;auto check=[&](bool value){++count;if(!value)winrt::throw_hresult(E_UNEXPECTED);};
+    auto list=FixtureNetworks();
+    check(list.networks.front().connected&&list.networks.front().ssid==L"NWAFU");
+    for(size_t i=2;i<list.networks.size();++i)check(list.networks[i-1].bars>=list.networks[i].bars);
+    check(WifiSubtitle(list.networks[0],list)==L"已连接，开放");
+    WifiView view;WifiLayout closed(list,view,406);
+    check(closed.rows.size()==list.networks.size()&&closed.content==list.networks.size()*(WifiRowHeight+2));
+    check(closed.Clamp(-20)==0&&closed.Clamp(1e6f)==closed.content-closed.view);
+    check(WifiHit(closed,view,20,20).hit==PageHit::Back&&WifiHit(closed,view,262,28).hit==PageHit::Toggle);
+    check(WifiHit(closed,view,150,PageListTop+10).key==L"NWAFU"&&WifiHit(closed,view,150,30).hit==PageHit::None);
+    check(WifiHit(closed,view,150,PageListTop+WifiRowHeight+5).key==list.networks[1].ssid);
+    check(WifiHit(closed,view,150,closed.bottom+1).hit==PageHit::None);
+    // A personal network without a profile asks for its key; enterprise also for a user.
+    auto personal=std::find_if(list.networks.begin(),list.networks.end(),[](auto const& n){return n.psk&&!n.saved;})->ssid;
+    view.expanded=personal;WifiLayout open(list,view,406);auto row=open.Find(personal);
+    check(row&&row->open&&row->form&&!row->user&&row->h>WifiRowHeight&&!WifiFormReady(*row,view));
+    view.password=L"x";check(WifiFormReady(*row,view));
+    const float at=PageListTop+row->passwordBox.y+17-view.scroll;
+    check(WifiHit(open,view,40,at).hit==PageHit::Field&&WifiHit(open,view,265,at).hit==PageHit::Reveal);
+    check(WifiHit(open,view,230,PageListTop+row->button.y+10).hit==PageHit::Primary);
+    check(WifiHit(open,view,100,PageListTop+row->button.y+10).hit==PageHit::None);
+    view.expanded=L"eduroam";WifiLayout enterprise(list,view,406);auto edu=enterprise.Find(L"eduroam");
+    check(edu&&edu->form&&edu->user&&!WifiFormReady(*edu,view));view.user=L"u";check(WifiFormReady(*edu,view));
+    view.Wipe();check(view.password.empty()&&view.user.empty()&&view.focus==WifiView::Focus::None);
+    // Saved, open and connected rows need no form; a wrong saved key asks again.
+    view.expanded=L"TP-LINK_5G_8A2C";check(!WifiLayout(list,view,406).Find(view.expanded)->form);
+    list.failed=view.expanded;list.failure=L"密码不正确";list.wrongPassword=true;
+    auto retry=WifiLayout(list,view,406);check(retry.Find(view.expanded)->form&&retry.Find(view.expanded)->status);
+    view.expanded=L"NWAFU";check(!WifiLayout(list,view,406).Find(L"NWAFU")->form);
+    list.connecting=L"NWAFU";check(WifiSubtitle(list.networks[0],list)==L"正在连接…");
+    // Revealing the last row scrolls it fully into view.
+    view.expanded=list.networks.back().ssid;WifiLayout end(list,view,406);auto last=end.Find(view.expanded);
+    const float scroll=end.Reveal(*last,0);check(scroll>0&&last->y+last->h<=scroll+end.view+.01f);
+    check(WifiFailure(3)==L"密码不正确"&&WifiFailure(99)==L"无法连接到这个网络");
+    return count;
+}
 inline int ControlsProbe(){
     winrt::init_apartment(winrt::apartment_type::multi_threaded);
-    const auto checks=VerifyControlModel(),themeChecks=VerifyThemeModel(),metricChecks=VerifyMetricModel();
+    const auto checks=VerifyControlModel()+VerifyWifiModel(),themeChecks=VerifyThemeModel(),metricChecks=VerifyMetricModel();
     const auto themeBefore=ThemeControl::Read();
     Metrics metrics;metrics.Start(nullptr);metrics.Visible(true);
     const auto deadline=GetTickCount64()+6000;
@@ -206,6 +254,44 @@ inline void RenderControlPanel(Drawing& draw){
             for(UINT row=0;row<height;++row)memcpy(pixels.data()+size_t(row)*width*4,mapped.bits+size_t(row)*mapped.pitch,width*4);
             readback->Unmap();
             SavePng(draw,pixels,width,height,output+L"\\dpi-"+std::to_wstring(int(scale*100))+L".png");
+        }
+    }catch(...){draw.colors=original;throw;}draw.colors=original;
+}
+// The Wi-Fi page over the same plain panel colour as RenderControlPanel:
+// light with a key being typed, dark with an enterprise sign-in failing.
+inline void RenderWifiPage(Drawing& draw){
+    VerifyWifiModel();const auto output=Directory()+L"\\control-panel-probe";
+    std::filesystem::create_directories(output);const auto original=draw.colors;
+    try{
+        for(float scale:{1.f,2.f}){
+            const UINT width=UINT(std::lround(644*scale)),height=UINT(std::lround(436*scale));
+            winrt::com_ptr<ID2D1DeviceContext> dc;winrt::check_hresult(draw.device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,dc.put()));
+            D2D1_BITMAP_PROPERTIES1 props{};props.pixelFormat={DXGI_FORMAT_B8G8R8A8_UNORM,D2D1_ALPHA_MODE_PREMULTIPLIED};
+            props.dpiX=props.dpiY=96*scale;props.bitmapOptions=D2D1_BITMAP_OPTIONS_TARGET|D2D1_BITMAP_OPTIONS_CANNOT_DRAW;
+            winrt::com_ptr<ID2D1Bitmap1> target;winrt::check_hresult(dc->CreateBitmap({width,height},nullptr,0,&props,target.put()));
+            dc->SetTarget(target.get());dc->SetDpi(96*scale,96*scale);dc->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+            dc->BeginDraw();dc->Clear(Ink(0x7D8DAB));
+            for(int column=0;column<2;++column){
+                draw.colors.Set(column==0,column?0x60CDFF:0x005FB8);
+                Sample s=FixtureSample(0);s.wifiList=FixtureNetworks();WifiView view;PageTarget hover;
+                if(column==0){view.expanded=L"@NRadio-B066-2.4G";view.password=L"secret12";view.focus=WifiView::Focus::Password;
+                    hover={PageHit::Row,L"LANSVEHD"};}
+                else{view.expanded=L"eduroam";view.user=L"2021012345";view.focus=WifiView::Focus::User;
+                    s.wifiList.failed=L"eduroam";s.wifiList.failure=L"不支持这个网络的认证方式";}
+                WifiLayout layout(s.wifiList,view,406);
+                dc->SetTransform(D2D1::Matrix3x2F::Translation(14+column*316.f,14));
+                draw.Round(dc.get(),{0,0,PanelWidth,406},14,Ink(column?0x1D1F25:0xF2F3F6));
+                PaintWifiPage(draw,dc.get(),s,layout,view,hover,1,1);
+            }
+            dc->SetTransform(D2D1::Matrix3x2F::Identity());winrt::check_hresult(dc->EndDraw());dc->SetTarget(nullptr);
+            props.bitmapOptions=D2D1_BITMAP_OPTIONS_CPU_READ|D2D1_BITMAP_OPTIONS_CANNOT_DRAW;
+            winrt::com_ptr<ID2D1Bitmap1> readback;winrt::check_hresult(dc->CreateBitmap({width,height},nullptr,0,&props,readback.put()));
+            winrt::check_hresult(readback->CopyFromBitmap(nullptr,target.get(),nullptr));D2D1_MAPPED_RECT mapped{};
+            winrt::check_hresult(readback->Map(D2D1_MAP_OPTIONS_READ,&mapped));
+            std::vector<BYTE> pixels(size_t(width)*height*4);
+            for(UINT row=0;row<height;++row)memcpy(pixels.data()+size_t(row)*width*4,mapped.bits+size_t(row)*mapped.pitch,width*4);
+            readback->Unmap();
+            SavePng(draw,pixels,width,height,output+L"\\wifi-dpi-"+std::to_wstring(int(scale*100))+L".png");
         }
     }catch(...){draw.colors=original;throw;}draw.colors=original;
 }

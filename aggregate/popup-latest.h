@@ -23,7 +23,10 @@ class Popup {
             SetWindowLongPtrW(w,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(self));self->window=w;}
         if(!self)return DefWindowProcW(w,m,a,b);
         try{
+            // A page's text field takes keys first, Escape included.
+            if((m==WM_KEYDOWN||m==WM_CHAR)&&!self->menu&&self->key&&self->key(m,a))return 0;
             switch(m){
+            case WM_MOUSEWHEEL:if(!self->menu&&self->wheel)self->wheel(GET_WHEEL_DELTA_WPARAM(a));return 0;
             case WM_CLOSE:if(self->cancel)self->cancel();else self->Hide();return 0;
             case WM_MOUSEACTIVATE:return self->menu?MA_ACTIVATE:MA_NOACTIVATE;
             case WM_NCHITTEST:return self->Hit(GET_X_LPARAM(b),GET_Y_LPARAM(b))?HTCLIENT:HTTRANSPARENT;
@@ -70,7 +73,7 @@ class Popup {
 public:
     HWND window{};
     Scene scene;
-    comp::CompositionDrawingSurface surface{nullptr};
+    comp::CompositionDrawingSurface surface{nullptr},pageSurface{nullptr};
     Drawing* draw{};
     float dpi=1,width=300,height=340,radius=14;
     Rect rect{};
@@ -81,6 +84,8 @@ public:
     std::function<void()> cancel;
     std::function<void(UINT,float,float)> click;
     std::function<void()> pointerCancel;
+    std::function<bool(UINT,WPARAM)> key;
+    std::function<void(int)> wheel;
     std::function<void(int)> hovering;
     void Init(Drawing& renderer,float scale,float w,float h,float round,bool isMenu) {
         draw=&renderer;dpi=scale;width=w;height=h;radius=round;menu=isMenu;
@@ -103,6 +108,10 @@ public:
     void Paint(std::function<void(ID2D1DeviceContext*)> painter,std::vector<float> const& cuts={}) {
         draw->Redraw(surface,width,height,dpi,painter);
         scene.Content(surface,cuts);
+    }
+    void PaintPage(std::function<void(ID2D1DeviceContext*)> painter) {
+        draw->Redraw(pageSurface,width,height,dpi,painter);
+        scene.PageContent(pageSurface);
     }
     bool Hit(double x,double y)const {return visible&&RoundedHit(rect,x,y,radius*dpi);}
     int Index(float y)const{
@@ -153,7 +162,7 @@ public:
             }
         });
     }
-    void Destroy() {Hide();surface=nullptr;scene.Close();if(window){DestroyWindow(window);window=nullptr;}}
+    void Destroy() {Hide();surface=nullptr;pageSurface=nullptr;scene.Close();if(window){DestroyWindow(window);window=nullptr;}}
     ~Popup(){Destroy();}
 };
 inline float MenuHeight(std::vector<MenuItem> const& items){
