@@ -14,7 +14,7 @@
     "Read-only device survey on the user PC before writing (one-off probe): Bluetooth radio off, no paired devices, Intel adapter; one active output (Realtek speakers), headphone jack unplugged, HDAudio exposes no IKsControl; hotspot on, 5 GHz, 0 clients, configuration read ~0 ms",
     "Hidden probe: 222 policy checks including the new page models (CoD/Appearance kinds, subtitles, expand and hits, footer; hotspot name/key limits, hits, wipe, editability, band labels; sound rows, master and app hits, drag pacing); offscreen renders bluetooth/hotspot/sound-dpi-100/200.png reviewed",
     "Read-only page pass on the real worker: Bluetooth page ready with 0 devices, sound page 1 output and 1 app, hotspot page named with key read (presence only), band 5 GHz; all page data cleared on return to the main page",
-    "Real-desktop glass check not valid: the PC was locked since 16:03, so the captures show the lock screen; to repeat after unlock",
+    "Real-desktop glass check with --page bluetooth|hotspot|sound (light/dark): the first run captured the lock screen (PC locked since 16:03) and was discarded; retaken after unlock, the pages share the Wi-Fi page glass and stay readable, reviewed 2026-10-31",
     "Self-review before deploy: queued secrets could leave short in-place copies when moved (now reserved on the heap), the hotspot name field had no IME (now default IME, composition under the box; key fields still without), a finished save waited for the next detail tick (now re-read at once); rebuilt and retested",
     "Aggregate panel and BackendOnly builds passed; controller / Start / panels binaries are the exact 0.8.78 accepted files",
     "23 pre-deploy checks passed (twice: before and after the review fixes)",
@@ -85,7 +85,6 @@
     "scope": "Keyboard focus in the Wi-Fi password field confirmed on the real panel"
   },
   "notVerified": [
-    "Glass of the three pages on the real desktop (captures taken while locked)",
     "A real hover into each page and back; slider drag on the sound page",
     "Connect/disconnect and battery of a real Bluetooth audio device (none paired on this PC)",
     "Saving hotspot settings (only allowed while off; not tried on the user's hotspot)",
