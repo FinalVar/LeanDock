@@ -124,6 +124,27 @@ int main() {
         Check(initCalls==1&&!active&&!enabled&&!retryTimer,"reentrant stop cannot publish late success");
         initializeForTest=InitializeNative;
         Check(Start(w)&&active&&shell,"real public COM and event initialization succeeds when shell ready");
+        {
+            // Hand-back after the Dock hides, release, and takeover of a mark
+            // an earlier controller left behind (a hidden test window only).
+            HWND t=CreateWindowExW(0,L"STATIC",L"",WS_POPUP,0,0,10,10,nullptr,nullptr,nullptr,nullptr);
+            Check(t&&Acquire(t,Token()),"revealed fullscreen window owned");
+            OwnedWindow& e=owned[0];e={t,Pid(t),false,true,false};
+            const unsigned holds=fullscreenHolds;Hold(e);
+            Check(e.held&&GetPropW(t,Held)==Token()&&!GetPropW(t,NonRude)&&!GetPropW(t,Owner)&&fullscreenHolds==holds+1,"hand-back swaps NonRudeHWND for the held mark");
+            Check(Owns(e)&&Tracked(t)&&!Revealed(t),"held window stays owned but not revealed");
+            Forget(e);Check(!e.window&&!GetPropW(t,Held),"release clears the held mark");
+            SetPropW(t,Held,reinterpret_cast<HANDLE>(0x1234));Adopt(t,true);
+            Check(Tracked(t)&&GetPropW(t,Held)==Token()&&!Revealed(t),"a fullscreen window's stale mark is taken over");
+            for(auto& x:owned)if(x.window==t)Forget(x);
+            SetPropW(t,Held,reinterpret_cast<HANDLE>(0x1234));Adopt(t,false);
+            Check(!Tracked(t)&&!GetPropW(t,Held),"a stale mark on a window no longer fullscreen is cleared");
+            SetPropW(t,Held,Token());Adopt(t,false);
+            Check(!Tracked(t)&&GetPropW(t,Held)==Token(),"own mark is not treated as stale");
+            OwnedWindow reused{t,Pid(t)+1,false,true,true};Forget(reused);
+            Check(GetPropW(t,Held)==Token(),"a reused handle is never cleaned up");
+            RemovePropW(t,Held);DestroyWindow(t);
+        }
         Stop();Check(!shell&&!comOwned&&!retryTimer,"actual resources released without pumping desktop events");
         DestroyWindow(w);Check(!Release(w,a),"destroyed HWND cleanup is harmless");
     }

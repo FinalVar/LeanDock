@@ -1,16 +1,20 @@
 // Foreground events use the existing hide worker, including when occlusion
 // considers all windows. Win+D from the corner and the physical keyboard then
 // follow the same observed desktop transition, not a guessed input completion.
+// Returns true on a desktop transition, which also re-runs the keep-shown
+// decision: "show desktop" may only raise the desktop over windows that
+// cannot be minimized, with no window event the decision otherwise follows.
 thread_local bool g_backdropWasDesktop;
-void ObserveBackdropForeground(HWND window) {
-    if(window!=GetForegroundWindow())return; // skip superseded queued events
+bool ObserveBackdropForeground(HWND window) {
+    if(window!=GetForegroundWindow())return false; // skip superseded queued events
     const bool desktop=LeanDockBackdrop::IsDesktop(window);
     const bool changed=desktop!=g_backdropWasDesktop;
     g_backdropWasDesktop=desktop;
-    if(!changed)return;
+    if(!changed)return false;
     std::unordered_set<HWND> secondary;
     if(auto primary=FindTaskbarWindows(&secondary))LeanDockBackdrop::Notify(primary,LeanDockBackdrop::Reason::Desktop);
     for(auto taskbar:secondary)LeanDockBackdrop::Notify(taskbar,LeanDockBackdrop::Reason::Desktop);
+    return true;
 }
 
 // Read-only diagnostics. The getter is resolved by exact symbol and the

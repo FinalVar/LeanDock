@@ -1,0 +1,65 @@
+{
+  "version": "0.8.91",
+  "date": "2026-10-31T23:55:34+08:00",
+  "state": "RunningAfterRollbackFrom0.8.92",
+  "backendVersion": "0.5.76",
+  "controllerVersion": "0.3.35",
+  "panelVersion": "0.8.91",
+  "change": "Fullscreen applications (not games or remote-control clients) get NonRudeHWND + MarkFullscreenWindow(FALSE) only while the pointer is on the hidden Dock's strip of any taskbar on that monitor or the Dock is out; the pointer comes from the hot corners' existing coalesced raw input (no new hook or polling). Remote-control clients (mstsc, msrdc, UU GameViewer, ToDesk, Sunlogin, AnyDesk, TeamViewer, RustDesk, Parsec, Moonlight, vmconnect, VMware, VirtualBox) are quiet like games: Dock not revealed, corners paused.",
+  "userReport": {
+    "At": "2026-10-31",
+    "Answer": "看起来不错，都能呼出了，再仔细检查还有更好的措施吗？之前Astra老修复不了这个",
+    "FollowUp": "我很少ppt放映的，远程时透传过去反而更方便了。不打游戏不装游戏，你看着办"
+  },
+  "checks": [
+    "Read-only probe on a test window (not foreground): NonRudeHWND + MarkFullscreenWindow(FALSE) turns SHQueryUserNotificationState from 2 (busy) to 5, i.e. 0.8.90 disabled Windows' fullscreen quiet state",
+    "Controller 0.3.35 built from the 0.8.90 controller input plus only this round's files; generated hot-corner diff vs 0.8.90: Quiet rename and pointerObserver (3 places). Build input kept in artifacts/controller-0.3.35-fullscreen/latest",
+    "Controller tree tests: client-edge 100, hot corners core 138, configuration 37; 23 pre-deploy checks passed",
+    "Update Applied, Live, ComponentHealth Ready; configs unchanged; post-deploy autotest AutomatedChecksPassed (2026-10-31T23:58:08)",
+    "User-driven read-only timeline (PotPlayer, Windows Terminal): entering fullscreen leaves Windows' handling intact (QUNS 2, taskbar pushed back); edge touch marks, Dock reveals, mark released after the Dock hides; Windows only re-detects fullscreen on reactivation or re-entering fullscreen",
+    "0.8.92 trial (hold MarkFullscreenWindow(TRUE) after the Dock hides) restored QUNS 2 at once but kept the Dock hidden on the desktop after 'show desktop' by hot corner; rolled back with the existing transaction (backups/before-0.8.92-20261101-001954159); after rollback controller 0.3.35, backend 0.5.76, hotCornersReady, clientEdgeReady, Start layout and panel anchoring active, configs unchanged"
+  ],
+  "preDeployValidation": {
+    "At": "2026-10-31T23:51:33+08:00",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.91-outputs/pre-deploy-20261031-235133"
+  },
+  "automatedValidation": {
+    "At": "2026-10-31T23:58:08+08:00",
+    "State": "AutomatedChecksPassed",
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.91-outputs/post-deploy/20261031-235613-7fe6f750"
+  },
+  "deployment": {
+    "Version": "0.8.91",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeFiles": {
+      "latest.exe": "D03157F5FE1EE94748E49C9A14F61EFA77F51274BC0D65084647E5C3313F29CE",
+      "latest.dll": "90D2768605612BC870D56A68D6EF27D7675701C57EDE170828165DD75168169C",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "06068B9C41928199809DC25AF990AD7B4C0A8BB879869A6CE4DB9387C2EB2C8D"
+    },
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "rollback": "backups/before-0.8.91-20261031-235520195 returns to 0.8.90",
+  "userAcceptance": {
+    "answer": "反正上上次测试挺好。刚才是上次。",
+    "scope": "0.8.91 behaviour accepted; 0.8.92 rejected (Dock hidden on the desktop)"
+  },
+  "knownLimits": [
+    "After a Dock reveal over a fullscreen app, Windows' fullscreen quiet state returns only when that app is reactivated or re-enters fullscreen"
+  ],
+  "notVerified": [
+    "Remote-control clients in real fullscreen use",
+    "Secondary-monitor taskbars",
+    "Games (none installed)"
+  ]
+}

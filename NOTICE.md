@@ -49,6 +49,9 @@ upstream/window-launch as historical attribution and recovery reference.
 The removed feature also adapted GetWindowAppId from m417z's GPL-3.0
 Taskbar auto-hide when maximized 1.2.6 (upstream/hide.cpp). That original
 source remains required by the independent native taskbar hiding module.
+Since 0.8.93 the adapted module stops its z-ordered occlusion scan at the
+desktop window and re-runs the decision on desktop foreground transitions,
+so windows left under "show desktop" no longer count as covering the Dock.
 Center New Windows 1.0.1, crazyboyybs, MIT, revision
 a8b6141258658b1fbae949d1902f4ae76e55c0fc, was design reference only;
 its injection runtime was never imported. See docs/window-launch-latest.md

@@ -19,19 +19,25 @@
 // under the active AppBar compatibility policy. True fullscreen applications
 // that are not games or remote clients (fullscreen-app-policy-latest.h) get
 // the same contract on demand only: while the pointer is on the hidden Dock's
-// strip or the Dock is out. Otherwise Windows keeps treating them as
-// fullscreen (automatic do-not-disturb and the rest), exactly as without
-// LeanDock. No resizing or input synthesis.
+// strip or the Dock is out. Windows re-detects fullscreen only on activation,
+// so when the Dock is no longer wanted LeanDock hands the window back with
+// MarkFullscreenWindow(TRUE) (Windows' fullscreen do-not-disturb and taskbar
+// order return at once). That is held only while the window stays in front:
+// once another window (the desktop after "show desktop", another app) takes
+// the foreground it is lifted, and Windows judges the window itself on its
+// next activation. No resizing or input synthesis.
 namespace LeanDockClientEdge {
 inline constexpr UINT Recheck=WM_APP+421;
-struct OwnedWindow {HWND window{};DWORD pid{};bool generic{},fullscreen{};};
+// held: a fullscreen application handed back with MarkFullscreenWindow(TRUE)
+// and the Held property instead of NonRudeHWND.
+struct OwnedWindow {HWND window{};DWORD pid{};bool generic{},fullscreen{},held{};};
 inline std::array<OwnedWindow,32> owned{};
 inline std::array<HWINEVENTHOOK,6> hooks{};
 inline HWND host;
 inline ITaskbarList2* shell;
 inline bool active,pending,comOwned,evaluating,again,stopping,enabled,initializing;
 inline unsigned generation;
-inline unsigned repairs,failures,genericRepairs,fullscreenRepairs,initAttempts;
+inline unsigned repairs,failures,genericRepairs,fullscreenRepairs,fullscreenHolds,initAttempts;
 inline HWND candidate; // the fullscreen application in front at the last evaluation
 // Set when the hot corners' raw input reaches Pointer(). Without it a
 // fullscreen application stays marked while in front, as before 0.8.91.
@@ -146,18 +152,58 @@ inline bool ResizeObstruction(HWND w) {
 }
 inline bool AutoHide() {APPBARDATA data{sizeof(data)};return (NativeBarQuery(ABM_GETSTATE,data)&ABS_AUTOHIDE)!=0;}
 inline bool Kept(const OwnedWindow& e) {
+    // A fullscreen window behind the desktop or another app must not keep
+    // Windows treating the screen as fullscreen.
+    if(e.held)return e.window==GetForegroundWindow() && FullscreenApp(e.window);
     return e.fullscreen?FullscreenApp(e.window) && DockWanted(e.window):
         Maximized(e.window) && (!e.generic || GenericFrame(e.window));
 }
 inline bool Tracked(HWND w){for(const auto& e:owned)if(e.window==w)return true;return false;}
+inline bool Revealed(HWND w){for(const auto& e:owned)if(e.window==w && !e.held)return true;return false;}
+inline bool Owns(const OwnedWindow& e) {
+    return Pid(e.window)==e.pid &&
+        GetPropW(e.window,e.held?LeanDockClientEdgePolicy::Held:LeanDockClientEdgePolicy::Owner)==Token();
+}
+inline HRESULT MarkFullscreen(HWND w,BOOL fullscreen) {
+    if(!shell)return E_UNEXPECTED;
+    // Keep the COM object alive across a reentrant shutdown notification.
+    ITaskbarList2* current=shell;current->AddRef();
+    const HRESULT result=current->MarkFullscreenWindow(w,fullscreen);current->Release();
+    return result;
+}
 inline void Forget(OwnedWindow& e) {
     // Properties die with the HWND. If the numeric handle was reused, do not
     // remove a new window's property or send it a shell notification.
     const OwnedWindow old=e;e={};
-    if(Pid(old.window)==old.pid && LeanDockClientEdgePolicy::Release(old.window,Token()) && shell) {
-        ITaskbarList2* current=shell;current->AddRef();
-        current->MarkFullscreenWindow(old.window,FALSE);current->Release();
+    if(Pid(old.window)!=old.pid)return;
+    if(old.held) {
+        if(GetPropW(old.window,LeanDockClientEdgePolicy::Held)!=Token())return;
+        RemovePropW(old.window,LeanDockClientEdgePolicy::Held);
+        MarkFullscreen(old.window,FALSE);return;
     }
+    if(LeanDockClientEdgePolicy::Release(old.window,Token()))MarkFullscreen(old.window,FALSE);
+}
+// The Dock is no longer wanted over a revealed fullscreen application: give
+// Windows its fullscreen treatment back now instead of at the next activation.
+inline void Hold(OwnedWindow& e) {
+    if(!LeanDockClientEdgePolicy::Release(e.window,Token()) || !SetPropW(e.window,LeanDockClientEdgePolicy::Held,Token())){
+        ++failures;Forget(e);return;
+    }
+    e.held=true;
+    if(FAILED(MarkFullscreen(e.window,TRUE))){++failures;Forget(e);return;}
+    ++fullscreenHolds;
+}
+// A Held property from an earlier controller that ended without cleanup.
+inline void Adopt(HWND w,bool fullscreen) {
+    const HANDLE previous=GetPropW(w,LeanDockClientEdgePolicy::Held);
+    if(!previous || previous==Token() || Tracked(w))return;
+    if(fullscreen) {
+        for(auto& e:owned)if(!e.window) {
+            if(!SetPropW(w,LeanDockClientEdgePolicy::Held,Token()))break;
+            e={w,Pid(w),false,true,true};return;
+        }
+    }
+    RemovePropW(w,LeanDockClientEdgePolicy::Held);MarkFullscreen(w,FALSE);
 }
 inline bool TaskbarZOrder(HWND foreground,bool repair) {
     bool changed=false;
@@ -184,33 +230,45 @@ inline void Evaluate() {
     struct Guard {~Guard(){evaluating=false;if(again){again=false;Queue();}}} guard;
     const unsigned epoch=generation;
     const bool autoHide=AutoHide();
-    for(auto& e:owned)if(e.window && (!autoHide || Pid(e.window)!=e.pid ||
-        GetPropW(e.window,LeanDockClientEdgePolicy::Owner)!=Token() || !Kept(e)))Forget(e);
-    if(!active || generation!=epoch)return;
+    const HWND front=GetForegroundWindow();
+    for(auto& e:owned) {
+        if(!e.window)continue;
+        if(!autoHide || !Owns(e)){Forget(e);continue;}
+        if(e.fullscreen && !e.held && e.window==front && FullscreenApp(e.window) && !DockWanted(e.window))Hold(e);
+        else if(!Kept(e))Forget(e);
+        if(!active || generation!=epoch)return;
+    }
     HWND foreground=GetForegroundWindow();
-    if(!autoHide)return;
     const bool maximized=Maximized(foreground),fullscreen=!maximized && FullscreenApp(foreground);
+    Adopt(foreground,autoHide && fullscreen);
+    if(!active || generation!=epoch || !autoHide)return;
     candidate=fullscreen?foreground:nullptr;
     if(!maximized && !fullscreen)return;
-    if(fullscreen && !Tracked(foreground) && !DockWanted(foreground))return;
+    if(fullscreen && !DockWanted(foreground))return;
     const bool knownClient=maximized && Client(foreground);
     if(maximized && !knownClient && !Tracked(foreground) && !CompatibleFullClient(foreground) && !ResizeObstruction(foreground))return;
     auto still=[&]{return fullscreen?FullscreenApp(foreground) && DockWanted(foreground):Maximized(foreground);};
     if(!active || generation!=epoch || GetForegroundWindow()!=foreground || !still())return;
     bool acquired=false;
     if(!GetPropW(foreground,LeanDockClientEdgePolicy::NonRude)) {
-        OwnedWindow* slot=nullptr;for(auto& e:owned)if(!e.window){slot=&e;break;}
+        // A held window switches back to NonRudeHWND in its own slot; the
+        // MarkFullscreenWindow(FALSE) below also lifts the TRUE mark.
+        OwnedWindow* slot=nullptr;
+        for(auto& e:owned)if(e.window==foreground && e.held){slot=&e;break;}
+        const bool held=slot!=nullptr;
+        if(held)RemovePropW(foreground,LeanDockClientEdgePolicy::Held);
+        else for(auto& e:owned)if(!e.window){slot=&e;break;}
         if(!slot){++failures;return;}
-        if(!LeanDockClientEdgePolicy::Acquire(foreground,Token())){++failures;return;}
-        *slot={foreground,Pid(foreground),!knownClient,fullscreen};acquired=true;
+        if(!LeanDockClientEdgePolicy::Acquire(foreground,Token())){
+            ++failures;*slot={};if(held)MarkFullscreen(foreground,FALSE);return;
+        }
+        *slot={foreground,Pid(foreground),!knownClient,fullscreen,false};acquired=true;
     }
     // A shell restart / later reclassification may demote the native taskbar
     // while this HWND still carries NonRude. Recheck only on native events.
     const bool needsRefresh=acquired || TaskbarZOrder(foreground,false);
     if(needsRefresh) {
-        // Keep the COM object alive across a reentrant shutdown notification.
-        ITaskbarList2* current=shell;current->AddRef();
-        const HRESULT result=current->MarkFullscreenWindow(foreground,FALSE);current->Release();
+        const HRESULT result=MarkFullscreen(foreground,FALSE);
         if(!active || generation!=epoch)return;
         if(FAILED(result)){
             ++failures;if(acquired)for(auto& e:owned)if(e.window==foreground)Forget(e);
@@ -242,7 +300,7 @@ inline void CALLBACK Event(HWINEVENTHOOK,DWORD event,HWND w,LONG object,LONG chi
 // evaluation; otherwise this returns after one cursor and taskbar read.
 inline void Pointer() {
     pointerFeed=true;
-    if(active && candidate && DockWanted(candidate)!=Tracked(candidate))Queue();
+    if(active && candidate && DockWanted(candidate)!=Revealed(candidate))Queue();
 }
 inline bool Dispatch(UINT message) {
     if(message!=Recheck)return false;

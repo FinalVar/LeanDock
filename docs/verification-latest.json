@@ -1,35 +1,27 @@
 {
-  "version": "0.8.91",
-  "date": "2026-10-31T23:55:34+08:00",
-  "state": "RunningAfterRollbackFrom0.8.92",
-  "backendVersion": "0.5.76",
-  "controllerVersion": "0.3.35",
-  "panelVersion": "0.8.91",
-  "change": "Fullscreen applications (not games or remote-control clients) get NonRudeHWND + MarkFullscreenWindow(FALSE) only while the pointer is on the hidden Dock's strip of any taskbar on that monitor or the Dock is out; the pointer comes from the hot corners' existing coalesced raw input (no new hook or polling). Remote-control clients (mstsc, msrdc, UU GameViewer, ToDesk, Sunlogin, AnyDesk, TeamViewer, RustDesk, Parsec, Moonlight, vmconnect, VMware, VirtualBox) are quiet like games: Dock not revealed, corners paused.",
+  "version": "0.8.93",
+  "date": "2026-11-01T00:39:30+08:00",
+  "state": "UserAccepted",
+  "backendVersion": "0.5.78",
+  "controllerVersion": "0.3.37",
+  "panelVersion": "0.8.93",
+  "change": "1) Auto-hide module (generator adaptation of upstream/hide.cpp): the z-ordered occlusion scan stops at the desktop window (shell window or the WorkerW hosting SHELLDLL_DefView), and desktop foreground transitions re-run the keep-shown decision, so fullscreen windows that 'show desktop' cannot minimize no longer keep the Dock hidden on the desktop. 2) Client edge: after the Dock hides over a fullscreen app still in front, NonRudeHWND is replaced by MarkFullscreenWindow(TRUE) plus a Held property, lifted (FALSE) as soon as another window takes the foreground, the app leaves fullscreen, or the controller stops; a stale Held property is taken over or cleared by the next controller.",
   "userReport": {
-    "At": "2026-10-31",
-    "Answer": "看起来不错，都能呼出了，再仔细检查还有更好的措施吗？之前Astra老修复不了这个",
-    "FollowUp": "我很少ppt放映的，远程时透传过去反而更方便了。不打游戏不装游戏，你看着办"
+    "At": "2026-11-01",
+    "Answer": "其他都还好，就是回桌面dock也会隐藏起来尽管没有遮挡 / 完成了么，回桌面依然不会自动出现dock / 最后配合你一次，全部一次解决。"
   },
   "checks": [
-    "Read-only probe on a test window (not foreground): NonRudeHWND + MarkFullscreenWindow(FALSE) turns SHQueryUserNotificationState from 2 (busy) to 5, i.e. 0.8.90 disabled Windows' fullscreen quiet state",
-    "Controller 0.3.35 built from the 0.8.90 controller input plus only this round's files; generated hot-corner diff vs 0.8.90: Quiet rename and pointerObserver (3 places). Build input kept in artifacts/controller-0.3.35-fullscreen/latest",
-    "Controller tree tests: client-edge 100, hot corners core 138, configuration 37; 23 pre-deploy checks passed",
-    "Update Applied, Live, ComponentHealth Ready; configs unchanged; post-deploy autotest AutomatedChecksPassed (2026-10-31T23:58:08)",
-    "User-driven read-only timeline (PotPlayer, Windows Terminal): entering fullscreen leaves Windows' handling intact (QUNS 2, taskbar pushed back); edge touch marks, Dock reveals, mark released after the Dock hides; Windows only re-detects fullscreen on reactivation or re-entering fullscreen",
-    "0.8.92 trial (hold MarkFullscreenWindow(TRUE) after the Dock hides) restored QUNS 2 at once but kept the Dock hidden on the desktop after 'show desktop' by hot corner; rolled back with the existing transaction (backups/before-0.8.92-20261101-001954159); after rollback controller 0.3.35, backend 0.5.76, hotCornersReady, clientEdgeReady, Start layout and panel anchoring active, configs unchanged"
+    "Desktop snapshot (0.8.92, hot-corner show desktop): Progman foreground at z12, fullscreen Windows Terminal visible, not minimized or cloaked, at z16; the auto-hide scan ignored z-order and foreground changes did not re-run it",
+    "Controller 0.3.37 built from the controller input plus this round's files; client-edge 108, hot corners 138, configuration 37 checks passed; generated hide module diff limited to the scan stop and the desktop-transition re-run",
+    "23 pre-deploy checks passed; Update Applied, Live, ComponentHealth Ready; live controller 0.3.37, backend 0.5.78, hotCornersReady, clientEdgeReady, Start layout and panel anchoring active",
+    "User-driven read-only timeline: fullscreen terminal with the Dock hidden -> held, QUNS 2, taskbar pushed back; edge touch -> revealed; hot-corner desktop -> Dock out within about 0.3 s, QUNS 5; back to the terminal -> held again, QUNS 2; repeated five times",
+    "User: 全部没问题"
   ],
   "preDeployValidation": {
-    "At": "2026-10-31T23:51:33+08:00",
-    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.91-outputs/pre-deploy-20261031-235133"
-  },
-  "automatedValidation": {
-    "At": "2026-10-31T23:58:08+08:00",
-    "State": "AutomatedChecksPassed",
-    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.91-outputs/post-deploy/20261031-235613-7fe6f750"
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.93-outputs"
   },
   "deployment": {
-    "Version": "0.8.91",
+    "Version": "0.8.93",
     "Live": true,
     "ComponentHealth": {
       "State": "Ready",
@@ -37,27 +29,27 @@
       "Pending": []
     },
     "RuntimeFiles": {
-      "latest.exe": "D03157F5FE1EE94748E49C9A14F61EFA77F51274BC0D65084647E5C3313F29CE",
-      "latest.dll": "90D2768605612BC870D56A68D6EF27D7675701C57EDE170828165DD75168169C",
+      "latest.exe": "E4F4629971058E49C74C4B8ED056BA7B1BF2D1A3BE7EF35F5166F815C4F778B6",
+      "latest.dll": "6B82C84C031D4324",
       "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
       "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
-      "aggregate/latest.exe": "06068B9C41928199809DC25AF990AD7B4C0A8BB879869A6CE4DB9387C2EB2C8D"
+      "aggregate/latest.exe": "5555309C0521C5CC"
     },
     "ConfigPreserved": [
       "latest.ini",
-      "hotcorners/latest.ini",
-      "cards/latest.ini"
+      "hotcorners/latest.ini"
     ]
   },
-  "rollback": "backups/before-0.8.91-20261031-235520195 returns to 0.8.90",
-  "userAcceptance": {
-    "answer": "反正上上次测试挺好。刚才是上次。",
-    "scope": "0.8.91 behaviour accepted; 0.8.92 rejected (Dock hidden on the desktop)"
+  "rollback": "backups/before-0.8.93-20261101-003917015 returns to 0.8.91",
+  "previousAcceptance": {
+    "version": "0.8.91",
+    "record": "docs/verification-v0.8.91.json"
   },
   "knownLimits": [
-    "After a Dock reveal over a fullscreen app, Windows' fullscreen quiet state returns only when that app is reactivated or re-enters fullscreen"
+    "Right after an Explorer restart with the desktop already in front and a fullscreen window under it, the Dock stays hidden until the next desktop transition or edge hover (seen once just after deployment)"
   ],
   "notVerified": [
+    "Post-deploy autotest not run for 0.8.93 (user test instead)",
     "Remote-control clients in real fullscreen use",
     "Secondary-monitor taskbars",
     "Games (none installed)"

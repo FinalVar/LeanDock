@@ -50,6 +50,10 @@ inline bool ClientWindow(HWND w) {
 }
 inline constexpr wchar_t NonRude[]=L"NonRudeHWND";
 inline constexpr wchar_t Owner[]=L"LeanDock.ClientEdge.v1.Owner";
+// Set while LeanDock holds MarkFullscreenWindow(TRUE) on a fullscreen
+// application, so a later controller can take over or clear a mark left by
+// one that ended without cleanup.
+inline constexpr wchar_t Held[]=L"LeanDock.ClientEdge.v1.Fullscreen";
 // The owner token makes a stale HWND or a replacement property a no-op on
 // cleanup. An existing NonRudeHWND property belongs to its previous writer.
 inline bool Release(HWND window,HANDLE token) {

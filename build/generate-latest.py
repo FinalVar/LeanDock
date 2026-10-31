@@ -378,10 +378,19 @@ void StopEventThread() {
             source=source[:opening]+"""
     if(g_eventStopping)return;
     if(event==EVENT_SYSTEM_FOREGROUND){
-        ObserveBackdropForeground(hWnd);
-        if(!g_settings.foregroundWindowOnly)return;
+        if(!ObserveBackdropForeground(hWnd) && !g_settings.foregroundWindowOnly)return;
     }
 """+source[opening:]
+            # Windows below the desktop are covered by it. "Show desktop" raises
+            # the desktop over windows it cannot minimize (a fullscreen terminal
+            # or player); normally the desktop is the bottom window anyway.
+            source = replace_once(source, """    auto enumWindowsProc = [&](HWND hWnd) -> BOOL {
+        if (GetWindowThreadProcessId(hWnd, nullptr) == dwTaskbarThreadId) {""", """    auto enumWindowsProc = [&](HWND hWnd) -> BOOL {
+        if (LeanDockBackdrop::IsDesktop(hWnd) && (hWnd == GetShellWindow() ||
+            FindWindowExW(hWnd, nullptr, L"SHELLDLL_DefView", nullptr))) {
+            return FALSE;
+        }
+        if (GetWindowThreadProcessId(hWnd, nullptr) == dwTaskbarThreadId) {""")
             source = replace_once(source, "    if (g_settings.foregroundWindowOnly) {\n        winSystemEventHook1 =", "    {\n        winSystemEventHook1 =")
             source = replace_once(source, "DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter) {", "DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter) {\n    g_backdropWasDesktop=LeanDockBackdrop::IsDesktop(GetForegroundWindow());")
             start=source.index("    BOOL bRet;",source.index("DWORD WINAPI WinEventHookThread(LPVOID lpThreadParameter) {"))

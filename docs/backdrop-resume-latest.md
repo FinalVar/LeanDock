@@ -6,7 +6,7 @@
 
 玻璃继续使用保留的 Windhawk Taskbar Styler XamlBlurBrush、原有高斯模糊、着色、主题代理与回退实现。没有新建特效图或替换渲染框架。源码适配由 build/generate-latest.py 生成；新增代码分别位于 include/backdrop-resume-latest.h、src/backdrop-brush-latest.inc 与 src/hide-state-latest.inc。
 
-隐藏模块原本只有 foregroundWindowOnly 开启时才订阅前台事件。现在同一工作线程始终订阅这一个事件，仅桌面（Progman／WorkerW）前台状态改变时发送恢复消息；普通应用间切换不会因此触发背景恢复，也不改变原来的遮挡判断。隐藏策略改变并同步原生状态后，如果确认 Dock 已展开，也发送消息；原生 Unhide 可能先完成展开，因此不要求两次读取的值必须不同。触发角的原生 Win+D 输入、延迟与重新触发规则保持原样。
+隐藏模块原本只有 foregroundWindowOnly 开启时才订阅前台事件。现在同一工作线程始终订阅这一个事件，仅桌面（Progman／WorkerW）前台状态改变时发送恢复消息；普通应用间切换不会因此触发背景恢复。0.8.93 起桌面进出也排一次遮挡重算，且遮挡枚举到桌面为止（“显示桌面”压住的全屏窗口不算遮挡），见 client-edge-latest.md。隐藏策略改变并同步原生状态后，如果确认 Dock 已展开，也发送消息；原生 Unhide 可能先完成展开，因此不要求两次读取的值必须不同。触发角的原生 Win+D 输入、延迟与重新触发规则保持原样。
 
 恢复在对应任务栏 XamlRoot 的 UI 线程执行。首轮延后 16 ms，末轮在首次执行后 160 ms；这是有限的恢复策略，不是假设 Windows 动画固定在此时间内结束。每轮只替换 CompositionEffectBrush 的 backdrop 输入，再调用 RequestCommitAsync。效果图、圆角、布局、命中、颜色和用户主题配置保留。没有模拟输入、透明度抖动、永久刷新或额外线程。
 

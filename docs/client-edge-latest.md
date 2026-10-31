@@ -1,8 +1,16 @@
 # 底边唤出适配 0.8.74
 
+## 0.8.93：回桌面露出 Dock；交还全屏只在前台时持有（控制器 0.3.37）
+
+回滚到 0.8.91 后用户反馈回桌面 Dock 仍收着，说明不只是 0.8.92 的 TRUE。原因在自动隐藏模块：m417z 的 `ShouldKeepTaskbarShown` 枚举所有可见、未最小化、未隐身的窗口判断“能否隐藏”，不看 z 序；“显示桌面”无法最小化没有最小化按钮的全屏窗口（WS_POPUP 的全屏终端、播放器），只把 Progman 抬到它们上面（现场：Progman z12，终端 z16，可见、未最小化）。0.8.90 之前全屏时触发角暂停，无法从全屏应用用触发角回桌面，所以以前碰不到。另外该模块只在窗口创建/显示/位置/隐身事件时重算，前台换到桌面不触发重算。
+
+- 自动隐藏模块（生成器适配 upstream/hide.cpp）：枚举按 z 序自上而下，遇到桌面（外壳窗口，或承载 SHELLDLL_DefView 的 WorkerW）即停止——其下窗口都被桌面盖住。平常桌面就在最底层，结果不变。已有的桌面前台观察（背景恢复用）在桌面进出时返回 true，让前台事件同样排一次 200 ms 合并的重算；普通应用间切换仍不重算。
+- 控制器：恢复 0.8.92 的交还（`Hold`：撤 NonRudeHWND，写 Held 属性，`MarkFullscreenWindow(TRUE)`），但只在该窗口仍是前台时持有：`Kept` 对 held 条目要求前台，离开前台（回桌面、切到别的应用、开始菜单）即撤属性并 `FALSE`，由 Windows 在下次激活时自行判定；Dock 收回时若窗口已不在前台则直接释放不交还。异常结束遗留的 Held 属性仍由下一个控制器在该窗口处于前台时接手或清理。
+- 测试：client-edge 108 项、hotcorners 138 项、配置 37 项。
+
 ## 0.8.92 试验：Dock 收回后交还全屏（控制器 0.3.36，已回滚）
 
-部署后用户反馈：用触发角回桌面时 Dock 也收着，尽管没有遮挡。回滚前录到的现场：前台为 Progman，全屏的终端（无最小化按钮，显示桌面不能最小化它）仍可见、未最小化、位于 Progman 之下，带着 held 标记（`MarkFullscreenWindow(TRUE)`），QUNS 为 2。即持有的 TRUE 让 Windows 在桌面前台时仍认为有全屏应用。0.8.91 不持有 TRUE，用户确认表现正常。用户不再配合实测，按其意见用 Update/Rollback 事务回到 0.8.91（backups/before-0.8.92-20261101-001954159），源码同步退回。可能的修正（未实现、未验证）：只在该窗口仍在前台时持有 TRUE，离开前台即 `FALSE`，由 Windows 在下次激活时自行判定。以下为试验时的记录。
+部署后用户反馈：用触发角回桌面时 Dock 也收着，尽管没有遮挡。回滚前录到的现场：前台为 Progman，全屏的终端（无最小化按钮，显示桌面不能最小化它）仍可见、未最小化、位于 Progman 之下，带着 held 标记（`MarkFullscreenWindow(TRUE)`），QUNS 为 2。即持有的 TRUE 让 Windows 在桌面前台时仍认为有全屏应用。0.8.91 不持有 TRUE，用户确认表现正常。用户不再配合实测，按其意见用 Update/Rollback 事务回到 0.8.91（backups/before-0.8.92-20261101-001954159），源码同步退回。0.8.93 采用“只在前台时持有”。以下为试验时的记录。
 
 0.8.91 部署后用只读采样（每 200 ms 记录 `SHQueryUserNotificationState`、前台窗口、NonRudeHWND、任务栏位置与 TOPMOST）陪用户实测 PotPlayer 和 Windows 终端全屏：
 
@@ -21,7 +29,7 @@
 - 鼠标来源：不另挂钩子或计时器。触发角已注册的原始输入（`RIDEV_INPUTSINK`，合并成一条 kEvaluate）在处理时先调用 `NativeCorners::pointerObserver`，控制器把它接到 `LeanDockClientEdge::Pointer`。`Pointer` 只在前台是全屏应用（`candidate`）且“是否需要 Dock”与“是否已标记”不一致时排一次判断，否则只读一次光标和任务栏位置。四角暂停时原始输入照常注册，照转；锁屏时不转。触发角没有初始化成功时 `pointerFeed` 保持 false，`DockWanted` 恒为真，退回 0.8.90 的常驻标记。
 - 远程控制：`Game` 更名 `Quiet`，在游戏之外加入固定的远程控制客户端文件名（远程桌面 mstsc/msrdc、UU 远程 GameViewer.exe、ToDesk、向日葵、AnyDesk、TeamViewer、RustDesk、Parsec、Moonlight、Hyper-V vmconnect、VMware、VirtualBox）。这些全屏时 Dock 不放行、触发角暂停，边缘交给远程电脑。UU 远程的文件名取自用户机安装目录。
 - 未做：PPT 放映不单独处理（用户很少用）；Game Bar 的“记住这是游戏”不读取（用户不玩游戏）。
-- 构建：沿用 0.8.90 的方式，以 ctl-0.8.90 的构建输入为底只换入本轮文件；生成的触发角源码与 0.8.90 相比只多 `Quiet`、`pointerObserver` 三处。控制器 D03157F5…，主题开关哈希同步。构建输入存于 artifacts/controller-0.3.35-fullscreen/latest。0.8.92 起由 0.3.36 取代。
+- 构建：沿用 0.8.90 的方式，以 ctl-0.8.90 的构建输入为底只换入本轮文件；生成的触发角源码与 0.8.90 相比只多 `Quiet`、`pointerObserver` 三处。控制器 D03157F5…，主题开关哈希同步。构建输入存于 artifacts/controller-0.3.35-fullscreen/latest。0.8.93 起由 0.3.37 取代。0.8.92 起由 0.3.36 取代。
 - 测试：client-edge 100 项（新增远程控制识别与 `Wanted` 几何 7 项）、hotcorners 核心 138 项、配置 37 项。
 
 ## 0.8.90：全屏应用（控制器 0.3.34）
