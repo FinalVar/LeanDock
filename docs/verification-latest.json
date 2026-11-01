@@ -1,11 +1,15 @@
 {
   "version": "0.8.99",
   "date": "2026-11-01T11:05:26+08:00",
-  "state": "DeployedSelfTestedPendingUserTest",
+  "state": "Accepted",
   "backendVersion": "0.5.84",
   "controllerVersion": "0.3.42",
   "panelVersion": "0.8.99",
   "change": "Desktop hot corner: after the corner's Win+D the controller minimizes the application windows Win+D only covered (ShowWindowAsync SW_SHOWMINNOACTIVE) and tags them with a window property. In Explorer a SwitchToThisWindow detour (src/desktop-restore-latest.inc) only activates a tagged minimized window instead of letting the system post SC_RESTORE, which takes Windows Terminal out of fullscreen; the controller, which holds an EVENT_SYSTEM_FOREGROUND hook while tagged windows remain, shows it with ShowWindowAsync(SW_RESTORE). If the window is still minimized after 250 ms the system call runs unchanged. The same corner on the desktop before another window was used returns all of them. Replaces 0.8.94 to 0.8.98; see docs/desktop-sweep-latest.md.",
+  "userAcceptance": {
+    "At": "2026-11-01",
+    "Answer": "没问题了"
+  },
   "userReport": {
     "At": "2026-11-01",
     "Answer": "回桌面后会最小化所有窗口，然后我单点某个是希望它单独出来其他不动 / 就是终端不全屏也会跟着冒出来 / (0.8.94) 左下角后重新点回终端，它变成非全屏了。。。而我希望恢复如初。。。 / (0.8.95) 最大化终端后最小化回桌面双击文件夹终端又出来了"
@@ -62,7 +66,6 @@
     "Task view",
     "Non-elevated application windows (the same path; only the elevated terminal was tested)",
     "Secondary-monitor taskbars",
-    "Games (none installed)",
-    "User's own hands-on test"
+    "Games (none installed)"
   ]
 }
