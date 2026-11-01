@@ -241,6 +241,7 @@ extern "C" BOOL InternalWh_Disasm(void*,void* address,WH_DISASM_RESULT* result) 
 
 #ifndef NATIVE_RUNTIME_TEST
 #include "switcher-preshow-latest.inc"
+#include "desktop-restore-latest.inc"
 #define DECLARE_CORE(name) extern "C" BOOL Native_##name##_init(); \
     extern "C" void Native_##name##_after(); extern "C" void Native_##name##_stop();
 DECLARE_CORE(styler) DECLARE_CORE(tray) DECLARE_CORE(size) DECLARE_CORE(hide) DECLARE_CORE(show)
@@ -262,14 +263,16 @@ static void SaveState() {
     size_t hooks;{std::lock_guard guard(g_hookMutex);hooks=g_hooks.size();}
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.5.80\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s,"
+        "{\"protocol\":1,\"version\":\"0.5.84\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s,"
         "\"attentionPolicy\":{\"active\":%s,\"blockedReveals\":%llu,\"ignoredFlashingChecks\":%llu,\"passedReveals\":%llu},"
         "\"layoutCost\":{\"tray\":{\"calls\":%llu,\"micros\":%llu,\"worstMicros\":%llu},"
-        "\"surface\":{\"calls\":%llu,\"micros\":%llu,\"worstMicros\":%llu}}}\n",
+        "\"surface\":{\"calls\":%llu,\"micros\":%llu,\"worstMicros\":%llu}},"
+        "\"desktopRestore\":{\"calls\":%llu,\"restored\":%llu,\"fallbacks\":%llu}}\n",
         GetCurrentProcessId(),g_ownerPid,g_state.load(),hooks,elements,g_fault?"true":"false",
         Native_hide_attention(0)?"true":"false",Native_hide_attention(1),
         Native_hide_attention(2),Native_hide_attention(3),
-        tray.calls,tray.micros,tray.worst,surface.calls,surface.micros,surface.worst);
+        tray.calls,tray.micros,tray.worst,surface.calls,surface.micros,surface.worst,
+        NativeDesktopRestore::calls.load(),NativeDesktopRestore::restored.load(),NativeDesktopRestore::fallbacks.load());
     HANDLE file=CreateFileW(FilePath(L"latest-backend.json").c_str(),GENERIC_WRITE,
         FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(file,json,size,&written,nullptr);CloseHandle(file);}
@@ -359,7 +362,7 @@ static bool StartCore(DWORD owner) {
             }
             g_initializedCore[i]=true;
         }
-        if(!NativeSwitcherPreshow::Initialize() || !InternalWh_ApplyHookOperations(nullptr)){StopCore();g_state=NativeFailed;return false;}
+        if(!NativeSwitcherPreshow::Initialize() || !NativeDesktopRestore::Initialize() || !InternalWh_ApplyHookOperations(nullptr)){StopCore();g_state=NativeFailed;return false;}
         g_everInitialized=true;
         g_hasApplied=true;
         Native_size_after();Native_tray_after();

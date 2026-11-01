@@ -7,8 +7,8 @@
 // this UI. No CloudStore/Night Light write belongs to this control.
 namespace Capsule::ThemeControl {
 inline constexpr wchar_t Personalize[]=L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
-// Controller 0.3.39 (0.8.95): the accepted 0.8.78 controller plus fullscreen apps and the desktop-corner sweep; the theme worker is unchanged.
-inline constexpr wchar_t ControllerHash[]=L"ADD3F7063D88DB9B24DCFA8A0090B4D85F997DECA2F3094E389A489790055BD0";
+// Controller 0.3.42 (0.8.99): the accepted 0.8.78 controller plus fullscreen apps and the desktop-corner sweep; the theme worker is unchanged.
+inline constexpr wchar_t ControllerHash[]=L"7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6";
 inline constexpr wchar_t ImplementationHash[]=L"2AA99876194E8EE59D806A92DD740348279B6F1B704B4AE5A4E6BDB89552CD51";
 inline constexpr wchar_t MutexName[]=L"Local\\LeanDock.ThemeSwitch.v1";
 inline int Classify(DWORD apps,DWORD system){

@@ -1,28 +1,33 @@
 {
-  "version": "0.8.95",
-  "date": "2026-11-01T03:50:14+08:00",
-  "state": "DeployedPendingUserTest",
-  "backendVersion": "0.5.80",
-  "controllerVersion": "0.3.39",
-  "panelVersion": "0.8.95",
-  "change": "Desktop hot corner (include/desktop-sweep-latest.h, hooked in by the hot-corner generator's final section): after the corner's Win+D, covered application windows that have a minimize box are minimized; covered windows without one (a fullscreen or caption-less Windows Terminal) are not minimized but, once another window is used, placed under the desktop with SetWindowPos(HWND_BOTTOM) and kept there until activated or closed. The same corner on the desktop before another window was used returns all of them. 0.8.94 minimized every covered window and was replaced: Windows Terminal leaves fullscreen when restored from a minimize.",
+  "version": "0.8.99",
+  "date": "2026-11-01T11:05:26+08:00",
+  "state": "DeployedSelfTestedPendingUserTest",
+  "backendVersion": "0.5.84",
+  "controllerVersion": "0.3.42",
+  "panelVersion": "0.8.99",
+  "change": "Desktop hot corner: after the corner's Win+D the controller minimizes the application windows Win+D only covered (ShowWindowAsync SW_SHOWMINNOACTIVE) and tags them with a window property. In Explorer a SwitchToThisWindow detour (src/desktop-restore-latest.inc) only activates a tagged minimized window instead of letting the system post SC_RESTORE, which takes Windows Terminal out of fullscreen; the controller, which holds an EVENT_SYSTEM_FOREGROUND hook while tagged windows remain, shows it with ShowWindowAsync(SW_RESTORE). If the window is still minimized after 250 ms the system call runs unchanged. The same corner on the desktop before another window was used returns all of them. Replaces 0.8.94 to 0.8.98; see docs/desktop-sweep-latest.md.",
   "userReport": {
     "At": "2026-11-01",
-    "Answer": "回桌面后会最小化所有窗口，然后我单点某个是希望它单独出来其他不动 / 就是终端不全屏也会跟着冒出来 / (0.8.94) 看起来好很多，但是又有一个新的问题，左下角后重新点回终端，它变成非全屏了。。。而我希望恢复如初。。。"
+    "Answer": "回桌面后会最小化所有窗口，然后我单点某个是希望它单独出来其他不动 / 就是终端不全屏也会跟着冒出来 / (0.8.94) 左下角后重新点回终端，它变成非全屏了。。。而我希望恢复如初。。。 / (0.8.95) 最大化终端后最小化回桌面双击文件夹终端又出来了"
   },
   "checks": [
-    "Root cause (0.8.93, read-only): after the corner's Win+D, Progman in front at z26, fullscreen Windows Terminal under it, IsIconic=false; Win+D minimizes only windows with WS_MINIMIZEBOX",
-    "0.8.94 regression reproduced: F11 fullscreen terminal 0x94000000 -> minimized 0x34840000 -> restored from the Dock 0x14840000, rect 0,0,2560,1600, DWM frame 9,0,2551,1591 (left fullscreen); PostMessage SC_MINIMIZE gives the same result",
-    "Manual experiment before the change: Win+D, terminal placed under the desktop, WorkBuddy clicked on the Dock (terminal stayed hidden), terminal clicked on the Dock -> in front, 0x94000000, 0,0,2560,1600",
-    "Controller 0.3.39 built from the 0.3.38 input plus this round's files; hot corners 138, configuration 37, client edge 108, desktop sweep 48 checks passed; generated hot-corner diff against 0.8.94 limited to two status fields",
-    "24 pre-deploy checks passed (pre-deploy-20261101-034652)",
-    "Update Applied, Live, ComponentHealth Ready; live controller 0.3.39 (ADD3F706), hotCornersReady and clientEdgeReady true; latest.ini, hotcorners/latest.ini, cards/latest.ini unchanged"
+    "0.8.95/0.8.96 root cause: Progman is always the bottom-most window; an off-screen test window placed with HWND_BOTTOM or after Progman stayed one level above it, so windows cannot be kept under the desktop",
+    "0.8.97 failure reproduced: Dock click made the minimized fullscreen terminal the foreground but it stayed minimized (0xB4000000)",
+    "0.8.98 log: in Explorer ShowWindowAsync failed with error 5 and RemovePropW failed; the fallback SwitchToThisWindow took the terminal out of fullscreen (0x14840000)",
+    "Integrity levels: explorer 0x2000 (not elevated), WindowsTerminal and OpenConsole 0x3000 (elevated), LeanDock controller latest.exe 0x3000 (elevated)",
+    "Controller 0.3.42 built from the 0.3.41 input plus this round's files; hot corners 138, configuration 37, client edge 108, desktop sweep 58 checks passed",
+    "24 pre-deploy checks passed (pre-deploy-20261101-110216)",
+    "Update Applied, Live, ComponentHealth Ready; live controller 0.3.42 (7580D4BB), backend 0.5.84; hotCornersReady and clientEdgeReady true; latest.ini, hotcorners/latest.ini, cards/latest.ini unchanged",
+    "Real screen, caption-less terminal 0x14840000: corner -> minimized; folder opened and closed -> stays minimized, foreground returns to Progman; Dock click -> in front 0x14840000; corner twice -> back 0x14840000; corner, Start, Esc -> stays minimized; Dock click -> 0x14840000",
+    "Real screen, F11 fullscreen terminal 0x94000000: same sequence; every return 0x94000000, rect 0,0,2560,1600; Explorer log 'desktop-restore shown activated=1' waited 0-32 ms",
+    "Real screen, Alt+Tab from the desktop and from an opened folder: terminal returns 0x94000000",
+    "Counters after the tests: desktopRestore calls 12, restored 6, fallbacks 0; desktopSweep sweeps 8, minimized 8, returned 8, marked 0 (hook released), terminal untagged"
   ],
   "preDeployValidation": {
-    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.95-outputs/pre-deploy-20261101-034652"
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.99-outputs/pre-deploy-20261101-110216"
   },
   "deployment": {
-    "Version": "0.8.95",
+    "Version": "0.8.99",
     "Live": true,
     "ComponentHealth": {
       "State": "Ready",
@@ -30,11 +35,11 @@
       "Pending": []
     },
     "RuntimeFiles": {
-      "latest.exe": "ADD3F7063D88DB9B24DCFA8A0090B4D85F997DECA2F3094E389A489790055BD0",
-      "latest.dll": "41EA1B9A9FFE0B37E64E880D0488508A4C34557D1191A0F13DBC6F720AEB5917",
+      "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
+      "latest.dll": "C8B0DB1AA34D8E6FC219A85AD0CC2026ECD34C3EBC6D54A645649CBA34D88611",
       "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
       "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
-      "aggregate/latest.exe": "54C67AFE52DDF774D0EF5AA4C4D075676F62C97446EEAEF67516203FFE4545AE"
+      "aggregate/latest.exe": "F558D87FE0E2B98CE612409ACEDE1F1176C8A5CE8356FF1A73E04B489C2F4A42"
     },
     "ConfigPreserved": [
       "latest.ini",
@@ -42,19 +47,22 @@
       "cards/latest.ini"
     ]
   },
-  "rollback": "backups/before-0.8.95-20261101-035014749 returns to 0.8.94; backups/before-0.8.94-20261101-012522496 returns to 0.8.93",
+  "rollback": "backups/before-0.8.99-20261101-110526224 returns to 0.8.98; backups/before-0.8.95-20261101-035014749 returns to 0.8.94; backups/before-0.8.94-20261101-012522496 returns to 0.8.93",
   "previousAcceptance": {
     "version": "0.8.93",
     "record": "docs/verification-v0.8.93.json"
   },
   "knownLimits": [
     "Only the desktop corner's Win+D is handled; keyboard Win+D keeps Windows' behavior",
-    "Burying follows the foreground change, so the covered window may show for a frame as the new window appears",
-    "After the 0.8.95 deployment Windows Terminal was found at 0x14840000 (not F11 fullscreen) where the earlier test had left it at 0x94000000; the Explorer reload of the update is the likely cause, not isolated"
+    "Windows Terminal's own global summon sends SC_RESTORE inside its process and still leaves fullscreen",
+    "If the controller is stopped or does not answer within 250 ms, Explorer takes the system path and Windows Terminal leaves fullscreen",
+    "Each Dock update reloads Explorer; once (after 0.8.95) Windows Terminal was found out of F11 fullscreen afterwards, not seen after 0.8.97 to 0.8.99"
   ],
   "notVerified": [
-    "Real-screen test after deployment: the screen was locked (LockApp in front) right after the update",
+    "Task view",
+    "Non-elevated application windows (the same path; only the elevated terminal was tested)",
     "Secondary-monitor taskbars",
-    "Games (none installed)"
+    "Games (none installed)",
+    "User's own hands-on test"
   ]
 }
