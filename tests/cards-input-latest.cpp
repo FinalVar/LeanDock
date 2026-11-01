@@ -14,6 +14,7 @@ static bool Install(WNDPROC target,WNDPROC hook,WNDPROC* original) noexcept {
 struct Probe {
     Route route;HWND window{};int wheels{},delta{},starts{};UINT32 pointer{};
     bool horizontal=false,visible=true,stopOnWheel=false,stopOnStart=false,accept=true;
+    Route::Options options{};
     bool Start(){
         return route.Start(this,[](void* owner,HWND w,POINT p) noexcept {
             auto& self=*static_cast<Probe*>(owner);
@@ -25,7 +26,7 @@ struct Probe {
             auto& self=*static_cast<Probe*>(owner);++self.starts;self.pointer=pointer;
             if(self.stopOnStart)self.route.Stop();
             return self.accept;
-        });
+        },options);
     }
 };
 int main(){
@@ -79,6 +80,22 @@ int main(){
     p.window=b.window;p.message=WM_MOUSEWHEEL;
     check(send()==0&&b.wheels==1,"second route survives first retirement");
     DestroyWindow(second);check(!b.route.Ready(),"destroyed host no longer ready");b.route.Stop();
+    // The time key: wheels stay with XAML (with or without Ctrl); two-finger
+    // contacts are taken with Ctrl held too; everything else is unchanged.
+    HWND third=make(names[0],nullptr),bridgeC=make(names[1],third);
+    Probe k;k.window=make(names[2],bridgeC);k.options={.claimWheel=false,.passControl=false};
+    check(k.Start()&&k.route.Bind(third,Install),"key route binds");
+    auto sendKey=[&](Route::Packet q){return SendMessageW(third,WM_APP+1,0,reinterpret_cast<LPARAM>(&q));};
+    Route::Packet q{k.window,WM_MOUSEWHEEL,MAKEWPARAM(0,120),0,{30,30},PT_POINTER,false,true};
+    check(sendKey(q)==91&&k.wheels==0,"key leaves the mouse wheel to XAML");
+    q.message=WM_POINTERWHEEL;check(sendKey(q)==91&&k.wheels==0,"key leaves the pointer wheel to XAML");
+    q.control=true;q.message=WM_MOUSEWHEEL;check(sendKey(q)==91&&k.wheels==0,"key leaves Ctrl+wheel to XAML");
+    q={k.window,DM_POINTERHITTEST,7,0,{30,30},PT_TOUCHPAD,false,true};
+    check(sendKey(q)==0&&k.starts==1&&k.pointer==7,"key takes a two-finger contact");
+    q.control=true;check(sendKey(q)==0&&k.starts==2,"key takes a two-finger contact with Ctrl held");
+    q.control=false;q.type=PT_TOUCH;check(sendKey(q)==91&&k.starts==2,"key leaves the touchscreen native");
+    q.type=PT_TOUCHPAD;q.point={9,30};check(sendKey(q)==91&&k.starts==2,"key contact outside the key stays native");
+    k.route.Stop();DestroyWindow(third);
     DestroyWindow(first);for(auto name:names)UnregisterClassW(name,GetModuleHandleW(nullptr));
     std::printf("%d checks, %d failures; hidden synchronous-message/decoded-packet fixtures, not hardware acceptance\n",checks,failures);
     return failures?1:0;

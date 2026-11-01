@@ -5,6 +5,10 @@
 #include <vector>
 
 namespace LeanDockCards {
+// Card paging (the default) claims mouse wheels and leaves Ctrl to the
+// native path. The time key reads mouse wheels in XAML, with Ctrl, and takes
+// two-finger contacts with Ctrl held as well.
+struct CardInputOptions {bool claimWheel=true,passControl=true;};
 // InputSite WndProc discovery/detour adapted from m417z's Taskbar Volume
 // Control 1.3.1 (GPL-3.0). Full source, commit and local differences: NOTICE.md.
 // Never subclass InputSite: it checks the identity of its window procedure.
@@ -14,6 +18,7 @@ public:
     using Wheel=void(*)(void*,int,bool) noexcept;
     using Contact=bool(*)(void*,HWND,UINT32) noexcept;
     using Install=bool(*)(WNDPROC,WNDPROC,WNDPROC*) noexcept;
+    using Options=CardInputOptions;
     struct Packet {
         HWND window{};UINT message{};WPARAM wp{};LPARAM lp{};
         POINT point{};POINTER_INPUT_TYPE type{};bool control=false,pointValid=false;
@@ -21,7 +26,7 @@ public:
 private:
     static auto& Routes(){static thread_local std::vector<CardInputRoute*> routes;return routes;}
     inline static WNDPROC original{};
-    void* context{};HitTest hit{};Wheel wheel{};Contact contact{};
+    void* context{};HitTest hit{};Wheel wheel{};Contact contact{};Options options{};
     DWORD thread{};HWND inputWindow{};
     bool attached=false;
     static bool IsWheel(UINT m){return m==WM_MOUSEWHEEL||m==WM_MOUSEHWHEEL||m==WM_POINTERWHEEL||m==WM_POINTERHWHEEL;}
@@ -32,11 +37,11 @@ private:
             // DM_POINTERHITTEST parameters are not a portable pointer contract.
             // The pinned InputHost build was observed to provide this ID. An
             // unknown/invalid type keeps all native behavior unchanged.
-            if(p.type!=PT_TOUCHPAD||p.control||!p.pointValid||!hit(context,p.window,p.point))return Action::Pass;
+            if(p.type!=PT_TOUCHPAD||(p.control&&options.passControl)||!p.pointValid||!hit(context,p.window,p.point))return Action::Pass;
             return contact?Action::Contact:Action::Pass;
         }
         if(IsWheel(p.message)){
-            if(p.control||!p.pointValid||!hit(context,p.window,p.point))return Action::Pass;
+            if(!options.claimWheel||p.control||!p.pointValid||!hit(context,p.window,p.point))return Action::Pass;
             return Action::Wheel;
         }
         return Action::Pass;
@@ -60,10 +65,10 @@ public:
     CardInputRoute(CardInputRoute const&)=delete;
     CardInputRoute& operator=(CardInputRoute const&)=delete;
     ~CardInputRoute(){Stop();}
-    bool Start(void* owner,HitTest test,Wheel action,Contact begin=nullptr){
+    bool Start(void* owner,HitTest test,Wheel action,Contact begin=nullptr,Options choice={}){
         if(attached)return true;
         if(!owner||!test||!action)return false;
-        Routes().push_back(this);context=owner;hit=test;wheel=action;contact=begin;
+        Routes().push_back(this);context=owner;hit=test;wheel=action;contact=begin;options=choice;
         thread=GetCurrentThreadId();attached=true;return true;
     }
     bool Bind(HWND taskbar,Install install) noexcept {

@@ -72,7 +72,7 @@ struct Panel {
         paintedSecond=time.wHour*3600+time.wMinute*60+time.wSecond;
         const auto day=time.wYear*10000+time.wMonth*100+time.wDay;
         if(day!=calendarDay){calendarDay=day;
-            calendarDate=std::to_wstring(time.wMonth)+L"月"+std::to_wstring(time.wDay)+L"日";
+            calendarDate=std::to_wstring(time.wMonth)+L"月"+std::to_wstring(time.wDay)+L"日 周"+(L"日一二三四五六"[time.wDayOfWeek%7]);
             calendarLunar=Lunar(time);
         }
         const auto clock=PanelClock(time.wHour,time.wMinute,time.wSecond);

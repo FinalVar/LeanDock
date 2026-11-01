@@ -1,37 +1,29 @@
 {
-  "version": "0.8.99",
-  "date": "2026-11-01T11:05:26+08:00",
-  "state": "Accepted",
-  "backendVersion": "0.5.84",
+  "version": "0.8.100",
+  "date": "2026-11-01T20:10:54+08:00",
+  "state": "Deployed; awaiting user acceptance",
+  "backendVersion": "0.5.85",
   "controllerVersion": "0.3.42",
-  "panelVersion": "0.8.99",
-  "change": "Desktop hot corner: after the corner's Win+D the controller minimizes the application windows Win+D only covered (ShowWindowAsync SW_SHOWMINNOACTIVE) and tags them with a window property. In Explorer a SwitchToThisWindow detour (src/desktop-restore-latest.inc) only activates a tagged minimized window instead of letting the system post SC_RESTORE, which takes Windows Terminal out of fullscreen; the controller, which holds an EVENT_SYSTEM_FOREGROUND hook while tagged windows remain, shows it with ShowWindowAsync(SW_RESTORE). If the window is still minimized after 250 ms the system call runs unchanged. The same corner on the desktop before another window was used returns all of them. Replaces 0.8.94 to 0.8.98; see docs/desktop-sweep-latest.md.",
-  "userAcceptance": {
-    "At": "2026-11-01",
-    "Answer": "没问题了"
-  },
-  "userReport": {
-    "At": "2026-11-01",
-    "Answer": "回桌面后会最小化所有窗口，然后我单点某个是希望它单独出来其他不动 / 就是终端不全屏也会跟着冒出来 / (0.8.94) 左下角后重新点回终端，它变成非全屏了。。。而我希望恢复如初。。。 / (0.8.95) 最大化终端后最小化回桌面双击文件夹终端又出来了"
+  "panelVersion": "0.8.100",
+  "change": "Time key: mouse wheel changes the volume (2 per notch), Ctrl+wheel the brightness (5 per notch), through the XAML PointerWheelChanged event; two-finger touchpad pans do the same through the retained InputSite + DirectManipulation card route (CardInputOptions claimWheel=false, passControl=false; CardPan repeat mode, 12 DIP per step). The key shows the value for 1.2 s after the last change. Volume and brightness use the panel's Core Audio and WMI calls on an on-demand worker that exits after 4 s idle. A charging bolt (E945) follows the date while BatteryFlag has 8. The panel date gains the weekday. See docs/time-key-levels-latest.md.",
+  "userRequest": {
+    "At": "2026-10-31",
+    "Answer": "行，就这么改"
   },
   "checks": [
-    "0.8.95/0.8.96 root cause: Progman is always the bottom-most window; an off-screen test window placed with HWND_BOTTOM or after Progman stayed one level above it, so windows cannot be kept under the desktop",
-    "0.8.97 failure reproduced: Dock click made the minimized fullscreen terminal the foreground but it stayed minimized (0xB4000000)",
-    "0.8.98 log: in Explorer ShowWindowAsync failed with error 5 and RemovePropW failed; the fallback SwitchToThisWindow took the terminal out of fullscreen (0x14840000)",
-    "Integrity levels: explorer 0x2000 (not elevated), WindowsTerminal and OpenConsole 0x3000 (elevated), LeanDock controller latest.exe 0x3000 (elevated)",
-    "Controller 0.3.42 built from the 0.3.41 input plus this round's files; hot corners 138, configuration 37, client edge 108, desktop sweep 58 checks passed",
-    "24 pre-deploy checks passed (pre-deploy-20261101-110216)",
-    "Update Applied, Live, ComponentHealth Ready; live controller 0.3.42 (7580D4BB), backend 0.5.84; hotCornersReady and clientEdgeReady true; latest.ini, hotcorners/latest.ini, cards/latest.ini unchanged",
-    "Real screen, caption-less terminal 0x14840000: corner -> minimized; folder opened and closed -> stays minimized, foreground returns to Progman; Dock click -> in front 0x14840000; corner twice -> back 0x14840000; corner, Start, Esc -> stays minimized; Dock click -> 0x14840000",
-    "Real screen, F11 fullscreen terminal 0x94000000: same sequence; every return 0x94000000, rect 0,0,2560,1600; Explorer log 'desktop-restore shown activated=1' waited 0-32 ms",
-    "Real screen, Alt+Tab from the desktop and from an opened folder: terminal returns 0x94000000",
-    "Counters after the tests: desktopRestore calls 12, restored 6, fallbacks 0; desktopSweep sweeps 8, minimized 8, returned 8, marked 0 (hook released), terminal untagged"
+    "24 pre-deploy checks passed (pre-deploy-20261101-200708); cards-input 44, cards-manipulation 56, cards-aggregate 562 checks",
+    "Date line with the bolt at the widest date measures 40 DIP, inside the ring's 46 DIP chord; '100' and '静音' fit inside the ring",
+    "Update Applied, Live, ComponentHealth Ready; backend 0.5.85; controller unchanged 0.3.42 (7580D4BB); latest.ini, hotcorners/latest.ini, cards/latest.ini unchanged",
+    "Live key after deploy: Input.Ready 1, Input.Prepared 1, Errors 0; accessible name ends '滚动调音量，按住 Ctrl 滚动调亮度'",
+    "Real screen with the user's consent (run twice): wheel up x2 volume 18 -> 22, key shows '22 / 音量'; wheel down x2 back to 18; Ctrl+wheel up brightness stays 100, key shows '100 / 亮度'; Ctrl+wheel down 95; key back to time after the readout; panel not opened by scrolling; failures 0; volume, mute and brightness restored to 18/false/100",
+    "Panel date on the real screen: '11月1日 周日'",
+    "Afterwards Windows Terminal still in front at 0x94000000, Dock hidden"
   ],
   "preDeployValidation": {
-    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.99-outputs/pre-deploy-20261101-110216"
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.100-outputs/pre-deploy-20261101-200708"
   },
   "deployment": {
-    "Version": "0.8.99",
+    "Version": "0.8.100",
     "Live": true,
     "ComponentHealth": {
       "State": "Ready",
@@ -40,10 +32,10 @@
     },
     "RuntimeFiles": {
       "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
-      "latest.dll": "C8B0DB1AA34D8E6FC219A85AD0CC2026ECD34C3EBC6D54A645649CBA34D88611",
+      "latest.dll": "2067EEEA65A5C45EFAB3D178F39267AFB51B95FE33BBBF892C6AFC9676E7395C",
       "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
       "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
-      "aggregate/latest.exe": "F558D87FE0E2B98CE612409ACEDE1F1176C8A5CE8356FF1A73E04B489C2F4A42"
+      "aggregate/latest.exe": "923EADCFE26A0C6BA004546DA3B8103A8A696773C77876D58F6B252E90C4464D"
     },
     "ConfigPreserved": [
       "latest.ini",
@@ -51,21 +43,19 @@
       "cards/latest.ini"
     ]
   },
-  "rollback": "backups/before-0.8.99-20261101-110526224 returns to 0.8.98; backups/before-0.8.95-20261101-035014749 returns to 0.8.94; backups/before-0.8.94-20261101-012522496 returns to 0.8.93",
+  "rollback": "backups/before-0.8.100-20261101-201054953 returns to 0.8.99",
   "previousAcceptance": {
-    "version": "0.8.93",
-    "record": "docs/verification-v0.8.93.json"
+    "version": "0.8.99",
+    "record": "docs/verification-v0.8.99.json"
   },
   "knownLimits": [
-    "Only the desktop corner's Win+D is handled; keyboard Win+D keeps Windows' behavior",
-    "Windows Terminal's own global summon sends SC_RESTORE inside its process and still leaves fullscreen",
-    "If the controller is stopped or does not answer within 250 ms, Explorer takes the system path and Windows Terminal leaves fullscreen",
-    "Each Dock update reloads Explorer; once (after 0.8.95) Windows Terminal was found out of F11 fullscreen afterwards, not seen after 0.8.97 to 0.8.99"
+    "Brightness only through WMI (built-in panels); external monitors show '—'",
+    "Horizontal wheel and horizontal two-finger pans are ignored",
+    "Scrolling cancels a pending hover; the panel opens again after the pointer leaves and re-enters"
   ],
   "notVerified": [
-    "Task view",
-    "Non-elevated application windows (the same path; only the elevated terminal was tested)",
-    "Secondary-monitor taskbars",
-    "Games (none installed)"
+    "Two-finger touchpad on the key (cannot be simulated remotely)",
+    "Charging bolt on the real screen (battery was full, not charging)",
+    "Muted readout and unmute on the real screen (covered by tests only)"
   ]
 }

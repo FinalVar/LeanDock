@@ -1,5 +1,7 @@
 // Native XAML owns only the 72 x 46 information key. App and tray trees remain
 // untouched. Theme resources remain live across light/dark/high-contrast changes.
+// The date line carries a small bolt while the battery is charging; the pair
+// stays centered. While a level is adjusted, the two lines show it instead.
 static constexpr wchar_t AggregateXaml[]=LR"xaml(
 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  x:Name="LeanDockCard" Width="72" Height="46" Background="Transparent" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -23,7 +25,10 @@ static constexpr wchar_t AggregateXaml[]=LR"xaml(
    <Path x:Name="RingLow" Stroke="{ThemeResource RingLow}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
    <Path x:Name="RingCritical" Stroke="{ThemeResource RingCritical}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
    <TextBlock x:Name="ClockTime" Height="22" Margin="0,5,0,0" VerticalAlignment="Top" TextAlignment="Center" FontFamily="Segoe UI" FontSize="18" FontWeight="SemiBold" Typography.NumeralAlignment="Tabular" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
-   <TextBlock x:Name="ClockDate" Height="13" Margin="0,28,0,0" VerticalAlignment="Top" TextAlignment="Center" FontFamily="Segoe UI" FontSize="11" Opacity="0.70" Typography.NumeralAlignment="Tabular" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+   <StackPanel x:Name="DateLine" Orientation="Horizontal" Height="13" Margin="0,28,0,0" VerticalAlignment="Top" HorizontalAlignment="Center">
+    <TextBlock x:Name="ClockDate" Height="13" TextAlignment="Center" FontFamily="Segoe UI" FontSize="11" Opacity="0.70" Typography.NumeralAlignment="Tabular" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+    <TextBlock x:Name="ChargeBolt" Visibility="Collapsed" Margin="2,0,0,0" VerticalAlignment="Center" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="9" Text="&#xE945;" Foreground="{ThemeResource RingNormal}"/>
+   </StackPanel>
   </Grid>
  </Button>
 </Border>)xaml";

@@ -342,7 +342,7 @@ inline void RenderControlPanel(Drawing& draw){
                 dc->SetTransform(D2D1::Matrix3x2F::Translation(14+column*316.f,14));
                 draw.Round(dc.get(),{0,0,PanelWidth,layout.height},14,Ink(column?0x1D1F25:0xF2F3F6));
                 if(ClockWidth(draw,L"23:59:59")>120)winrt::throw_hresult(E_BOUNDS);
-                PaintControlPanel(draw,dc.get(),s,p,L"13:26:08",L"10月23日",L"农历九月十四",layout,hover,gesture,motion,0);
+                PaintControlPanel(draw,dc.get(),s,p,L"13:26:08",L"10月23日 周五",L"农历九月十四",layout,hover,gesture,motion,0);
             }
             dc->SetTransform(D2D1::Matrix3x2F::Identity());winrt::check_hresult(dc->EndDraw());dc->SetTarget(nullptr);
             props.bitmapOptions=D2D1_BITMAP_OPTIONS_CPU_READ|D2D1_BITMAP_OPTIONS_CANNOT_DRAW;
@@ -463,7 +463,7 @@ inline bool RenderMaterial(Drawing& draw,Scene& shared){
         draw.colors.Set(light!=0,light?0x005FB8:0x60CDFF);
         PanelGesture gesture;PanelMotion motion;motion.Update(data,PanelPart::None,gesture,0,false);
         draw.Redraw(content,PanelWidth,layout.height,1,[&](ID2D1DeviceContext* dc){
-            PaintControlPanel(draw,dc,data,power,L"13:26:08",L"10月23日",L"农历九月十四",layout,PanelPart::None,gesture,motion,0);
+            PaintControlPanel(draw,dc,data,power,L"13:26:08",L"10月23日 周五",L"农历九月十四",layout,PanelPart::None,gesture,motion,0);
         });
         scene.Content(content,layout.Cuts());
         auto item=cap::GraphicsCaptureItem::CreateFromVisual(stage);
