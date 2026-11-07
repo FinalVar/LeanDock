@@ -1,37 +1,26 @@
 {
-  "version": "0.8.104",
-  "date": "2026-11-07T19:51:33+08:00",
-  "state": "Deployed; user approved commit and push",
-  "backendVersion": "0.5.89",
+  "version": "0.8.105",
+  "date": "2026-11-07T20:24:22+08:00",
+  "state": "Deployed and accepted by the user",
+  "backendVersion": "0.5.90",
   "controllerVersion": "0.3.42",
-  "panelVersion": "0.8.104",
-  "change": "A new hook on ShellIconLoaderV2::s_ForceImagePresent: when the icon from the 256 px image list has artwork under 40% of the canvas, it takes the same index from SHIL_EXTRALARGE (read only, no Resize). Every other icon keeps the two-times source request from 0.8.44. Icon measurement stays as restored in 0.8.103.",
+  "panelVersion": "0.8.105",
+  "change": "After a left click on the panel or a page, the pointer leaving no longer closes it; a press elsewhere, Escape or another window coming forward does. Dragging a slider does not count as a click. Without a click the panel behaves as before. Backend changes only by the pinned panel hash and version.",
   "userRequest": {
     "At": "2026-11-07",
-    "Answer": "还是很小啊。。。。要不再往回撤销，可能在更早之前的会话里，不太清楚。版本回退，直至修复。其他改进尽量不变"
+    "Answer": "鼠标移上去腰圆键出现的面板，我希望如果单击过，不要鼠标一移开面板它就自动消失，而是点一下其他部分才消去。如果没单击过就还是原样，你看着办。"
   },
-  "rootCause": {
-    "Trigger": "The two-times source request from 0.8.44. With it off, MinerU reads Status 2, bounds 20-360 of 384, and every icon's SourceWidth is 60.",
-    "Mechanism": "In Explorer the 256 px list holds a 72 px picture for MinerU: request 120 returns 256x256 with bounds 96-160, the SHIL_JUMBO list returns bounds 4-68 in 256x256, request 60 returns 72x72 with bounds 4-68.",
-    "NotEstablished": "Why Explorer's list holds only the small picture. iconcache_256.db has 24 entries, all 256 px PNG, none undersized, one with bounds 15-241, the same as MinerU's full artwork, so the cache was not cleared."
-  },
-  "measured": {
-    "Method": "Window properties on Shell_TrayWnd; the route table came from a diagnostic build, not shipped",
-    "NativeFallback": 1,
-    "MinerUSlot3": {
-      "Before": "Status 3, not touched",
-      "After": "Status 2, Scale 1.1228, bounds 20-362 of 384, SourceWidth 120"
-    },
-    "OtherPinnedSlots": "Slots 1, 2, 4, 5, 6, 7 and 8 read the same as in 0.8.103, SourceWidth 120"
+  "decisions": {
+    "SliderDrag": "Not a click; adjust and move away still closes, the flow accepted in 0.8.81",
+    "QuickTap": "The low bit of GetAsyncKeyState plus a down edge catch a press between two 50 ms ticks; panelPress excludes presses the panel itself received",
+    "WindowSwitch": "Once clicked, another foreground window closes it, as a fallback for presses that cannot be read"
   },
   "checks": {
-    "IconOptics": "45 checks, including UndersizedArtwork",
-    "IconView": "40 checks"
+    "PolicyChecks": "252, of which 18 new for PanelStay; run in all three probe cycles"
   },
-  "panelBinary": "1DE5B133: no input changed from 0.8.103. 23 bytes differ in a same-size file (0x80-0x81 and strings around 0x123000), which matches a timestamp and build paths holding the version; the strings were not read.",
   "preDeployValidation": {
     "ValidateOnly": "passed",
-    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.104-outputs\\pre-deploy-20261107-194639)",
+    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.105-outputs\\pre-deploy-20261107-201941)",
     "ConfigPreserved": [
       "latest.ini",
       "hotcorners/latest.ini",
@@ -39,7 +28,7 @@
     ]
   },
   "deployment": {
-    "Version": "0.8.104",
+    "Version": "0.8.105",
     "Live": true,
     "ComponentHealth": {
       "State": "Ready",
@@ -47,13 +36,13 @@
       "Pending": []
     },
     "Autotest": "AutomatedChecksPassed",
-    "Explorer": "pid 18952, restarted 19:51:26 by the update; also restarted at 19:30 and 19:38 for two experiment builds",
+    "Explorer": "pid 464, restarted 20:24:10 by the update; Native Dock active 20:24:22",
     "RuntimeFiles": {
       "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
-      "latest.dll": "4A7AE6F788DE5E38D3D980E121D8130A7A272D3913ADCC74F99148CEA149F62B",
+      "latest.dll": "08389B456BBB15D84FB7C7AFCCD81D80D2300AE1480BF849F187350316391713",
       "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
       "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
-      "aggregate/latest.exe": "1DE5B1334FC966B43DD57013D972619BFBEAE917628797CFCE7760F74D8AB228"
+      "aggregate/latest.exe": "1A7F7699C091DD1DC1B967D519C6F5C32069C234863C161589057FF562775A57"
     },
     "ConfigUnchanged": [
       "latest.ini",
@@ -61,28 +50,33 @@
       "cards/latest.ini"
     ]
   },
-  "rollback": "backups/before-0.8.103-20261107-193042697 returns to clean 0.8.103 (latest.dll 01C5F4FF). The newest two backups hold experiment builds: before-0.8.104-20261107-195123457 is the diagnostic build (496A42B0) and before-0.8.103-20261107-193830955 has two-times source off (D4A9EA90); do not use them. Retention keeps five, so the three deploys after 19:11 dropped before-0.8.99, before-0.8.100 and before-0.8.101, two of them only because of the experiment deploys; those versions now need a rebuild from git.",
+  "observed": {
+    "MinerU": "This Explorer start the 256 px list returned real artwork: slot 3 Status 2, Scale 1.1327, bounds 23-361 of 384, NativeFallback not set. In 0.8.104 the same icon needed the fallback (bounds 20-362). No icon code changed between them, so what the list holds varies between Explorer starts; the cause is not established.",
+    "HookCount": "Backend reports 68 hooks; 0.8.104 reported 70 and 0.8.103 reported 69, with no change in hook code. The icon hook is in one all-or-none batch with the source budget, which is active (SourceDips 80). No failure in the backend log. Native Dock became active 12 s after the restart against 5 s in 0.8.104; hooks that wait for a module to load may account for it. Not verified."
+  },
+  "rollback": "backups/before-0.8.105-20261107-202406965 returns to 0.8.104. backups/before-0.8.103-20261107-193042697 returns to clean 0.8.103. before-0.8.104-20261107-195123457 (diagnostic) and before-0.8.103-20261107-193830955 (two-times source off) hold experiment builds; do not use them.",
   "previousAcceptance": {
-    "version": "0.8.103",
-    "record": "docs/verification-v0.8.103.json",
-    "user": "Rejected: 还是很小啊"
+    "version": "0.8.104",
+    "record": "docs/verification-v0.8.104.json",
+    "user": "可以，提交并推送"
   },
   "knownLimits": [
-    "MinerU's source is 72 px enlarged to 120 before display, so it is softer than its neighbours",
+    "The press that closes the panel also reaches the window under it",
+    "Any application taking the foreground closes a panel that was clicked",
+    "MinerU is softer than its neighbours when the fallback is used: 72 px source enlarged to 120 before display",
     "Bluetooth connect and disconnect apply to audio devices only",
-    "The saved Wi-Fi list can show a network that is no longer in range until the first scan ends, about 2 s; connecting to one waits for that scan and reports not in range"
+    "The saved Wi-Fi list can show a network that is no longer in range until the first scan ends, about 2 s"
   ],
   "notVerified": [
-    "MinerU and the other icons on the real screen: the Dock was behind the full-screen terminal and PrintWindow returns black for it",
-    "New apps that hit the fallback, other DPI scales and multiple monitors",
-    "Bluetooth battery and Wi-Fi list on the real screen",
+    "A press inside a foreground elevated window",
+    "Whether a quick tap outside was among the cases the user tried",
+    "MinerU and the other icons on the real screen",
     "wifi-last-latest.bin in the installed panel: saving and reading ran only in the dev probe",
-    "Connecting to a saved row that is out of range (existing wait path, not exercised)",
-    "Charge bolt on the real screen",
-    "A classic (BR/EDR) paired device: none on this machine"
+    "Charge bolt on the real screen"
   ],
-  "userResponse": {
+  "userAcceptance": {
     "At": "2026-11-07",
-    "Answer": "可以，提交并推送"
+    "Answer": "没问题了",
+    "Scope": "The user tried it and replied to the question about committing; which cases were tried was not stated."
   }
 }

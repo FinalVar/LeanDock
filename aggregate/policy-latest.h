@@ -80,6 +80,21 @@ struct Reveal {
         return Change::None;
     }
 };
+// The hover panel leaves shortly after the pointer does. A click in it asks it
+// to stay: from then on only a press elsewhere closes it. Typing stays too.
+struct PanelStay {
+    bool clicked=false;
+    uint64_t outside=0;
+    // inside: on the key or the panel, or dragging. pressed: a button went
+    // down since the last tick, not on the panel.
+    bool Close(bool inside,bool pressed,bool typing,uint64_t now) {
+        if(inside){outside=0;return false;}
+        if(pressed)return true;
+        if(clicked||typing){outside=0;return false;}
+        if(!outside){outside=now;return false;}
+        return now-outside>=HoverDismiss;
+    }
+};
 struct RestartBudget {
     std::deque<uint64_t> attempts;
     bool Take(uint64_t now) {

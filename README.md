@@ -9,7 +9,7 @@
 
 <img src="docs/assets/badge-platform.svg" alt="platform: Windows 11">
 <img src="docs/assets/badge-cpp.svg" alt="C++23">
-<img src="docs/assets/badge-version.svg" alt="version 0.8.104">
+<img src="docs/assets/badge-version.svg" alt="version 0.8.105">
 <img src="docs/assets/badge-license.svg" alt="license: GPL-3.0">
 
 <br><br>
@@ -92,7 +92,7 @@ Dock 就是 Windows 自己的任务栏换了身衣服。拖拽、跳转列表、
 
 **动效**：从时间键上方长出来，内容按区块由上往下依次落位；开关、悬停和滑块变化有短过渡；收起时淡出下沉。系统关闭“动画效果”时全部改为直接出现和消失。
 
-鼠标离开 0.25 秒，面板就收起；正在输入密码或热点名称时不会因为鼠标移开而收起，点面板外面或按 Esc 关闭（输入时第一下 Esc 只退出输入框）。
+鼠标离开 0.25 秒，面板就收起。单击过面板后（拖滑条不算）就不会因为鼠标移开而收起，Dock 也一直留着，点面板外面、按 Esc 或切到别的窗口才关闭；正在输入密码或热点名称时也一样（输入时第一下 Esc 只退出输入框）。
 
 ## 🪟 Dock 本身
 
@@ -261,6 +261,7 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 | 11 月 7 日 | 0.8.102 | 蓝牙电量进页面就显示；Wi-Fi 页打开就有上次的网络；内容偏小的应用图标放大到正常大小 |
 | 11 月 7 日 | 0.8.103 | 撤销 0.8.102 的图标放大（小图放大后发糊），图标逻辑回到之前的样子，其他不变 |
 | 11 月 7 日 | 0.8.104 | MinerU 这类图标不再很小：两倍取图拿到小图时，只有这个图标改用系统原尺寸的图 |
+| 11 月 7 日 | 0.8.105 | 单击过详情面板后，鼠标移开不再收起，点面板外面才关闭 |
 
 ## 🙏 致谢
 

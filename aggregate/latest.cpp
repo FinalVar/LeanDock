@@ -23,7 +23,8 @@ struct Panel {
     PageTarget pageHover,pagePressed;Tween pageFade;bool escapeHeld=false;
     SoundDrag drag;PanelValueRequest appRequest;std::wstring appRequestKey;
     std::vector<std::pair<std::wstring,winrt::com_ptr<IWICBitmap>>> icons; // app icons by program path, this panel only
-    uint64_t outside=0,startedAt=0;bool closing=false,started=false,revealed=false,animating=false;float dpi=1;
+    uint64_t startedAt=0;bool closing=false,started=false,revealed=false,animating=false;float dpi=1;
+    PanelStay stay;HWND foreground{};bool buttonDown[2]{},panelPress=false;
     int paintedSecond=-1,calendarDay=-1;
     std::wstring calendarDate,calendarLunar;
     // Control-window timers: the visible-only 50 ms tick, frames while a
@@ -331,7 +332,7 @@ struct Panel {
                 drag.Begin(target.key,master?SliderLeft:AppSliderLeft,SoundRight,x);SetCapture(popup.window);
                 if(drag.Send(x,now))SendDrag();Paint();return;
             }
-            pagePressed=target;SetCapture(popup.window);return;
+            stay.clicked=true;pagePressed=target;SetCapture(popup.window);return;
         }
         if(message!=WM_LBUTTONUP)return;
         const auto pressed=pagePressed;pagePressed={};
@@ -357,6 +358,8 @@ struct Panel {
                 Paint();
             }else if(hover!=hit){hover=hit;Paint();}return;
         }
+        // Dragging a slider is not a click: adjust and move away still closes.
+        if(message==WM_LBUTTONDOWN&&!PanelSlider(hit))stay.clicked=true;
         if(message==WM_LBUTTONDOWN&&PanelEnabled(hit,data)){
             gesture.Begin(hit,x);SetCapture(popup.window);
             if(gesture.Send(x,GetTickCount64()))Set(hit==PanelPart::Volume?Control::Volume:Control::Brightness,gesture.preview);
@@ -380,6 +383,28 @@ struct Panel {
         }
         Cancel();if(GetCapture()==popup.window)ReleaseCapture();Paint();
     }
+    // A press since the last tick that the panel did not receive. The low bit
+    // catches a tap between ticks, so this runs every tick: otherwise a press
+    // made on the panel would still be set when the pointer has left it.
+    bool PressedElsewhere(){
+        bool pressed=false;
+        for(int i=0;i<2;++i){
+            const auto state=GetAsyncKeyState(i?VK_RBUTTON:VK_LBUTTON);
+            const bool down=state&0x8000;
+            if((state&1)||(down&&!buttonDown[i]))pressed=true;
+            buttonDown[i]=down;
+        }
+        const bool own=panelPress;panelPress=false;
+        return pressed&&!own;
+    }
+    // A panel that stays must also go when another window comes forward: a
+    // button read can miss a press aimed at a window of higher integrity.
+    bool WindowSwitched(){
+        const HWND now=GetForegroundWindow();
+        if(!stay.clicked||!now||now==popup.window)return false;
+        if(!foreground)foreground=now;
+        return now!=foreground;
+    }
     void Tick(){
         if(closing)return;
         if(!Valid()||!IsWindowVisible(bar)||std::abs(GetDpiForWindow(bar)/96.f-dpi)>.01f){Quit();return;}
@@ -399,12 +424,8 @@ struct Panel {
         // Before the reveal only the key counts: a pass-over ends the standby.
         const bool inside=PtInRect(&anchor,cursor)||popup.Hit(cursor.x,cursor.y)||GetCapture()==popup.window;
         if(typing&&GetForegroundWindow()!=popup.window){Unfocus();Paint();}
-        if(inside)outside=0;
-        else if(GetAsyncKeyState(VK_LBUTTON)&0x8000||GetAsyncKeyState(VK_RBUTTON)&0x8000){Quit(true);return;}
-        // While typing, a pointer drifting off the panel does not close it.
-        else if(typing)outside=0;
-        else if(!outside)outside=GetTickCount64();
-        else if(GetTickCount64()-outside>=250)Quit(true);
+        const bool pressed=PressedElsewhere();
+        if(WindowSwitched()||stay.Close(inside,pressed,typing,GetTickCount64())){Quit(true);return;}
         // Clock remains live even when a device query is slow. Reuse this
         // existing visible-only timer; never add a resident background clock.
         SYSTEMTIME time{};GetLocalTime(&time);
@@ -443,7 +464,7 @@ struct Panel {
         // on the key and the owner reveals this window at the hover delay.
         startedAt=GetTickCount64();metrics.Start(control);metrics.Visible(true);started=true;
         popup.Init(draw,dpi,PanelWidth,408,14,false);
-        popup.click=[this](UINT m,float x,float y){Input(m,x,y);};
+        popup.click=[this](UINT m,float x,float y){if(m==WM_LBUTTONDOWN||m==WM_RBUTTONDOWN)panelPress=true;Input(m,x,y);};
         popup.pointerCancel=[this]{Cancel();pagePressed={};};popup.cancel=[this]{Quit();};
         popup.key=[this](UINT m,WPARAM k){return Key(m,k);};
         popup.wheel=[this](int delta){

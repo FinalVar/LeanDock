@@ -64,6 +64,22 @@ inline unsigned VerifyThemeModel(){
 inline unsigned VerifyControlModel(){
     unsigned count=0;
     auto check=[&](bool value){++count;if(!value)winrt::throw_hresult(E_UNEXPECTED);};
+    {   // Not clicked: leaves HoverDismiss after the pointer, unless it returns.
+        PanelStay s;
+        check(!s.Close(true,false,false,100));check(!s.Close(false,false,false,1000));
+        check(!s.Close(false,false,false,1000+HoverDismiss-1));check(s.Close(false,false,false,1000+HoverDismiss));
+        PanelStay back;check(!back.Close(false,false,false,1000));check(!back.Close(true,false,false,1100));
+        check(!back.Close(false,false,false,1200));check(!back.Close(false,false,false,1200+HoverDismiss-1));
+        // A press elsewhere closes at once in every state, a press on the key or panel never.
+        PanelStay press;check(press.Close(false,true,false,1000));check(!press.Close(true,true,false,1000));
+        // Clicked: the pointer may go anywhere, for any time, until a press elsewhere.
+        PanelStay held;held.clicked=true;
+        check(!held.Close(false,false,false,1000));check(!held.Close(false,false,false,600000));
+        check(!held.Close(true,true,false,600050));check(held.Close(false,true,false,600100));
+        // Typing behaves the same, and a timer started earlier does not carry over.
+        PanelStay typed;check(!typed.Close(false,false,false,1000));check(!typed.Close(false,false,true,5000));
+        check(!typed.Close(false,false,false,5050));check(typed.Close(false,false,false,5050+HoverDismiss));
+    }
     for(auto scale:{1.f,1.25f,1.5f,1.75f,2.f}){
         auto hit=[&](float x,float y){return PanelHit((x*scale)/scale,(y*scale)/scale);};
         check(hit(20,80)==PanelPart::Wifi);check(hit(135,80)==PanelPart::WifiMore);
