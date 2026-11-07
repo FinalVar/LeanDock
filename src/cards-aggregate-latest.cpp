@@ -2,6 +2,7 @@
 #include "cards-compact-apps-latest.h"
 #include "cards-aggregate-geometry-latest.h"
 #include "aggregate-bridge-latest.h"
+#include "dock-geometry-latest.h"
 #include "aggregate-panel-pin-generated.h"
 #include "verify-latest.h"
 #include "shell-menu-latest.h"
@@ -93,8 +94,13 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
         POINT origin{};if(!ClientToScreen(search.island,&origin))return;
         const auto islandDpi=GetDpiForWindow(search.island);
         const double scale=islandDpi?islandDpi/96.0:root.XamlRoot().RasterizationScale();
-        const LONG values[]={origin.x+LONG(std::lround(pos.X*scale)),origin.y+LONG(std::lround(pos.Y*scale)),
-            origin.x+LONG(std::lround((pos.X+card.ActualWidth())*scale)),origin.y+LONG(std::lround((pos.Y+card.ActualHeight())*scale))};
+        // Published during a slide or while hidden, the key's current Y would
+        // misplace the panel. Publish where it rests when the Dock is fully shown.
+        RECT window{};MONITORINFO monitor{sizeof(monitor)};
+        if(!GetWindowRect(hwnd,&window)||!GetMonitorInfoW(MonitorFromWindow(hwnd,MONITOR_DEFAULTTONEAREST),&monitor))return;
+        const LONG top=origin.y+LeanDockGeometry::ShownShift(window,monitor.rcMonitor);
+        const LONG values[]={origin.x+LONG(std::lround(pos.X*scale)),top+LONG(std::lround(pos.Y*scale)),
+            origin.x+LONG(std::lround((pos.X+card.ActualWidth())*scale)),top+LONG(std::lround((pos.Y+card.ActualHeight())*scale))};
         for(unsigned i=0;i<4;++i)SetPropW(hwnd,a::BoundsProps[i],HANDLE(intptr_t(values[i])));
     }
     // Hover is two-staged: after a short rest the child starts hidden and

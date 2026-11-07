@@ -250,6 +250,7 @@ extern "C" void Native_size_before();
 extern "C" void Native_tray_resume();
 extern "C" void Native_size_resume();
 extern "C" unsigned Native_styler_count();
+extern "C" unsigned Native_styler_menu_hook();
 extern "C" unsigned long long Native_hide_attention(unsigned key);
 static bool g_initializedCore[5]{};
 
@@ -263,12 +264,12 @@ static void SaveState() {
     size_t hooks;{std::lock_guard guard(g_hookMutex);hooks=g_hooks.size();}
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.5.90\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"styledElements\":%u,\"failed\":%s,"
+        "{\"protocol\":1,\"version\":\"0.5.91\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"menuHook\":%u,\"styledElements\":%u,\"failed\":%s,"
         "\"attentionPolicy\":{\"active\":%s,\"blockedReveals\":%llu,\"ignoredFlashingChecks\":%llu,\"passedReveals\":%llu},"
         "\"layoutCost\":{\"tray\":{\"calls\":%llu,\"micros\":%llu,\"worstMicros\":%llu},"
         "\"surface\":{\"calls\":%llu,\"micros\":%llu,\"worstMicros\":%llu}},"
         "\"desktopRestore\":{\"calls\":%llu,\"restored\":%llu,\"fallbacks\":%llu}}\n",
-        GetCurrentProcessId(),g_ownerPid,g_state.load(),hooks,elements,g_fault?"true":"false",
+        GetCurrentProcessId(),g_ownerPid,g_state.load(),hooks,Native_styler_menu_hook(),elements,g_fault?"true":"false",
         Native_hide_attention(0)?"true":"false",Native_hide_attention(1),
         Native_hide_attention(2),Native_hide_attention(3),
         tray.calls,tray.micros,tray.worst,surface.calls,surface.micros,surface.worst,

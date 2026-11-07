@@ -101,6 +101,14 @@ $edge.ClientEdge.RetryScheduled=$true
 Check ('ClientEdge' -in (Get-LeanDockComponentHealth $edge).Pending) 'bounded bottom-edge recovery is reported pending'
 $edge.ClientEdge.Ready=$true;$edge.ClientEdge.RetryScheduled=$false
 Check ((Get-LeanDockComponentHealth $edge).State -eq 'Ready') 'bottom-edge recovery clears health warning'
+$edge|Add-Member -NotePropertyName Backend -NotePropertyValue ([pscustomobject]@{menuHook=1}) -Force
+Check ((Get-LeanDockComponentHealth $edge).State -eq 'Ready') 'installed key menu hook is healthy'
+$edge.Backend.menuHook=0
+Check ('KeyMenu' -in (Get-LeanDockComponentHealth $edge).Pending) 'key menu hook waiting for its module is pending'
+$edge.Backend.menuHook=2
+Check ('KeyMenu' -in (Get-LeanDockComponentHealth $edge).Unavailable) 'missing key menu hook is not concealed'
+$edge.Backend=[pscustomobject]@{version='old'}
+Check ((Get-LeanDockComponentHealth $edge).State -eq 'Ready') 'older backend status without the field stays readable'
 # Replay the actual bounded readiness function with observations, no real waits
 # or desktop calls. First sample has a delayed companion, the next is healthy.
 $confirm=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Confirm-Readiness'},$false)

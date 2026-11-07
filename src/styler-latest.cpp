@@ -9412,6 +9412,7 @@ HMODULE WINAPI LoadLibraryExW_Hook(LPCWSTR lpLibFileName,
                                    HANDLE hFile,
                                    DWORD dwFlags) {
     HMODULE module = LoadLibraryExW_Original(lpLibFileName, hFile, dwFlags);
+    if (module && InstallLeanDockMenuHook()) Wh_ApplyHookOperations();
 
     if (module && !InitializeXamlDiagnosticsEx_Original && lpLibFileName) {
         PCWSTR fileName = wcsrchr(lpLibFileName, L'\\');
@@ -9624,6 +9625,7 @@ BOOL StylerComponentInit() {
 }
 
 void StylerComponentAfterInit() {
+    if (InstallLeanDockMenuHook()) Wh_ApplyHookOperations();
     Wh_Log(L">");
 
     bool initialize = false;
@@ -9731,5 +9733,7 @@ void StylerComponentSettingsChanged() {
 extern "C" BOOL Native_styler_init() { return StylerComponentInit(); }
 extern "C" void Native_styler_after() { StylerComponentAfterInit(); }
 extern "C" void Native_styler_stop() { StylerComponentUninit(); }
+
+extern "C" unsigned Native_styler_menu_hook() { return g_leanDockMenuHook.load(); }
 
 extern "C" unsigned Native_styler_count() { unsigned count=0; HWND w=GetTaskbarUiWnd(); if(w) RunFromWindowThread(w, [](void* p){ *static_cast<unsigned*>(p)=static_cast<unsigned>(g_elementsCustomizationState.size()); }, &count); return count; }

@@ -201,25 +201,30 @@ unsigned char WINAPI ShowLeanDockNativeMenu(FrameworkElement* source,void* model
             if(!LeanDockGeometry::Read(taskbar,dock,&monitor))break;
             LeanDockMenu::Put(taskbar,L"LeanDock.Menu.NativeStage",4); // geometry ready
             const double scale=frame.XamlRoot().RasterizationScale();if(scale<=0)break;
-            POINT point{};
-            if(pointer)point=LeanDockMenu::AnchorPoint(gesture.click,dock,GetDpiForWindow(taskbar));
-            else{
-                // The shell selected the XAML root/monitor. Resolve that root's
-                // current card directly, never from the mouse or old properties.
-                auto card=state.cards?state.cards->MenuTarget():FrameworkElement{nullptr};
-                if(!card||card.XamlRoot()!=sourceRoot)break;
+            POINT point{};bool placed=false;
+            // Over the key's center, wherever on the key the pointer was. The
+            // shell selected the XAML root/monitor: resolve that root's current
+            // card directly, never from old properties. Only a pointer gesture
+            // without a usable card falls back to its own position.
+            auto card=state.cards?state.cards->MenuTarget():FrameworkElement{nullptr};
+            if(card&&card.XamlRoot()==sourceRoot){
                 auto bounds=card.TransformToVisual(sourceRoot.Content()).TransformBounds(
                     {0,0,float(card.ActualWidth()),float(card.ActualHeight())});
-                if(!std::isfinite(bounds.X)||!std::isfinite(bounds.Y)||!std::isfinite(bounds.Width)||!std::isfinite(bounds.Height))break;
-                POINT origin{};if(!ClientToScreen(state.islandHwnd,&origin))break;
-                const RECT cardRect{origin.x+std::lround(bounds.X*scale),origin.y+std::lround(bounds.Y*scale),
-                    origin.x+std::lround((bounds.X+bounds.Width)*scale),origin.y+std::lround((bounds.Y+bounds.Height)*scale)};
-                if(!LeanDockMenu::CardAnchor(cardRect,dock,GetDpiForWindow(taskbar),point))break;
+                POINT origin{};
+                if(std::isfinite(bounds.X)&&std::isfinite(bounds.Y)&&std::isfinite(bounds.Width)&&std::isfinite(bounds.Height)&&
+                   ClientToScreen(state.islandHwnd,&origin)){
+                    const RECT cardRect{origin.x+std::lround(bounds.X*scale),origin.y+std::lround(bounds.Y*scale),
+                        origin.x+std::lround((bounds.X+bounds.Width)*scale),origin.y+std::lround((bounds.Y+bounds.Height)*scale)};
+                    placed=LeanDockMenu::CardAnchor(cardRect,dock,GetDpiForWindow(taskbar),point);
+                }
+            }
+            if(!placed){
+                if(!pointer)break;
+                point=LeanDockMenu::AnchorPoint(gesture.click,dock,GetDpiForWindow(taskbar));
             }
             const POINT screenPoint=point;
             if(!ScreenToClient(state.islandHwnd,&point))break;
-            auto local=root.TransformToVisual(frame.XamlRoot().Content()).Inverse().TransformPoint(
-                winrt::Windows::Foundation::Point{float(point.x/scale),float(point.y/scale)});
+            const winrt::Windows::Foundation::Point target{float(point.x/scale),float(point.y/scale)};
             auto anchor=state.menuAnchor.get();
             if(!anchor){
                 anchor=Controls::Button();anchor.Name(L"LeanDockMenuAnchor");
@@ -228,6 +233,11 @@ unsigned char WINAPI ShowLeanDockNativeMenu(FrameworkElement* source,void* model
                 anchor.IsHitTestVisible(false);anchor.IsTabStop(false);anchor.Opacity(0);
                 root.Children().Append(anchor);state.menuAnchor=winrt::make_weak(anchor);state.menuAnchorParent=winrt::make_weak(root);
             }
+            // RootGrid's padding moves its children, so measure where the
+            // anchor rests instead of assuming RootGrid's own corner.
+            anchor.RenderTransform(nullptr);anchor.UpdateLayout();
+            const auto rest=anchor.TransformToVisual(frame.XamlRoot().Content()).TransformPoint({0,0});
+            const winrt::Windows::Foundation::Point local{target.X-rest.X,target.Y-rest.Y};
             Media::TranslateTransform offset;offset.X(local.X);offset.Y(local.Y);anchor.RenderTransform(offset);anchor.UpdateLayout();
             *source=anchor; // native coroutine now owns the correct XAML anchor
             state.menuPlacementAt=pointer?gesture.at:GetTickCount64();
@@ -243,20 +253,32 @@ unsigned char WINAPI ShowLeanDockNativeMenu(FrameworkElement* source,void* model
     }catch(...){LeanDockMenu::Put(taskbar,L"LeanDock.Menu.Error",static_cast<ULONG_PTR>(winrt::to_hresult()));}
     return g_nativeDockMenu(source,model,frameArg,coordinator);
 }
-void InstallLeanDockMenuHook() {
-    const HMODULE module=GetModuleHandleW(L"Taskbar.View.dll");if(!module)return;
+// 0 waiting for Taskbar.View.dll, 1 hooked, 2 not hooked. Reported in the backend
+// status and required by the component health check.
+std::atomic<unsigned> g_leanDockMenuHook{0};
+// Explorer can load Taskbar.View.dll after the core started, so this runs again
+// from the load hook and after init. Missed, the key's menu opens at the hidden
+// native Start button. True when hooks were queued and need applying.
+bool InstallLeanDockMenuHook() {
+    static std::atomic<bool> claimed{false};
+    if(claimed)return false;
+    const HMODULE module=GetModuleHandleW(L"Taskbar.View.dll");
+    if(!module||claimed.exchange(true))return false;
     const WindhawkUtils::SYMBOL_HOOK hooks[]={{
         {LR"(struct winrt::fire_and_forget __cdecl winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync(struct winrt::Windows::UI::Xaml::FrameworkElement,struct winrt::WindowsUdk::UI::Shell::TaskbarModel,struct winrt::Taskbar::TaskbarFrame,struct winrt::com_ptr<struct winrt::Taskbar::implementation::ViewCoordinator>))"},
         &g_nativeDockMenu,ShowLeanDockNativeMenu
     }};
-    WindhawkUtils::HookSymbols(module,hooks,ARRAYSIZE(hooks));
+    const bool placement=WindhawkUtils::HookSymbols(module,hooks,ARRAYSIZE(hooks));
     const WindhawkUtils::SYMBOL_HOOK focusHooks[]={
         {{LR"(winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync$_ResumeCoro$1)"},&g_nativeMenuResume,nullptr,true},
         {{LR"(`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`63'::<lambda_7>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>)"},&g_nativeMenuShowLeft,nullptr,true},
         {{LR"(`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`68'::<lambda_8>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>)"},&g_nativeMenuShowRight,nullptr,true},
         {{LR"(public: __cdecl winrt::impl::consume_Windows_UI_Xaml_Controls_Primitives_IFlyoutBase5<struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutBase>::ShowAt(struct winrt::Windows::UI::Xaml::DependencyObject const &,struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutShowOptions const &)const)"},&g_nativeFlyoutShow,ShowLeanDockFlyout,true}
     };
-    WindhawkUtils::HookSymbols(module,focusHooks,ARRAYSIZE(focusHooks));
+    const bool focus=WindhawkUtils::HookSymbols(module,focusHooks,ARRAYSIZE(focusHooks));
+    g_leanDockMenuHook=placement&&focus?1:2;
+    if(!placement||!focus)Wh_Log(L"LeanDock menu hook not installed: placement=%d focus=%d",placement,focus);
+    return placement||focus;
 }
 
 using DockContextTarget=LeanDockContext::Target;

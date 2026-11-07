@@ -9,7 +9,7 @@
 
 <img src="docs/assets/badge-platform.svg" alt="platform: Windows 11">
 <img src="docs/assets/badge-cpp.svg" alt="C++23">
-<img src="docs/assets/badge-version.svg" alt="version 0.8.105">
+<img src="docs/assets/badge-version.svg" alt="version 0.8.106">
 <img src="docs/assets/badge-license.svg" alt="license: GPL-3.0">
 
 <br><br>
@@ -123,7 +123,7 @@ Dock 就是 Windows 自己的任务栏换了身衣服。拖拽、跳转列表、
 ## 🧩 顺手的小改进
 
 - **开始菜单**：“全部应用”不再按字母分组，排成一张紧凑的网格，高度跟着内容走。
-- **弹出位置**：开始菜单和快速设置都对准 Dock 中间弹出。
+- **弹出位置**：开始菜单和快速设置都对准 Dock 中间弹出；时间键的右键菜单和详情面板对准时间键，详情面板不超出 Dock 两端。它们都在 Dock 上方同样的距离。
 - **切换器**：Ctrl+Alt+Tab 窗口少的时候，预览图更大。
 - **最大化也能唤出**：最大化的窗口（比如 ChatGPT 桌面版）盖住屏幕底边时，照样能把 Dock 叫出来。
 - **不留缝**：任务栏设为自动隐藏时，有些应用会在底边留 1 像素空隙（比如栖页、Chromium 系应用）。LeanDock 让它们正常铺满屏幕，不修改应用本身。
@@ -262,6 +262,7 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 | 11 月 7 日 | 0.8.103 | 撤销 0.8.102 的图标放大（小图放大后发糊），图标逻辑回到之前的样子，其他不变 |
 | 11 月 7 日 | 0.8.104 | MinerU 这类图标不再很小：两倍取图拿到小图时，只有这个图标改用系统原尺寸的图 |
 | 11 月 7 日 | 0.8.105 | 单击过详情面板后，鼠标移开不再收起，点面板外面才关闭 |
+| 11 月 7 日 | 0.8.106 | 右键菜单和详情面板的位置统一：都在 Dock 上方 8 DIP、对准时间键；修复重启后右键菜单偶尔跑到左边 |
 
 ## 🙏 致谢
 

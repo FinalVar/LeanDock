@@ -6,6 +6,7 @@
 #include "sound-page-latest.h"
 #include "control-tests-latest.h"
 #include "../include/aggregate-bridge-latest.h"
+#include "../include/dock-geometry-latest.h"
 #include <cwchar>
 #include <imm.h>
 
@@ -60,12 +61,16 @@ struct Panel {
         popup.Destroy();if(control){DestroyWindow(control);control=nullptr;}
     }
     void Position(){
-        RECT anchor{};if(!Bridge::Anchor(bar,anchor)){Quit();return;}
-        MONITORINFO mon{sizeof(mon)};GetMonitorInfoW(MonitorFromRect(&anchor,MONITOR_DEFAULTTONEAREST),&mon);
-        const double left=std::clamp(double(anchor.right)-PanelWidth*dpi,double(mon.rcWork.left+8*dpi),
-            std::max(double(mon.rcWork.left+8*dpi),double(mon.rcWork.right)-(PanelWidth+8)*dpi));
-        const double top=std::max(double(mon.rcWork.top+8*dpi),double(anchor.top)-(10+popup.height)*dpi);
-        if(popup.rect.x!=left||popup.rect.y!=top||popup.rect.h!=popup.height*dpi)popup.Position(left,top);
+        RECT anchor{},dock{};if(!Bridge::Anchor(bar,anchor)){Quit();return;}
+        MONITORINFO mon{sizeof(mon)};
+        if(!LeanDockGeometry::Read(bar,dock,&mon)){
+            // A new Dock size is being published: stay put and read it next tick.
+            // With no position yet, the key alone is the reference.
+            if(popup.rect.w>0)return;
+            GetMonitorInfoW(MonitorFromRect(&anchor,MONITOR_DEFAULTTONEAREST),&mon);dock=anchor;
+        }
+        const auto at=LeanDockGeometry::PopupFromPart(anchor,dock,mon.rcWork,std::lround(PanelWidth*dpi),std::lround(popup.height*dpi),std::lround(dpi*96));
+        if(popup.rect.x!=at.x||popup.rect.y!=at.y||popup.rect.h!=popup.height*dpi)popup.Position(at.x,at.y);
     }
     void Paint(){
         if(closing||!popup.window)return;
@@ -422,7 +427,9 @@ struct Panel {
         // Inside the panel WM_MOUSEMOVE moves the light more finely.
         if(!popup.Hit(cursor.x,cursor.y))Light(cursor);
         // Before the reveal only the key counts: a pass-over ends the standby.
-        const bool inside=PtInRect(&anchor,cursor)||popup.Hit(cursor.x,cursor.y)||GetCapture()==popup.window;
+        // Once shown, the way up from the key to the panel counts as the key.
+        RECT reach=anchor;if(revealed)reach.top=std::min(reach.top,LONG(popup.rect.y+popup.rect.h));
+        const bool inside=PtInRect(&reach,cursor)||popup.Hit(cursor.x,cursor.y)||GetCapture()==popup.window;
         if(typing&&GetForegroundWindow()!=popup.window){Unfocus();Paint();}
         const bool pressed=PressedElsewhere();
         if(WindowSwitched()||stay.Close(inside,pressed,typing,GetTickCount64())){Quit(true);return;}

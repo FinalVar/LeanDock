@@ -70,6 +70,26 @@ inline bool RejectPointerReveal(HWND window) {
     return p.y>=monitor.rcMonitor.bottom-2 && p.y<monitor.rcMonitor.bottom &&
            p.x>=monitor.rcMonitor.left && p.x<monitor.rcMonitor.right && !InSpan(dock,p.x);
 }
+// Everything that opens from the Dock rests this far above the fully shown Dock.
+// The accepted Start and Quick binaries use the same 8 DIP through their own
+// formulas; tests/geometry-latest.cpp ties them together.
+inline constexpr int PopupGap=8;
+inline LONG PopupBottom(const RECT& dock,int dpi) {return dock.top-MulDiv(PopupGap,dpi,96);}
+// A popup opened from one part of the Dock (the time key): centered on that part,
+// then pushed inward so it does not stick out past the Dock's end. The screen edge
+// wins, and a Dock narrower than the popup leaves it centered on the part.
+inline POINT PopupFromPart(const RECT& part,const RECT& dock,const RECT& work,LONG width,LONG height,int dpi) {
+    const LONG margin=MulDiv(PopupGap,dpi,96);
+    LONG x=part.left+(part.right-part.left-width)/2;
+    if(dock.right-dock.left>=width)x=std::clamp(x,dock.left,dock.right-width);
+    x=std::clamp(x,work.left+margin,std::max(work.left+margin,work.right-margin-width));
+    return {x,std::max(work.top+margin,PopupBottom(dock,dpi)-height)};
+}
+// Add to a screen Y measured now to get where it rests once the Dock has finished
+// sliding. An auto-hidden or sliding window is below its shown position.
+inline LONG ShownShift(const RECT& window,const RECT& monitor) {
+    return monitor.bottom-(window.bottom-window.top)-window.top;
+}
 inline POINT HostPosition(const RECT& dock,const RECT& work,LONG width,LONG height,int dpi,bool rightAligned) {
     const LONG x=rightAligned?dock.right+MulDiv(12,dpi,96)-width:dock.left+(dock.right-dock.left-width)/2;
     return {std::clamp(x,work.left,std::max(work.left,work.right-width)),

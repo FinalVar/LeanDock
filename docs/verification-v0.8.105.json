@@ -1,0 +1,82 @@
+{
+  "version": "0.8.105",
+  "date": "2026-11-07T20:24:22+08:00",
+  "state": "Deployed and accepted by the user",
+  "backendVersion": "0.5.90",
+  "controllerVersion": "0.3.42",
+  "panelVersion": "0.8.105",
+  "change": "After a left click on the panel or a page, the pointer leaving no longer closes it; a press elsewhere, Escape or another window coming forward does. Dragging a slider does not count as a click. Without a click the panel behaves as before. Backend changes only by the pinned panel hash and version.",
+  "userRequest": {
+    "At": "2026-11-07",
+    "Answer": "鼠标移上去腰圆键出现的面板，我希望如果单击过，不要鼠标一移开面板它就自动消失，而是点一下其他部分才消去。如果没单击过就还是原样，你看着办。"
+  },
+  "decisions": {
+    "SliderDrag": "Not a click; adjust and move away still closes, the flow accepted in 0.8.81",
+    "QuickTap": "The low bit of GetAsyncKeyState plus a down edge catch a press between two 50 ms ticks; panelPress excludes presses the panel itself received",
+    "WindowSwitch": "Once clicked, another foreground window closes it, as a fallback for presses that cannot be read"
+  },
+  "checks": {
+    "PolicyChecks": "252, of which 18 new for PanelStay; run in all three probe cycles"
+  },
+  "preDeployValidation": {
+    "ValidateOnly": "passed",
+    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.105-outputs\\pre-deploy-20261107-201941)",
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "deployment": {
+    "Version": "0.8.105",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Autotest": "AutomatedChecksPassed",
+    "Explorer": "pid 464, restarted 20:24:10 by the update; Native Dock active 20:24:22",
+    "RuntimeFiles": {
+      "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
+      "latest.dll": "08389B456BBB15D84FB7C7AFCCD81D80D2300AE1480BF849F187350316391713",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "1A7F7699C091DD1DC1B967D519C6F5C32069C234863C161589057FF562775A57"
+    },
+    "ConfigUnchanged": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "observed": {
+    "MinerU": "This Explorer start the 256 px list returned real artwork: slot 3 Status 2, Scale 1.1327, bounds 23-361 of 384, NativeFallback not set. In 0.8.104 the same icon needed the fallback (bounds 20-362). No icon code changed between them, so what the list holds varies between Explorer starts; the cause is not established.",
+    "HookCount": "Backend reports 68 hooks; 0.8.104 reported 70 and 0.8.103 reported 69, with no change in hook code. The icon hook is in one all-or-none batch with the source budget, which is active (SourceDips 80). No failure in the backend log. Native Dock became active 12 s after the restart against 5 s in 0.8.104; hooks that wait for a module to load may account for it. Not verified."
+  },
+  "rollback": "backups/before-0.8.105-20261107-202406965 returns to 0.8.104. backups/before-0.8.103-20261107-193042697 returns to clean 0.8.103. before-0.8.104-20261107-195123457 (diagnostic) and before-0.8.103-20261107-193830955 (two-times source off) hold experiment builds; do not use them.",
+  "previousAcceptance": {
+    "version": "0.8.104",
+    "record": "docs/verification-v0.8.104.json",
+    "user": "可以，提交并推送"
+  },
+  "knownLimits": [
+    "The press that closes the panel also reaches the window under it",
+    "Any application taking the foreground closes a panel that was clicked",
+    "MinerU is softer than its neighbours when the fallback is used: 72 px source enlarged to 120 before display",
+    "Bluetooth connect and disconnect apply to audio devices only",
+    "The saved Wi-Fi list can show a network that is no longer in range until the first scan ends, about 2 s"
+  ],
+  "notVerified": [
+    "A press inside a foreground elevated window",
+    "Whether a quick tap outside was among the cases the user tried",
+    "MinerU and the other icons on the real screen",
+    "wifi-last-latest.bin in the installed panel: saving and reading ran only in the dev probe",
+    "Charge bolt on the real screen"
+  ],
+  "userAcceptance": {
+    "At": "2026-11-07",
+    "Answer": "没问题了",
+    "Scope": "The user tried it and replied to the question about committing; which cases were tried was not stated."
+  }
+}

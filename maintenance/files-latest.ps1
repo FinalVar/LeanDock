@@ -62,8 +62,12 @@ function Get-LeanDockReadinessFailures($State,[string[]]$Required){
 }
 function Get-LeanDockComponentHealth($State){
  if(-not $State.Running){return [pscustomobject]@{State='Stopped';Unavailable=@();Pending=@()}}
+ # The key's menu is placed by a hook that can only install once Taskbar.View.dll is loaded.
+ $backend=if($State.PSObject.Properties['Backend']){$State.Backend}
+ $menuHook=if($backend -and $backend.PSObject.Properties['menuHook']){$backend.menuHook}
  $unavailable=@(
   if(-not $State.DockReady){'Dock'}
+  if($menuHook -eq 2){'KeyMenu'}
   if(-not $State.HotCornersReady){'HotCorners'}
   if(-not $State.StartLayoutSupported -or $State.StartLayoutBlocked){'StartLayout'}
   if($State.SearchPosition -and (-not $State.SearchPosition.Supported -or $State.SearchPosition.Blocked -or $State.SearchPosition.Failures)){'SearchPosition'}
@@ -71,6 +75,7 @@ function Get-LeanDockComponentHealth($State){
   if($State.ClientEdge -and $State.ClientEdge.Supported -and -not $State.ClientEdge.Ready -and -not $State.ClientEdge.RetryScheduled){'ClientEdge'}
  )
  $pending=@(
+  if($menuHook -eq 0 -and $null -ne $menuHook){'KeyMenu'}
   if('StartLayout' -notin $unavailable -and -not $State.StartLayoutReady){'StartLayout'}
   if($State.SearchPosition -and 'SearchPosition' -notin $unavailable -and -not $State.SearchPosition.Active){'SearchPosition'}
   if('QuickSettings' -notin $unavailable -and (-not $State.QuickSettingsPosition.Active -or -not $State.QuickTheme.active)){'QuickSettings'}

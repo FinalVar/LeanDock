@@ -15,7 +15,7 @@ inline void Put(HWND window,const wchar_t* name,ULONG_PTR value) {
     if(window)SetPropW(window,name,reinterpret_cast<HANDLE>(value+1));
 }
 inline POINT AnchorPoint(POINT click,const RECT& dock,int dpi) {
-    return {std::clamp(click.x,dock.left,dock.right-1),dock.top-MulDiv(8,dpi>0?dpi:96,96)};
+    return {std::clamp(click.x,dock.left,dock.right-1),LeanDockGeometry::PopupBottom(dock,dpi>0?dpi:96)};
 }
 inline bool CardAnchor(const RECT& card,const RECT& dock,int dpi,POINT& point) {
     // Vertical card coordinates can be offscreen during auto-hide. Use the

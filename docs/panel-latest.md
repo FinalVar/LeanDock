@@ -176,3 +176,21 @@ PDH 的“GPU Engine”计数器和任务管理器读的是同一组内核节点
 - 点外面的那一下照常落到下面的窗口上，面板不拦截。
 
 这些规则的自动检查只有纯逻辑检查和隐藏生命周期测试，没有发送桌面输入。用户 11-07 试过后回复“没问题了”；高权限窗口在前台时的情况没有实测。
+
+## 出现位置（0.8.106）
+
+从 Dock 弹出的东西用同一条线：完全显示的 Dock 顶边上方 8 DIP（`LeanDockGeometry::PopupBottom`）。横向按打开它的东西来定：
+
+| 内容 | 横向 | 来源 |
+| --- | --- | --- |
+| 开始、搜索、快捷设置 | 对准 Dock 中心 | 已验收的 start/panels 二进制，公式没动，`tests/geometry-latest.cpp` 核对同一条线 |
+| 时间键右键菜单 | 对准键中心，不随指针在键上的位置变化 | `ShowLeanDockNativeMenu` |
+| 悬停面板 | 对准键中心，再收进 Dock 范围；Dock 比面板窄时不收，屏幕边界优先 | `PopupFromPart` |
+
+三个容易再犯的点：
+
+- **钩子安装时机**：`InstallLeanDockMenuHook` 现在在初始化、初始化后和每次 `LoadLibraryExW` 都会尝试，只装一次。Explorer 可能晚于后端加载 `Taskbar.View.dll`，只试一次时菜单会退回隐藏的原生开始按钮处。状态写入 `latest-backend.json` 的 `menuHook`（0 等模块、1 已装、2 失败），2 让组件健康变成 Degraded，0 变成 WaitingForHost，自动检查都不会通过。
+- **纵向不用当前位置**：自动隐藏时任务栏窗口在屏幕下方，上滑中也不在最终位置。`PublishAnchor` 发布的是 Dock 完全显示时键所在的位置（`ShownShift`），面板也用 Dock 的投影几何而不是键的当前 Y。
+- **菜单锚点的实际落点**：RootGrid 的 Padding 会把子元素右移 12 DIP，所以先量锚点静止时的位置再算偏移，不假设它从 RootGrid 左上角开始。
+
+面板离开键更远了（150% 缩放下从 15 px 到约 23 px），所以面板显示后，从键到面板之间那段路也算在键上，慢慢移上去不会收起。

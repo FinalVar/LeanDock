@@ -241,6 +241,9 @@ def main():
             continue;
         }""")
             source = replace_once(source, 'BOOL Wh_ModInit() {', 'BOOL Wh_ModInit() {\n    InstallLeanDockMenuHook();')
+            source = replace_once(source, 'void Wh_ModAfterInit() {', 'void Wh_ModAfterInit() {\n    if (InstallLeanDockMenuHook()) Wh_ApplyHookOperations();')
+            source = replace_once(source, '    HMODULE module = LoadLibraryExW_Original(lpLibFileName, hFile, dwFlags);\n',
+                '    HMODULE module = LoadLibraryExW_Original(lpLibFileName, hFile, dwFlags);\n    if (module && InstallLeanDockMenuHook()) Wh_ApplyHookOperations();\n')
             signature = "LRESULT CALLBACK ClickThroughTaskbarSubclassProc("
             start = source.index(signature)
             body = source.index("    switch (uMsg) {", start)
@@ -517,6 +520,7 @@ void StopEventThread() {
             source += f'extern "C" void Native_{name}_before() {{ {namespace}{name.title()}ComponentBeforeUninit(); }}\n'
             source += f'extern "C" void Native_{name}_resume() {{ {namespace}g_unloading=false; {namespace}{name.title()}ComponentAfterInit(); }}\n'
         if name == "styler":
+            source += '\nextern "C" unsigned Native_styler_menu_hook() { return g_leanDockMenuHook.load(); }\n'
             source += '\nextern "C" unsigned Native_styler_count() { unsigned count=0; HWND w=GetTaskbarUiWnd(); if(w) RunFromWindowThread(w, [](void* p){ *static_cast<unsigned*>(p)=static_cast<unsigned>(g_elementsCustomizationState.size()); }, &count); return count; }\n'
         if name == "tray":
             source += '\nextern "C" void Native_tray_refresh_cards() { NDTray::UpdateUnifiedDockGrid(); }\n'

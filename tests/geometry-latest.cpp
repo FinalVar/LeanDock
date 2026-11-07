@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <thread>
 #include <atomic>
+#include <cmath>
 int main() {
     using namespace LeanDockGeometry;
     unsigned checks=0,failed=0;
@@ -17,6 +18,40 @@ int main() {
         check(p.x+576-MulDiv(12,dpi,96)==dock.right);
         p=HostPosition(dock,mon,2560,1400,dpi,false);
         check(p.x==mon.left);
+        // One gap for everything: the same line as the shell windows' visible edge.
+        check(PopupBottom(dock,dpi)==dock.top-MulDiv(8,dpi,96));
+        check(HostPosition(dock,mon,800,600,dpi,false).y+600-MulDiv(12,dpi,96)==PopupBottom(dock,dpi));
+        {   const LONG w=MulDiv(300,dpi,96),h=MulDiv(408,dpi,96),middle=(dock.left+dock.right)/2,margin=MulDiv(8,dpi,96);
+            // In the middle of the Dock: centered on the part, on the shared line.
+            auto at=PopupFromPart({middle-50,dock.top+10,middle+50,dock.bottom-10},dock,mon,w,h,dpi);
+            check(std::abs(at.x+w/2.0-middle)<=1&&at.y+h==PopupBottom(dock,dpi));
+            // At either end: pushed inward until flush with the Dock.
+            at=PopupFromPart({dock.right-200,dock.top+10,dock.right-100,dock.bottom-10},dock,mon,w,h,dpi);
+            check(at.x+w==dock.right&&at.x<=dock.right-200);
+            at=PopupFromPart({dock.left,dock.top+10,dock.left+100,dock.bottom-10},dock,mon,w,h,dpi);
+            check(at.x==dock.left);
+            // A Dock narrower than the popup leaves it centered on the part.
+            const RECT narrow{middle-60,dock.top,middle+60,dock.bottom};
+            at=PopupFromPart({middle-50,dock.top+10,middle+50,dock.bottom-10},narrow,mon,w,h,dpi);
+            check(std::abs(at.x+w/2.0-middle)<=1);
+            // The screen edge wins over the part and the Dock.
+            const RECT wide{mon.left,dock.top,mon.right,dock.bottom};
+            at=PopupFromPart({mon.right-100,dock.top+10,mon.right,dock.bottom-10},wide,mon,w,h,dpi);
+            check(at.x+w==mon.right-margin);
+            at=PopupFromPart({mon.left,dock.top+10,mon.left+100,dock.bottom-10},wide,mon,w,h,dpi);
+            check(at.x==mon.left+margin);
+            // Too tall for the space: keeps the top on screen.
+            at=PopupFromPart({middle-50,dock.top+10,middle+50,dock.bottom-10},dock,mon,w,5000,dpi);
+            check(at.y==mon.top+margin);
+        }
+        // Measured hidden or mid-slide, a Y still lands where the Dock comes to rest.
+        {   const LONG tall=dock.bottom-dock.top;
+            const RECT shown{mon.left,mon.bottom-tall,mon.right,mon.bottom},hidden{mon.left,mon.bottom-2,mon.right,mon.bottom-2+tall};
+            const RECT sliding{mon.left,mon.bottom-tall+37,mon.right,mon.bottom+37};
+            check(ShownShift(shown,mon)==0);
+            check(hidden.top+11+ShownShift(hidden,mon)==shown.top+11);
+            check(sliding.top+11+ShownShift(sliding,mon)==shown.top+11);
+        }
         RECT side{mon.left, dock.top, dock.left, mon.bottom};
         check(!Overlaps(side,dock)); // merely touching the left edge
         ++side.right;check(Overlaps(side,dock)); // one physical pixel inside

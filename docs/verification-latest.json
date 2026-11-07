@@ -1,26 +1,26 @@
 {
-  "version": "0.8.105",
-  "date": "2026-11-07T20:24:22+08:00",
-  "state": "Deployed and accepted by the user",
-  "backendVersion": "0.5.90",
+  "version": "0.8.106",
+  "date": "2026-11-07T21:56:22+08:00",
+  "state": "Deployed; the user asked to commit and sync",
+  "backendVersion": "0.5.91",
   "controllerVersion": "0.3.42",
-  "panelVersion": "0.8.105",
-  "change": "After a left click on the panel or a page, the pointer leaving no longer closes it; a press elsewhere, Escape or another window coming forward does. Dragging a slider does not count as a click. Without a click the panel behaves as before. Backend changes only by the pinned panel hash and version.",
+  "panelVersion": "0.8.106",
+  "change": "The time key's menu and panel use one placement rule: 8 DIP above the fully shown Dock, centered on the key, the panel kept within the Dock's span. The menu hook now installs even when Taskbar.View.dll loads after the backend, and its state is reported in the component health.",
   "userRequest": {
     "At": "2026-11-07",
-    "Answer": "鼠标移上去腰圆键出现的面板，我希望如果单击过，不要鼠标一移开面板它就自动消失，而是点一下其他部分才消去。如果没单击过就还是原样，你看着办。"
+    "Answer": "腰圆右键菜单出现的位置不对，悬停出现的面板位置也不对，单击出现的位置倒还好。你自己统一处理此类问题。关于出现位置的问题"
   },
-  "decisions": {
-    "SliderDrag": "Not a click; adjust and move away still closes, the flow accepted in 0.8.81",
-    "QuickTap": "The low bit of GetAsyncKeyState plus a down edge catch a press between two 50 ms ticks; panelPress excludes presses the panel itself received",
-    "WindowSwitch": "Once clicked, another foreground window closes it, as a fallback for presses that cannot be read"
+  "findings": {
+    "Menu": "In the Explorer started at 20:24 the backend reported 68 hooks and LeanDock.Menu.NativeCalls was absent after 7 right clicks: the menu hook never ran, so the menu opened at the hidden native Start button (user's screenshot: about x 668-941, key at 1573-1681). InstallLeanDockMenuHook returned for good when Taskbar.View.dll was not yet loaded.",
+    "Panel": "Bottom edge was anchor.top-10 DIP, 4 px above the Dock at 150% against 12 px for the other popups. The anchor was the key's current Y; a published value of 1609 was read while the Dock was hidden (shown position 1515)."
   },
   "checks": {
-    "PolicyChecks": "252, of which 18 new for PanelStay; run in all three probe cycles"
+    "Geometry": "New PopupBottom, PopupFromPart and ShownShift checks at 3 origins and 4 DPI values",
+    "Health": "KeyMenu reported Unavailable or Pending; 4 new checks in tests/maintenance-latest.ps1"
   },
   "preDeployValidation": {
     "ValidateOnly": "passed",
-    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.105-outputs\\pre-deploy-20261107-201941)",
+    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.106-outputs\\pre-deploy-20261107-215233)",
     "ConfigPreserved": [
       "latest.ini",
       "hotcorners/latest.ini",
@@ -28,55 +28,54 @@
     ]
   },
   "deployment": {
-    "Version": "0.8.105",
+    "Version": "0.8.106",
     "Live": true,
-    "ComponentHealth": {
-      "State": "Ready",
-      "Unavailable": [],
-      "Pending": []
-    },
     "Autotest": "AutomatedChecksPassed",
-    "Explorer": "pid 464, restarted 20:24:10 by the update; Native Dock active 20:24:22",
+    "Explorer": "pid 26220, restarted 21:56:17 by the update; Native Dock active 21:56:22",
+    "Backend": {
+      "hooks": 70,
+      "menuHook": 1
+    },
     "RuntimeFiles": {
       "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
-      "latest.dll": "08389B456BBB15D84FB7C7AFCCD81D80D2300AE1480BF849F187350316391713",
+      "latest.dll": "CDD9A415AEA374D7D56CA58FE76722D463D0454AB8C90E1C2266D2C73476D295",
       "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
       "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
-      "aggregate/latest.exe": "1A7F7699C091DD1DC1B967D519C6F5C32069C234863C161589057FF562775A57"
+      "aggregate/latest.exe": "F08FEC6E73B5A761DC53F8BCE87189353CDDD070A19B480AE1C0C2982FBCFA81"
     },
     "ConfigUnchanged": [
       "latest.ini",
       "hotcorners/latest.ini",
       "cards/latest.ini"
-    ]
+    ],
+    "ComponentHealth": {
+      "State": "Ready",
+      "Source": "Required by the autotest's final snapshot, which now includes KeyMenu"
+    }
   },
-  "observed": {
-    "MinerU": "This Explorer start the 256 px list returned real artwork: slot 3 Status 2, Scale 1.1327, bounds 23-361 of 384, NativeFallback not set. In 0.8.104 the same icon needed the fallback (bounds 20-362). No icon code changed between them, so what the list holds varies between Explorer starts; the cause is not established.",
-    "HookCount": "Backend reports 68 hooks; 0.8.104 reported 70 and 0.8.103 reported 69, with no change in hook code. The icon hook is in one all-or-none batch with the source budget, which is active (SourceDips 80). No failure in the backend log. Native Dock became active 12 s after the restart against 5 s in 0.8.104; hooks that wait for a module to load may account for it. Not verified."
-  },
-  "rollback": "backups/before-0.8.105-20261107-202406965 returns to 0.8.104. backups/before-0.8.103-20261107-193042697 returns to clean 0.8.103. before-0.8.104-20261107-195123457 (diagnostic) and before-0.8.103-20261107-193830955 (two-times source off) hold experiment builds; do not use them.",
+  "rollback": "backups/before-0.8.106-20261107-215614733 returns to 0.8.105.",
   "previousAcceptance": {
-    "version": "0.8.104",
-    "record": "docs/verification-v0.8.104.json",
-    "user": "可以，提交并推送"
+    "version": "0.8.105",
+    "record": "docs/verification-v0.8.105.json",
+    "user": "没问题了"
   },
   "knownLimits": [
-    "The press that closes the panel also reaches the window under it",
-    "Any application taking the foreground closes a panel that was clicked",
-    "MinerU is softer than its neighbours when the fallback is used: 72 px source enlarged to 120 before display",
-    "Bluetooth connect and disconnect apply to audio devices only",
-    "The saved Wi-Fi list can show a network that is no longer in range until the first scan ends, about 2 s"
+    "Start, Search and Quick settings keep their accepted binaries and stay centered on the Dock",
+    "Other menus, such as app and tray icon menus, are placed by Windows or the application"
   ],
   "notVerified": [
-    "A press inside a foreground elevated window",
-    "Whether a quick tap outside was among the cases the user tried",
-    "MinerU and the other icons on the real screen",
-    "wifi-last-latest.bin in the installed panel: saving and reading ran only in the dev probe",
-    "Charge bolt on the real screen"
+    "The menu window's actual rectangle: only its anchor was measured",
+    "The late-install path: in this Explorer start Taskbar.View.dll was already loaded, so the retry did not run. It is reasoned from the code, and the health check reports a miss.",
+    "Multi-monitor and other DPI values on the real machine; covered only by geometry checks"
   ],
   "userAcceptance": {
     "At": "2026-11-07",
-    "Answer": "没问题了",
-    "Scope": "The user tried it and replied to the question about committing; which cases were tried was not stated."
+    "Answer": "ok，提交同步吧",
+    "Scope": "Reply after being asked to check the right-click menu position; the user did not state what was checked."
+  },
+  "observed": {
+    "Panel": "Read during real use at 22:01:17, 150%: Dock 842-1719, key 1495-1603, panel 1269-1719 with its bottom edge at 1492, 12 px above the Dock.",
+    "MenuAnchor": "LeanDock.Menu.NativeStage 5, screen point 1549,1492: the key's center, 12 px above the Dock.",
+    "LogWindow": "A read-only sampler ran 21:59:52-22:11:52 and did not catch a menu window; the panel opened once."
   }
 }
