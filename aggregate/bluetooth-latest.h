@@ -20,6 +20,7 @@ struct BluetoothList {
     std::vector<BluetoothDevice> devices;
     std::wstring busy,failed,failure; // busy: the device being connected or disconnected
     bool ready=false,connecting=false; // connecting: what busy is doing
+    bool unreadable=false; // the last read failed or timed out; it is retried
 };
 // Class of Device for classic devices (Assigned Numbers 2.8: major, then
 // the six minor bits) and GAP Appearance for LE ones (2.6).
@@ -167,18 +168,21 @@ class BluetoothBackend {
             return size_t(at-b.devices.begin());
         };
         std::stable_sort(list.begin(),list.end(),[&](BluetoothDevice const& a,BluetoothDevice const& c){return rank(a)<rank(c);});
-        b.devices=std::move(list);b.ready=true;readAt=now;
+        b.devices=std::move(list);b.ready=true;b.unreadable=false;readAt=now;
     }
     void Fail(BluetoothList& b,std::wstring const& id,const wchar_t* text){
         b.busy.clear();b.failed=id;b.failure=text;change.reset();
     }
     // One connected device's battery, one query at a time, each at most
-    // every 30 s while the page is open.
-    void BatteryPump(BluetoothList const& b,uint64_t now){
+    // every 30 s while the page is open. A finished query goes straight onto
+    // the rows: it takes about 40 ms, the next device read comes 2 s later.
+    // Returns true when a row changed.
+    bool BatteryPump(BluetoothList& b,uint64_t now){
         using namespace winrt::Windows::Devices::Enumeration;
+        bool changed=false;
         if(battery){
             const auto status=battery.Status();
-            if(status==AsyncStatus::Started&&now-batteryAt<QueryLimit)return;
+            if(status==AsyncStatus::Started&&now-batteryAt<QueryLimit)return false;
             int level=-1;
             if(status==AsyncStatus::Completed){
                 for(auto const& node:battery.GetResults())
@@ -187,6 +191,7 @@ class BluetoothBackend {
             battery=nullptr;
             auto at=std::find_if(levels.begin(),levels.end(),[&](auto const& l){return l.first==batteryFor;});
             if(at==levels.end())levels.push_back({batteryFor,{level,now}});else at->second={level,now};
+            for(auto& d:b.devices)if(d.connected&&d.container==batteryFor&&d.battery!=level){d.battery=level;changed=true;}
         }
         for(auto const& d:b.devices){
             if(!d.connected||d.container==winrt::guid{})continue;
@@ -194,8 +199,9 @@ class BluetoothBackend {
             if(at!=levels.end()&&now-at->second.second<BatteryEvery)continue;
             const auto aqs=L"System.Devices.ContainerId:=\""+std::wstring(winrt::to_hstring(d.container))+L"\"";
             battery=DeviceInformation::FindAllAsync(aqs,winrt::single_threaded_vector<winrt::hstring>({Battery}),DeviceInformationKind::Device);
-            batteryAt=now;batteryFor=d.container;return;
+            batteryAt=now;batteryFor=d.container;return changed;
         }
+        return changed;
     }
 public:
     bool Active()const{return active;}
@@ -210,28 +216,38 @@ public:
                 const auto status=query.Status();
                 if(status==AsyncStatus::Started&&now-queryAt<QueryLimit)return false;
                 if(status==AsyncStatus::Completed){Read(b,query.GetResults(),now);changed=true;}
-                else{if(status==AsyncStatus::Started)query.Cancel();readAt=now;}
+                else{
+                    // Say so rather than "reading" for as long as the page is open.
+                    if(status==AsyncStatus::Started)query.Cancel();
+                    if(!b.unreadable)Log(L"bluetooth-read-failed",long(status));
+                    readAt=now;b.ready=true;changed=!b.unreadable;b.unreadable=true;
+                }
                 query=nullptr;
                 if(change)if(auto d=std::find_if(b.devices.begin(),b.devices.end(),[&](auto const& d){return d.id==change->id;});
                     d!=b.devices.end()&&d->connected==change->connect){++writes;b.busy.clear();change.reset();}
             }
             if(change&&now-change->at>ChangeLimit){Fail(b,change->id,change->connect?L"没有连上，请确认设备已开机且在附近":L"设备没有断开，请重试");changed=true;}
             if(!query&&(!readAt||now-readAt>=(change?500:ReadEvery))){
-                // Paired devices of both kinds: classic (BR/EDR) and LE.
-                const wchar_t* aqs=L"System.Devices.Aep.IsPaired:=System.StructuredQueryType.Boolean#True AND "
+                // Paired devices of both kinds: classic (BR/EDR) and LE. The
+                // form of BluetoothDevice::GetDeviceSelectorFromPairingState:
+                // without the IssueInquiry term the query scans the radio and
+                // takes about 30 s (measured) instead of 30 ms.
+                const wchar_t* aqs=L"System.Devices.DevObjectType:=5 AND "
                     L"(System.Devices.Aep.ProtocolId:=\"{e0cbf06c-cd8b-4647-bb8a-263b43f0f974}\" OR "
-                    L"System.Devices.Aep.ProtocolId:=\"{bb7bb05e-5972-42b5-94fc-76eaa7084d49}\")";
+                    L"System.Devices.Aep.ProtocolId:=\"{bb7bb05e-5972-42b5-94fc-76eaa7084d49}\") AND "
+                    L"(System.Devices.Aep.IsPaired:=System.StructuredQueryType.Boolean#True OR "
+                    L"System.Devices.Aep.Bluetooth.IssueInquiry:=System.StructuredQueryType.Boolean#False)";
                 query=DeviceInformation::FindAllAsync(aqs,winrt::single_threaded_vector<winrt::hstring>(
                     {Connected,Container,Major,Minor,Category,Subcategory}),DeviceInformationKind::AssociationEndpoint);
                 queryAt=now;
             }
-            if(b.ready)BatteryPump(b,now);
+            if(b.ready&&BatteryPump(b,now))changed=true;
         }catch(...){
             Log(L"bluetooth-page-error",winrt::to_hresult());
             if(query)try{query.Cancel();}catch(...){}query=nullptr;readAt=now;
             if(battery)try{battery.Cancel();}catch(...){}battery=nullptr;
             if(change)Fail(b,change->id,L"蓝牙设备操作失败");
-            if(!b.ready){b.ready=true;changed=true;}
+            if(!b.ready||!b.unreadable){b.ready=true;b.unreadable=true;changed=true;}
         }
         return changed;
     }

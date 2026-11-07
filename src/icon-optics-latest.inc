@@ -13,7 +13,8 @@ struct State {
     Media::TransformGroup applied{nullptr};
     Controls::Canvas sampleHost{nullptr};
     winrt::weak_ref<Controls::Panel> sampleParent;
-    winrt::Windows::Foundation::IInspectable originalLocal{nullptr};
+    winrt::Windows::Foundation::IInspectable originalLocal{nullptr},originalClip{nullptr};
+    Media::RectangleGeometry clip{nullptr};
     winrt::Windows::Foundation::IAsyncAction render{nullptr};
 };
 thread_local std::unordered_map<ElementId,std::shared_ptr<State>> states;
@@ -37,6 +38,11 @@ bool IsAppIcon(Controls::Image const& image) {
     return false;
 }
 void Restore(State& s) noexcept {
+    try{if(auto image=s.image.get();image&&s.clip&&image.Clip()==s.clip){
+        if(s.originalClip==DependencyProperty::UnsetValue())image.ClearValue(UIElement::ClipProperty());
+        else image.SetValue(UIElement::ClipProperty(),s.originalClip);
+    }}catch(...){}
+    s.clip=nullptr;s.originalClip=nullptr;
     try{if(auto image=s.image.get();image&&s.applied&&image.RenderTransform()==s.applied){
         s.writing=true;
         if(s.originalLocal==DependencyProperty::UnsetValue())image.ClearValue(UIElement::RenderTransformProperty());
@@ -169,6 +175,13 @@ winrt::fire_and_forget Measure(std::shared_ptr<State> s) {
                                 if(previous)group.Children().Append(previous);
                                 s->applied=group;s->writing=true;
                                 image.RenderTransform(group);
+                                if(fit.clip&&!image.GetBindingExpression(UIElement::ClipProperty())){
+                                    s->originalClip=image.ReadLocalValue(UIElement::ClipProperty());
+                                    Media::RectangleGeometry clip;
+                                    clip.Rect({float(fit.clipLeft*width),float(fit.clipTop*height),
+                                        float((fit.clipRight-fit.clipLeft)*width),float((fit.clipBottom-fit.clipTop)*height)});
+                                    image.Clip(clip);s->clip=clip;
+                                }
                                 s->writing=false;Put(*s,L"Status",2);
                             }
                         }

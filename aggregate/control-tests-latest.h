@@ -167,6 +167,16 @@ inline unsigned VerifyWifiModel(){
     view.expanded=list.networks.back().ssid;WifiLayout end(list,view,406);auto last=end.Find(view.expanded);
     const float scroll=end.Reveal(*last,0);check(scroll>0&&last->y+last->h<=scroll+end.view+.01f);
     check(WifiFailure(3)==L"密码不正确"&&WifiFailure(99)==L"无法连接到这个网络");
+    // The list saved between hovers: everything but the live connected state
+    // comes back, and damage loses only what follows it.
+    auto packed=PackNetworks(list.networks);auto back=UnpackNetworks(packed);
+    check(back.size()==list.networks.size());
+    for(size_t i=0;i<back.size();++i){
+        auto const& was=list.networks[i];auto const& n=back[i];
+        check(n.ssid==was.ssid&&n.bars==was.bars&&n.secure==was.secure&&n.enterprise==was.enterprise&&n.psk==was.psk&&n.saved==was.saved&&!n.connected);
+    }
+    check(UnpackNetworks(std::string_view(packed).substr(0,packed.size()-1)).size()==back.size()-1);
+    check(UnpackNetworks({}).empty()&&UnpackNetworks(std::string("\xff\0\0\0",4)).empty()&&UnpackNetworks(std::string("\x02\0\x09\0abcd",8)).empty());
     return count;
 }
 inline BluetoothList FixtureDevices(){

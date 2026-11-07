@@ -74,6 +74,7 @@ inline void PaintBluetoothPage(Drawing& draw,ID2D1DeviceContext* dc,Sample const
     else if(s.bluetooth==3)empty=L"蓝牙已被硬件开关关闭";
     else if(s.bluetooth<0)empty=L"没有找到蓝牙适配器";
     else if(!list.ready)empty=L"正在读取设备…";
+    else if(list.devices.empty()&&list.unreadable)empty=L"读不到已配对的设备，正在重试";
     else if(list.devices.empty()){empty=L"没有已配对的设备";hint=L"新设备请在 Windows 设置中配对";}
     if(!empty.empty()){
         CenterText(draw,dc,empty,{14,l.top+40,272,24},13,c.secondary);

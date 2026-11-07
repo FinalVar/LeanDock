@@ -3,7 +3,7 @@ $ErrorActionPreference='Stop'
 . (Join-Path (Split-Path $PSScriptRoot -Parent) 'build\toolchain-latest.ps1')
 $CompilerRoot=Resolve-LeanDockCompiler $CompilerRoot
 $target=Join-Path $PSScriptRoot 'cards-aggregate-host-latest.exe'
-& (Join-Path $CompilerRoot 'bin\clang++.exe') -I (Join-Path (Split-Path $PSScriptRoot -Parent) 'include') -target x86_64-w64-mingw32 -std=c++23 -O1 -static -DUNICODE -D_UNICODE -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -DNTDDI_VERSION=0x0A000008 (Join-Path $PSScriptRoot 'cards-aggregate-host-latest.cpp') -o $target -lole32 -loleaut32 -lruntimeobject -luser32 -lbcrypt -luuid -lwbemuuid
+& (Join-Path $CompilerRoot 'bin\clang++.exe') -I (Join-Path (Split-Path $PSScriptRoot -Parent) 'include') -target x86_64-w64-mingw32 -std=c++23 -O1 -static -DUNICODE -D_UNICODE -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -DNTDDI_VERSION=0x0A000008 (Join-Path $PSScriptRoot 'cards-aggregate-host-latest.cpp') -o $target -lole32 -loleaut32 -lruntimeobject -luser32 -lbcrypt
 if($LASTEXITCODE){throw 'Aggregate fixture compilation failed'}
 if(-not ('LeanDockAggregateManifest' -as [type])){Add-Type @'
 using System;using System.Runtime.InteropServices;

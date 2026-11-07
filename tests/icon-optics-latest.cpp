@@ -33,8 +33,21 @@ int main(){
     Check(Near(rect.scale,64.0/52),"rectangular source uses its visible longest edge");
     Check(Near(rect.x,0)&&Near(rect.y,0),"rectangular source remains uniformly centered");
     auto cap=Measure(Box(64,64,12,12,52,52),64,64);
-    Check(cap.valid&&Near(cap.scale,1.35),"bounded enlargement");
-    Check(!Measure(Box(64,64,25,25,39,39),64,64).valid,"tiny placeholders retain native");
+    Check(cap.valid&&Near(cap.scale,64.0/40)&&cap.clip,"wide padding fills the box too");
+    Check(!pi.clip&&!ag.clip&&!full.clip,"ordinary padding is not cut");
+    auto small=Measure(Box(64,64,25,25,39,39),64,64);
+    Check(small.valid&&Near(small.scale,64.0/14)&&Near(small.x,0)&&Near(small.y,0),"small artwork fills the box");
+    // As handed over for a just-pinned app: 72 px on a 256 px canvas, faint frame.
+    auto framed=Box(256,256,92,92,164,164);
+    for(int i=0;i<256;++i)for(int at:{i,255*256+i,i*256,i*256+255})framed[at*4+3]=24;
+    auto tiny=Measure(framed,256,256);
+    Check(tiny.valid&&Near(tiny.scale,256.0/72)&&tiny.left==92&&tiny.right==164,"canvas frame does not define the size");
+    Check(tiny.clip&&tiny.clipLeft>0.3&&tiny.clipRight<0.7&&tiny.clipTop>0.3&&tiny.clipBottom<0.7,"canvas frame is cut away");
+    auto core=[](int a,int b){auto p=Box(256,256,20,20,236,236,100);for(int y=a;y<b;++y)for(int x=a;x<b;++x)p[(y*256+x)*4+3]=255;return p;};
+    auto glass=Measure(core(60,196),256,256);
+    Check(glass.valid&&Near(glass.scale,1.35)&&!glass.clip,"solid core in a translucent body stays bounded");
+    Check(!Measure(core(110,146),256,256).valid,"small core in a translucent body retains native");
+    Check(!Measure(Box(64,64,30,30,34,34),64,64).valid,"a speck retains native");
     Check(!Measure(Box(64,64,0,0,0,0),64,64).valid,"transparent capture ignored");
     Check(!Measure(Box(64,64,0,0,64,64,16),64,64).valid,"faded unsupported capture ignored");
     auto p=Box(64,64,5,5,59,59);p[3]=8;

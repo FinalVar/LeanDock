@@ -75,17 +75,6 @@ int main(){
     pan.Reset();check(pan.Step(1,49,0).delta==-120,"new gesture clears pinch");
     pan.Reset();check(!pan.Step(0,100,0).delta,"invalid scale ignored");
     pan.Reset();check(!pan.Step(1,std::numeric_limits<float>::quiet_NaN(),0).delta,"invalid translation ignored");
-    // The time key: continuous steps with the remainder carried over.
-    CardPan level;level.threshold=12;level.repeat=true;
-    check(!level.Step(1,0,-11).delta&&level.axis==1,"level pan below one step");
-    c=level.Step(1,0,-12);check(c.delta==-120&&!c.horizontal,"first level step at the threshold");
-    c=level.Step(1,0,-24);check(c.delta==-120,"another threshold, another step");
-    c=level.Step(1,0,-61);check(c.delta==-360,"a fast frame carries several steps");
-    c=level.Step(1,0,-62);check(!c.delta&&std::fabs(level.pending+2)<.001f,"remainder carries over");
-    c=level.Step(1,0,-38);check(c.delta==120,"reversing steps back");
-    level.Reset();check(level.threshold==12&&level.repeat,"reset keeps the policy");
-    c=level.Step(1,30,2);check(c.delta==-240&&c.horizontal,"horizontal steps reported as horizontal");
-    level.Reset();check(!level.Step(1.05f,0,-40).delta,"pinch never changes a level");
     pan.Reset();check(pan.Step(1,10000,0).delta==-120,"large jump produces at most one page");
     check(!pan.Step(1,10000,0).delta,"discarded overshoot does not coast");
     check(!pan.Step(1,20000,0).delta,"more distance after a large jump remains latched");

@@ -1,0 +1,61 @@
+{
+  "version": "0.8.100",
+  "date": "2026-11-01T20:10:54+08:00",
+  "state": "Deployed; awaiting user acceptance",
+  "backendVersion": "0.5.85",
+  "controllerVersion": "0.3.42",
+  "panelVersion": "0.8.100",
+  "change": "Time key: mouse wheel changes the volume (2 per notch), Ctrl+wheel the brightness (5 per notch), through the XAML PointerWheelChanged event; two-finger touchpad pans do the same through the retained InputSite + DirectManipulation card route (CardInputOptions claimWheel=false, passControl=false; CardPan repeat mode, 12 DIP per step). The key shows the value for 1.2 s after the last change. Volume and brightness use the panel's Core Audio and WMI calls on an on-demand worker that exits after 4 s idle. A charging bolt (E945) follows the date while BatteryFlag has 8. The panel date gains the weekday. See docs/time-key-levels-latest.md.",
+  "userRequest": {
+    "At": "2026-10-31",
+    "Answer": "行，就这么改"
+  },
+  "checks": [
+    "24 pre-deploy checks passed (pre-deploy-20261101-200708); cards-input 44, cards-manipulation 56, cards-aggregate 562 checks",
+    "Date line with the bolt at the widest date measures 40 DIP, inside the ring's 46 DIP chord; '100' and '静音' fit inside the ring",
+    "Update Applied, Live, ComponentHealth Ready; backend 0.5.85; controller unchanged 0.3.42 (7580D4BB); latest.ini, hotcorners/latest.ini, cards/latest.ini unchanged",
+    "Live key after deploy: Input.Ready 1, Input.Prepared 1, Errors 0; accessible name ends '滚动调音量，按住 Ctrl 滚动调亮度'",
+    "Real screen with the user's consent (run twice): wheel up x2 volume 18 -> 22, key shows '22 / 音量'; wheel down x2 back to 18; Ctrl+wheel up brightness stays 100, key shows '100 / 亮度'; Ctrl+wheel down 95; key back to time after the readout; panel not opened by scrolling; failures 0; volume, mute and brightness restored to 18/false/100",
+    "Panel date on the real screen: '11月1日 周日'",
+    "Afterwards Windows Terminal still in front at 0x94000000, Dock hidden"
+  ],
+  "preDeployValidation": {
+    "Evidence": "C:/Users/x/Documents/Codex/Tools/_build/leandock-0.8.100-outputs/pre-deploy-20261101-200708"
+  },
+  "deployment": {
+    "Version": "0.8.100",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeFiles": {
+      "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
+      "latest.dll": "2067EEEA65A5C45EFAB3D178F39267AFB51B95FE33BBBF892C6AFC9676E7395C",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "923EADCFE26A0C6BA004546DA3B8103A8A696773C77876D58F6B252E90C4464D"
+    },
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "rollback": "backups/before-0.8.100-20261101-201054953 returns to 0.8.99",
+  "previousAcceptance": {
+    "version": "0.8.99",
+    "record": "docs/verification-v0.8.99.json"
+  },
+  "knownLimits": [
+    "Brightness only through WMI (built-in panels); external monitors show '—'",
+    "Horizontal wheel and horizontal two-finger pans are ignored",
+    "Scrolling cancels a pending hover; the panel opens again after the pointer leaves and re-enters"
+  ],
+  "notVerified": [
+    "Two-finger touchpad on the key (cannot be simulated remotely)",
+    "Charging bolt on the real screen (battery was full, not charging)",
+    "Muted readout and unmute on the real screen (covered by tests only)"
+  ]
+}

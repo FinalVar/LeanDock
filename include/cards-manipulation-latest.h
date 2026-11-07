@@ -85,19 +85,15 @@ class CardManipulation {
         }
     };
     std::shared_ptr<State> state;
-    float panThreshold=48;bool panRepeat=false;
 public:
     using Scroll=std::function<void(int,bool)>;using Frames=std::function<void(bool)>;
     using Trace=std::function<void(unsigned,intptr_t)>;
     ~CardManipulation(){Stop();}
-    // The pan policy for viewports created after this call (CardPan).
-    void Configure(float threshold,bool repeat) noexcept {panThreshold=threshold;panRepeat=repeat;}
     HRESULT Init(HWND window,RECT rect,Scroll scroll,Frames frames,Trace trace) noexcept {
         if(state&&state->window==window&&!state->closed)return S_OK;
         Stop();
         try {
             auto s=std::make_shared<State>();s->window=window;s->rect=rect;
-            s->pan.threshold=panThreshold;s->pan.repeat=panRepeat;
             s->scroll=std::move(scroll);s->frames=std::move(frames);s->trace=std::move(trace);
             auto ok=[](HRESULT hr){winrt::check_hresult(hr);};
             ok(CoCreateInstance(CLSID_DirectManipulationManager,nullptr,CLSCTX_INPROC_SERVER,__uuidof(IDirectManipulationManager),s->manager.put_void()));

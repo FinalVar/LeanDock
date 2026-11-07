@@ -4,9 +4,6 @@
 #include <iostream>
 extern "C" void Native_tray_refresh_cards(){}
 extern "C" size_t InternalWh_GetModStoragePath(void*,PWSTR,size_t){return 0;}
-// The hidden host has no InputSite, so the input route never asks for a hook.
-extern "C" BOOL InternalWh_SetFunctionHook(void*,void*,void*,void**){return FALSE;}
-extern "C" BOOL InternalWh_ApplyHookOperations(void*){return FALSE;}
 namespace LeanDockMenu{Reopen ReopenVisible(const Gesture&){return Reopen::NotOpen;}}
 using namespace winrt::Windows::UI::Xaml;
 int main(){HWND host{};

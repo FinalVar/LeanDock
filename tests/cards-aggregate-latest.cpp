@@ -9,7 +9,6 @@
 #include <iostream>
 #include "../include/cards-aggregate-geometry-latest.h"
 #include "../src/cards-aggregate-xaml-latest.inc"
-#include "../include/key-levels-latest.h"
 using namespace winrt::Windows::UI::Xaml;
 namespace a=LeanDockAggregate;
 int checks=0;
@@ -31,20 +30,6 @@ int main(){HWND host{};
     Check(a::BatteryTone(-1,false)==0&&a::BatteryTone(0,false)==2,"unknown versus empty battery");
     Check(a::BatteryTone(9,false)==2&&a::BatteryTone(10,false)==1&&a::BatteryTone(19,false)==1&&a::BatteryTone(20,false)==0,"battery warning boundaries");
     for(int percent:{0,9,10,19,20,100})Check(a::BatteryTone(percent,true)==0,"plugging in removes discharge warning without changing percent");
-    {   // Level input on the key: steps, bounds and what the two lines show.
-        namespace l=LeanDockKeyLevels;l::Notches n;
-        Check(n.Step(120,1000)==1&&n.Step(-120,1010)==-1,"one notch is one step either way");
-        Check(n.Step(60,1020)==0&&n.Step(60,1030)==1,"high-resolution wheel accumulates");
-        Check(n.Step(60,1040)==0&&n.Step(60,1600)==0&&n.remainder==60,"a pause drops the remainder");
-        Check(n.Step(240,1610)==2,"a fast notch pair is two steps");
-        Check(l::Next(35,1,l::Kind::Volume)==37&&l::Next(99,1,l::Kind::Volume)==100&&l::Next(1,-1,l::Kind::Volume)==0,"volume moves by two and stays in range");
-        Check(l::Next(50,-2,l::Kind::Brightness)==40&&l::Next(100,3,l::Kind::Brightness)==100,"brightness moves by five and stays in range");
-        auto v=l::Show({l::Kind::Volume,35,false,true});Check(v.value==L"35"&&v.label==L"音量","volume readout");
-        v=l::Show({l::Kind::Volume,0,true,true});Check(v.value==L"0"&&v.label==L"静音","muted readout");
-        v=l::Show({l::Kind::Volume});Check(v.value==L"—"&&v.label==L"音量","volume failure readout");
-        v=l::Show({l::Kind::Brightness,60,false,true});Check(v.value==L"60"&&v.label==L"亮度","brightness readout");
-        v=l::Show({l::Kind::Brightness});Check(v.value==L"—"&&v.label==L"亮度","no brightness control readout");
-    }
     winrt::init_apartment(winrt::apartment_type::single_threaded);
     auto manager=Hosting::WindowsXamlManager::InitializeForCurrentThread();
     host=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_NOACTIVATE,L"STATIC",L"LeanDock aggregate fixture",WS_POPUP,-4096,-4096,400,150,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
@@ -72,9 +57,6 @@ int main(){HWND host{};
     Check(line.DesiredSize().Width<=46&&line.DesiredSize().Width>date.DesiredSize().Width,"date with bolt fits inside the curve");
     std::cout<<"date line with bolt "<<line.DesiredSize().Width<<" DIP\n";
     bolt.Visibility(Visibility::Collapsed);
-    time.Text(L"100");date.Text(L"静音");
-    for(auto text:{time,date}){text.Measure({10000,10000});Check(text.DesiredSize().Width<=a::Width-2*a::Inset,"level readout fits inside ring");}
-    time.Text(L"23:59");date.Text(L"12/31");
     for(auto theme:{ElementTheme::Light,ElementTheme::Dark,ElementTheme::Light}){
         root.RequestedTheme(theme);root.UpdateLayout();Pump();
         Check(card.ActualWidth()==72&&card.ActualHeight()==46&&key.ActualWidth()==72,"native key exact accepted geometry");

@@ -13,7 +13,7 @@
 ## 计算和生命周期
 
 - WriteableBitmap 直接读取原像素；其他来源使用同一 ImageSource 建立一个 128 DIP 方形中性 Image，经 Windows 原生 RenderTargetBitmap 读取 alpha。副本放在既有树的零尺寸 Canvas 中，父容器平移至 XAML 根范围以外，不绘制到用户桌面、不占布局或输入区域。取样请求为 256 像素，按 API 返回的实际尺寸计算，兼容 DPI 缩放；不保存图像、不替换应用图标。微软 API 的树连接与可渲染内容限制见 https://learn.microsoft.com/en-us/uwp/api/windows.ui.xaml.media.imaging.rendertargetbitmap.renderasync 。
-- 以峰值 alpha 的一半（最低 16）界定实质轮廓，排除重采样边缘和微弱阴影，以可见边界最长边计算等比缩放和居中。最多放大 1.35 倍；透明、过淡、极小占位或无效数据保留原图。不裁剪、不拉伸宽高、不把白色底板当透明留白删除。
+- 以峰值 alpha 的一半（最低 16）界定实质轮廓，排除重采样边缘和微弱阴影，以可见边界最长边计算等比缩放和居中，放大到填满图像框（0.8.102 起不再封顶 1.35 倍，见下）。透明、过淡、小于画布 8% 的斑点或无效数据保留原图。不拉伸宽高、不把白色底板当透明留白删除；只有放大超过 1.35 倍时才裁掉图案以外的内容。
 - 图标加入、加载完成、来源或布局尺寸改变时计算。每个图标最多一个未完成的测量，事件通过原有 UI dispatcher 合并；新副本首次渲染可能尚无表面，保留同一副本在后续最多两帧重试，随后撤销帧订阅并清理。成功、来源改变或卸载也清理副本；没有持续逐帧扫描、计时器或后台常驻进程。
 - 只给图像添加变换，先补偿图案再应用原变换对象，避免放大原有位移；保留原 RenderTransformOrigin。不改变按钮宽度、命中范围、应用身份或图标源。绑定的变换保留原生行为。
 - 元素销毁/虚拟化/停止时撤销回调、取消未完成测量，并仅在仍持有该变换时恢复原属性。来源代次阻止旧结果覆盖新图像；进程固定的后端保证迟到回调代码仍有效，已停止状态不再应用结果。
@@ -62,3 +62,17 @@ LeanDock.IconLoader.Cache/Win32/Packaged/Placeholder/Website 记录实际请求�
 本轮版本保持 0.8.44；最后的验收文档同步不更换运行文件，无需重载资源管理器。部署、后台读回、截图和用户原话见 verification-latest.json，完整本地诊断位于 work/icon-quality-20261017。
 
 参考微软对资源匹配与缩放的说明：https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-construction 。XAML 最终尺寸重栅格化与自动解码边界：https://learn.microsoft.com/en-us/windows/apps/develop/performance/optimize-animations-and-media 。本地目标程序和 Windows 二进制未被改写。
+
+## 0.8.102 内容过小的图标
+
+2026-11-07 用户 14:40:26 固定 MinerU，14:40 的截图里它的图案只有约 15 物理像素，周围还有一圈贴着 60 像素图像框的淡框。读回 Status=3：`BitmapImage` 是 120×120，测量因 extent<0.40 判为“极小占位”而保留原样。
+
+数值上是 256 像素画布里放了一张 72 像素的图（72×0.88/256×59≈15）。72 正是 150% 缩放下 SHIL_EXTRALARGE 的尺寸。任务栏取图的路径已按 PDB 读过：`ShellIconLoaderV2::s_GetShellImageListSizeId` 对 120 像素的请求选 SHIL_JUMBO，`s_ForceImagePresent` 对 `SHGetImageList(-1)` 依次 Resize(256)、ForceImagePresent、GetIcon。同样的调用在另一个 DPI 感知进程里得到的是完整的 256 像素图（边界 15–241），先按 72 再按 256 取也一样，`IShellItemImageFactory` 各种标志和尺寸都正常。这不是固定那一刻的临时现象：重启资源管理器后读回仍只占画布 25%（384 像素取样里 144–240），`SHCNE_UPDATEITEM` 和 `SHCNE_ASSOCCHANGED` 也换不回来。为什么只在资源管理器里得到小图没有查明。已知的差别是 MinerU.exe 的图标组只有一项 256×256 PNG，其他已固定应用的资源多个尺寸都有；这只是线索，没有验证。
+
+这是通用问题，不针对 MinerU 处理：
+
+- 去掉 extent<0.40 的放弃条件和 1.35 倍上限，图案一律放大到填满图像框，斑点（<8%）除外。留白超过 26% 的普通图标原来只放大到 1.35 倍，同样变成填满。来源只有小图时大小正确但偏软：MinerU 的图案在 120 像素源图里只有约 30 像素，要放大到约 59 物理像素，比其他图标软。
+- 防止误判：先按 alpha≥32 另算一次“主体”边界（不看画布最外 3% 的一圈，淡框在那里）。半透明的大主体里有小实心核时，主体才是图标，仍封顶 1.35 倍，核小于 40% 时保留原样。
+- 放大超过 1.35 倍时给 Image 加 `Clip`，范围是主体边界加 1.5% 余量，否则淡框会被放大到相邻图标上。原有 Clip 先保存，移除时恢复；绑定的 Clip 不动。1.35 倍以内的图标行为不变。
+
+测试见 tests/icon-optics-latest.cpp（72 像素 + 淡框、半透明主体、斑点）和 tests/icon-view-latest.cpp（真实 XAML：放大倍数、Clip、原 Clip 恢复）。部署后真实 Dock 读回：MinerU Status=2、Scale=39184（3.92 倍），其他七个图标的数值与之前相同。画面还要用户确认。

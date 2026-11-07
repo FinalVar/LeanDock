@@ -1,0 +1,72 @@
+{
+  "version": "0.8.101",
+  "date": "2026-11-07T14:27:59+08:00",
+  "state": "Deployed; awaiting user acceptance",
+  "backendVersion": "0.5.86",
+  "controllerVersion": "0.3.42",
+  "panelVersion": "0.8.101",
+  "change": "Removes the time key's volume and brightness input (wheel, Ctrl+wheel, two-finger pan, readout). Bluetooth page: paired-device query uses the GetDeviceSelectorFromPairingState form (IssueInquiry=False), about 30 ms instead of about 30 s with the radio on; a failed or timed-out read shows a message instead of staying on loading. Keeps the charge bolt and the panel weekday.",
+  "userRequest": {
+    "At": "2026-11-07",
+    "Answer": "双指能调。但是我从没说过为啥要加快捷调节音量的功能。按键已经足够方便了。还怕误触呢。删掉。我现在发现的问题是打开蓝牙只会显示读取设备啥的一直出不来"
+  },
+  "rootCause": {
+    "Measured": "Old query with Bluetooth on: 30268 ms (both protocols), 30194 ms (classic), 30087 ms (LE). The page cancelled at 5000 ms and retried without changing state. 0.8.89 was checked with Bluetooth off, where the query took 31 ms.",
+    "NewQuery": "29-38 ms, 5 runs, returns Inphic IN9 (paired, connected, LE mouse); its battery query 43 ms, 67%"
+  },
+  "checks": [
+    "Pre-deploy suite: 24 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.101-outputs\\pre-deploy-20261107-142316)",
+    "Hidden probes, 3 cycles, Bluetooth radio on: bluetoothPage ready true, devices 1, read-only",
+    "Post-deploy autotest: AutomatedChecksPassed",
+    "Deployed binaries: latest.dll has no Levels or Input.Ready properties and no scroll text; has ChargeBolt; panel has the new selector and message",
+    "Live key after deploy: Ready 1, Errors 0, PowerReady 1"
+  ],
+  "preDeployValidation": {
+    "ValidateOnly": "passed",
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "deployment": {
+    "Version": "0.8.101",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeFiles": {
+      "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
+      "latest.dll": "D6578AF1F475B7028B566A60FC6E392B9F96701ECD28FA3232AA130A9278F648",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "57E7F3D99E3C37B86E78CE86A3C943E28950D83DBD717F85071A5E7AA1896D02"
+    },
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "idleCost": {
+    "Before": "0.8.100, Explorer about 16 hours old, user idle: taskbar thread about 36 switches/s and 16 ms/s; Explorer about 75 switches/s and 24 ms/s",
+    "After": "0.8.101, Explorer seconds to minutes old: taskbar thread 3.0 switches/s and 3.0 ms/s; Explorer 11.3 switches/s and 6.9 ms/s",
+    "Note": "The after sample is on a freshly restarted Explorer; cause of the drop not established"
+  },
+  "rollback": "backups/before-0.8.101-20261107-142741081 returns to 0.8.100",
+  "previousAcceptance": {
+    "version": "0.8.100",
+    "record": "docs/verification-v0.8.100.json"
+  },
+  "knownLimits": [
+    "Bluetooth connect and disconnect apply to audio devices only"
+  ],
+  "notVerified": [
+    "The Bluetooth page with the real device on the real screen (read path covered by the probes)",
+    "Charge bolt on the real screen",
+    "A classic (BR/EDR) paired device: none on this machine",
+    "The 'could not read' message on the real panel (no failing read to trigger it)"
+  ]
+}

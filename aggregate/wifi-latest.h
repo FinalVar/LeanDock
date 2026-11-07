@@ -1,5 +1,6 @@
 #pragma once
 #include "platform-latest.h"
+#include <string_view>
 #include <wlanapi.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Devices.WiFi.h>
@@ -37,11 +38,43 @@ inline std::wstring WifiFailure(int status){
     }
 }
 
+// The list the last scan found, for the next time the page opens: the panel
+// process lives for one hover, and between scans the WLAN service itself
+// knows little more than the connected network (measured 2026-11-07: 1 access
+// point before a scan, 16 after). Names and signal only; whether a network is
+// connected is always read live. Damage loses the rest of the list, no more.
+inline std::string PackNetworks(std::vector<WifiNetwork> const& list){
+    std::string out;
+    for(size_t i=0;i<list.size()&&i<64;++i){
+        auto const& n=list[i];
+        const size_t length=std::min<size_t>(n.ssid.size(),DOT11_SSID_MAX_LENGTH);
+        out.push_back(char(length));
+        out.push_back(char((n.secure?1:0)|(n.enterprise?2:0)|(n.psk?4:0)|(n.saved?8:0)));
+        out.push_back(char(n.bars));out.push_back(char(int8_t(std::clamp(n.rssi,-128,0))));
+        out.append(reinterpret_cast<const char*>(n.ssid.data()),length*sizeof(wchar_t));
+    }
+    return out;
+}
+inline std::vector<WifiNetwork> UnpackNetworks(std::string_view data){
+    std::vector<WifiNetwork> list;
+    while(data.size()>=4&&list.size()<64){
+        const size_t length=uint8_t(data[0]),bytes=length*sizeof(wchar_t);
+        const unsigned flags=uint8_t(data[1]),bars=uint8_t(data[2]);
+        if(!length||length>DOT11_SSID_MAX_LENGTH||flags>15||bars>4||data.size()<4+bytes)break;
+        WifiNetwork n;n.ssid.resize(length);memcpy(n.ssid.data(),data.data()+4,bytes);
+        n.secure=flags&1;n.enterprise=flags&2;n.psk=flags&4;n.saved=flags&8;
+        n.bars=int(bars);n.rssi=int8_t(data[3]);
+        list.push_back(std::move(n));data.remove_prefix(4+bytes);
+    }
+    return list;
+}
+
 // Belongs to the Metrics MTA worker like ControlBackend: no callbacks, the
 // asynchronous operations are polled and cancelled when the page closes.
-// Rows come from the WLAN service's cached list, so the page fills at once;
-// a WinRT scan refreshes that cache (about 5-10 s here, 2026-10-31) and
-// WinRT connects, since it builds profiles for every kind of network.
+// The page opens on the list the last scan saved, under what the WLAN service
+// has now. A WinRT scan (about 2 s on 2026-11-07, 5-10 s on 2026-10-31)
+// refreshes the service's list and replaces the saved rows when it ends. WinRT
+// connects, since it builds profiles for every kind of network.
 class WifiBackend {
     using Adapter=winrt::Windows::Devices::WiFi::WiFiAdapter;
     using Adapters=winrt::Windows::Foundation::Collections::IVectorView<Adapter>;
@@ -49,7 +82,7 @@ class WifiBackend {
     using Result=winrt::Windows::Devices::WiFi::WiFiConnectionResult;
     using Credential=winrt::Windows::Security::Credentials::PasswordCredential;
     using AsyncStatus=winrt::Windows::Foundation::AsyncStatus;
-    static constexpr uint64_t ScanLimit=30000,ScanEvery=15000,ConnectLimit=40000;
+    static constexpr uint64_t ScanLimit=30000,ScanEvery=15000,ConnectLimit=40000,ReadEvery=1000,ScanReadEvery=250;
     static constexpr DOT11_AUTH_ALGORITHM Wpa3Enterprise=DOT11_AUTH_ALGORITHM(11); // DOT11_AUTH_ALGO_WPA3_ENT, missing from MinGW
     winrt::Windows::Foundation::IAsyncOperation<Access> access{nullptr};
     winrt::Windows::Foundation::IAsyncOperation<Adapters> finding{nullptr};
@@ -60,6 +93,20 @@ class WifiBackend {
     // A network the last WinRT report has not seen yet waits for the scan.
     std::wstring waiting;Credential waitingCredential{nullptr};
     bool active=false;
+    std::vector<WifiNetwork> remembered;std::string savedList;
+    static std::wstring LastPath(){return Directory()+L"\\wifi-last-latest.bin";}
+    void Recall(){
+        remembered.clear();savedList.clear();
+        FILE* f=_wfopen(LastPath().c_str(),L"rb");if(!f)return;
+        char buffer[8192];const auto n=fread(buffer,1,sizeof buffer,f);fclose(f);
+        savedList.assign(buffer,n);remembered=UnpackNetworks(savedList);
+    }
+    void Remember(std::vector<WifiNetwork> const& list){
+        if(list.empty())return; // Says nothing about what is nearby.
+        auto data=PackNetworks(list);if(data==savedList)return;
+        FILE* f=_wfopen(LastPath().c_str(),L"wb");if(!f)return;
+        fwrite(data.data(),1,data.size(),f);fclose(f);savedList=std::move(data);
+    }
     static std::wstring Ssid(DOT11_SSID const& s){
         const int length=int(std::min<ULONG>(s.uSSIDLength,DOT11_SSID_MAX_LENGTH));
         const int n=MultiByteToWideChar(CP_UTF8,0,reinterpret_cast<const char*>(s.ucSSID),length,nullptr,0);
@@ -93,6 +140,8 @@ class WifiBackend {
             row->connected|=(network.dwFlags&WLAN_AVAILABLE_NETWORK_CONNECTED)!=0;
         }
         WlanFreeMemory(report);
+        for(auto const& n:remembered)
+            if(std::none_of(list.begin(),list.end(),[&](WifiNetwork const& o){return o.ssid==n.ssid;}))list.push_back(n);
         // Rows keep their places while the page is open, so the one being
         // typed into never jumps; only joining moves a row to the top.
         SortNetworks(list);
@@ -124,7 +173,7 @@ public:
     bool Active()const{return active;}
     bool Pending()const{return active&&(access||finding||scan||connect);}
     void Open(){
-        active=true;startedAt=GetTickCount64();
+        active=true;startedAt=GetTickCount64();Recall();
         DWORD version=0;if(!client&&WlanOpenHandle(2,nullptr,&version,&client)!=ERROR_SUCCESS)client=nullptr;
         PWLAN_INTERFACE_INFO_LIST interfaces=nullptr;
         if(client&&WlanEnumInterfaces(client,nullptr,&interfaces)==ERROR_SUCCESS&&interfaces){
@@ -164,7 +213,8 @@ public:
                 const auto status=scan.Status();
                 if(status!=AsyncStatus::Started||now-scanAt>ScanLimit){
                     if(status==AsyncStatus::Started)scan.Cancel();
-                    scan=nullptr;scannedAt=now;Read(w,now);changed=true;
+                    scan=nullptr;scannedAt=now;remembered.clear();Read(w,now);changed=true;
+                    if(status==AsyncStatus::Completed)Remember(w.networks);
                     if(!waiting.empty()){
                         auto ssid=waiting;auto credential=waitingCredential;Forget();
                         if(auto network=Find(ssid))Start(network,credential);else Fail(w,ssid,L"网络不在范围内");
@@ -182,7 +232,8 @@ public:
                     Read(w,now);changed=true;
                 }
             }
-            if(now-readAt>=1000){Read(w,now);changed=true;}
+            // Networks arrive through a scan, so look more often during one.
+            if(now-readAt>=(scan?ScanReadEvery:ReadEvery)){Read(w,now);changed=true;}
             if(!scan&&now-scannedAt>=ScanEvery)Scan(now);
             if(w.scanning!=bool(scan)){w.scanning=bool(scan);changed=true;}
         }catch(...){
@@ -219,7 +270,7 @@ public:
         if(finding)try{finding.Cancel();}catch(...){}
         if(scan)try{scan.Cancel();}catch(...){}
         if(connect)try{connect.Cancel();}catch(...){}
-        access=nullptr;finding=nullptr;scan=nullptr;connect=nullptr;adapter=nullptr;Forget();
+        access=nullptr;finding=nullptr;scan=nullptr;connect=nullptr;adapter=nullptr;Forget();remembered.clear();
         if(client){WlanCloseHandle(client,nullptr);client=nullptr;}
         active=false;scanAt=scannedAt=readAt=0;id={};w=WifiList{};
     }

@@ -124,6 +124,25 @@ int main(){
         LeanDockIconView::Remove(ElementId::Icon);
         Check(image.RenderTransform()==original,"original transform restored after rendered measurement");
         image.Clip(nullptr);image.ClearValue(UIElement::RenderTransformProperty());
+        // A small icon centred on a large canvas with a faint frame: it fills
+        // the box, the frame is cut away, and a native clip comes back after.
+        {
+            Media::Imaging::WriteableBitmap small(256,256);
+            auto tiny=small.PixelBuffer().data();std::fill(tiny,tiny+256*256*4,0);
+            for(int y=92;y<164;++y)for(int x=92;x<164;++x){auto p=tiny+(y*256+x)*4;p[1]=200;p[3]=255;}
+            for(int i=0;i<256;++i)for(int at:{i,255*256+i,i*256,i*256+255})tiny[at*4+3]=24;
+            small.Invalidate();image.Source(small);
+            Media::RectangleGeometry nativeClip;nativeClip.Rect({0,0,40,40});image.Clip(nativeClip);root.UpdateLayout();Pump();
+            s=std::make_shared<LeanDockIconView::State>();s->image=winrt::make_weak(image);s->taskbar=window;s->slot=6;
+            LeanDockIconView::states.emplace(ElementId::Icon,s);LeanDockIconView::Measure(s);Wait(s);
+            Check(bool(s->applied),"small icon on a large canvas corrected");
+            Check(std::abs(s->applied.Children().GetAt(0).as<Media::CompositeTransform>().ScaleX()-256.0/72)<0.01,"small icon fills the box");
+            auto cut=image.Clip().Rect();
+            Check(image.Clip()!=nativeClip&&cut.X>12&&cut.Width<16,"canvas frame cut away");
+            LeanDockIconView::Remove(ElementId::Icon);
+            Check(image.Clip()==nativeClip,"native clip restored");
+            image.Clip(nullptr);image.ClearValue(UIElement::RenderTransformProperty());
+        }
         // A real larger PNG follows the same native BitmapImage path. It must
         // retain optical sizing while being downsampled into the original
         // button, with no source replacement or extra layout space.

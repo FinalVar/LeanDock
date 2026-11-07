@@ -58,7 +58,7 @@ $link=@('-target','x86_64-w64-mingw32','-static','-static-libstdc++','-static-li
 $dll=Join-Path $root 'latest.dll'
 if(-not $ControllerOnly){
 if(Test-Path -LiteralPath $dll){Copy-Item -LiteralPath $dll -Destination (Join-Path $PSScriptRoot ('previous-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'.dll'))}
-& $clang @link '-shared' @objects '-o' $dll '-lole32' '-loleaut32' '-lruntimeobject' '-lversion' '-lshlwapi' '-lcomctl32' '-lshell32' '-lbcrypt' '-ldwmapi' '-lpsapi' '-luuid' '-lshcore' '-lgdi32' '-liphlpapi' '-lwbemuuid'
+& $clang @link '-shared' @objects '-o' $dll '-lole32' '-loleaut32' '-lruntimeobject' '-lversion' '-lshlwapi' '-lcomctl32' '-lshell32' '-lbcrypt' '-ldwmapi' '-lpsapi' '-luuid' '-lshcore' '-lgdi32' '-liphlpapi'
 if($LASTEXITCODE -ne 0){throw 'Standalone backend link failed.'}
 }
 if(-not $BackendOnly){
@@ -68,7 +68,7 @@ if(-not $BackendOnly){
 if(-not $ControllerOnly -and -not $BackendOnly){& (Join-Path $PSScriptRoot 'start-latest.ps1') -CompilerRoot $compiler}
 if(-not $BackendOnly -and -not $ControllerOnly){& (Join-Path $PSScriptRoot 'panels-latest.ps1') -CompilerRoot $compiler | Out-Null}
 [pscustomobject]@{
-    Version='0.8.100';ControllerVersion='0.3.42';BackendVersion='0.5.85';StartLayoutVersion='0.1.4';QuickPositionVersion='0.2.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true;CardsIntegrated=$true
+    Version='0.8.102';ControllerVersion='0.3.42';BackendVersion='0.5.87';StartLayoutVersion='0.1.4';QuickPositionVersion='0.2.2';BuiltAt=(Get-Date -Format o);Standalone=$true;HotCornersIntegrated=$true;CardsIntegrated=$true
     RuntimeFiles=@(Get-Item -LiteralPath (Join-Path $root 'latest.exe'),$dll,(Join-Path $root 'start\latest.dll'),(Join-Path $root 'panels\latest.dll'),(Join-Path $root 'aggregate\latest.exe') | ForEach-Object {
         [pscustomobject]@{Name=[IO.Path]::GetRelativePath($root,$_.FullName);Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName).Hash}
     })

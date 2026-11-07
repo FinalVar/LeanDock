@@ -1,7 +1,7 @@
 // Native XAML owns only the 72 x 46 information key. App and tray trees remain
 // untouched. Theme resources remain live across light/dark/high-contrast changes.
 // The date line carries a small bolt while the battery is charging; the pair
-// stays centered. While a level is adjusted, the two lines show it instead.
+// stays centered.
 static constexpr wchar_t AggregateXaml[]=LR"xaml(
 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  x:Name="LeanDockCard" Width="72" Height="46" Background="Transparent" HorizontalAlignment="Right" VerticalAlignment="Center">
