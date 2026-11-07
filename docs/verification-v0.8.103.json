@@ -1,0 +1,78 @@
+{
+  "version": "0.8.103",
+  "date": "2026-11-07T19:11:38+08:00",
+  "state": "Deployed; awaiting user acceptance",
+  "backendVersion": "0.5.88",
+  "controllerVersion": "0.3.42",
+  "panelVersion": "0.8.103",
+  "change": "Reverts the 0.8.102 Dock icon enlargement and nothing else. include/icon-optics-latest.h, src/icon-optics-latest.inc, tests/icon-optics-latest.cpp and tests/icon-view-latest.cpp are identical to 0.8.100 again (git diff empty). The Bluetooth and Wi-Fi changes stay; their sources hash the same as in 0.8.102.",
+  "userRequest": {
+    "At": "2026-11-07",
+    "Answer": "你没处理好呀，我记得这个会话不存在前，dock图标都好好的？为啥要去动？现在mineru看着很糊。你能不能单把这方面的逻辑全部撤销。这个会话中。其他改的不变"
+  },
+  "rootCause": {
+    "Blur": "0.8.102 enlarged about 30 source pixels 3.92x. Explorer still holds only that small image, so enlarging cannot be sharp.",
+    "SmallIcon": "Not established and not fixed: see docs/verification-v0.8.102.json and docs/icon-optics-latest.md. MinerU is small again."
+  },
+  "measured": {
+    "Method": "Window properties on Shell_TrayWnd read before and after the deploy",
+    "MinerUSlot3": {
+      "Before": "Status 2, Scale 3.92x, bounds 144-240 of 384",
+      "After": "Status 3 (not touched), the same reading as before 0.8.102"
+    },
+    "OtherPinnedSlots": "Slots 1, 2, 4, 5, 6, 7 and 8 read the same before and after",
+    "Slot10": "Scale 1.0 both times, but bounds differ (0-384 x 0-384 before, 0-384 x 29-366 after the restart): a different image in that slot; not investigated."
+  },
+  "panelBinary": "Differs from 0.8.102 (D67CD838 to E0D03AD9): of its inputs only include/icon-optics-latest.h changed.",
+  "preDeployValidation": {
+    "ValidateOnly": "passed",
+    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.103-outputs\\pre-deploy-20261107-190612)",
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "deployment": {
+    "Version": "0.8.103",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "Autotest": "AutomatedChecksPassed",
+    "Explorer": "pid 11496, restarted 19:11:30 by the update",
+    "RuntimeFiles": {
+      "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
+      "latest.dll": "01C5F4FF996A6C06D616816853CBA06E76ABBFCF640D01771590E87FFFEE714A",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "E0D03AD9A036379EA2816E5AA391E79347CD1EFCD47E142031E4CF3102439245"
+    },
+    "ConfigUnchanged": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "rollback": "backups/before-0.8.103-20261107-191128594 returns to 0.8.102",
+  "previousAcceptance": {
+    "version": "0.8.102",
+    "record": "docs/verification-v0.8.102.json",
+    "user": "Icon enlargement rejected: 现在mineru看着很糊. Bluetooth battery and Wi-Fi list not yet commented on."
+  },
+  "knownLimits": [
+    "MinerU's icon is about 15 physical pixels: Explorer holds a small image for it and the cause is not established",
+    "Bluetooth connect and disconnect apply to audio devices only",
+    "The saved Wi-Fi list can show a network that is no longer in range until the first scan ends, about 2 s; connecting to one waits for that scan and reports not in range"
+  ],
+  "notVerified": [
+    "MinerU and the other icons on the real screen: the Dock was hidden behind the full-screen terminal during the check",
+    "Bluetooth battery and Wi-Fi list on the real screen",
+    "wifi-last-latest.bin in the installed panel: no such file exists yet; saving and reading ran only in the dev probe",
+    "Connecting to a saved row that is out of range (existing wait path, not exercised)",
+    "Charge bolt on the real screen",
+    "A classic (BR/EDR) paired device: none on this machine"
+  ]
+}

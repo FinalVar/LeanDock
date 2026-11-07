@@ -439,6 +439,11 @@ void StopEventThread() {
             {LR"(public: struct tagSIZE __cdecl TaskbarHost::IconSizeInViewPixels(void)const)"},
             &IconResolution::original,
             IconResolution::Hook,
+        },
+        {
+            {LR"(private: static long __cdecl ShellIconLoaderV2::s_ForceImagePresent(int,int,struct HICON__ * *))"},
+            &IconResolution::forceOriginal,
+            IconResolution::ForceHook,
         },""")
             source = replace_function(source, "void Wh_ModUninit()", """    while(g_hookCallCounter>0)Sleep(100);
     IconResolution::Clear();""")
@@ -602,6 +607,12 @@ void StopEventThread() {
         assert rva + struct.unpack_from("<i", image, offset + 1)[0] == resolution["Rva"], call
     assert not ({x["ReturnRva"] for x in resolution["SourceCalls"]} & {x["ReturnRva"] for x in resolution["DisplayCalls"]})
     symbols[(resolution["Module"], resolution["Symbol"])] = resolution["Rva"]
+    force = resolution["ForceImage"]
+    for call in force["Calls"]:
+        offset = file_offset(call["ReturnRva"] - 5)
+        assert image[offset] == 0xE8, call
+        assert call["ReturnRva"] + struct.unpack_from("<i", image, offset + 1)[0] == force["Rva"], call
+    symbols[(resolution["Module"], force["Symbol"])] = force["Rva"]
     emit(include / "icon-resolution-pin-generated.h", "#pragma once\n"
          "struct NativeIconSourceCall { const char* kind; unsigned returnRva; };\n"
          "inline constexpr NativeIconSourceCall NativeIconSourceCalls[] = {\n" +

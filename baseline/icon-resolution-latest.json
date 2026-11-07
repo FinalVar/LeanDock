@@ -10,6 +10,14 @@
     { "Kind": "Placeholder", "Function": "PlaceholderTileIconLoader::LoadPlaceholderTileIconAsync", "ReturnRva": 1426326 },
     { "Kind": "Website", "Function": "PinnedWebsiteIconLoader::RuntimeClassInitialize", "ReturnRva": 1429984 }
   ],
+  "ForceImage": {
+    "Symbol": "private: static long __cdecl ShellIconLoaderV2::s_ForceImagePresent(int,int,struct HICON__ * *)",
+    "Rva": 151208,
+    "Calls": [
+      { "Function": "ShellIconLoaderV2::ForceImagePresentAsync", "ReturnRva": 660652 },
+      { "Function": "ShellIconLoaderV2::s_SetIconCallback", "ReturnRva": 663205 }
+    ]
+  },
   "DisplayCalls": [
     { "Function": "CTaskListWnd::GetIconSizeInViewPixels", "ReturnRva": 1386168 }
   ]

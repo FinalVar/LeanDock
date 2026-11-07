@@ -13,7 +13,7 @@
 ## 计算和生命周期
 
 - WriteableBitmap 直接读取原像素；其他来源使用同一 ImageSource 建立一个 128 DIP 方形中性 Image，经 Windows 原生 RenderTargetBitmap 读取 alpha。副本放在既有树的零尺寸 Canvas 中，父容器平移至 XAML 根范围以外，不绘制到用户桌面、不占布局或输入区域。取样请求为 256 像素，按 API 返回的实际尺寸计算，兼容 DPI 缩放；不保存图像、不替换应用图标。微软 API 的树连接与可渲染内容限制见 https://learn.microsoft.com/en-us/uwp/api/windows.ui.xaml.media.imaging.rendertargetbitmap.renderasync 。
-- 以峰值 alpha 的一半（最低 16）界定实质轮廓，排除重采样边缘和微弱阴影，以可见边界最长边计算等比缩放和居中，放大到填满图像框（0.8.102 起不再封顶 1.35 倍，见下）。透明、过淡、小于画布 8% 的斑点或无效数据保留原图。不拉伸宽高、不把白色底板当透明留白删除；只有放大超过 1.35 倍时才裁掉图案以外的内容。
+- 以峰值 alpha 的一半（最低 16）界定实质轮廓，排除重采样边缘和微弱阴影，以可见边界最长边计算等比缩放和居中。最多放大 1.35 倍；透明、过淡、极小占位或无效数据保留原图。不裁剪、不拉伸宽高、不把白色底板当透明留白删除。
 - 图标加入、加载完成、来源或布局尺寸改变时计算。每个图标最多一个未完成的测量，事件通过原有 UI dispatcher 合并；新副本首次渲染可能尚无表面，保留同一副本在后续最多两帧重试，随后撤销帧订阅并清理。成功、来源改变或卸载也清理副本；没有持续逐帧扫描、计时器或后台常驻进程。
 - 只给图像添加变换，先补偿图案再应用原变换对象，避免放大原有位移；保留原 RenderTransformOrigin。不改变按钮宽度、命中范围、应用身份或图标源。绑定的变换保留原生行为。
 - 元素销毁/虚拟化/停止时撤销回调、取消未完成测量，并仅在仍持有该变换时恢复原属性。来源代次阻止旧结果覆盖新图像；进程固定的后端保证迟到回调代码仍有效，已停止状态不再应用结果。
@@ -63,16 +63,27 @@ LeanDock.IconLoader.Cache/Win32/Packaged/Placeholder/Website 记录实际请求�
 
 参考微软对资源匹配与缩放的说明：https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-construction 。XAML 最终尺寸重栅格化与自动解码边界：https://learn.microsoft.com/en-us/windows/apps/develop/performance/optimize-animations-and-media 。本地目标程序和 Windows 二进制未被改写。
 
-## 0.8.102 内容过小的图标
+## 0.8.102 试过放大，0.8.103 已撤销
 
-2026-11-07 用户 14:40:26 固定 MinerU，14:40 的截图里它的图案只有约 15 物理像素，周围还有一圈贴着 60 像素图像框的淡框。读回 Status=3：`BitmapImage` 是 120×120，测量因 extent<0.40 判为“极小占位”而保留原样。
+2026-11-07 用户固定 MinerU 后图案只有约 15 物理像素，读回 Status=3（BitmapImage 120×120，图案约 30 像素，判为极小占位）。0.8.102 去掉了“小于 40% 不处理”和 1.35 倍上限，放大到填满并用 Clip 裁掉淡框。读回 3.92 倍，大小对了，但用户看实机说很糊，要求撤销。0.8.103 把本文、代码和两个图标测试还原到 0.8.100。
 
-数值上是 256 像素画布里放了一张 72 像素的图（72×0.88/256×59≈15）。72 正是 150% 缩放下 SHIL_EXTRALARGE 的尺寸。任务栏取图的路径已按 PDB 读过：`ShellIconLoaderV2::s_GetShellImageListSizeId` 对 120 像素的请求选 SHIL_JUMBO，`s_ForceImagePresent` 对 `SHGetImageList(-1)` 依次 Resize(256)、ForceImagePresent、GetIcon。同样的调用在另一个 DPI 感知进程里得到的是完整的 256 像素图（边界 15–241），先按 72 再按 256 取也一样，`IShellItemImageFactory` 各种标志和尺寸都正常。这不是固定那一刻的临时现象：重启资源管理器后读回仍只占画布 25%（384 像素取样里 144–240），`SHCNE_UPDATEITEM` 和 `SHCNE_ASSOCCHANGED` 也换不回来。为什么只在资源管理器里得到小图没有查明。已知的差别是 MinerU.exe 的图标组只有一项 256×256 PNG，其他已固定应用的资源多个尺寸都有；这只是线索，没有验证。
+当时小图的来源没有查明，下一节是后来查到的部分：另一个 DPI 感知进程用任务栏的同样调用（SHGetImageList(-1)、Resize(256)、ForceImagePresent、GetIcon）得到完整的 256 像素图，只有资源管理器里是小图，重启资源管理器、SHCNE_UPDATEITEM 和 SHCNE_ASSOCCHANGED 都换不回来。已知的差别是 MinerU.exe 的图标组只有一项 256×256 PNG，这只是线索，没有验证。要解决得让资源管理器拿到好图，放大源图不行。
 
-这是通用问题，不针对 MinerU 处理：
+## 0.8.104 只退回取到小图的图标
 
-- 去掉 extent<0.40 的放弃条件和 1.35 倍上限，图案一律放大到填满图像框，斑点（<8%）除外。留白超过 26% 的普通图标原来只放大到 1.35 倍，同样变成填满。来源只有小图时大小正确但偏软：MinerU 的图案在 120 像素源图里只有约 30 像素，要放大到约 59 物理像素，比其他图标软。
-- 防止误判：先按 alpha≥32 另算一次“主体”边界（不看画布最外 3% 的一圈，淡框在那里）。半透明的大主体里有小实心核时，主体才是图标，仍封顶 1.35 倍，核小于 40% 时保留原样。
-- 放大超过 1.35 倍时给 Image 加 `Clip`，范围是主体边界加 1.5% 余量，否则淡框会被放大到相邻图标上。原有 Clip 先保存，移除时恢复；绑定的 Clip 不动。1.35 倍以内的图标行为不变。
+0.8.103 之后 MinerU 仍然很小，用户要求继续回退。两倍取图（0.8.44，见上）是触发条件：把取图预算关掉后，MinerU 读回 Status=2、边界 20–360（共 384），其他图标的 SourceWidth 全部回到 60。
 
-测试见 tests/icon-optics-latest.cpp（72 像素 + 淡框、半透明主体、斑点）和 tests/icon-view-latest.cpp（真实 XAML：放大倍数、Clip、原 Clip 恢复）。部署后真实 Dock 读回：MinerU Status=2、Scale=39184（3.92 倍），其他七个图标的数值与之前相同。画面还要用户确认。
+诊断版在 `ShellIconLoaderV2::s_ForceImagePresent` 上记录了每次取图的结果（资源管理器内，150% 缩放）：
+
+| 路径 | 结果 | 图案边界 |
+| --- | --- | --- |
+| 请求 120，走 256 像素列表（MinerU 第 460 项） | 256×256 | 96–160，占 25% |
+| SHIL_JUMBO 列表直接 GetIcon | 256×256 | 4–68，占 25% |
+| 请求 60，走原尺寸列表 | 72×72 | 4–68，占 89% |
+| 同一次启动的其他应用，请求 120 | 256×256 | 占 82%–100% |
+
+也就是说，这一项在 256 像素列表里只有 72 像素的图。`IImageList2::Resize(256)` 后它被放在格子中央，`ForceImagePresent` 不会重新取图。`iconcache_256.db` 的 24 项全部是 256 像素 PNG，没有过小的图，其中一项的边界正是 MinerU 完整图案的 15–241，所以清图标缓存没有用，也没有清。为什么资源管理器的列表里只有小图没有查明。
+
+做法：`ForceHook` 检查取到的图，内容不到画布 40%（只看 128 像素以上的画布）时，从 SHIL_EXTRALARGE 列表 GetIcon 取同一项，确认不是空白再替换。这里不再调用 `s_ForceImagePresent` 或 Resize，因为共享列表被调小可能影响其他线程同时进行的取图。其他图标继续走两倍，MinerU 的源图是 72 像素再放大到 120，所以比相邻图标略软，但图案没有净放大：源图里 64 像素的图案，最终显示约 60 像素。
+
+符号和两个调用点固定在 baseline/icon-resolution-latest.json，生成器按模块哈希和 E8 调用核对。LeanDock.IconLoader.NativeFallback 记录替换次数。纯判断见 tests/icon-optics-latest.cpp 的 `UndersizedArtwork`；钩子只有实机读回：NativeFallback=1，MinerU Status=2、Scale=11228、边界 20–362，其他固定图标的读数与 0.8.103 相同。

@@ -33,21 +33,8 @@ int main(){
     Check(Near(rect.scale,64.0/52),"rectangular source uses its visible longest edge");
     Check(Near(rect.x,0)&&Near(rect.y,0),"rectangular source remains uniformly centered");
     auto cap=Measure(Box(64,64,12,12,52,52),64,64);
-    Check(cap.valid&&Near(cap.scale,64.0/40)&&cap.clip,"wide padding fills the box too");
-    Check(!pi.clip&&!ag.clip&&!full.clip,"ordinary padding is not cut");
-    auto small=Measure(Box(64,64,25,25,39,39),64,64);
-    Check(small.valid&&Near(small.scale,64.0/14)&&Near(small.x,0)&&Near(small.y,0),"small artwork fills the box");
-    // As handed over for a just-pinned app: 72 px on a 256 px canvas, faint frame.
-    auto framed=Box(256,256,92,92,164,164);
-    for(int i=0;i<256;++i)for(int at:{i,255*256+i,i*256,i*256+255})framed[at*4+3]=24;
-    auto tiny=Measure(framed,256,256);
-    Check(tiny.valid&&Near(tiny.scale,256.0/72)&&tiny.left==92&&tiny.right==164,"canvas frame does not define the size");
-    Check(tiny.clip&&tiny.clipLeft>0.3&&tiny.clipRight<0.7&&tiny.clipTop>0.3&&tiny.clipBottom<0.7,"canvas frame is cut away");
-    auto core=[](int a,int b){auto p=Box(256,256,20,20,236,236,100);for(int y=a;y<b;++y)for(int x=a;x<b;++x)p[(y*256+x)*4+3]=255;return p;};
-    auto glass=Measure(core(60,196),256,256);
-    Check(glass.valid&&Near(glass.scale,1.35)&&!glass.clip,"solid core in a translucent body stays bounded");
-    Check(!Measure(core(110,146),256,256).valid,"small core in a translucent body retains native");
-    Check(!Measure(Box(64,64,30,30,34,34),64,64).valid,"a speck retains native");
+    Check(cap.valid&&Near(cap.scale,1.35),"bounded enlargement");
+    Check(!Measure(Box(64,64,25,25,39,39),64,64).valid,"tiny placeholders retain native");
     Check(!Measure(Box(64,64,0,0,0,0),64,64).valid,"transparent capture ignored");
     Check(!Measure(Box(64,64,0,0,64,64,16),64,64).valid,"faded unsupported capture ignored");
     auto p=Box(64,64,5,5,59,59);p[3]=8;
@@ -70,6 +57,14 @@ int main(){
     Check(SourceDips(129,129,false,0)==129,"unexpected size bounded without overflow");
     for(int dpi:{96,144,192,240})
         Check(SourceDips(40,40,false,0)*dpi/96>=40*1.35*dpi/96,"source covers optical enlargement across DPI scales");
+    // MinerU: 64 px of artwork in a 256 px cell, centred or top-left, is undersized.
+    Check(UndersizedArtwork(Box(256,256,96,96,160,160),256,256),"native picture centred in a large cell is undersized");
+    Check(UndersizedArtwork(Box(256,256,4,4,68,68),256,256),"native picture in a large cell's corner is undersized");
+    Check(!UndersizedArtwork(Box(256,256,15,15,241,241),256,256),"full artwork is not undersized");
+    Check(!UndersizedArtwork(Box(256,256,64,64,192,192),256,256),"half the canvas is ordinary padding");
+    Check(!UndersizedArtwork(Box(72,72,4,4,68,68),72,72),"a native size canvas never counts");
+    Check(!UndersizedArtwork(std::vector<uint8_t>(256*256*4),256,256),"a blank bitmap says nothing");
+    Check(!UndersizedArtwork({},256,256),"short data rejected");
     std::printf("icon-optics checks=%d failures=%d\n",checks,failures);
     return failures?EXIT_FAILURE:EXIT_SUCCESS;
 }

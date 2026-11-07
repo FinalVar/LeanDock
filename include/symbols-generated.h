@@ -24,6 +24,7 @@ static const NativeSymbol NativeSymbols[] = {
     {L"taskbar.dll", L"const CTaskBand::`vftable'{for `ITaskListWndSite'}", 1896648u},
     {L"taskbar.dll", L"const TrayUI::`vftable'{for `IInspectable'}", 1892344u},
     {L"taskbar.dll", L"const TrayUI::`vftable'{for `ITrayComponentHost'}", 1891048u},
+    {L"taskbar.dll", L"private: static long __cdecl ShellIconLoaderV2::s_ForceImagePresent(int,int,struct HICON__ * *)", 151208u},
     {L"taskbar.dll", L"private: virtual __int64 __cdecl CSecondaryTray::v_WndProc(struct HWND__ *,unsigned int,unsigned __int64,__int64)", 140160u},
     {L"taskbar.dll", L"private: void __cdecl CSecondaryTray::_AutoHide(bool)", 1360492u},
     {L"taskbar.dll", L"private: void __cdecl CSecondaryTray::_Unhide(enum TrayCommon::TrayUnhideFlags,enum TrayCommon::UnhideRequest)", 1363144u},

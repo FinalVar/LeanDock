@@ -1,0 +1,80 @@
+{
+  "version": "0.8.102",
+  "date": "2026-11-07T15:06:49+08:00",
+  "state": "Deployed; awaiting user acceptance",
+  "backendVersion": "0.5.87",
+  "controllerVersion": "0.3.42",
+  "panelVersion": "0.8.102",
+  "change": "Bluetooth page: a finished battery query goes straight onto the rows instead of waiting for the next 2 s device read. Wi-Fi page: opens on the list saved by the last scan (wifi-last-latest.bin in the panel directory: names, signal, security, saved flag; no passwords), the first scan ending replaces it, and the list is read every 250 ms during a scan. Dock icons: artwork fills the box whatever its size (no 1.35 cap, no tiny-glyph exemption); past 1.35x the image is clipped to the artwork so a canvas frame does not land on neighbours; a small solid core in a large translucent body stays bounded.",
+  "userRequest": {
+    "At": "2026-11-07",
+    "Answer": "能看，但是电量每次点进去要两秒才会刷新出来，wifi也是类似进去等一会才刷新其他未连接的WiFi。这两个解决之后就可以推送刷新了",
+    "Added": "再加一个问题，你看剪切板，mineru的dock图标变得很小，修复此类问题"
+  },
+  "rootCause": {
+    "Battery": "The query took about 40 ms, but its result was only copied onto the rows by the next device read, 2 s later.",
+    "WiFi": "Before a scan the WLAN service list held the connected network only (1 BSS; WinRT report 1). After a scan: 16 BSS. The old note that the list is there on opening was wrong on this machine. The panel process lives for one hover, so nothing survived in memory.",
+    "Icon": "The Dock's BitmapImage for MinerU is 120x120 with artwork about 30 px wide (96 of 384 in the sample), a size consistent with about 72 px on a 256 px canvas, plus a faint frame at the canvas edge seen in the user's screenshot. Measure rejected it as a tiny placeholder (Status 3). Why Explorer gets this image is not established: the same image-list calls in another DPI-aware process return full 256 px artwork, and it survives an Explorer restart, SHCNE_UPDATEITEM and SHCNE_ASSOCCHANGED. MinerU.exe's icon group has a single 256x256 PNG entry, unlike the other pinned apps; a lead, not verified."
+  },
+  "measured": {
+    "Method": "Production Metrics worker in a dev executable, read-only, polled every 10 ms from the moment the page opened",
+    "BluetoothBattery": "141 ms and 172 ms to the battery on the row (Inphic IN9 67%); device row at 79-110 ms",
+    "WiFiFirstOpenNoSavedList": "1 row at 93 ms, 2 at 859 ms, 3 at 1125 ms, scan done at 2890 ms",
+    "WiFiNextOpen": "3 rows at 31 ms, 4 at 1141 ms, scan done at 1641 ms",
+    "DockAfterDeploy": "MinerU slot Status 2, Scale 39184, bounds 144-240 of 384, source 120 px, so about 59 physical px of artwork. The other seven icons read as before: Status 1 or 2, Scale 10000-12229."
+  },
+  "checks": [
+    "Pre-deploy suite: 26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.102-outputs\\pre-deploy-20261107-150237), now including icon-optics (44 checks) and icon-view (45 checks, real hidden XAML: scale, clip, native clip restored)",
+    "Model tests: saved Wi-Fi list round trip without the connected state, truncated and invalid data",
+    "Hidden probes, 3 cycles: read-only",
+    "Post-deploy autotest: AutomatedChecksPassed (2026-11-07T15:09:02)"
+  ],
+  "preDeployValidation": {
+    "ValidateOnly": "passed",
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "deployment": {
+    "Version": "0.8.102",
+    "Live": true,
+    "ComponentHealth": {
+      "State": "Ready",
+      "Unavailable": [],
+      "Pending": []
+    },
+    "RuntimeFiles": {
+      "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
+      "latest.dll": "AEE59E76407AC01664D16E541E34CC9B99054A5738D5D7467A216DD6F8F2914F",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "D67CD83807CF5C3FF8251426965B27DB12E411A18DB8DCB0FD188AFBD04C9E84"
+    },
+    "ConfigUnchanged": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "rollback": "backups/before-0.8.102-20261107-150640630 returns to 0.8.101",
+  "previousAcceptance": {
+    "version": "0.8.101",
+    "record": "docs/verification-v0.8.101.json",
+    "user": "Bluetooth page: 能看 (2026-11-07)"
+  },
+  "knownLimits": [
+    "Bluetooth connect and disconnect apply to audio devices only",
+    "MinerU's icon has the right size but is enlarged from about 30 source pixels, so it is softer than its neighbours; the cause in Explorer is not established",
+    "The saved Wi-Fi list can show a network that is no longer in range until the first scan ends, about 2 s; connecting to one waits for that scan and reports not in range",
+    "A translucent large body with a small solid core stays at 1.35x or native"
+  ],
+  "notVerified": [
+    "All three changes on the real screen: the Dock was hidden behind the full-screen terminal during every capture",
+    "Clipping of MinerU's faint frame on the real Dock (covered only by the hidden XAML test)",
+    "Connecting to a saved row that is out of range (existing wait path, not exercised)",
+    "Charge bolt on the real screen",
+    "A classic (BR/EDR) paired device: none on this machine"
+  ]
+}

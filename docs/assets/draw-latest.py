@@ -269,7 +269,7 @@ def corners(theme):
 
 
 BADGES = [("platform", "Windows 11", "#0A64C8"), ("C++", "23", "#0A7470"),
-          ("version", "0.8.102", "#138A82"), ("license", "GPL-3.0", "#6A55C2")]
+          ("version", "0.8.104", "#138A82"), ("license", "GPL-3.0", "#6A55C2")]
 
 
 def badge(label, value, color):
