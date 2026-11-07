@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <vector>
 
 // Alpha bounds, not executable names or replacement artwork. The longest
 // visible edge determines scale; aspect ratio and all original pixels remain.
@@ -43,5 +44,48 @@ inline Fit Measure(std::span<const uint8_t> bgra,int width,int height) noexcept 
     if(fit.scale<1.02&&std::abs(fit.x)<0.01&&std::abs(fit.y)<0.01)
         fit.scale=1,fit.x=fit.y=0;
     return fit;
+}
+// Longest edge for a copy of an oversized source, or 0 when it is fine as it is.
+// Past about 2.5 source pixels per display pixel, composition's bilinear sampling
+// skips source pixels and rounded corners turn to stairs. Dock icons get two source
+// pixels per display pixel, so the copy does too.
+inline int OversizedCopy(int source,double display) noexcept {
+    if(!(display>=1)||source<2.5*display)return 0;
+    return std::min(source,int(std::ceil(display*2)));
+}
+// Area average, so every source pixel counts. XAML bitmaps are premultiplied, so
+// the channels average directly. Empty on invalid input.
+inline std::vector<uint8_t> Shrink(std::span<const uint8_t> bgra,int width,int height,int toWidth,int toHeight) {
+    std::vector<uint8_t> out;
+    if(width<1||height<1||toWidth<1||toHeight<1||toWidth>width||toHeight>height||
+       bgra.size()!=size_t(width)*size_t(height)*4)return out;
+    out.resize(size_t(toWidth)*size_t(toHeight)*4);
+    const double sx=double(width)/toWidth,sy=double(height)/toHeight;
+    for(int y=0;y<toHeight;++y){
+        const double y0=y*sy,y1=(y+1)*sy;
+        const int vLast=std::min(height,int(std::ceil(y1)));
+        for(int x=0;x<toWidth;++x){
+            const double x0=x*sx,x1=(x+1)*sx;
+            const int uLast=std::min(width,int(std::ceil(x1)));
+            double sum[4]{},area=0;
+            for(int v=int(y0);v<vLast;++v){
+                const double wy=std::min(y1,v+1.0)-std::max(y0,double(v));
+                for(int u=int(x0);u<uLast;++u){
+                    const double w=wy*(std::min(x1,u+1.0)-std::max(x0,double(u)));
+                    const uint8_t* p=&bgra[(size_t(v)*width+u)*4];
+                    for(int c=0;c<4;++c)sum[c]+=p[c]*w;
+                    area+=w;
+                }
+            }
+            uint8_t* o=&out[(size_t(y)*toWidth+x)*4];
+            for(int c=0;c<4;++c)o[c]=uint8_t(std::clamp(std::lround(sum[c]/area),0L,255L));
+        }
+    }
+    return out;
+}
+// Frames of one tray icon (a status dot, a spinner) measure a little differently.
+// Within this much the current fit stays, so the icon does not tremble.
+inline bool SameFit(const Fit& a,const Fit& b) noexcept {
+    return std::abs(a.scale-b.scale)<0.03&&std::abs(a.x-b.x)<0.02&&std::abs(a.y-b.y)<0.02;
 }
 }

@@ -65,6 +65,41 @@ int main(){
     Check(!UndersizedArtwork(Box(72,72,4,4,68,68),72,72),"a native size canvas never counts");
     Check(!UndersizedArtwork(std::vector<uint8_t>(256*256*4),256,256),"a blank bitmap says nothing");
     Check(!UndersizedArtwork({},256,256),"short data rejected");
+    // An oversized source gets a copy at twice the display; an ordinary one does not.
+    Check(LeanDockIcons::OversizedCopy(512,29.26)==59,"512 px shown at 29 px gets a copy");
+    Check(LeanDockIcons::OversizedCopy(36,24)==0,"36 px shown at 24 px stays");
+    Check(LeanDockIcons::OversizedCopy(24,24)==0,"a native size source stays");
+    Check(LeanDockIcons::OversizedCopy(48,24)==0,"two to one stays, like the Dock");
+    Check(LeanDockIcons::OversizedCopy(60,24)==48,"the sampling limit starts a copy");
+    Check(LeanDockIcons::OversizedCopy(512,0)==0,"no display size, no copy");
+    // Averaging keeps the art and smooths its edges.
+    {   const auto solid=Box(64,64,0,0,64,64);
+        const auto small=LeanDockIcons::Shrink(solid,64,64,16,16);
+        Check(small.size()==16*16*4,"copy has the asked size");
+        bool same=true;for(size_t i=0;i<small.size();++i)same=same&&small[i]==solid[i];
+        Check(same,"a solid area keeps its exact value");
+        // A disc: nearest sampling has only 0 and 255 alpha, an average has the steps between.
+        std::vector<uint8_t> disc(512*512*4);
+        for(int y=0;y<512;++y)for(int x=0;x<512;++x)if((x-256)*(x-256)+(y-256)*(y-256)<=200*200)disc[(size_t(y)*512+x)*4+3]=255;
+        const auto smooth=LeanDockIcons::Shrink(disc,512,512,29,29);
+        int partial=0;for(size_t i=3;i<smooth.size();i+=4)if(smooth[i]>0&&smooth[i]<255)++partial;
+        Check(partial>=16,"rounded edges get partial coverage");
+        // A fractional ratio still weighs every source pixel once.
+        double before=0,after=0;
+        for(size_t i=3;i<disc.size();i+=4)before+=disc[i];
+        for(size_t i=3;i<smooth.size();i+=4)after+=smooth[i];
+        Check(std::abs(before/(512*512)-after/(29*29))<1,"coverage is conserved");
+        Check(LeanDockIcons::Shrink(disc,512,512,600,600).empty(),"never enlarges");
+        Check(LeanDockIcons::Shrink(disc,512,512,0,29).empty(),"zero size rejected");
+        Check(LeanDockIcons::Shrink({},512,512,29,29).empty(),"short data rejected");
+    }
+    // Frames of one tray icon: noise keeps the fit, a real change does not.
+    auto frame=Measure(Box(64,64,5,5,59,59),64,64);
+    auto nearly=Measure(Box(64,64,5,5,60,60),64,64);
+    Check(LeanDockIcons::SameFit(frame,frame),"a frame matches itself");
+    Check(LeanDockIcons::SameFit(frame,nearly),"one pixel of noise keeps the fit");
+    Check(!LeanDockIcons::SameFit(frame,Measure(Box(64,64,12,12,52,52),64,64)),"a smaller glyph takes a new scale");
+    Check(!LeanDockIcons::SameFit(frame,Measure(Box(64,64,0,0,54,54),64,64)),"an off-center glyph takes a new position");
     std::printf("icon-optics checks=%d failures=%d\n",checks,failures);
     return failures?EXIT_FAILURE:EXIT_SUCCESS;
 }

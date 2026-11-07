@@ -11,6 +11,12 @@ struct State {
     unsigned retries{};
     HWND taskbar{};
     Media::TransformGroup applied{nullptr};
+    Media::CompositeTransform correction{nullptr};
+    LeanDockIcons::Fit current{};
+    bool tray{};
+    uint64_t measuredAt{};
+    DispatcherTimer later{nullptr};
+    Media::ImageSource original{nullptr},filtered{nullptr};
     Controls::Canvas sampleHost{nullptr};
     winrt::weak_ref<Controls::Panel> sampleParent;
     winrt::Windows::Foundation::IInspectable originalLocal{nullptr};
@@ -18,7 +24,9 @@ struct State {
 };
 thread_local std::unordered_map<ElementId,std::shared_ptr<State>> states;
 thread_local uint64_t nextSlot{};
-constexpr const wchar_t* properties[]={L"Status",L"Scale",L"Left",L"Top",L"Right",L"Bottom",L"Source",L"Error",L"PixelsWidth",L"PixelsHeight",L"OffsetX",L"OffsetY",L"SourceWidth",L"SourceHeight",L"DecodeWidth",L"DecodeHeight",L"DisplayWidth100",L"DisplayHeight100"};
+constexpr const wchar_t* properties[]={L"Status",L"Scale",L"Left",L"Top",L"Right",L"Bottom",L"Source",L"Error",L"PixelsWidth",L"PixelsHeight",L"OffsetX",L"OffsetY",L"SourceWidth",L"SourceHeight",L"DecodeWidth",L"DecodeHeight",L"DisplayWidth100",L"DisplayHeight100",L"Tray",L"CopyWidth"};
+// Tray icons can animate. Two measures a second are enough for a steady size.
+constexpr uint64_t TrayPace=500;
 std::wstring Property(State const& s,const wchar_t* name){
     return L"LeanDock.Icons."+std::to_wstring(s.slot)+L"."+name;
 }
@@ -36,15 +44,71 @@ bool IsAppIcon(Controls::Image const& image) {
     }
     return false;
 }
+// An application's notification icon. Text and language content have no artwork
+// to measure, so those stay native.
+bool IsTrayIcon(Controls::Image const& image) {
+    DependencyObject parent=Media::VisualTreeHelper::GetParent(image);
+    for(int i=0;i<8&&parent;++i){
+        const auto type=winrt::get_class_name(parent);
+        if(type==L"SystemTray.ImageIconContent")return true;
+        if(type==L"SystemTray.NotifyIconView"||std::wstring_view(type).starts_with(L"Taskbar."))return false;
+        parent=Media::VisualTreeHelper::GetParent(parent);
+    }
+    return false;
+}
+void Aim(Media::CompositeTransform const& correction,LeanDockIcons::Fit const& fit,double width,double height,winrt::Windows::Foundation::Point origin) {
+    correction.CenterX((0.5-origin.X)*width);correction.CenterY((0.5-origin.Y)*height);
+    correction.ScaleX(fit.scale);correction.ScaleY(fit.scale);
+    correction.TranslateX(fit.x*width);correction.TranslateY(fit.y*height);
+}
 void Restore(State& s) noexcept {
     try{if(auto image=s.image.get();image&&s.applied&&image.RenderTransform()==s.applied){
         s.writing=true;
         if(s.originalLocal==DependencyProperty::UnsetValue())image.ClearValue(UIElement::RenderTransformProperty());
         else image.SetValue(UIElement::RenderTransformProperty(),s.originalLocal);
     }}catch(...){}
-    s.writing=false;s.applied=nullptr;s.originalLocal=nullptr;
+    s.writing=false;s.applied=nullptr;s.correction=nullptr;s.originalLocal=nullptr;
+}
+void RestoreSource(State& s) noexcept {
+    try{if(auto image=s.image.get();image&&s.filtered&&image.Source()==s.filtered){
+        s.writing=true;image.Source(s.original);
+    }}catch(...){}
+    s.writing=false;s.filtered=nullptr;s.original=nullptr;
+}
+// A source far larger than the display turns rounded corners into stairs, so show
+// an averaged copy. Only with a one-way compiled binding: its next value simply
+// replaces the copy, while a local value would end a {Binding} for good.
+void ShowCopy(State& s,Controls::Image const& image,Media::Imaging::WriteableBitmap const& bitmap,double display) {
+    if(image.GetBindingExpression(Controls::Image::SourceProperty()))return;
+    const int width=bitmap.PixelWidth(),height=bitmap.PixelHeight(),longest=std::max(width,height);
+    const int size=LeanDockIcons::OversizedCopy(longest,display);
+    if(!size)return;
+    const int toWidth=std::max(1,int(std::lround(double(width)*size/longest)));
+    const int toHeight=std::max(1,int(std::lround(double(height)*size/longest)));
+    auto buffer=bitmap.PixelBuffer();
+    const auto pixels=LeanDockIcons::Shrink({buffer.data(),buffer.Length()},width,height,toWidth,toHeight);
+    if(pixels.empty())return;
+    Media::Imaging::WriteableBitmap copy(toWidth,toHeight);
+    std::copy(pixels.begin(),pixels.end(),copy.PixelBuffer().data());
+    copy.Invalidate();
+    s.original=bitmap;s.filtered=copy;s.writing=true;
+    image.Source(copy);
+    s.writing=false;Put(s,L"CopyWidth",toWidth);
 }
 void Queue(std::shared_ptr<State> const& s) noexcept;
+void Later(std::shared_ptr<State> const& s,uint64_t delay) {
+    if(!s->later){
+        std::weak_ptr<State> weak=s;
+        s->later=DispatcherTimer();
+        s->later.Tick([weak](auto const&,auto const&) noexcept {
+            if(auto s=weak.lock()){
+                try{s->later.Stop();}catch(...){}
+                Queue(s);
+            }
+        });
+    }
+    s->later.Interval(std::chrono::milliseconds(delay));s->later.Start();
+}
 void ClearSample(State& s) noexcept {
     try{if(s.sampleHost){
         if(auto parent=s.sampleParent.get()){
@@ -116,14 +180,17 @@ winrt::fire_and_forget Measure(std::shared_ptr<State> s) {
             if(!image.GetBindingExpression(UIElement::RenderTransformProperty())){
                 const auto source=image.Source();
                 const double width=image.ActualWidth(),height=image.ActualHeight();
-                if(auto bitmap=source.try_as<Media::Imaging::BitmapSource>()){
+                // Our own copy is already measured: its original's numbers stay.
+                const bool ownCopy=s->filtered&&source==s->filtered;
+                if(auto bitmap=source.try_as<Media::Imaging::BitmapSource>();bitmap&&!ownCopy){
                     Put(*s,L"SourceWidth",bitmap.PixelWidth());Put(*s,L"SourceHeight",bitmap.PixelHeight());
                 }
                 if(auto bitmap=source.try_as<Media::Imaging::BitmapImage>()){
                     Put(*s,L"DecodeWidth",bitmap.DecodePixelWidth());Put(*s,L"DecodeHeight",bitmap.DecodePixelHeight());
                 }
                 LeanDockIcons::Fit fit;
-                if(auto bitmap=source.try_as<Media::Imaging::WriteableBitmap>()){
+                if(ownCopy)fit=s->current;
+                else if(auto bitmap=source.try_as<Media::Imaging::WriteableBitmap>()){
                     Put(*s,L"Source",1);
                     auto buffer=bitmap.PixelBuffer();
                     Put(*s,L"PixelsWidth",bitmap.PixelWidth());Put(*s,L"PixelsHeight",bitmap.PixelHeight());
@@ -146,6 +213,11 @@ winrt::fire_and_forget Measure(std::shared_ptr<State> s) {
                 }
                 if(s->active&&s->revision==revision&&image.IsLoaded()&&image.Source()==source){
                         Put(*s,L"Status",fit.valid?1:3);
+                        Put(*s,L"Tray",s->tray);
+                        // A tray icon holds its scale on a blank frame (flashing)
+                        // and through small differences between frames.
+                        const bool owned=s->applied&&s->correction&&image.RenderTransform()==s->applied;
+                        if(fit.valid&&owned&&LeanDockIcons::SameFit(s->current,fit))fit=s->current;
                         if(fit.valid){
                             const double raster=image.XamlRoot().RasterizationScale();
                             Put(*s,L"DisplayWidth100",std::lround(width*fit.scale*raster*100));
@@ -155,22 +227,27 @@ winrt::fire_and_forget Measure(std::shared_ptr<State> s) {
                             Put(*s,L"OffsetY",static_cast<ULONG_PTR>(static_cast<LONG_PTR>(std::lround(fit.y*height*10000))));
                             Put(*s,L"Left",fit.left);Put(*s,L"Top",fit.top);
                             Put(*s,L"Right",fit.right);Put(*s,L"Bottom",fit.bottom);
-                            if(fit.scale!=1||fit.x!=0||fit.y!=0){
+                            const auto origin=image.RenderTransformOrigin();
+                            if(owned){
+                                // New numbers on the same object: no property change, no flicker.
+                                Aim(s->correction,fit,width,height,origin);
+                                s->current=fit;Put(*s,L"Status",2);
+                            }else if(fit.scale!=1||fit.x!=0||fit.y!=0){
                                 auto previous=image.RenderTransform();
                                 s->originalLocal=image.ReadLocalValue(UIElement::RenderTransformProperty());
                                 Media::CompositeTransform correction;
-                                const auto origin=image.RenderTransformOrigin();
-                                correction.CenterX((0.5-origin.X)*width);correction.CenterY((0.5-origin.Y)*height);
-                                correction.ScaleX(fit.scale);correction.ScaleY(fit.scale);
-                                correction.TranslateX(fit.x*width);correction.TranslateY(fit.y*height);
+                                Aim(correction,fit,width,height,origin);
                                 Media::TransformGroup group;
                                 // Normalize artwork first, then preserve native animation/translation.
                                 group.Children().Append(correction);
                                 if(previous)group.Children().Append(previous);
-                                s->applied=group;s->writing=true;
+                                s->applied=group;s->correction=correction;s->current=fit;s->writing=true;
                                 image.RenderTransform(group);
                                 s->writing=false;Put(*s,L"Status",2);
                             }
+                            s->current=fit;
+                            if(s->tray&&!ownCopy)if(auto bitmap=source.try_as<Media::Imaging::WriteableBitmap>())
+                                ShowCopy(*s,image,bitmap,width*raster*fit.scale);
                         }
                 }
             }
@@ -192,19 +269,32 @@ void Queue(std::shared_ptr<State> const& s) noexcept {
         image.Dispatcher().RunAsync(winrt::Windows::UI::Core::CoreDispatcherPriority::Low,[weak]() noexcept {
             if(auto s=weak.lock()){
                 s->queued=false;
-                try{if(s->active&&!s->busy)if(auto image=s->image.get();image&&IsAppIcon(image))Measure(s);}catch(...){Put(*s,L"Status",3);}
+                try{if(s->active&&!s->busy)if(auto image=s->image.get();image&&(s->tray||IsAppIcon(image))){
+                    if(s->tray){
+                        const auto now=GetTickCount64();
+                        if(now-s->measuredAt<TrayPace){Later(s,TrayPace-(now-s->measuredAt));return;}
+                        s->measuredAt=now;
+                    }
+                    Measure(s);
+                }}catch(...){Put(*s,L"Status",3);}
             }
         });
     }catch(...){s->queued=false;Put(*s,L"Status",3);}
 }
 void Refresh(std::shared_ptr<State> const& s) noexcept {
     if(!s->active||s->writing)return;
-    ++s->revision;CancelRetry(*s);s->retries=0;ClearSample(*s);Restore(*s);Queue(s);
+    ++s->revision;CancelRetry(*s);s->retries=0;ClearSample(*s);
+    // A tray icon keeps its scale until the new frame is measured; going back to
+    // native size in between would flicker on every flash.
+    if(!s->tray)Restore(*s);
+    Queue(s);
 }
 void Remove(ElementId id) noexcept {
     auto it=states.find(id);if(it==states.end())return;
     auto s=it->second;states.erase(it);s->active=false;++s->revision;
     CancelRetry(*s);
+    try{if(s->later)s->later.Stop();}catch(...){}
+    s->later=nullptr;
     // The backend is process-pinned; late async completion is inert. Cancel
     // first, detach callbacks, then restore only a transform still owned by us.
     try{if(s->render)s->render.Cancel();}catch(...){}
@@ -216,14 +306,16 @@ void Remove(ElementId id) noexcept {
         try{if(s->sourceRegistered)image.UnregisterPropertyChangedCallback(Controls::Image::SourceProperty(),s->sourceToken);}catch(...){}
         try{if(s->transformRegistered)image.UnregisterPropertyChangedCallback(UIElement::RenderTransformProperty(),s->transformToken);}catch(...){}
     }
-    Restore(*s);
+    Restore(*s);RestoreSource(*s);
     try{for(auto key:properties)if(s->taskbar)RemovePropW(s->taskbar,Property(*s,key).c_str());}catch(...){}
 }
 void Attach(ElementId id,FrameworkElement const& element) noexcept {
     try{
         auto image=element.try_as<Controls::Image>();
-        if(!image||image.Name()!=L"Icon"||states.contains(id))return;
-        auto s=std::make_shared<State>();s->image=winrt::make_weak(image);s->slot=++nextSlot;
+        if(!image||states.contains(id))return;
+        const bool tray=IsTrayIcon(image);
+        if(!tray&&image.Name()!=L"Icon")return;
+        auto s=std::make_shared<State>();s->image=winrt::make_weak(image);s->slot=++nextSlot;s->tray=tray;
         states.emplace(id,s);std::weak_ptr<State> weak=s;
         auto refresh=[weak](auto const&,auto const&) noexcept {if(auto s=weak.lock())Refresh(s);};
         s->loaded=image.Loaded(refresh);s->opened=image.ImageOpened(refresh);s->sized=image.SizeChanged(refresh);

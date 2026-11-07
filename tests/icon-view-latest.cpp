@@ -149,6 +149,60 @@ int main(){
         Check(!s->sampleHost&&root.Children().Size()==childrenBefore,"high-resolution sample cleaned up");
         LeanDockIconView::Remove(ElementId::Icon);
         Check(image.Source()==high&&image.ReadLocalValue(UIElement::RenderTransformProperty())==highOriginalTransform,"stop preserves native high-resolution source and original transform property");
+        // A tray icon keeps one transform while frames change: no flicker at native size.
+        Check(!LeanDockIconView::IsTrayIcon(image),"an ordinary image is not a tray icon");
+        auto trayFrame=[&](int low,int high){
+            Media::Imaging::WriteableBitmap frame(64,64);
+            auto data=frame.PixelBuffer().data();std::fill(data,data+64*64*4,0);
+            for(int y=low;y<high;++y)for(int x=low;x<high;++x){auto p=data+(y*64+x)*4;p[0]=128;p[3]=255;}
+            frame.Invalidate();return frame;
+        };
+        image.Source(trayFrame(5,59));root.UpdateLayout();Pump();
+        s=std::make_shared<LeanDockIconView::State>();s->image=winrt::make_weak(image);s->taskbar=window;s->slot=6;s->tray=true;
+        LeanDockIconView::states.emplace(ElementId::Icon,s);LeanDockIconView::Measure(s);Wait(s);
+        Check(bool(s->applied),"tray icon normalized");
+        const auto trayGroup=s->applied;const auto trayFit=s->correction;
+        Check(trayFit&&std::abs(trayFit.ScaleX()-64.0/54)<0.015,"tray icon uses the Dock's scale");
+        image.Source(trayFrame(8,56));LeanDockIconView::Refresh(s);
+        Check(image.RenderTransform()==trayGroup,"a new frame keeps the current transform until measured");
+        for(int i=0;i<40&&std::abs(trayFit.ScaleX()-64.0/48)>=0.015;++i)Pump(20);
+        Check(s->applied==trayGroup&&std::abs(trayFit.ScaleX()-64.0/48)<0.015,"a different frame updates the same object");
+        const double trayScale=trayFit.ScaleX();
+        image.Source(trayFrame(0,0));LeanDockIconView::Refresh(s);
+        for(int i=0;i<60;++i)Pump(20); // past the pace and the bounded retries
+        Check(s->applied==trayGroup&&image.RenderTransform()==trayGroup&&trayFit.ScaleX()==trayScale,"a blank flash frame holds the scale");
+        image.Source(trayFrame(8,57));LeanDockIconView::Refresh(s);
+        for(int i=0;i<60;++i)Pump(20);
+        Check(trayFit.ScaleX()==trayScale,"a pixel of noise between frames holds the scale");
+        auto trayLate=s->later;
+        LeanDockIconView::Remove(ElementId::Icon);
+        Check(!s->applied&&!s->correction&&!s->later&&(!trayLate||!trayLate.IsEnabled()),"tray icon lifetime removed");
+        image.ClearValue(UIElement::RenderTransformProperty());
+        // An oversized tray source is shown through an averaged copy, then handed back.
+        auto oversized=[&](int low,int high){
+            Media::Imaging::WriteableBitmap frame(256,256);
+            auto data=frame.PixelBuffer().data();std::fill(data,data+256*256*4,0);
+            for(int y=low;y<high;++y)for(int x=low;x<high;++x){auto p=data+(y*256+x)*4;p[0]=p[3]=255;}
+            frame.Invalidate();return frame;
+        };
+        auto big=oversized(23,233);image.Source(big);root.UpdateLayout();Pump();
+        s=std::make_shared<LeanDockIconView::State>();s->image=winrt::make_weak(image);s->taskbar=window;s->slot=7;s->tray=true;
+        LeanDockIconView::states.emplace(ElementId::Icon,s);LeanDockIconView::Measure(s);Wait(s);
+        const auto shown=image.Source().try_as<Media::Imaging::WriteableBitmap>();
+        Check(shown&&shown!=big&&s->filtered==shown&&s->original==big,"oversized source shown through a copy");
+        Check(shown&&shown.PixelWidth()<big.PixelWidth()&&shown.PixelWidth()==shown.PixelHeight(),"the copy is smaller and square");
+        Check(big.PixelWidth()==256&&image.Width()==40,"the original bitmap and layout are unchanged");
+        const auto bigScale=s->correction?s->correction.ScaleX():0;
+        Check(std::abs(bigScale-256.0/210)<0.015,"scale comes from the original's artwork");
+        LeanDockIconView::Refresh(s);for(int i=0;i<40;++i)Pump(20);
+        Check(image.Source()==shown&&s->correction.ScaleX()==bigScale,"a layout refresh keeps the copy and its scale");
+        auto next=oversized(40,216);image.Source(next);LeanDockIconView::Refresh(s);
+        for(int i=0;i<60&&s->original!=next;++i)Pump(20);
+        Check(s->original==next&&image.Source()==s->filtered&&image.Source()!=shown,"a new source replaces the copy");
+        Check(std::abs(s->correction.ScaleX()-1.35)<0.001,"a new frame is measured from its own artwork, up to the cap");
+        LeanDockIconView::Remove(ElementId::Icon);
+        Check(image.Source()==next&&!s->filtered&&!s->original,"stop hands the native source back");
+        image.ClearValue(UIElement::RenderTransformProperty());
         // Force the asynchronous, non-readable source route for cancellation.
         image.Source(Media::Imaging::BitmapImage{});
         s=std::make_shared<LeanDockIconView::State>();s->image=winrt::make_weak(image);s->taskbar=window;s->slot=3;

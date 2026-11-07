@@ -1,0 +1,102 @@
+{
+  "version": "0.8.107",
+  "date": "2026-11-07T22:49:30+08:00",
+  "state": "Deployed; the user reported jagged corners on one icon, fixed in 0.8.108",
+  "backendVersion": "0.5.92",
+  "controllerVersion": "0.3.42",
+  "panelVersion": "0.8.107",
+  "change": "Tray icons use the Dock's icon sizing: scale and center by visible artwork, capped at 1.35. Because tray sources change, a new frame keeps the current scale until measured, a blank frame holds it, small differences are ignored, and each icon measures at most every 500 ms. The panel changes only by its version string.",
+  "userRequest": {
+    "At": "2026-11-07",
+    "Answer": "按照目前dock图标一致的算法，我想给给托盘图标也整一份类似的。让他们看起来尽量一致大小"
+  },
+  "checks": {
+    "IconOptics": "4 new SameFit checks",
+    "IconView": "New hidden-window tray scenario: new frame keeps the transform, a different frame updates the same object, a blank frame and a pixel of noise hold the scale, removal stops the timer"
+  },
+  "preDeployValidation": {
+    "ValidateOnly": "passed",
+    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.107-outputs\\pre-deploy-20261107-224528)",
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "deployment": {
+    "Version": "0.8.107",
+    "Live": true,
+    "Autotest": "AutomatedChecksPassed",
+    "ComponentHealth": {
+      "State": "Ready",
+      "Source": "Required by the autotest's final snapshot"
+    },
+    "Explorer": "pid 9340, restarted 22:49:06 by the update",
+    "Backend": {
+      "hooks": 70,
+      "menuHook": 1
+    },
+    "RuntimeFiles": {
+      "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
+      "latest.dll": "60554AF1AA28E9F6931CC52D4C89D3BF2316050E9AFF209FB5F129F881CD0745",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "0954AAC0D1AB608F3D866532A667355B8B2004940E414910E3BF6954936DEC97"
+    },
+    "ConfigUnchanged": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "observed": {
+    "TrayIcons": [
+      {
+        "Source": "512x512",
+        "Artwork": "46-466",
+        "Scale": 1.219,
+        "Offset": "none"
+      },
+      {
+        "Source": "24x24",
+        "Artwork": "x 2-24, y 0-24",
+        "Scale": 1,
+        "Offset": "-0.67 DIP"
+      },
+      {
+        "Source": "24x24",
+        "Artwork": "full",
+        "Scale": 1,
+        "Offset": "none"
+      },
+      {
+        "Source": "36x36",
+        "Artwork": "full",
+        "Scale": 1,
+        "Offset": "none"
+      }
+    ],
+    "Result": "Longest visible edge 24 px for all four at 150%. Source type WriteableBitmap, read directly with no rendered copy.",
+    "DockIcons": "Dock slots unchanged in scale apart from the Explorer-start difference recorded for MinerU."
+  },
+  "rollback": "backups/before-0.8.107-20261107-224904466 returns to 0.8.106.",
+  "previousAcceptance": {
+    "version": "0.8.106",
+    "record": "docs/verification-v0.8.106.json",
+    "user": "ok，提交同步吧"
+  },
+  "knownLimits": [
+    "A tray icon with a small source and much padding softens when enlarged; none does at present",
+    "Glyph and language tray icons have no artwork and are not adjusted",
+    "Equal bounds do not guarantee equal visual weight: a penguin looks lighter than a full square"
+  ],
+  "notVerified": [
+    "The tray icons on the real screen",
+    "Real flashing from an application; covered only by the hidden-window test",
+    "Whether Explorer rewrites one WriteableBitmap in place, which would not trigger a new measure"
+  ],
+  "userAcceptance": {
+    "At": "2026-11-07",
+    "Answer": "你显然裁切得不好看，因为托盘的反重力图标和dock的看起来形状都变了，dock的才是原版，托盘的则不圆润四周，变得棱角化"
+  }
+}

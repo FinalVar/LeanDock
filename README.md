@@ -9,7 +9,7 @@
 
 <img src="docs/assets/badge-platform.svg" alt="platform: Windows 11">
 <img src="docs/assets/badge-cpp.svg" alt="C++23">
-<img src="docs/assets/badge-version.svg" alt="version 0.8.106">
+<img src="docs/assets/badge-version.svg" alt="version 0.8.108">
 <img src="docs/assets/badge-license.svg" alt="license: GPL-3.0">
 
 <br><br>
@@ -102,7 +102,7 @@ Dock 就是 Windows 自己的任务栏换了身衣服。拖拽、跳转列表、
 - **回桌面就出来**：全屏的终端、播放器没法被“显示桌面”最小化，只是压在桌面下面；LeanDock 不把它们算作遮挡，用触发角或 Win+D 回到桌面时 Dock 照常露出。
 - **不打扰**：来消息不会把 Dock 弹出来，只在图标下面亮一个小红点。
 - **图标清楚**：按两倍分辨率取图，自动对齐大小和居中；个别应用取不到大图时（比如 MinerU），这个图标改用系统原尺寸的图，大小正常，比其他图标略软；应用多到放不下时，按钮会自动缩小。
-- **托盘还在**：通知托盘留在 Dock 里，排成两行。
+- **托盘还在**：通知托盘留在 Dock 里，排成两行；图标用和 Dock 一样的办法对齐大小和居中。
 
 ## 🖱️ 触发角
 
@@ -263,6 +263,8 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 | 11 月 7 日 | 0.8.104 | MinerU 这类图标不再很小：两倍取图拿到小图时，只有这个图标改用系统原尺寸的图 |
 | 11 月 7 日 | 0.8.105 | 单击过详情面板后，鼠标移开不再收起，点面板外面才关闭 |
 | 11 月 7 日 | 0.8.106 | 右键菜单和详情面板的位置统一：都在 Dock 上方 8 DIP、对准时间键；修复重启后右键菜单偶尔跑到左边 |
+| 11 月 7 日 | 0.8.107 | 托盘图标也按可见内容对齐大小和居中，和 Dock 图标同一套算法 |
+| 11 月 7 日 | 0.8.108 | 原图过大的托盘图标先平滑缩小再显示，圆角不再变成锯齿 |
 
 ## 🙏 致谢
 

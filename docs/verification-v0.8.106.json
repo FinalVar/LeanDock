@@ -1,0 +1,81 @@
+{
+  "version": "0.8.106",
+  "date": "2026-11-07T21:56:22+08:00",
+  "state": "Deployed; the user asked to commit and sync",
+  "backendVersion": "0.5.91",
+  "controllerVersion": "0.3.42",
+  "panelVersion": "0.8.106",
+  "change": "The time key's menu and panel use one placement rule: 8 DIP above the fully shown Dock, centered on the key, the panel kept within the Dock's span. The menu hook now installs even when Taskbar.View.dll loads after the backend, and its state is reported in the component health.",
+  "userRequest": {
+    "At": "2026-11-07",
+    "Answer": "腰圆右键菜单出现的位置不对，悬停出现的面板位置也不对，单击出现的位置倒还好。你自己统一处理此类问题。关于出现位置的问题"
+  },
+  "findings": {
+    "Menu": "In the Explorer started at 20:24 the backend reported 68 hooks and LeanDock.Menu.NativeCalls was absent after 7 right clicks: the menu hook never ran, so the menu opened at the hidden native Start button (user's screenshot: about x 668-941, key at 1573-1681). InstallLeanDockMenuHook returned for good when Taskbar.View.dll was not yet loaded.",
+    "Panel": "Bottom edge was anchor.top-10 DIP, 4 px above the Dock at 150% against 12 px for the other popups. The anchor was the key's current Y; a published value of 1609 was read while the Dock was hidden (shown position 1515)."
+  },
+  "checks": {
+    "Geometry": "New PopupBottom, PopupFromPart and ShownShift checks at 3 origins and 4 DPI values",
+    "Health": "KeyMenu reported Unavailable or Pending; 4 new checks in tests/maintenance-latest.ps1"
+  },
+  "preDeployValidation": {
+    "ValidateOnly": "passed",
+    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.106-outputs\\pre-deploy-20261107-215233)",
+    "ConfigPreserved": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ]
+  },
+  "deployment": {
+    "Version": "0.8.106",
+    "Live": true,
+    "Autotest": "AutomatedChecksPassed",
+    "Explorer": "pid 26220, restarted 21:56:17 by the update; Native Dock active 21:56:22",
+    "Backend": {
+      "hooks": 70,
+      "menuHook": 1
+    },
+    "RuntimeFiles": {
+      "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
+      "latest.dll": "CDD9A415AEA374D7D56CA58FE76722D463D0454AB8C90E1C2266D2C73476D295",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "F08FEC6E73B5A761DC53F8BCE87189353CDDD070A19B480AE1C0C2982FBCFA81"
+    },
+    "ConfigUnchanged": [
+      "latest.ini",
+      "hotcorners/latest.ini",
+      "cards/latest.ini"
+    ],
+    "ComponentHealth": {
+      "State": "Ready",
+      "Source": "Required by the autotest's final snapshot, which now includes KeyMenu"
+    }
+  },
+  "rollback": "backups/before-0.8.106-20261107-215614733 returns to 0.8.105.",
+  "previousAcceptance": {
+    "version": "0.8.105",
+    "record": "docs/verification-v0.8.105.json",
+    "user": "没问题了"
+  },
+  "knownLimits": [
+    "Start, Search and Quick settings keep their accepted binaries and stay centered on the Dock",
+    "Other menus, such as app and tray icon menus, are placed by Windows or the application"
+  ],
+  "notVerified": [
+    "The menu window's actual rectangle: only its anchor was measured",
+    "The late-install path: in this Explorer start Taskbar.View.dll was already loaded, so the retry did not run. It is reasoned from the code, and the health check reports a miss.",
+    "Multi-monitor and other DPI values on the real machine; covered only by geometry checks"
+  ],
+  "userAcceptance": {
+    "At": "2026-11-07",
+    "Answer": "ok，提交同步吧",
+    "Scope": "Reply after being asked to check the right-click menu position; the user did not state what was checked."
+  },
+  "observed": {
+    "Panel": "Read during real use at 22:01:17, 150%: Dock 842-1719, key 1495-1603, panel 1269-1719 with its bottom edge at 1492, 12 px above the Dock.",
+    "MenuAnchor": "LeanDock.Menu.NativeStage 5, screen point 1549,1492: the key's center, 12 px above the Dock.",
+    "LogWindow": "A read-only sampler ran 21:59:52-22:11:52 and did not catch a menu window; the panel opened once."
+  }
+}

@@ -264,7 +264,7 @@ static void SaveState() {
     size_t hooks;{std::lock_guard guard(g_hookMutex);hooks=g_hooks.size();}
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.5.91\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"menuHook\":%u,\"styledElements\":%u,\"failed\":%s,"
+        "{\"protocol\":1,\"version\":\"0.5.93\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"menuHook\":%u,\"styledElements\":%u,\"failed\":%s,"
         "\"attentionPolicy\":{\"active\":%s,\"blockedReveals\":%llu,\"ignoredFlashingChecks\":%llu,\"passedReveals\":%llu},"
         "\"layoutCost\":{\"tray\":{\"calls\":%llu,\"micros\":%llu,\"worstMicros\":%llu},"
         "\"surface\":{\"calls\":%llu,\"micros\":%llu,\"worstMicros\":%llu}},"
