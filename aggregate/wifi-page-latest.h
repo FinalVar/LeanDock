@@ -174,6 +174,17 @@ inline void PaintPageHeader(Drawing& draw,ID2D1DeviceContext* dc,const wchar_t* 
     draw.Text(dc,title,{50,8,170,36},15,c.text,true);
     draw.Rule(dc,14,52,286,c.hair);
 }
+// What the page says instead of rows; empty when there are rows to show.
+inline std::wstring WifiEmptyText(Sample const& s){
+    auto const& list=s.wifiList;
+    if(s.wifi==0)return L"Wi-Fi 已关闭";
+    if(s.wifi==3)return L"无线网卡已被硬件开关关闭";
+    if(!list.problem.empty())return list.problem;
+    if(!list.ready&&list.unreadable)return L"读不到网络列表，正在重试";
+    if(!list.ready||(list.networks.empty()&&list.scanning))return L"正在查找网络…";
+    if(list.networks.empty())return L"附近没有可用的网络";
+    return {};
+}
 inline void PaintWifiPage(Drawing& draw,ID2D1DeviceContext* dc,Sample const& s,WifiLayout const& l,WifiView const& v,
     PageTarget const& hover,float hoverAmount,float on){
     auto& c=draw.colors;auto const& list=s.wifiList;
@@ -181,12 +192,7 @@ inline void PaintWifiPage(Drawing& draw,ID2D1DeviceContext* dc,Sample const& s,W
     PaintPageHeader(draw,dc,L"Wi-Fi",lit(PageHit::Back));
     PaintSwitch(draw,dc,246,18,on,PanelEnabled(PanelPart::Wifi,s),lit(PageHit::Toggle));
     const Rect middle{14,l.top+40,272,24};
-    std::wstring empty;
-    if(s.wifi==0)empty=L"Wi-Fi 已关闭";
-    else if(s.wifi==3)empty=L"无线网卡已被硬件开关关闭";
-    else if(!list.problem.empty())empty=list.problem;
-    else if(!list.ready||(list.networks.empty()&&list.scanning))empty=L"正在查找网络…";
-    else if(list.networks.empty())empty=L"附近没有可用的网络";
+    const std::wstring empty=WifiEmptyText(s);
     if(!empty.empty()){CenterText(draw,dc,empty,middle,13,c.secondary);return;}
     dc->PushAxisAlignedClip({8,l.top,292,l.bottom},D2D1_ANTIALIAS_MODE_ALIASED);
     const float shift=l.top-v.scroll;

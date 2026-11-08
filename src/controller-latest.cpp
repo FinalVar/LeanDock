@@ -26,6 +26,9 @@ static int g_exitCode;
 static bool g_stopping,g_dockSupported=true;
 static bool g_elevated;
 static bool g_panelsReady;
+static unsigned g_explorerExits;
+static bool g_explorerExitKnown;
+static DWORD g_explorerExitCode;
 
 static void Path(wchar_t* output,size_t capacity,const wchar_t* name) {
     _snwprintf_s(output,capacity,_TRUNCATE,L"%s\\%s",g_directory,name);
@@ -43,7 +46,7 @@ static void SaveStatus() {
     char json[4096],error[1200];WideCharToMultiByte(CP_UTF8,0,g_error,-1,error,sizeof(error),nullptr,nullptr);
     // Error messages are fixed internal labels, never window titles or application text.
     int size=snprintf(json,sizeof(json),
-        "{\"version\":\"0.3.42\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
+        "{\"version\":\"0.3.43\",\"controllerPid\":%lu,\"explorerPid\":%lu,\"state\":%u,\"attempts\":%u,\"watchMode\":\"events\",\"hotCornersReady\":%s,\"dockSupported\":%s,\"elevated\":%s,\"panelAnchoring\":%s,\"panelMoves\":[%u,%u],\"panelFailures\":%u,\"startLayoutSupported\":%s,\"startLayoutActive\":%s,\"startLayoutBlocked\":%s,\"startLayoutFailures\":%u,\"error\":\"%s\",",
         GetCurrentProcessId(),g_explorerPid,g_state,g_attempts,NativeCorners::Ready()?"true":"false",g_dockSupported?"true":"false",g_elevated?"true":"false",g_panelsReady?"true":"false",static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockStart::target,LeanDockStartProtocol::Adjustments))),static_cast<unsigned>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),LeanDockPanels::failures,LeanDockStart::supported?"true":"false",(LeanDockStart::target && LeanDockStart::Query(LeanDockStart::target))?"true":"false",(LeanDockStart::blocked || LeanDockStart::attachPolicy.stopped)?"true":"false",LeanDockStart::failures,error);
     HWND taskbar=FindWindowW(L"Shell_TrayWnd",nullptr);
     const bool appBarReady=LeanDockClientEdge::active && g_state==NativeActive && g_explorerPid &&
@@ -62,6 +65,8 @@ static void SaveStatus() {
         LeanDockClientEdge::lastStage,static_cast<DWORD>(LeanDockClientEdge::lastError),LeanDockClientEdge::initAttempts,
         LeanDockClientEdge::initPolicy.recoveries,LeanDockClientEdge::retryTimer?"true":"false",LeanDockClientEdge::genericRepairs,
         LeanDockClientEdge::fullscreenRepairs,LeanDockClientEdge::fullscreenHolds);
+    size+=snprintf(json+size,sizeof(json)-size,"\"explorerExits\":%u,\"explorerLastExitKnown\":%s,\"explorerLastExitCode\":%lu,",
+        g_explorerExits,g_explorerExitKnown?"true":"false",g_explorerExitCode);
     size+=snprintf(json+size,sizeof(json)-size,"\"quickPositionSupported\":%s,\"quickPositionActive\":%s,\"quickPositionBlocked\":%s,\"quickPositionFailures\":%u,\"quickPositionAdjustments\":%llu,\"quickPositionWindow\":%llu,\"quickPositionRecoveries\":%u,\"quickPositionLastExitKnown\":%s,\"quickPositionLastExitCode\":%lu}\n",
         LeanDockQuickHost::supported?"true":"false",LeanDockQuickHost::Query()?"true":"false",LeanDockQuickHost::blocked?"true":"false",LeanDockQuickHost::failures,
         static_cast<unsigned long long>(reinterpret_cast<ULONG_PTR>(GetPropW(LeanDockQuickHost::target,LeanDockQuick::Adjustments))),
@@ -106,12 +111,35 @@ static void ClearExplorer() {
     if(g_explorer){CloseHandle(g_explorer);g_explorer=nullptr;}
 }
 static void CALLBACK ExplorerExited(PTP_CALLBACK_INSTANCE,void*,PTP_WAIT,TP_WAIT_RESULT) {
-    PostMessageW(g_window,NativeReconnect,0,0);
+    PostMessageW(g_window,NativeReconnect,1,0);
+}
+// This machine keeps no crash reports, so record how each Explorer ended: an
+// exception code (0xC...) is a crash, a small number an ordinary exit or kill.
+// One line per exit in latest-explorer-exits.log, started over past 64 KiB.
+static void RecordExplorerExit() {
+    if(!g_explorer || WaitForSingleObject(g_explorer,0)!=WAIT_OBJECT_0)return;
+    DWORD code=0;g_explorerExitKnown=GetExitCodeProcess(g_explorer,&code)!=FALSE;
+    g_explorerExitCode=g_explorerExitKnown?code:0;++g_explorerExits;
+    FILETIME created{},exited{},kernel{},user{};unsigned long long ran=0;
+    if(GetProcessTimes(g_explorer,&created,&exited,&kernel,&user)) {
+        const auto start=(static_cast<unsigned long long>(created.dwHighDateTime)<<32)|created.dwLowDateTime;
+        const auto end=(static_cast<unsigned long long>(exited.dwHighDateTime)<<32)|exited.dwLowDateTime;
+        if(end>start)ran=(end-start)/10000000ull;
+    }
+    SYSTEMTIME now;GetLocalTime(&now);char line[160];
+    const int size=snprintf(line,sizeof(line),"%04u-%02u-%02u %02u:%02u:%02u explorer pid=%lu exit=%s0x%08lX ran=%llus\r\n",
+        now.wYear,now.wMonth,now.wDay,now.wHour,now.wMinute,now.wSecond,g_explorerPid,
+        g_explorerExitKnown?"":"unknown ",g_explorerExitCode,ran);
+    wchar_t path[32768];Path(path,std::size(path),L"latest-explorer-exits.log");
+    WIN32_FILE_ATTRIBUTE_DATA info{};
+    const bool full=GetFileAttributesExW(path,GetFileExInfoStandard,&info) && (info.nFileSizeHigh || info.nFileSizeLow>65536);
+    HANDLE file=CreateFileW(path,full?GENERIC_WRITE:FILE_APPEND_DATA,FILE_SHARE_READ,nullptr,full?CREATE_ALWAYS:OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
+    if(file!=INVALID_HANDLE_VALUE){DWORD written;if(size>0)WriteFile(file,line,size,&written,nullptr);CloseHandle(file);}
 }
 static bool TrackExplorer(DWORD pid) {
     if(g_explorerPid==pid && g_explorer && WaitForSingleObject(g_explorer,0)==WAIT_TIMEOUT)return true;
     ClearExplorer();g_explorerPid=pid;
-    g_explorer=OpenProcess(SYNCHRONIZE,FALSE,pid);if(!g_explorer)return false;
+    g_explorer=OpenProcess(SYNCHRONIZE|PROCESS_QUERY_LIMITED_INFORMATION,FALSE,pid);if(!g_explorer)return false;
     g_explorerWait=CreateThreadpoolWait(ExplorerExited,nullptr,nullptr);if(!g_explorerWait)return false;
     SetThreadpoolWait(g_explorerWait,g_explorer,nullptr);return true;
 }
@@ -235,6 +263,7 @@ static LRESULT CALLBACK ControllerProc(HWND w,UINT message,WPARAM p,LPARAM l) {
     if(message==WM_DESTROY){PostQuitMessage(g_exitCode);return 0;}
     if(message==NativeStop){PostMessageW(w,WM_CLOSE,0,0);return 1;}
     if(message==NativeQuery){SaveStatus();return g_state;}
+    if(message==NativeReconnect && p==1){RecordExplorerExit();SaveStatus();}
     if(message==NativeReconnect || message==g_taskbarCreated ||
        message==WM_DISPLAYCHANGE || (message==WM_POWERBROADCAST && p==PBT_APMRESUMEAUTOMATIC)) {
         if(!g_stopping && g_dockSupported){LeanDockClientEdge::Queue();g_attempts=0;g_state=NativeStarting;SetTimer(w,1,750,nullptr);}

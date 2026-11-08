@@ -9,7 +9,7 @@
 
 <img src="docs/assets/badge-platform.svg" alt="platform: Windows 11">
 <img src="docs/assets/badge-cpp.svg" alt="C++23">
-<img src="docs/assets/badge-version.svg" alt="version 0.8.108">
+<img src="docs/assets/badge-version.svg" alt="version 0.8.110">
 <img src="docs/assets/badge-license.svg" alt="license: GPL-3.0">
 
 <br><br>
@@ -139,7 +139,6 @@ Dock 就是 Windows 自己的任务栏换了身衣服。拖拽、跳转列表、
 - [ ] Wi-Fi 页：隐藏网络（要手动输入名称）和“忘记网络”还不支持；输入框只支持输入、退格和 Ctrl+V 粘贴，不能移动光标或选中文字
 - [ ] 蓝牙页：配对新设备、删除设备还不支持；连接和断开只对音频设备有效，且还没有用真实的蓝牙耳机验证过
 - [ ] 热点页：热点开着时不能改设置（要先关掉）
-- [ ] 时间键：充电闪电还没在实机上看过（[说明](docs/time-key-latest.md)）
 
 ## ⚠️ 用之前要知道
 
@@ -192,6 +191,7 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 
 - `hotcorners/latest.ini`：触发角的动作和延迟。写错了会整个被拒绝，继续用上一份有效配置。
 - `latest.ini`：日志和诊断开关，默认都关。
+- `latest-explorer-exits.log`：资源管理器每次意外退出记一行，0xC 开头的退出码是崩溃（[说明](docs/explorer-exits-latest.md)）。
 - `cards/latest.ini` 和 `Cards` 动作属于旧版小组件，当前不起作用，只为能回退而保留。
 
 > ⛔ **不要按 `latest.exe` 这个文件名批量结束进程。** 要停止请用 `Stop`。
@@ -265,6 +265,8 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 | 11 月 7 日 | 0.8.106 | 右键菜单和详情面板的位置统一：都在 Dock 上方 8 DIP、对准时间键；修复重启后右键菜单偶尔跑到左边 |
 | 11 月 7 日 | 0.8.107 | 托盘图标也按可见内容对齐大小和居中，和 Dock 图标同一套算法 |
 | 11 月 7 日 | 0.8.108 | 原图过大的托盘图标先平滑缩小再显示，圆角不再变成锯齿 |
+| 11 月 8 日 | 0.8.109 | 应用在原图上直接重画托盘图标时，平滑后的图跟着更新；任务栏每次排版少做一些已经用不到的清理 |
+| 11 月 8 日 | 0.8.110 | 记下资源管理器每次退出的退出码；Wi-Fi 页读不到网络列表时如实提示并重试；删掉不再用到的电量卡片代码 |
 
 ## 🙏 致谢
 

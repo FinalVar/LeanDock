@@ -200,6 +200,16 @@ int main(){
         for(int i=0;i<60&&s->original!=next;++i)Pump(20);
         Check(s->original==next&&image.Source()==s->filtered&&image.Source()!=shown,"a new source replaces the copy");
         Check(std::abs(s->correction.ScaleX()-1.35)<0.001,"a new frame is measured from its own artwork, up to the cap");
+        // A frame drawn into the same bitmap, without setting Source again.
+        {   const auto before=image.Source();
+            auto data=next.PixelBuffer().data();std::fill(data,data+256*256*4,0);
+            for(int y=10;y<246;++y)for(int x=10;x<246;++x){auto p=data+(y*256+x)*4;p[0]=p[3]=255;}
+            next.Invalidate();
+            for(int i=0;i<200&&image.Source()==before;++i)Pump(20);
+            for(int i=0;i<60&&(!s->filtered||image.Source()!=s->filtered);++i)Pump(20);
+            Check(s->original==next&&s->filtered&&image.Source()==s->filtered&&image.Source()!=before,"a frame drawn in place gets a new copy");
+            Check(std::abs(s->correction.ScaleX()-256.0/236)<0.015,"and is measured again");
+        }
         LeanDockIconView::Remove(ElementId::Icon);
         Check(image.Source()==next&&!s->filtered&&!s->original,"stop hands the native source back");
         image.ClearValue(UIElement::RenderTransformProperty());

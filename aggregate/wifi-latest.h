@@ -17,6 +17,7 @@ struct WifiList {
     std::vector<WifiNetwork> networks;
     std::wstring connecting,failed,failure,problem; // failed: the SSID failure belongs to
     bool ready=false,scanning=false,wrongPassword=false;
+    bool unreadable=false; // the WLAN service has not given a list for a while; retried
 };
 // Grouped by SSID (one row per network, not per access point), connected
 // first, then by coarse signal and name so rows do not jump between reads.
@@ -94,6 +95,7 @@ class WifiBackend {
     std::wstring waiting;Credential waitingCredential{nullptr};
     bool active=false;
     std::vector<WifiNetwork> remembered;std::string savedList;
+    unsigned readFailures=0;
     static std::wstring LastPath(){return Directory()+L"\\wifi-last-latest.bin";}
     void Recall(){
         remembered.clear();savedList.clear();
@@ -115,10 +117,32 @@ class WifiBackend {
         return text;
     }
     void Scan(uint64_t now){scanAt=now;try{scan=adapter.ScanAsync();}catch(...){scan=nullptr;scannedAt=now;}}
+    // A fresh handle on the first interface. False, and no handle, without one.
+    bool OpenClient(){
+        if(client){WlanCloseHandle(client,nullptr);client=nullptr;}
+        DWORD version=0;if(WlanOpenHandle(2,nullptr,&version,&client)!=ERROR_SUCCESS){client=nullptr;return false;}
+        PWLAN_INTERFACE_INFO_LIST interfaces=nullptr;bool found=false;
+        if(WlanEnumInterfaces(client,nullptr,&interfaces)==ERROR_SUCCESS&&interfaces){
+            if(interfaces->dwNumberOfItems){id=interfaces->InterfaceInfo[0].InterfaceGuid;found=true;}
+            WlanFreeMemory(interfaces);
+        }
+        if(!found){WlanCloseHandle(client,nullptr);client=nullptr;}
+        return found;
+    }
     void Read(WifiList& w,uint64_t now){
         readAt=now;if(!client)return;
         PWLAN_AVAILABLE_NETWORK_LIST report=nullptr;
-        if(WlanGetAvailableNetworkList(client,&id,0,nullptr,&report)!=ERROR_SUCCESS||!report)return;
+        const DWORD error=WlanGetAvailableNetworkList(client,&id,0,nullptr,&report);
+        if(error!=ERROR_SUCCESS||!report){
+            // The service restarted or the adapter was reset: every third failed
+            // read (about 3 s) takes a fresh handle. Without a list yet, say so
+            // rather than looking for networks forever.
+            if(++readFailures%3)return;
+            if(readFailures==3)Log(L"wifi-read-failed",long(error));
+            if(!w.ready)w.unreadable=true;
+            OpenClient();return;
+        }
+        readFailures=0;w.unreadable=false;
         std::vector<WifiNetwork> list;
         for(DWORD i=0;i<report->dwNumberOfItems;++i){
             auto const& network=report->Network[i];
@@ -173,14 +197,8 @@ public:
     bool Active()const{return active;}
     bool Pending()const{return active&&(access||finding||scan||connect);}
     void Open(){
-        active=true;startedAt=GetTickCount64();Recall();
-        DWORD version=0;if(!client&&WlanOpenHandle(2,nullptr,&version,&client)!=ERROR_SUCCESS)client=nullptr;
-        PWLAN_INTERFACE_INFO_LIST interfaces=nullptr;
-        if(client&&WlanEnumInterfaces(client,nullptr,&interfaces)==ERROR_SUCCESS&&interfaces){
-            if(interfaces->dwNumberOfItems)id=interfaces->InterfaceInfo[0].InterfaceGuid;
-            else{WlanCloseHandle(client,nullptr);client=nullptr;}
-            WlanFreeMemory(interfaces);
-        }
+        active=true;startedAt=GetTickCount64();Recall();readFailures=0;
+        OpenClient();
         try{access=Adapter::RequestAccessAsync();}catch(...){access=nullptr;}
     }
     // Returns true when the page should repaint.

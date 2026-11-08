@@ -151,6 +151,12 @@ inline WifiList FixtureNetworks(){
 inline unsigned VerifyWifiModel(){
     unsigned count=0;auto check=[&](bool value){++count;if(!value)winrt::throw_hresult(E_UNEXPECTED);};
     auto list=FixtureNetworks();
+    {   // A list the service will not give is retried, and the page says so.
+        Sample s;s.wifi=1;check(WifiEmptyText(s)==L"正在查找网络…");
+        s.wifiList.unreadable=true;check(WifiEmptyText(s)==L"读不到网络列表，正在重试");
+        s.wifiList=list;s.wifiList.unreadable=false;check(WifiEmptyText(s).empty());
+        s.wifi=0;check(WifiEmptyText(s)==L"Wi-Fi 已关闭");
+    }
     check(list.networks.front().connected&&list.networks.front().ssid==L"NWAFU");
     for(size_t i=2;i<list.networks.size();++i)check(list.networks[i-1].bars>=list.networks[i].bars);
     check(WifiSubtitle(list.networks[0],list)==L"已连接，开放");

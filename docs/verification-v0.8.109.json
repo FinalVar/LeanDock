@@ -1,0 +1,68 @@
+{
+  "version": "0.8.109",
+  "date": "2026-11-08T18:48:40+08:00",
+  "state": "Deployed; the user then asked for the three open items as well, done in 0.8.110",
+  "backendVersion": "0.5.94",
+  "controllerVersion": "0.3.42",
+  "panelVersion": "0.8.109",
+  "change": "Clearing the unused native power mapping runs only when a mapping may have left something; the dormant entry's property is written only when it changes. While a tray icon is shown through a smoothed copy, the original's pixels are fingerprinted every 2 s and the copy is rebuilt when they change. The panel changes only by its version string.",
+  "userRequest": {
+    "At": "2026-11-08",
+    "Answer": "自己全盘看看有啥能改进的"
+  },
+  "review": {
+    "Health": "Logs since 0.8.108 show no errors; Explorer pid 27420 ran 18.5 h with hooks=70, menuHook=1; no Application crash events found; no staged Windows update touches the pinned files (PendingFileRenameOperations lists only Office fonts and Click-to-Run).",
+    "Profile": "wpr CPU profile, 20.9 s, 2026-11-08 18:19, user active in Windows Terminal. Taskbar thread 572 samples (about 27 ms/s); our code on its stack in 139 (about 6.6 ms/s): tray layout handler 49, surface layout handler 18, icon measuring about 30, the rest native work below our subclass. Auto-hide WinEvent thread 58 samples, almost all in the kernel delivering events. Wakers of the taskbar thread in 20.9 s: atieclxx 288, QQ 335, DWM 393, explorer threads 471, Windows Terminal 203, WorkBuddy 157, LeanDock controller 127.",
+    "Idle": "Taskbar thread after 18.5 h with the user idle for 46 s: 35.6 switches/s, 15.3 ms/s. The earlier guess that this grows by itself is not supported: most wakes come from other programs.",
+    "Symbols": "Our frames were named by relinking the 0.8.108 objects with a map file; the relinked DLL differs from the deployed one only in the PE timestamp."
+  },
+  "checks": {
+    "IconOptics": "Fingerprint: same data same value, one changed byte in the words and in the tail shows, length counts",
+    "IconView": "Hidden-window scenario: a frame drawn into the same bitmap without setting Source gets a new copy and a new measure"
+  },
+  "preDeployValidation": {
+    "ValidateOnly": "passed",
+    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.109-outputs\\pre-deploy-20261108-184450)"
+  },
+  "deployment": {
+    "Version": "0.8.109",
+    "Live": true,
+    "Autotest": "AutomatedChecksPassed",
+    "Explorer": "pid 27920, restarted 18:48:34 by the update",
+    "Backend": {
+      "hooks": 70,
+      "menuHook": 1
+    },
+    "RuntimeFiles": {
+      "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
+      "latest.dll": "DB08650A920660C00EDBBE8671C5012D0D04DAB9A47F29ADF459546F007F8386",
+      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+      "aggregate/latest.exe": "B629EE8CD889D7C20A6B8BE92F4FFC101CF4BD11E9C1A8E627252353CBF5892B"
+    }
+  },
+  "observed": {
+    "TrayLayoutCost": "Before: 3.18 calls/s, 1.64 ms/s (0.52 ms a call) after 18.5 h. After: 3.65 calls/s, 1.27 ms/s (0.35 ms a call) right after the restart.",
+    "NativePowerPrepared": "2, still published",
+    "TrayIcons": "Four image icons; the 512 px one still has a 59 px copy at scale 1.219. ChatGPT, shown before, is not running now."
+  },
+  "rollback": "backups/before-0.8.109-20261108-184831751 returns to 0.8.108.",
+  "previousAcceptance": {
+    "version": "0.8.108",
+    "record": "docs/verification-v0.8.108.json",
+    "user": "没问题了"
+  },
+  "knownLimits": [
+    "An oversized tray icon shows its unfiltered source for up to 500 ms after the system replaces it, and a stale copy for up to about 2.5 s if a frame is drawn into the same bitmap",
+    "A tray icon with a small source and much padding softens when enlarged; none does at present"
+  ],
+  "notVerified": [
+    "Whether Explorer ever draws into the same tray bitmap; only the hidden-window test covers the new path",
+    "Explorer memory over a long run: private bytes were 204 MB after 18.5 h on 0.8.108, with no earlier figure to compare"
+  ],
+  "readmeCorrection": "The charge bolt was seen on the real screen in the 2026-11-07 23:46 Dock capture, so the README no longer lists it as unchecked.",
+  "userAcceptance": {
+    "At": "2026-11-08",
+    "Answer": "都做了吧，然后提交推送"
+  }
+}

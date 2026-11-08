@@ -17,6 +17,7 @@ struct State {
     uint64_t measuredAt{};
     DispatcherTimer later{nullptr};
     Media::ImageSource original{nullptr},filtered{nullptr};
+    DispatcherTimer watch{nullptr};uint64_t shownFrom{};
     Controls::Canvas sampleHost{nullptr};
     winrt::weak_ref<Controls::Panel> sampleParent;
     winrt::Windows::Foundation::IInspectable originalLocal{nullptr};
@@ -91,6 +92,7 @@ void ShowCopy(State& s,Controls::Image const& image,Media::Imaging::WriteableBit
     Media::Imaging::WriteableBitmap copy(toWidth,toHeight);
     std::copy(pixels.begin(),pixels.end(),copy.PixelBuffer().data());
     copy.Invalidate();
+    s.shownFrom=LeanDockIcons::Fingerprint({buffer.data(),buffer.Length()});
     s.original=bitmap;s.filtered=copy;s.writing=true;
     image.Source(copy);
     s.writing=false;Put(s,L"CopyWidth",toWidth);
@@ -108,6 +110,29 @@ void Later(std::shared_ptr<State> const& s,uint64_t delay) {
         });
     }
     s->later.Interval(std::chrono::milliseconds(delay));s->later.Start();
+}
+// Explorer could draw a new frame into the same bitmap without setting Source
+// again, and the copy would go stale. While a copy is shown, look at the
+// original now and then and start over when its pixels changed.
+constexpr int64_t CopyCheck=2000;
+void Refresh(std::shared_ptr<State> const& s) noexcept;
+void Watch(std::shared_ptr<State> const& s) {
+    if(!s->watch){
+        std::weak_ptr<State> weak=s;
+        s->watch=DispatcherTimer();s->watch.Interval(std::chrono::milliseconds(CopyCheck));
+        s->watch.Tick([weak](auto const&,auto const&) noexcept {
+            auto s=weak.lock();if(!s)return;
+            try{
+                auto image=s->image.get();
+                auto original=s->original.try_as<Media::Imaging::WriteableBitmap>();
+                if(!s->active||!image||!original||!s->filtered||image.Source()!=s->filtered){s->watch.Stop();return;}
+                auto buffer=original.PixelBuffer();
+                if(LeanDockIcons::Fingerprint({buffer.data(),buffer.Length()})==s->shownFrom)return;
+                s->watch.Stop();RestoreSource(*s);Refresh(s);
+            }catch(...){try{s->watch.Stop();}catch(...){}}
+        });
+    }
+    s->watch.Start();
 }
 void ClearSample(State& s) noexcept {
     try{if(s.sampleHost){
@@ -246,8 +271,10 @@ winrt::fire_and_forget Measure(std::shared_ptr<State> s) {
                                 s->writing=false;Put(*s,L"Status",2);
                             }
                             s->current=fit;
-                            if(s->tray&&!ownCopy)if(auto bitmap=source.try_as<Media::Imaging::WriteableBitmap>())
+                            if(s->tray&&!ownCopy)if(auto bitmap=source.try_as<Media::Imaging::WriteableBitmap>()){
                                 ShowCopy(*s,image,bitmap,width*raster*fit.scale);
+                                if(s->filtered&&image.Source()==s->filtered)Watch(s);
+                            }
                         }
                 }
             }
@@ -295,6 +322,8 @@ void Remove(ElementId id) noexcept {
     CancelRetry(*s);
     try{if(s->later)s->later.Stop();}catch(...){}
     s->later=nullptr;
+    try{if(s->watch)s->watch.Stop();}catch(...){}
+    s->watch=nullptr;
     // The backend is process-pinned; late async completion is inert. Cancel
     // first, detach callbacks, then restore only a transform still owned by us.
     try{if(s->render)s->render.Cancel();}catch(...){}

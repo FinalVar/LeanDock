@@ -1,108 +1,55 @@
 {
-  "version": "0.8.108",
-  "date": "2026-11-07T23:43:40+08:00",
-  "state": "Deployed and accepted by the user",
-  "backendVersion": "0.5.93",
-  "controllerVersion": "0.3.42",
-  "panelVersion": "0.8.108",
-  "change": "A tray icon whose source is over 2.5 times its display size is shown through an area-averaged copy at twice the display size, so its rounded corners are not sampled into stairs. Measuring still uses the original. The panel changes only by its version string.",
+  "version": "0.8.110",
+  "date": "2026-11-08T19:09:30+08:00",
+  "state": "Deployed; committed and pushed at the user's request",
+  "backendVersion": "0.5.95",
+  "controllerVersion": "0.3.43",
+  "panelVersion": "0.8.110",
   "userRequest": {
-    "At": "2026-11-07",
-    "Answer": "你显然裁切得不好看，因为托盘的反重力图标和dock的看起来形状都变了，dock的才是原版，托盘的则不圆润四周，变得棱角化"
+    "At": "2026-11-08",
+    "Answer": "都做了吧，然后提交推送",
+    "Scope": "The three items 0.8.109's report left for the user: Explorer exit codes, removing the unused power-card mapping, the Wi-Fi read-failure message. Not the auto-hide hook narrowing, which I advised against."
   },
-  "findings": {
-    "NotACrop": "Antigravity's 256 px icon from its exe has alpha 0 outside 21-235, so no shadow, and its corners sit inside the artwork bounds.",
-    "Cause": "The tray source is 512 px shown at 24-29 px; composition's bilinear sampling steps over about 17 source pixels. A simulation of no low-pass at 24 and 29 px gives the stairs the user described, and averaging gives rounded corners. The 0.8.107 pixels were not captured; the 0.8.108 pixels were, and are smooth.",
-    "WrongClaim": "The 0.8.107 report and docs said a large source could not look bad. That was wrong."
+  "change": {
+    "ExplorerExits": "The controller opens Explorer with PROCESS_QUERY_LIMITED_INFORMATION as well, and on exit writes time, pid, exit code and run time to latest-explorer-exits.log (restarted past 64 KiB); latest-status.json gains explorerExits, explorerLastExitKnown, explorerLastExitCode.",
+    "PowerMapping": "About 200 lines that mapped the native power entry onto the old dashboard's power card are removed from src/tray-cards-latest.inc; PowerActive was always 0 with the time key. The dormant, measured entry and the property cleanup on stop remain.",
+    "WifiRead": "After every third failed WlanGetAvailableNetworkList the panel reopens the WLAN handle and the first interface; with no list yet the page says 读不到网络列表，正在重试 and the panel log gets one wifi-read-failed. The empty-state choice moved into WifiEmptyText."
+  },
+  "controllerBuild": {
+    "Base": "artifacts/controller-0.3.42-fullscreen/latest",
+    "Reproduced": "Unchanged rebuild differs from 7580D4BB… in 3 bytes (PE timestamp); generated hotcorners source identical",
+    "Changed": "src/controller-latest.cpp only",
+    "Result": "4A3DB0858AEF0ECEEEAF4DCA3DDAFD6D98918649EAEABB2269989727B00E20EC",
+    "Inputs": "artifacts/controller-0.3.43-exitlog/latest (Windows working copy)",
+    "PanelPin": "aggregate/theme-control-latest.h ControllerHash updated"
   },
   "checks": {
-    "IconOptics": "New OversizedCopy and Shrink checks: thresholds, exact solid value, partial coverage on a disc, conserved coverage, invalid input",
-    "IconView": "New hidden-window scenario: copy shown, original unchanged, scale from the original, refresh keeps the copy, a new source replaces it, stop hands the source back"
+    "WifiModel": "WifiEmptyText: searching, unreadable, rows, Wi-Fi off",
+    "Suite": "All stages, including the theme control's controller hash check"
   },
   "preDeployValidation": {
     "ValidateOnly": "passed",
-    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.108-outputs\\pre-deploy-20261107-233927)",
-    "ConfigPreserved": [
-      "latest.ini",
-      "hotcorners/latest.ini",
-      "cards/latest.ini"
-    ]
+    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.110-outputs\\pre-deploy-20261108-190526)"
   },
   "deployment": {
-    "Version": "0.8.108",
+    "Version": "0.8.110",
     "Live": true,
     "Autotest": "AutomatedChecksPassed",
-    "ComponentHealth": {
-      "State": "Ready",
-      "Source": "Required by the autotest's final snapshot"
-    },
-    "Explorer": "pid 27420, restarted 23:43:21 by the update",
-    "Backend": {
-      "hooks": 70,
-      "menuHook": 1
-    },
+    "Explorer": "pid 23488, restarted 19:09:13 by the update",
+    "Controller": "0.3.43 pid 30436, explorerExits 0",
     "RuntimeFiles": {
-      "latest.exe": "7580D4BBBFE64A144747453FA8FD9F27DABDE97662F1B1F3D3FF5BEE6818DBE6",
-      "latest.dll": "EFC7516B15FD8FB8CEF3164CC9334229B601EEA044A1801DCEEE71E9A5058665",
+      "latest.exe": "4A3DB0858AEF0ECEEEAF4DCA3DDAFD6D98918649EAEABB2269989727B00E20EC",
+      "latest.dll": "43B2B6E161D4CF6E6862AD27D6309484F8AED4F50AD929DBFC9DEA413876E703",
       "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
       "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
-      "aggregate/latest.exe": "5B44638BF86F7160F6B9DAD541F796FF444AD802232444A616BE16239B39CCA6"
-    },
-    "ConfigUnchanged": [
-      "latest.ini",
-      "hotcorners/latest.ini",
-      "cards/latest.ini"
-    ]
+      "aggregate/latest.exe": "2E0303A087A51373800CC15EBDC93DEBDD173F2AD6D56EAEEFCCDB29CBF30947"
+    }
   },
-  "observed": {
-    "TrayIcons": [
-      {
-        "Source": "512x512",
-        "Copy": 59,
-        "Scale": 1.219
-      },
-      {
-        "Source": "24x24",
-        "Copy": null,
-        "Scale": 1,
-        "Offset": "-0.67 DIP"
-      },
-      {
-        "Source": "24x24",
-        "Copy": null,
-        "Scale": 1
-      },
-      {
-        "Source": "24x24",
-        "Copy": null,
-        "Scale": 1
-      },
-      {
-        "Source": "36x36",
-        "Copy": null,
-        "Scale": 1
-      }
-    ],
-    "RealScreen": "Dock area captured from the screen at 23:46:11 without input: the Antigravity tray icon has smooth rounded corners and the four tray icons in the 2x2 grid read the same height. The charge bolt under the date is visible."
-  },
-  "rollback": "backups/before-0.8.108-20261107-234318522 returns to 0.8.107.",
-  "previousAcceptance": {
-    "version": "0.8.106",
-    "record": "docs/verification-v0.8.106.json",
-    "user": "ok，提交同步吧"
-  },
-  "knownLimits": [
-    "An oversized tray icon shows its unfiltered source for up to 500 ms after the system replaces it",
-    "A tray icon with a small source and much padding softens when enlarged; none does at present",
-    "Glyph and language tray icons have no artwork and are not adjusted"
-  ],
+  "rollback": "backups/before-0.8.110-20261108-190911064 returns to 0.8.109 (controller 0.3.42).",
+  "previousRecord": "docs/verification-v0.8.109.json",
   "notVerified": [
-    "Real flashing from an application; covered only by the hidden-window test",
-    "Whether Explorer rewrites one WriteableBitmap in place, which would not trigger a new measure"
-  ],
-  "userAcceptance": {
-    "At": "2026-11-07",
-    "Answer": "没问题了",
-    "Scope": "Reply to the question about the Antigravity tray icon and committing."
-  }
+    "The exit record itself: it runs only when Explorer really exits, and Explorer was not ended to test it",
+    "The Wi-Fi retry: no read failure has been seen on this machine; only the message choice is unit-checked",
+    "Whether Explorer ever draws into the same tray bitmap (0.8.109)"
+  ]
 }

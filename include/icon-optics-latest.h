@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <span>
 #include <vector>
 
@@ -82,6 +83,14 @@ inline std::vector<uint8_t> Shrink(std::span<const uint8_t> bgra,int width,int h
         }
     }
     return out;
+}
+// Fingerprint of pixel data, only ever compared with an earlier one of the same
+// bitmap to notice a frame drawn into it.
+inline uint64_t Fingerprint(std::span<const uint8_t> data) noexcept {
+    uint64_t h=0x9E3779B97F4A7C15ull^data.size();size_t i=0;
+    for(;i+8<=data.size();i+=8){uint64_t w;std::memcpy(&w,data.data()+i,8);h=(h^w)*0x100000001B3ull;h^=h>>29;}
+    for(;i<data.size();++i)h=(h^data[i])*0x100000001B3ull;
+    return h;
 }
 // Frames of one tray icon (a status dot, a spinner) measure a little differently.
 // Within this much the current fit stays, so the icon does not tremble.

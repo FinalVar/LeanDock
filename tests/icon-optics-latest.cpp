@@ -93,6 +93,13 @@ int main(){
         Check(LeanDockIcons::Shrink(disc,512,512,0,29).empty(),"zero size rejected");
         Check(LeanDockIcons::Shrink({},512,512,29,29).empty(),"short data rejected");
     }
+    // A fingerprint notices one changed byte, in the words and in the tail.
+    {   std::vector<uint8_t> a(1027,7);const auto base=LeanDockIcons::Fingerprint(a);
+        Check(base==LeanDockIcons::Fingerprint(a),"same pixels, same fingerprint");
+        a[512]=8;Check(base!=LeanDockIcons::Fingerprint(a),"a changed pixel shows");a[512]=7;
+        a[1026]=8;Check(base!=LeanDockIcons::Fingerprint(a),"a changed tail byte shows");
+        Check(LeanDockIcons::Fingerprint(std::vector<uint8_t>(16,0))!=LeanDockIcons::Fingerprint(std::vector<uint8_t>(24,0)),"length counts");
+    }
     // Frames of one tray icon: noise keeps the fit, a real change does not.
     auto frame=Measure(Box(64,64,5,5,59,59),64,64);
     auto nearly=Measure(Box(64,64,5,5,60,60),64,64);
