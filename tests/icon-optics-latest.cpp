@@ -40,6 +40,32 @@ int main(){
     auto p=Box(64,64,5,5,59,59);p[3]=8;
     Check(Measure(p,64,64).left==5,"faint shadow does not define size");
     p[3]=96;Check(Measure(p,64,64).left==5,"resampling fringe below half coverage ignored");
+    {   // Tailscale's tray icon: a 3x3 dot grid, lit dots solid, the rest at 30%.
+        auto grid=Box(24,24,1,1,23,23,77);
+        for(int y=9;y<23;++y)for(int x=1;x<23;++x)if(y<16||(x>=9&&x<16))grid[(y*24+x)*4+3]=255;
+        auto solid=Measure(grid,24,24);
+        Check(solid.top==9,"without faint parts only the lit dots count");
+        auto tray=Measure(grid,24,24,true);
+        Check(tray.valid&&tray.top==1&&tray.bottom==23&&tray.left==1&&tray.right==23,"tray: unlit dots belong to the picture");
+        Check(Near(tray.x,0)&&Near(tray.y,0),"tray: a centred grid stays centred");
+        Check(tray.fill<LeanDockIcons::PlateFill&&Near(tray.scale,1),"tray: a glyph keeps its app's size");
+        auto edge=Box(24,24,2,2,22,22);
+        for(int x=2;x<22;++x)edge[(1*24+x)*4+3]=96;
+        Check(Measure(edge,24,24,true).top==2,"tray: a one pixel fringe still does not count");
+        auto shadow=Box(64,64,5,5,59,59);
+        for(int x=5;x<59;++x)for(int y=59;y<64;++y)shadow[(y*64+x)*4+3]=24;
+        Check(Measure(shadow,64,64,true).bottom==59,"tray: a shadow below the faint level does not count");
+        auto plate=Measure(Box(64,64,6,6,58,58),64,64,true);
+        Check(plate.fill==100&&Near(plate.scale,64.0/52),"tray: a padded plate fills the box");
+        auto outline=Box(64,64,8,8,56,56);
+        for(int y=12;y<52;++y)for(int x=12;x<52;++x)outline[(y*64+x)*4+3]=0;
+        auto ring=Measure(outline,64,64,true);
+        Check(ring.fill<LeanDockIcons::PlateFill&&Near(ring.scale,1)&&Near(ring.x,0),"tray: an outline glyph is not enlarged");
+        auto side=Box(64,64,0,8,40,56);for(int y=8;y<56;++y)for(int x=8;x<40;++x)side[(y*64+x)*4+3]=(x%4)?0:255;
+        auto shifted=Measure(side,64,64,true);
+        Check(Near(shifted.scale,1)&&shifted.x>0,"tray: an off-centre glyph is still centred");
+        Check(Measure(Box(64,64,6,6,58,58),64,64).fill==100,"Dock icons are measured as before");
+    }
     Check(!Measure(p,63,64).valid,"truncated or mismatched buffer rejected");
     Check(!Measure({},0,64).valid,"zero dimensions rejected");
     Check(!Measure({},2048,2048).valid,"unbounded allocations rejected");

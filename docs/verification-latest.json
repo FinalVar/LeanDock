@@ -1,55 +1,46 @@
 {
-  "version": "0.8.110",
-  "date": "2026-11-08T19:09:30+08:00",
-  "state": "Deployed; committed and pushed at the user's request",
-  "backendVersion": "0.5.95",
+  "version": "0.8.112",
+  "date": "2026-11-12T09:55:18+08:00",
+  "state": "Deployed; the user looked at the Dock (screenshot 10:00); not committed yet",
+  "backendVersion": "0.5.97",
   "controllerVersion": "0.3.43",
-  "panelVersion": "0.8.110",
+  "panelVersion": "0.8.112",
   "userRequest": {
-    "At": "2026-11-08",
-    "Answer": "都做了吧，然后提交推送",
-    "Scope": "The three items 0.8.109's report left for the user: Explorer exit codes, removing the unused power-card mapping, the Wi-Fi read-failure message. Not the auto-hide hook narrowing, which I advised against."
+    "At": "2026-11-12",
+    "Answer": [
+      "托盘tailsacle大小和其他不一样有点别扭",
+      "看起来好一点但确实偏大，反正以后你能保证所有的都自适应看着整齐舒服吗，还是有一个调一个？",
+      "行，整好"
+    ],
+    "Scope": "0.8.111 counted Tailscale's unlit dots; 0.8.112 classifies tray icons by fill so glyphs are not enlarged"
   },
   "change": {
-    "ExplorerExits": "The controller opens Explorer with PROCESS_QUERY_LIMITED_INFORMATION as well, and on exit writes time, pid, exit code and run time to latest-explorer-exits.log (restarted past 64 KiB); latest-status.json gains explorerExits, explorerLastExitKnown, explorerLastExitCode.",
-    "PowerMapping": "About 200 lines that mapped the native power entry onto the old dashboard's power card are removed from src/tray-cards-latest.inc; PowerActive was always 0 with the time key. The dormant, measured entry and the property cleanup on stop remain.",
-    "WifiRead": "After every third failed WlanGetAvailableNetworkList the panel reopens the WLAN handle and the first interface; with no list yet the page says 读不到网络列表，正在重试 and the panel log gets one wifi-read-failed. The empty-state choice moved into WifiEmptyText."
-  },
-  "controllerBuild": {
-    "Base": "artifacts/controller-0.3.42-fullscreen/latest",
-    "Reproduced": "Unchanged rebuild differs from 7580D4BB… in 3 bytes (PE timestamp); generated hotcorners source identical",
-    "Changed": "src/controller-latest.cpp only",
-    "Result": "4A3DB0858AEF0ECEEEAF4DCA3DDAFD6D98918649EAEABB2269989727B00E20EC",
-    "Inputs": "artifacts/controller-0.3.43-exitlog/latest (Windows working copy)",
-    "PanelPin": "aggregate/theme-control-latest.h ControllerHash updated"
+    "FaintParts (0.8.111)": "Measure(..., faintParts) for tray icons: bounds are also taken at max alpha / 8 (at least 16); a side moves out to that faint content only when it reaches more than canvas / 16 (at least 1 px) past the half-coverage bounds. Dock app icons call Measure unchanged.",
+    "PlateOrGlyph (0.8.112)": "Measure(..., tray) records fill: alpha-weighted percent of the bounds. Fill >= PlateFill (75) is a plate and is fitted as before; below it the tray icon keeps scale 1 and is only centred. Readback property Fill."
   },
   "checks": {
-    "WifiModel": "WifiEmptyText: searching, unreadable, rows, Wi-Fi off",
-    "Suite": "All stages, including the theme control's controller hash check"
+    "IconOptics": "76 checks, 0 failures; adds a padded plate (fill 100, fitted), an outline (not enlarged, centred), an off-centre striped glyph (scale 1, still centred), and Dock measurement unchanged"
   },
   "preDeployValidation": {
     "ValidateOnly": "passed",
-    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.110-outputs\\pre-deploy-20261108-190526)"
+    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.112-outputs\\pre-deploy-20261112-095102)"
   },
   "deployment": {
-    "Version": "0.8.110",
+    "Version": "0.8.112",
     "Live": true,
-    "Autotest": "AutomatedChecksPassed",
-    "Explorer": "pid 23488, restarted 19:09:13 by the update",
-    "Controller": "0.3.43 pid 30436, explorerExits 0",
-    "RuntimeFiles": {
-      "latest.exe": "4A3DB0858AEF0ECEEEAF4DCA3DDAFD6D98918649EAEABB2269989727B00E20EC",
-      "latest.dll": "43B2B6E161D4CF6E6862AD27D6309484F8AED4F50AD929DBFC9DEA413876E703",
-      "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
-      "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
-      "aggregate/latest.exe": "2E0303A087A51373800CC15EBDC93DEBDD173F2AD6D56EAEEFCCDB29CBF30947"
-    }
+    "Explorer": "pid 22000, restarted by the update",
+    "Backend": "0.5.97, hooks 70, menuHook 1, failed false",
+    "ComponentHealth": "Ready, nothing unavailable",
+    "Configs": "latest.ini, hotcorners\\latest.ini, cards\\latest.ini unchanged",
+    "Rollback": "backups\\before-0.8.112-20261112-095518037; 0.8.111 at backups\\before-0.8.111-20261112-093929126 holds 0.8.110"
   },
-  "rollback": "backups/before-0.8.110-20261108-190911064 returns to 0.8.109 (controller 0.3.42).",
-  "previousRecord": "docs/verification-v0.8.109.json",
+  "readback": {
+    "Plates": "24 px full fill 96, 36 px full fill 95, 512 px fill 93 scale 1.219: as before",
+    "Glyphs": "QQ 24 px 2-24 fill 71 scale 1; Tailscale 1-22 fill 27 scale 1 (was 1.143), offset 0.33 DIP; USB 5-24 fill 19 scale 1; ChatGPT 24 px full fill 36 scale 1",
+    "Screen": "User screenshot 10:00: Tailscale grid about 21 px, vertically centred with its row; the other icons unchanged"
+  },
   "notVerified": [
-    "The exit record itself: it runs only when Explorer really exits, and Explorer was not ended to test it",
-    "The Wi-Fi retry: no read failure has been seen on this machine; only the message choice is unit-checked",
-    "Whether Explorer ever draws into the same tray bitmap (0.8.109)"
+    "Tailscale's connecting animation frames",
+    "An icon whose fill is near 75: QQ at 71 is not enlarged either way because it already fills the box"
   ]
 }

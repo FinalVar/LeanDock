@@ -14,8 +14,18 @@ struct Fit {
     bool valid{};
     double scale{1}, x{}, y{}; // translation as a fraction of the square icon box
     int left{}, top{}, right{}, bottom{};
+    int fill{100}; // percent of the bounds the picture covers, weighted by alpha
 };
-inline Fit Measure(std::span<const uint8_t> bgra,int width,int height) noexcept {
+// A notification icon whose picture covers at least this much of its bounds sits
+// on a plate (a filled rounded square) and is fitted to the box like the others.
+// Below it the picture is a glyph (dots, outlines, a figure): its app already drew
+// it at tray size with tray padding, so it keeps that size and is only centred.
+constexpr int PlateFill=75;
+// tray: a notification icon may draw part of its picture faint on purpose
+// (Tailscale's unlit dots). Faint content reaching well past the solid part
+// moves that side out; a one pixel resampling fringe still does not. A tray
+// glyph (fill below PlateFill) is not enlarged.
+inline Fit Measure(std::span<const uint8_t> bgra,int width,int height,bool tray=false) noexcept {
     Fit fit;
     if(width<2||height<2||width>1024||height>1024||
        bgra.size()!=size_t(width)*size_t(height)*4)return fit;
@@ -35,10 +45,29 @@ inline Fit Measure(std::span<const uint8_t> bgra,int width,int height) noexcept 
     // A rectangular source is uniformly fitted in the native square icon
     // box, so both axes use its longest edge, not two independent scales.
     const double canvas=std::max(width,height);
+    if(tray){
+        const unsigned faint=std::max(16u,maximum/8);
+        int fl=width,ft=height,fr=0,fb=0;
+        for(int y=0;y<height;++y)for(int x=0;x<width;++x)
+            if(bgra[(size_t(y)*width+x)*4+3]>=faint){
+                fl=std::min(fl,x);ft=std::min(ft,y);fr=std::max(fr,x+1);fb=std::max(fb,y+1);
+            }
+        const int fringe=std::max(1,int(canvas/16));
+        if(left-fl>fringe)left=fl;
+        if(top-ft>fringe)top=ft;
+        if(fr-right>fringe)right=fr;
+        if(fb-bottom>fringe)bottom=fb;
+    }
     const double extent=std::max(right-left,bottom-top)/canvas;
     if(extent<0.40)return fit; // tiny glyph/placeholder: don't invent its scale
     fit.valid=true;fit.left=left;fit.top=top;fit.right=right;fit.bottom=bottom;
     fit.scale=std::clamp(1.0/extent,1.0,1.35);
+    if(tray){
+        double ink=0;
+        for(int y=top;y<bottom;++y)for(int x=left;x<right;++x)ink+=bgra[(size_t(y)*width+x)*4+3];
+        fit.fill=int(std::lround(100*ink/(double(maximum)*(right-left)*(bottom-top))));
+        if(fit.fill<PlateFill)fit.scale=1;
+    }
     fit.x=(width-double(left+right))/(2*canvas)*fit.scale;
     fit.y=(height-double(top+bottom))/(2*canvas)*fit.scale;
     // Suppress subpixel sampling noise on already full-sized artwork.

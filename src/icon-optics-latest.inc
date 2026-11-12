@@ -25,7 +25,7 @@ struct State {
 };
 thread_local std::unordered_map<ElementId,std::shared_ptr<State>> states;
 thread_local uint64_t nextSlot{};
-constexpr const wchar_t* properties[]={L"Status",L"Scale",L"Left",L"Top",L"Right",L"Bottom",L"Source",L"Error",L"PixelsWidth",L"PixelsHeight",L"OffsetX",L"OffsetY",L"SourceWidth",L"SourceHeight",L"DecodeWidth",L"DecodeHeight",L"DisplayWidth100",L"DisplayHeight100",L"Tray",L"CopyWidth"};
+constexpr const wchar_t* properties[]={L"Status",L"Scale",L"Left",L"Top",L"Right",L"Bottom",L"Source",L"Error",L"PixelsWidth",L"PixelsHeight",L"OffsetX",L"OffsetY",L"SourceWidth",L"SourceHeight",L"DecodeWidth",L"DecodeHeight",L"DisplayWidth100",L"DisplayHeight100",L"Tray",L"CopyWidth",L"Fill"};
 // Tray icons can animate. Two measures a second are enough for a steady size.
 constexpr uint64_t TrayPace=500;
 std::wstring Property(State const& s,const wchar_t* name){
@@ -219,7 +219,7 @@ winrt::fire_and_forget Measure(std::shared_ptr<State> s) {
                     Put(*s,L"Source",1);
                     auto buffer=bitmap.PixelBuffer();
                     Put(*s,L"PixelsWidth",bitmap.PixelWidth());Put(*s,L"PixelsHeight",bitmap.PixelHeight());
-                    fit=LeanDockIcons::Measure({buffer.data(),buffer.Length()},bitmap.PixelWidth(),bitmap.PixelHeight());
+                    fit=LeanDockIcons::Measure({buffer.data(),buffer.Length()},bitmap.PixelWidth(),bitmap.PixelHeight(),s->tray);
                 }else{
                     Put(*s,L"Source",source.try_as<Media::Imaging::BitmapImage>()?2:3);
                     RenderTargetBitmap rendered;
@@ -231,7 +231,7 @@ winrt::fire_and_forget Measure(std::shared_ptr<State> s) {
                         auto buffer=co_await rendered.GetPixelsAsync();
                         if(s->active&&s->revision==revision&&image.IsLoaded()&&image.Source()==source){
                             Put(*s,L"PixelsWidth",rendered.PixelWidth());Put(*s,L"PixelsHeight",rendered.PixelHeight());
-                            fit=LeanDockIcons::Measure({buffer.data(),buffer.Length()},rendered.PixelWidth(),rendered.PixelHeight());
+                            fit=LeanDockIcons::Measure({buffer.data(),buffer.Length()},rendered.PixelWidth(),rendered.PixelHeight(),s->tray);
                         }
                     }
                     retry=!fit.valid;
@@ -250,7 +250,7 @@ winrt::fire_and_forget Measure(std::shared_ptr<State> s) {
                             Put(*s,L"Scale",std::lround(fit.scale*10000));
                             Put(*s,L"OffsetX",static_cast<ULONG_PTR>(static_cast<LONG_PTR>(std::lround(fit.x*width*10000))));
                             Put(*s,L"OffsetY",static_cast<ULONG_PTR>(static_cast<LONG_PTR>(std::lround(fit.y*height*10000))));
-                            Put(*s,L"Left",fit.left);Put(*s,L"Top",fit.top);
+                            Put(*s,L"Left",fit.left);Put(*s,L"Top",fit.top);Put(*s,L"Fill",fit.fill);
                             Put(*s,L"Right",fit.right);Put(*s,L"Bottom",fit.bottom);
                             const auto origin=image.RenderTransformOrigin();
                             if(owned){
