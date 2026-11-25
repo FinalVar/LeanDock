@@ -1,0 +1,32 @@
+{
+  "version": "0.8.131",
+  "date": "2026-11-22T22:22:00+08:00",
+  "state": "Built (BackendOnly), backdrop-latest (91 checks), events-latest (200 checks), clip-ownership-latest (19 checks), tray-styles-latest (40 checks), material-latest (32 checks), PE imports check, and Update -ValidateOnly passed; packaged at leandock-0.8.131-package\\latest (awaiting elevated interactive desktop Update on WinSta0\\Default)",
+  "backendVersion": "0.5.111",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.129",
+  "userRequest": {
+    "At": "2026-11-22",
+    "Question": "Dock 内部上偏白、下正常透明（最大化应用短暂唤出移开再左下热角回桌面，或恢复最大化窗口再点最小化回桌面必现，按截屏立即恢复，非最大化不遮挡 Dock 从不出现）",
+    "Scope": "Fix stale white upper-half DWM backdrop blur artifact after auto-hide expand transitions without adding polling, threads, or visible flicker."
+  },
+  "change": {
+    "BackdropResumeSettleAndRebuild": "include/backdrop-resume-latest.h + src/backdrop-brush-latest.inc: extend Plan from 2 passes (16/176 ms) to 3 finite passes (16 ms / +160 ms / +220 ms, ~396 ms total, past ~250-300 ms Windows minimize and taskbar slide-up animations); do not cancel remaining passes when XamlRoot.IsHostVisible() is momentarily false on an early tick; on the final settle pass, atomically swap in a freshly created CompositionEffectBrush before closing the old brush (non-fallback mode, counted in LeanDock.Backdrop.Rebuilds) so dwmcore discards partial stale blur tiles without flicker.",
+    "ExpandAndSlideLandingTriggers": "build/generate-latest.py + src/backdrop-brush-latest.inc: always emit LeanDockBackdrop::Reason::Expansion after TrayUI_Unhide_Original / CSecondaryTray__Unhide_Original on keepShown false->true transitions (not only when ViewCoordinator::IsExpanded synchronously reads 1), and observe WM_WINDOWPOSCHANGED hidden->shown slide-up landings (ShownShift transitioning from <-2 to >=-2) to schedule the same bounded recovery.",
+    "TestsAndDocs": "tests/backdrop-latest.cpp + docs/backdrop-resume-latest.md + README.md + docs/verification-v0.8.130.json + docs/verification-latest.json: update Plan unit checks to 3 finite passes and IsFinal/NextDelay invariants, document 0.8.131 root cause and fix, archive 0.8.130 verification."
+  },
+  "checks": {
+    "UnitAndFixtureSuites": "backdrop-latest (91 checks, 0 failed), events-latest (200 checks, 0 failed), clip-ownership-latest (19 compile-time assertions passed), tray-styles-latest (40 checks, 0 failed), material-latest (32 checks, 0 failed), imports-latest.py exit 0 (system DLLs only)",
+    "UpdatePreflight": "C:\\Users\\x\\dev\\tools\\NativeTaskbarDock\\latest.ps1 -Action Update -PackagePath C:\\Users\\x\\dev\\tools\\_build\\leandock-0.8.131-package\\latest -ValidateOnly passed (ChangedFiles: 15, RuntimeChanged: [latest.dll], PreserveConfiguration: true); note prior 0.8.130 latest.json still references pre-junction Documents\\Codex\\Tools backup path, which applying 0.8.131 under dev\\tools refreshes automatically"
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "5CA93A649449D2338E25DC439A505F46C1A25E93919DB2CADF32ED1E6F704A47",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "83347F5B4901F909E0CB622BFC4BC48186262A99634E629ACD192AC8D6201E05"
+  },
+  "notVerified": [
+    "Elevated interactive desktop Update load and real maximize->desktop auto-hide visual verification on WinSta0\\Default"
+  ]
+}

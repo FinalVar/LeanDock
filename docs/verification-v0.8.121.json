@@ -1,0 +1,31 @@
+{
+  "version": "0.8.121",
+  "date": "2026-11-18T14:16:00+08:00",
+  "state": "Built, DirectHiddenProbe and unit suites passed, live-loaded into Explorer, packaged at leandock-0.8.121-package",
+  "backendVersion": "0.5.101",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.121",
+  "userRequest": {
+    "At": "2026-11-18",
+    "Question": "有一个严重的问题。鼠标在悬浮面板上移动的时候会有实时光效，但是附近的文字也会根本像素级发抖有点难受",
+    "Scope": "Eliminate subpixel/pixel-level text jitter near the pointer-following specular light on the hover panel at fractional DPI scales (150% / 144 DPI) while preserving the real-time sheen/glint light effect, liquid glass, and entrance/exit/height animations."
+  },
+  "change": {
+    "DirectMotionScaleAndOpacity": "Replaced permanent ExpressionAnimations on motion.Scale (p.Zoom) and motion.Opacity (p.Alpha) with direct keyframe animations (MotionScale / MotionOpacity) so once entrance settles at 1.0, DWM exits the EffectVisual group-opacity offscreen intermediate surface path whose 1.5x DIP dirty-rect alignment alternated between .0 and .5 physical pixels around sheen/glint.",
+    "DecoupledPointerLightAndPixelSnapping": "Removed p.Light from shared props (setting sheen.EllipseCenter and glint.EllipseCenter directly after physical-pixel SnapDip deduplication so pointer movement never invalidates panel geometry expressions), enabled ICompositionSurfaceBrush3::SnapToPixels(true) on contentBrush and pageBrush, snapped band sizes and InsetClip cuts (55 DIP -> 83 px, 157 DIP -> 236 px) to integer physical pixels, and changed Drawing::Redraw surface sizing from std::ceil to std::lround for exact 1:1 texel-to-pixel alignment."
+  },
+  "checks": {
+    "DirectHiddenProbe": "aggregate/latest.exe --hidden-probe exit 0",
+    "UnitAndFixtureSuites": "aggregate-dismiss (22 checks, 0 failed), imports-latest.py exit 0"
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "9EA00A9ABF51DCC4D82B4D30D34036CD4CC3CC04C1602DC08F2C088EE0765A5B",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "59F40628E6E4CCBA06BE48BFFAFC0BD044250A1C1D366DB6C92558DCFD9FBCB0"
+  },
+  "notVerified": [
+    "Interactive desktop pointer movement across hover panel text at 150% DPI pending user visual confirmation"
+  ]
+}

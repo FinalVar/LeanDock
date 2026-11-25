@@ -1,0 +1,32 @@
+{
+  "version": "0.8.129",
+  "date": "2026-11-21T12:42:00+08:00",
+  "state": "Built, DirectHiddenProbe (339 policyChecks, 86 metricChecks), log-rotate (45 checks), aggregate-dismiss (28 checks), PE imports verification, and Update -ValidateOnly passed; packaged at leandock-0.8.129-package\\latest (awaiting elevated interactive desktop Update on WinSta0\\Default)",
+  "backendVersion": "0.5.109",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.129",
+  "userRequest": {
+    "At": "2026-11-21",
+    "Question": "先搞定文档同步与工程卫生，然后做日志限制或轮转",
+    "Scope": "Clean up stale historical backups and old _build/leandock-* directories while preserving recent 5 backups and current rollback, sync README.md from 0.8.119 to 0.8.129, and add bounded 64 KiB single-generation (.old) log rotation with locked-backup hard-cap fallback for latest.log and aggregate/latest.log."
+  },
+  "change": {
+    "LogRotation": "include/log-rotate-latest.h + aggregate/platform-latest.h + aggregate/build-latest.ps1 + src/runtime-latest.cpp + tests/log-rotate-latest.{cpp,ps1}: add LeanDockLog::AppendUtf8/AppendWideLine with 64 KiB default threshold (matching latest-explorer-exits.log), single-generation MoveFileExW(MOVEFILE_REPLACE_EXISTING) rotation to <path>.old, FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE sharing, in-process mutex serialization, and 2x hard-cap truncation fallback if .old is locked.",
+    "DocsAndHygiene": "README.md + docs/verification-v0.8.128.json + docs/verification-latest.json: sync version badge, remove already-implemented media buttons from unfinished checklist, document bounded log rotation, and record 0.8.120-0.8.129 changes; cleaned legacy backups (kept latest 5 before-* including active 0.8.128 rollback + retired-windhawk), 118 stale _build/leandock-0.8.83..126 directories (~5.2 GB), and 22 stale local compile logs / previous-*.dll files."
+  },
+  "checks": {
+    "DirectHiddenProbe": "aggregate/latest.exe --hidden-probe exit 0 (policyChecks: 339, metricChecks: 86, themePolicyChecks: 22, hiddenReadsUnchanged: true, readOnly: true, stopMs: 0, pagesCleared: true)",
+    "UnitAndFixtureSuites": "log-rotate (45 checks, 0 failed), aggregate-dismiss (28 checks, 0 failed), imports-latest.py exit 0 + aggregate/latest.exe system-DLL-only check passed",
+    "UpdatePreflight": "latest.ps1 -Action Update -PackagePath leandock-0.8.129-package\\latest -ValidateOnly passed (ChangedFiles: 14, RuntimeChanged: [aggregate/latest.exe, latest.dll], PreserveConfiguration: true); Rollback -ValidateOnly on before-0.8.128-20261119-130528500 passed (19 files intact)"
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "C956CA67F76C420BD823086649D8377AA69CD3559CC0B6694D03B6D6A76FB5CA",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "83347F5B4901F909E0CB622BFC4BC48186262A99634E629ACD192AC8D6201E05"
+  },
+  "notVerified": [
+    "Elevated interactive desktop Update load and live log rollover observation on WinSta0\\Default"
+  ]
+}

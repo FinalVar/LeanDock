@@ -1,0 +1,32 @@
+{
+  "version": "0.8.122",
+  "date": "2026-11-18T14:33:00+08:00",
+  "state": "Accepted by user on live Win11 26300.9974 150% DPI desktop (upper-half 1px oscillation eliminated); packaged at leandock-0.8.122-package",
+  "backendVersion": "0.5.102",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.122",
+  "userRequest": {
+    "At": "2026-11-18",
+    "Question": "你看图片中间分界线，下方各项指标无论鼠标怎么动文字都不会晃，上半部分还是一样，可能是绘制太复杂了吗；继续",
+    "Scope": "Eliminate the remaining 1-pixel oscillation on upper-half text and glyphs (tiles, clock, date) during 60 Hz hover transitions and per-second clock repaints at 150% DPI."
+  },
+  "change": {
+    "FixedOriginOffscreenD2DCanvas": "Proved why only the upper half above ruleY=252 shook: lower-half metric rows sit at even DIPs (14, 56, 264, 286... -> exact .0 physical pixels at 1.5x DPI), whereas upper-half tile/clock/date labels sit at odd DIPs (x=51->76.5 px, x=191->286.5 px, y=65->97.5 px, y=115->172.5 px, y=5->7.5 px, y=9->13.5 px). DirectComposition's shared texture atlas ping-pongs ICompositionDrawingSurfaceInterop::BeginDraw offsets between even (0) and odd (451/645) pixels across frames, causing DirectWrite's IEEE-754 round-half-to-even pixel snapping to alternate 76<->77 and 98<->97 on every repaint. Drawing::Redraw in aggregate/drawing-latest.h now renders at a fixed (0, 0) identity origin on a persistent device-shared ID2D1Bitmap1 canvas via scratchDc and copies 1:1 in integer pixels (D2D1_UNIT_MODE_PIXELS + D2D1_PRIMITIVE_BLEND_COPY + NEAREST_NEIGHBOR) into BeginDraw's atlas slot."
+  },
+  "checks": {
+    "DirectHiddenProbe": "aggregate/latest.exe --hidden-probe exit 0",
+    "UnitAndFixtureSuites": "aggregate-dismiss (22 checks, 0 failed), imports-latest.py exit 0"
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "E1C7D08CDCD2DEF21FAD77194AC22551C48A16A498E81BD4EE12D55986141FD8",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "D3A84F0C2D388DEE78DA61CC8083DEC0C148AC142AD340E1B5476E7038A1E700"
+  },
+  "userAcceptance": {
+    "At": "2026-11-18T14:40:10+08:00",
+    "Quote": "good，解决了"
+  },
+  "notVerified": []
+}

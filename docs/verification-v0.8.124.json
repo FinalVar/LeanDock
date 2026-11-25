@@ -1,0 +1,30 @@
+{
+  "version": "0.8.124",
+  "date": "2026-11-18T15:20:00+08:00",
+  "state": "Built, DirectHiddenProbe (305 policyChecks) and unit suites passed, live-loaded into Explorer, packaged at leandock-0.8.124-package",
+  "backendVersion": "0.5.104",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.124",
+  "userRequest": {
+    "At": "2026-11-18",
+    "Question": "亮度按钮做成可点击的和音量按钮一样，一键调制最低",
+    "Scope": "Make the brightness sun icon button on the left of the brightness slider clickable with the same hover highlight and hit-box style as the volume mute button above it, setting brightness to minimum (0) with one click."
+  },
+  "change": {
+    "BrightnessMinButton": "aggregate/control-panel-latest.h + aggregate/latest.cpp + aggregate/control-tests-latest.h: add PanelPart::BrightnessMin on x=14..48, y=206..242 DIP enabled whenever brightness >= 0, sharing the 34x36 DIP radius-10 hover wash with Mute; left-clicking invokes Set(Control::Brightness, 0) to pin the panel, smoothly ease the slider to 0 over 240 ms, apply WmiSetBrightness(0, 0) on the MTA worker thread, and switch the icon glyph to LowerBrightness (\\uEC8A) at 0%."
+  },
+  "checks": {
+    "DirectHiddenProbe": "aggregate/latest.exe --hidden-probe exit 0 (policyChecks: 305, metricChecks: 86, themePolicyChecks: 22)",
+    "UnitAndFixtureSuites": "aggregate-dismiss (22 checks, 0 failed), imports-latest.py exit 0"
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "40E45454C568E3B88A7190D6DCA877CC4716796EDBE2EA3DC13E818E02DA911C",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "E9D9A7EAFB3A95938C21F3D5140C2474EB9EE83919186216CBA93A6D973AC8E1"
+  },
+  "notVerified": [
+    "Interactive desktop click on brightness icon button on WinSta0\\Default"
+  ]
+}

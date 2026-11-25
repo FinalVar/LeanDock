@@ -21,14 +21,23 @@ void XamlBlurBrush::StopBackdropResume() noexcept {
         LeanDockBackdrop::Put(m_backdropTaskbar,L"LeanDock.Backdrop.Pending",0);
     m_backdropTaskbar=nullptr;
 }
-bool XamlBlurBrush::RefreshBackdropSource(XamlRoot const& root,HWND taskbar,bool requireVisible) {
+bool XamlBlurBrush::RefreshBackdropSource(XamlRoot const& root,HWND taskbar,bool requireVisible,bool rebuild) {
     auto owner=m_backdropOwner.get();
     if(!root||!owner||owner.XamlRoot()!=root||!owner.IsLoaded()||
        (requireVisible&&!root.IsHostVisible())||
        !LeanDockShell::IsTaskbar(taskbar,GetCurrentProcessId()))return false;
     auto effect=CompositionBrush().try_as<wuc::CompositionEffectBrush>();
     if(!effect)return false; // disconnected or native fallback stays native
-    effect.SetSourceParameter(L"backdrop",m_compositor.CreateBackdropBrush());
+    if(rebuild&&!ShouldUseFallback()){
+        // Atomic swap forces dwmcore to discard partial/stale blur tiles
+        // without ever leaving CompositionBrush null across a commit.
+        auto next=CreateEffectBrush();
+        CompositionBrush(next);
+        effect.Close();
+        LeanDockBackdrop::Count(taskbar,L"LeanDock.Backdrop.Rebuilds");
+    }else{
+        effect.SetSourceParameter(L"backdrop",m_compositor.CreateBackdropBrush());
+    }
     // Submission is not proof that the display has presented the scene.
     m_compositor.RequestCommitAsync();
     LeanDockBackdrop::Count(taskbar,L"LeanDock.Backdrop.Refreshes");
@@ -39,7 +48,7 @@ void XamlBlurBrush::PrepareBackdrop(XamlRoot const& root,HWND taskbar) noexcept 
     try {
         auto owner=m_backdropOwner.get();if(!owner||owner.XamlRoot()!=root)return;
         StopBackdropResume(); // an old visible scene must not run after Unhide
-        if(RefreshBackdropSource(root,taskbar,false)){
+        if(RefreshBackdropSource(root,taskbar,false,true)){
             LeanDockBackdrop::Count(taskbar,L"LeanDock.Backdrop.Prepares");
             LeanDockBackdrop::Put(taskbar,L"LeanDock.Backdrop.LastPrepareAt",GetTickCount64());
         }
@@ -60,7 +69,7 @@ void XamlBlurBrush::ScheduleBackdropResume(XamlRoot const& root,HWND taskbar,uns
             auto self=weak.get();if(!self||!self->m_backdropPlan.Current(ticket))return;
             try {
                 auto root=weakRoot.get();auto owner=self->m_backdropOwner.get();
-                if(!root||!owner||owner.XamlRoot()!=root||!owner.IsLoaded()||!root.IsHostVisible()||
+                if(!root||!owner||owner.XamlRoot()!=root||!owner.IsLoaded()||
                    !LeanDockShell::IsTaskbar(taskbar,GetCurrentProcessId())){
                     self->StopBackdropResume();LeanDockBackdrop::Put(taskbar,L"LeanDock.Backdrop.Pending",0);return;
                 }
@@ -68,11 +77,13 @@ void XamlBlurBrush::ScheduleBackdropResume(XamlRoot const& root,HWND taskbar,uns
                 if(!self->m_backdropPlan.Ready(ticket,now)){
                     sender.Interval(std::chrono::milliseconds(self->m_backdropPlan.due-now));sender.Start();return;
                 }
-                if(!self->RefreshBackdropSource(root,taskbar,true)){
-                    self->StopBackdropResume();return;
+                if(root.IsHostVisible()){
+                    if(!self->RefreshBackdropSource(root,taskbar,true,true)){
+                        self->StopBackdropResume();return;
+                    }
                 }
                 if(self->m_backdropPlan.Advance(ticket,now)){
-                    sender.Interval(std::chrono::milliseconds(LeanDockBackdrop::Plan::SettleDelay));sender.Start();
+                    sender.Interval(std::chrono::milliseconds(self->m_backdropPlan.NextDelay()));sender.Start();
                 }else{
                     self->StopBackdropResume();LeanDockBackdrop::Put(taskbar,L"LeanDock.Backdrop.Pending",0);
                 }
@@ -111,12 +122,25 @@ void ResumeLeanDockBackdrop(HWND taskbar,WPARAM reason,LPARAM at) noexcept {
         }
     }catch(...){LeanDockBackdrop::Put(taskbar,L"LeanDock.Backdrop.Error",static_cast<unsigned>(winrt::to_hresult()));}
 }
+void ObserveLeanDockTaskbarPosition(HWND taskbar) noexcept {
+    if(!LeanDockShell::IsTaskbar(taskbar,GetCurrentProcessId()))return;
+    RECT window{};MONITORINFO monitor{sizeof(monitor)};
+    if(!GetWindowRect(taskbar,&window)||
+       !GetMonitorInfoW(MonitorFromWindow(taskbar,MONITOR_DEFAULTTONEAREST),&monitor))return;
+    const bool shifted=LeanDockGeometry::ShownShift(window,monitor.rcMonitor)<-2;
+    for(auto& state:g_clickThroughTaskbarState){
+        if(state.cardsClosing||!state.islandHwnd||GetAncestor(state.islandHwnd,GA_ROOT)!=taskbar)continue;
+        const bool landed=state.backdropWasShifted&&!shifted;
+        state.backdropWasShifted=shifted;
+        if(landed)ResumeLeanDockBackdrop(taskbar,static_cast<WPARAM>(LeanDockBackdrop::Reason::Expansion),GetTickCount64());
+    }
+}
 void StopLeanDockBackdrops() noexcept try {
     const auto brushes=std::move(g_leanDockBlurBrushes);g_leanDockBlurBrushes.clear();
     for(auto const& weak:brushes)if(auto brush=weak.get())brush->StopBackdropResume();
     for(auto const& state:g_clickThroughTaskbarState)if(state.islandHwnd){
         const HWND taskbar=GetAncestor(state.islandHwnd,GA_ROOT);
-        for(auto key:{L"LeanDock.Backdrop.Requests",L"LeanDock.Backdrop.Refreshes",L"LeanDock.Backdrop.LastRequestAt",
+        for(auto key:{L"LeanDock.Backdrop.Requests",L"LeanDock.Backdrop.Refreshes",L"LeanDock.Backdrop.Rebuilds",L"LeanDock.Backdrop.LastRequestAt",
                       L"LeanDock.Backdrop.LastRefreshAt",L"LeanDock.Backdrop.Reason",L"LeanDock.Backdrop.Pending",L"LeanDock.Backdrop.Error",
                       L"LeanDock.Backdrop.Prepares",L"LeanDock.Backdrop.LastPrepareAt"})
             RemovePropW(taskbar,key);

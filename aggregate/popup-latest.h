@@ -28,7 +28,17 @@ class Popup {
             switch(m){
             case WM_MOUSEWHEEL:if(!self->menu&&self->wheel)self->wheel(GET_WHEEL_DELTA_WPARAM(a));return 0;
             case WM_CLOSE:if(self->cancel)self->cancel();else self->Hide();return 0;
-            case WM_MOUSEACTIVATE:return self->menu?MA_ACTIVATE:MA_NOACTIVATE;
+            case WM_MOUSEACTIVATE:{
+                if(self->menu)return MA_ACTIVATE;
+                if(!self->shouldActivate)return MA_NOACTIVATE;
+                POINT p{};GetCursorPos(&p);
+                const float x=float((p.x-self->rect.x)/self->dpi),y=float((p.y-self->rect.y)/self->dpi);
+                return self->shouldActivate(HIWORD(b),x,y)?MA_ACTIVATE:MA_NOACTIVATE;
+            }
+            case WM_ACTIVATE:
+                if(!self->menu&&LOWORD(a)==WA_INACTIVE&&self->deactivate)
+                    self->deactivate(reinterpret_cast<HWND>(b));
+                return 0;
             case WM_NCHITTEST:return self->Hit(GET_X_LPARAM(b),GET_Y_LPARAM(b))?HTCLIENT:HTTRANSPARENT;
             case WM_ERASEBKGND:return 1;
             case WM_PAINT:{PAINTSTRUCT p;BeginPaint(w,&p);EndPaint(w,&p);return 0;}
@@ -46,14 +56,14 @@ class Popup {
                     auto i=self->Index(y);
                     if(i>=0&&!self->items[i].disabled&&!self->items[i].separator&&self->select)
                         self->select(self->items[i].action);
-                }else if(self->click)self->click(m,x,y);
+                }else if(self->click)self->click(m==WM_LBUTTONDBLCLK?WM_LBUTTONDOWN:m,x,y);
                 return 0;
             }
-            case WM_LBUTTONDOWN:case WM_RBUTTONDOWN:
-                if(!self->menu&&self->click)self->click(m,float(GET_X_LPARAM(b))/self->dpi-32,float(GET_Y_LPARAM(b))/self->dpi-32);
+            case WM_LBUTTONDOWN:case WM_RBUTTONDOWN:case WM_RBUTTONDBLCLK:
+                if(!self->menu&&self->click)self->click(m==WM_RBUTTONDBLCLK?WM_RBUTTONDOWN:m,float(GET_X_LPARAM(b))/self->dpi-32,float(GET_Y_LPARAM(b))/self->dpi-32);
                 return 0;
             case WM_KEYDOWN:
-                if(a==VK_ESCAPE){if(self->cancel)self->cancel();else self->Hide();return 0;}
+                if(a==VK_ESCAPE){if(self->escape)self->escape();else if(self->cancel)self->cancel();else self->Hide();return 0;}
                 if(a==VK_UP||a==VK_DOWN){
                     for(size_t n=0;n<self->items.size();n++){
                         self->hover=(self->hover+(a==VK_UP?-1:1)+int(self->items.size()))%int(self->items.size());
@@ -82,6 +92,9 @@ public:
     std::vector<MenuItem> items;
     std::function<void(int)> select;
     std::function<void()> cancel;
+    std::function<void()> escape;
+    std::function<bool(UINT,float,float)> shouldActivate;
+    std::function<void(HWND)> deactivate;
     std::function<void(UINT,float,float)> click;
     std::function<void()> pointerCancel;
     std::function<bool(UINT,WPARAM)> key;
@@ -90,7 +103,7 @@ public:
     void Init(Drawing& renderer,float scale,float w,float h,float round,bool isMenu) {
         draw=&renderer;dpi=scale;width=w;height=h;radius=round;menu=isMenu;
         WNDCLASSW c{};c.hInstance=GetModuleHandleW(nullptr);c.lpfnWndProc=Proc;c.lpszClassName=Class;
-        c.hCursor=LoadCursorW(nullptr,IDC_ARROW);c.style=CS_DBLCLKS;RegisterClassW(&c);
+        c.hCursor=LoadCursorW(nullptr,IDC_ARROW);c.style=isMenu?CS_DBLCLKS:0;RegisterClassW(&c);
         DWORD ex=WS_EX_TOOLWINDOW|WS_EX_TOPMOST|WS_EX_NOREDIRECTIONBITMAP|WS_EX_LAYERED|WS_EX_TRANSPARENT;
         if(!menu)ex|=WS_EX_NOACTIVATE;
         window=CreateWindowExW(ex,Class,L"",WS_POPUP,0,0,1,1,nullptr,nullptr,c.hInstance,this);
@@ -132,7 +145,14 @@ public:
             SetWindowLongPtrW(window,GWL_EXSTYLE,pass?ex|WS_EX_TRANSPARENT:ex&~WS_EX_TRANSPARENT);
         }
     }
+    void SetNoActivate(bool enabled) {
+        if(!window)return;
+        auto ex=GetWindowLongPtrW(window,GWL_EXSTYLE);
+        auto next=enabled?(ex|WS_EX_NOACTIVATE):(ex&~WS_EX_NOACTIVATE);
+        if(next!=ex)SetWindowLongPtrW(window,GWL_EXSTYLE,next);
+    }
     void Show(bool detail=false) {
+        if(!menu)SetNoActivate(false);
         visible=true;scene.FloatShow(Animations(),detail);
         POINT p{};GetCursorPos(&p);Hover(p);
         ShowWithoutActivation(window);
@@ -142,10 +162,12 @@ public:
     int Leave() {
         visible=false;hover=-1;if(pointerCancel)pointerCancel();
         if(window&&GetCapture()==window)ReleaseCapture();
+        if(!menu)SetNoActivate(true);
         if(window&&!transparent){transparent=true;SetWindowLongPtrW(window,GWL_EXSTYLE,GetWindowLongPtrW(window,GWL_EXSTYLE)|WS_EX_TRANSPARENT);}
         return scene.FloatHide(Animations());
     }
     void Hide() {visible=false;hover=-1;
+        if(!menu)SetNoActivate(true);
         if(pointerCancel)pointerCancel();if(window&&GetCapture()==window)ReleaseCapture();
         if(window)ShowWindow(window,SW_HIDE);}
     void PaintMenu() {

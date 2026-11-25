@@ -1,5 +1,5 @@
 param(
- [string]$Destination='C:\Users\x\Documents\Codex\Tools\NativeTaskbarDock',
+ [string]$Destination='C:\Users\x\dev\tools\LeanDock',
  [string]$OutputDirectory,
  [ValidateRange(1,5)][int]$ProbeCycles=3,
  [ValidateRange(0,300)][int]$ObserveSeconds=30

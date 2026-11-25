@@ -1,0 +1,30 @@
+{
+  "version": "0.8.127",
+  "date": "2026-11-18T21:30:00+08:00",
+  "state": "Deployed by user on WinSta0\\Default at 2026-11-18 23:08:21; user confirmed 4-click cycle persisted (3rd click still produced no physical brightness change, superseded by 0.8.128)",
+  "backendVersion": "0.5.107",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.127",
+  "userRequest": {
+    "At": "2026-11-18",
+    "Question": "leandock悬浮面板亮度按钮会失效，场景为，按一下为最暗，再按为原来亮度，再按应为最暗而实际会失效",
+    "Scope": "Fix the hover-panel brightness button failing on the third consecutive toggle (after dimming to 0% on the first click and restoring the previous brightness on the second click)."
+  },
+  "change": {
+    "PopupDoubleClickSuppressionAndNormalization": "aggregate/popup-latest.h + aggregate/latest.cpp + tests/aggregate-dismiss-latest.cpp: remove CS_DBLCLKS from non-menu Popup windows so clicks within the 500 ms system double-click interval generate WM_LBUTTONDOWN instead of WM_LBUTTONDBLCLK, and normalize any incoming WM_LBUTTONDBLCLK / WM_RBUTTONDBLCLK on non-menu popups to ordinary button-down events (including WM_MOUSEACTIVATE trigger handling and panelPress tracking).",
+    "BrightnessReadbackSettle": "aggregate/controls-latest.h + aggregate/latest.cpp + aggregate/control-tests-latest.h: add BrightnessSettle so that when WmiMonitorBrightness.CurrentBrightness lags immediately after WmiSetBrightness, the brightness command remains pending and polls every 100 ms until hardware readback reaches the target or settles within 2500 ms."
+  },
+  "checks": {
+    "DirectHiddenProbe": "aggregate/latest.exe --hidden-probe exit 0 (policyChecks: 326, metricChecks: 86, themePolicyChecks: 22, hiddenReadsUnchanged: true, readOnly: true)",
+    "UnitAndFixtureSuites": "aggregate-dismiss (28 checks, 0 failed), imports-latest.py exit 0",
+    "InteractiveDesktopResult": "User loaded 0.8.127 and verified that the 4-click cycle (1:0% -> 2:100% -> 3:no physical change -> 4:100% -> 5:0%) remained unchanged because legacy WmiSetBrightness bypasses the Windows 11 active power scheme and DisplayEnhancementService drops every second 100->0 transition while monitor.sys still reports CurrentBrightness=0."
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "3891E2E1F8DAE83F70A5F8562EBF68E5EAC593785000C405453C830C95A4BEB9",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "125E4C3C50B553622E812F31DC5C7E3E81E85904D1FF42C05876E01EE5EC492E"
+  },
+  "notVerified": []
+}

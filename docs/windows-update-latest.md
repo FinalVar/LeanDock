@@ -1,28 +1,33 @@
-# Windows 更新后的兼容性适配
+# Windows 更新兼容性记录
 
-本记录对应 LeanDock 0.8.29、Windows 26300.9711（2026-10-14）。它只说明这组实际文件的核查结果，不表示通用于所有后续 Windows 版本。
+## `0.8.120`（`2026-11-18`｜修正 `26300.9974` 下 `ShowLeanDockFlyoutGeneral` 右键菜单崩溃与面板改进）
 
-## 故障原因
+- **问题现象**：`0.8.119` 部署后，右键聚合时间/日期/电量键（触发原生 `Win+X` 菜单）立即导致 `explorer.exe` 以异常码 `0xC0000005`（`EXCEPTION_ACCESS_VIOLATION`）退出并重载（见 `latest-explorer-exits.log`）。
+- **根因定位（逐字节反汇编核实）**：
+  - `Taskbar.View.dll`（`2609.12001.100.0`，RVA `0x6342B4` / `6505140`）中 `winrt::impl::consume_general<IFlyoutBase5, FlyoutBase, int(abi::*)(void*,void*) noexcept, void*&, void*&>` 的第 3、4 个参数（`R8`、`R9`）类型为 `void*&`，即调用方栈上 `DependencyObject` / `FlyoutShowOptions` 句柄槽位的地址（单层指针 `const DependencyObject*`，内部保存裸 ABI 接口指针 `IDependencyObject*`）。
+  - `0.8.119` 的 `ShowLeanDockFlyoutGeneral` 误将其声明为双层指针 `const DependencyObject* const*` 并向 `ArmLeanDockFlyout(value, *target)` 传入 `*target`，把 COM 对象首地址当作 `DependencyObject*` 解引用，使 `try_as<FrameworkElement>()` 将对象虚表地址误作接口指针读取，直接触发 `0xC0000005`。
+  - 同时，`IFlyoutBase5` 仅有 `ShowAt` 一个方法，MSVC LTCG 在 `0x6342B4` 内直接内联调用固定桩 `0x2F6390` 并消除了全部 4 处调用点对 `RDX`（`method`）的赋值；因此钩子不得以 `method != nullptr` 作为前置条件，仅透传 `RDX` 即可。（对比核验：`SystemTray.dll` RVA `0x3A328` 与 `Taskbar.View.dll` RVA `0x6542D8` 的 `double&` 版本均显式传递并间接调用 `RDX`，且参数本就声明为单层 `double*`，无同类问题。）
+- **修复与合并改动**：
+  - `src/surface-latest.inc`：修正 `LeanDockFlyoutShowGeneral` 与 `ShowLeanDockFlyoutGeneral` 参数类型为 `(Controls::Primitives::FlyoutBase*, void*, const DependencyObject*, const Controls::Primitives::FlyoutShowOptions*)`，直接向 `ArmLeanDockFlyout(value, target)` 传递 `target` 并移除对未初始化 `RDX` 的非空判断；保持 `include/shell-actions-latest.h` 原子 4 事件 `SendInput` 原实现不变。
+  - 合并本轮悬浮面板改进：`aggregate/metrics-latest.h` 首次媒体查询短等待预热、`aggregate/composition-latest.h` 底部锚定高度过渡动画、`aggregate/latest.cpp` + `include/aggregate-bridge-latest.h` + `src/cards-aggregate-latest.cpp` 4 秒静默保活复用，以及 `aggregate/control-panel-latest.h` `consteval Stack` 纵向布局计算与编译期校验。
 
-本次登录任务正常启动，控制器和触发角均正常。Dock 在注入前被 NativeVerifySystem 阻止：Taskbar.dll 的 SHA-256 已改变，控制器记录 `state=4`、`attempts=0`、`error=taskbar.dll`。Windows.UI.Xaml.dll 的代码及身份也改变，紧凑开始菜单依赖的 StartDocked.dll 独立校验同样不匹配。
+## `0.8.119`（`2026-11-17`｜Windows 11 `26300.9711` → `26300.9974`）
 
-因此“触发角能用而 Dock 没有加载”是独立组件与严格兼容门槛共同作用的结果，并非启动任务丢失。系统更新之后，即便文件版本字符串相同，代码和调试符号身份也可能不同，不能仅按版本号继续加载。
+- **问题原因**：系统更新并重启（约 `14:09`）后，Windows 构建升至 `26H2 / 26300.9974`。计划任务 `NativeTaskbarDock` 与控制器 `0.3.43` 正常启动、触发角正常就绪，但 `NativeVerifySystem` 拦截到 `taskbar.dll` 等系统二进制指纹变更（`latest-status.json` 记录 `state: 4`、`error: "taskbar.dll"`、`dockSupported: false`），主动中止注入。
+- **全量核验与适配**：
+  - 按 `AGENTS.md` 与 Microsoft 公开符号服务器下载 `26300.9974` 对应 PDB（`Taskbar.pdb`、`Taskbar.View.pdb`、`SystemTray.pdb`、`explorer.pdb`、`twinui.pcshell.pdb`、`ThemeUI.pdb`）并核验全量 15 个已变更系统二进制（`ShellComponents.Switcher.pri` 未变更）的 SHA-256、`TimeDateStamp`、`SizeOfImage` 与微软 Authenticode 签名（全部 `Valid`）。
+  - **`baseline/icon-resolution-latest.json`**：`taskbar.dll` 中 `TaskbarHost::IconSizeInViewPixels` 移至 RVA `482476`、`ShellIconLoaderV2::s_ForceImagePresent` 移至 RVA `486396`；全部 6 个 `IconSizeInViewPixels` 调用点（5 个图标加载来源 + `CTaskListWnd::GetIconSizeInViewPixels`）与 2 个 `ForceImage` 调用点均为唯一直接 `E8` 调用，`build/generate-latest.py` 逐字节校验通过。
+  - **C++/WinRT `consume_general` 模板并合适配**：`Taskbar.View.dll`（`2609.12001.100.0`）与 `SystemTray.dll`（`2609.11000.100.0`）中以下 3 处可选钩子在新版编译器优化下通过 `winrt::impl::consume_general`（传递 ABI 虚表成员桩指针 + 引用参数）调用：
+    1. `SystemTrayFrame::Height(double)` → `consume_general<IFrameworkElement, SystemTrayFrame, ...>`（RVA `238376`），在 `build/generate-latest.py` 中新增 `SystemTrayFrame_Height_General_Hook` 校验 `IsAbiVtableCallOffset(method, 144)`（`put_Height`）、非 `NaN` 与 `IsRuntimeClass(pThis, L"SystemTray.SystemTrayFrame")` 后覆写 `g_taskbarHeight`。
+    2. `ProgressBar::Width(double)` → `consume_general<IFrameworkElement, ProgressBar, ...>`（RVA `6636248`），新增 `ProgressBar_Width_General_Hook` 校验 `IsAbiVtableCallOffset(method, 128)`（`put_Width`）与 `ProgressBar` 运行时类型。
+    3. `IFlyoutBase5::ShowAt(...)` → `consume_general<IFlyoutBase5, FlyoutBase, ...>`（RVA `6505140`），在 `src/surface-latest.inc` 提取共享 `ArmLeanDockFlyout` 与 `ShowLeanDockFlyoutGeneral` 并保持 `IsLeanDockMenuCaller` 调用点校验，保留指针右键去焦点框与连续右键重开跟踪。
+    - 另 3 个内联旧版回退符号（`taskbar.dll` 内 `ITaskbarSettings::Size`，`Taskbar.View.dll` 内旧版 `TaskbarFrame::Height(double)`/`MaxHeight(double)`）在现代 26H2 已有 `TaskbarConfiguration::GetFrameSize` 与 `TaskbarController::UpdateFrameHeight` 直接覆盖，保留可选空置。
+  - **`explorer.exe` / `twinui.pcshell.dll` / `themeui.dll` / 宿主进程**：确认 `CTray::_OnAppBarMessage`（`0x72a8`，范围 `[0x72a8, 0x7464)`）与 `XamlAltTabViewHost::DisplayAltTab`（`1118596`）入口与语义一致；同步 `shell32.dll`、`InputHost.dll`、`themeui.dll`、`ShellHost.exe`、`ControlCenter.dll`、`StartMenuExperienceHost.exe`、`StartDocked.dll`、`SearchHost.exe`、`WindowsInternal.ComposableShell.Experiences.Switcher.dll` 的严格指纹引脚。
+  - **控制器与组件构建策略**：按 `AGENTS.md` 从 Clean 基准 `artifacts/controller-0.3.43-exitlog/latest` 仅同步更新后的 system-pin 头文件编译控制器 `0.3.44`，将其 SHA-256 回填至 `aggregate/theme-control-latest.h` 的 `ControllerHash` 后重编 `aggregate/latest.exe` 与 `latest.dll`，并继续沿用 `0.8.78` 的 `start/latest.dll` 与 `panels/latest.dll`。
+- **详细证据**：见 [windows-update-evidence-latest.json](windows-update-evidence-latest.json) 与 [verification-latest.json](verification-latest.json)。
 
-## 适配内容与证据
+## `0.8.29`（`2026-10-14`）
 
-- 从微软符号服务器取得与当前 Taskbar.dll RSDS 完全一致的 PDB：`DAB69A79FEE033F0D81E023FBF172B51`，age 1。DbgHelp 按精确符号匹配读取，未执行被分析的系统 DLL。
-- 旧文件从 Windows 组件存储中只读取得，首先核对其 SHA-256 必须等于原项目基线。27 个必需入口全部唯一匹配，其中 23 个函数、4 个虚表；一个原本可选且不存在的替代签名仍为空。
-- 22 个函数在忽略重定位相关地址后指令形态一致。剩余图标加载协程的 334 条可执行指令只有一处内部跳转表地址增加 32 字节，9 个跳转目的相对函数起点完全一致；跳转表数据未当作机器指令比较。这不是所有被调用函数语义不变的证明，仍需实际加载验证。
-- Windows.UI.Xaml.dll 的导出集合不变，既有接入使用的 InitializeXamlDiagnosticsEx 仍存在。该组件没有本项目私有 RVA 绑定；保留 COM / WinRT 接口检查。
-- 紧凑开始菜单继续使用检查后的 WinRT 类型、原生集合及布局事件，没有新增私有偏移。静态字符串检查不足以证明布局兼容，实际集合与尺寸须在新宿主中读取。
-- Taskbar.View.dll、SystemTray.dll、StartMenuExperienceHost.exe、ShellHost.exe、ControlCenter.dll 和 themeui.dll 的文件哈希保持原基线。
-
-实际变更仅为模块哈希、Taskbar 的符号缓存及生成头文件、StartDocked 的校验身份和版本报告。原有布局、小组件、提示红点、主题恢复、开始菜单重接、最大化触发角行为均保留。安全策略未修改，文件哈希、PE 时间戳和映像大小校验仍有效。
-
-详细匹配清单见 windows-update-evidence-latest.json；当前运行及验收状态见 verification-latest.json。此前四指切换桌面时的透明度问题仍未解决，不能把本次更新适配当作该问题已修复。
-
-## 后续系统更新的处理边界
-
-先读取当前控制器错误、宿主 PID、启动任务及实际模块哈希，区分未启动、兼容校验失败和加载后故障。出现身份不匹配时，按实际新文件重新取得符号并核对相关实现；不可只替换哈希、套用统一地址增量、关闭校验或自动放行未知版本。
-
-经生成器校验、回归、独立构建后，沿用现有打包和维护事务部署，保留源码及运行文件回退。系统更新后的旧包可用于比较源码和恢复旧行为，但它仍会拒绝不匹配的新系统组件，不能承诺回退旧包就能在新 Windows 上恢复 Dock。运行态就绪与真实界面验收分别记录。
+- 当日 Windows 更新后任务栏与 StartDocked 二进制变更，导致 LeanDock 停留在 `NativeVerifySystem` 安全校验分支并记录报错 `"taskbar.dll"`（Triggers & Hot corners 未受影响）。
+- 已通过官方公开 PDB 核验全部 `taskbar.dll` 符号与 `IconSizeInViewPixels` 调用点位置、复核 `Windows.UI.Xaml.dll` 导出和 `StartDocked.dll` 运行契约、补充系统组件签名校验，并在更新基线后重编控制器与后端模块，恢复通过全部 91 项运行时回归与布局/热区单测。
+- 详细分析与符号比对表留存于本地 [windows-update-evidence-latest.json](windows-update-evidence-latest.json)（已随 26300.9974 轮次刷新）与 [verification-v0.8.29.json](verification-v0.8.29.json)。

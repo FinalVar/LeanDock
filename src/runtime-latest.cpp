@@ -6,6 +6,7 @@
 #include "settings-generated.h"
 #include "config-latest.h"
 #include "layout-cost-latest.h"
+#include "log-rotate-latest.h"
 #include "../vendor/minhook/include/MinHook.h"
 #include "../vendor/minhook/src/hde/hde64.h"
 #include <atomic>
@@ -50,13 +51,7 @@ static void Log(const wchar_t* message) {
     _snwprintf_s(line,_TRUNCATE,L"%04u-%02u-%02u %02u:%02u:%02u pid=%lu %s\r\n",
         now.wYear,now.wMonth,now.wDay,now.wHour,now.wMinute,now.wSecond,
         GetCurrentProcessId(),message);
-    char utf8[8192];int bytes=WideCharToMultiByte(CP_UTF8,0,line,-1,utf8,sizeof(utf8),nullptr,nullptr);
-    HANDLE file=CreateFileW(FilePath(L"latest.log").c_str(),FILE_APPEND_DATA,
-        FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
-    if(file!=INVALID_HANDLE_VALUE) {
-        DWORD written;if(bytes>1)WriteFile(file,utf8,bytes-1,&written,nullptr);
-        CloseHandle(file);
-    }
+    LeanDockLog::AppendWideLine(FilePath(L"latest.log").c_str(),line);
 }
 extern "C" void Native_ReportFailure(const wchar_t* stage,HRESULT error) {
     g_fault=true;wchar_t line[1024];
@@ -264,7 +259,7 @@ static void SaveState() {
     size_t hooks;{std::lock_guard guard(g_hookMutex);hooks=g_hooks.size();}
     char json[1024];
     const int size=snprintf(json,sizeof(json),
-        "{\"protocol\":1,\"version\":\"0.5.97\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"menuHook\":%u,\"styledElements\":%u,\"failed\":%s,"
+        "{\"protocol\":1,\"version\":\"0.5.112\",\"explorerPid\":%lu,\"ownerPid\":%lu,\"state\":%u,\"hooks\":%zu,\"menuHook\":%u,\"styledElements\":%u,\"failed\":%s,"
         "\"attentionPolicy\":{\"active\":%s,\"blockedReveals\":%llu,\"ignoredFlashingChecks\":%llu,\"passedReveals\":%llu},"
         "\"layoutCost\":{\"tray\":{\"calls\":%llu,\"micros\":%llu,\"worstMicros\":%llu},"
         "\"surface\":{\"calls\":%llu,\"micros\":%llu,\"worstMicros\":%llu}},"

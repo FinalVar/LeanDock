@@ -55,8 +55,8 @@ inline bool Host(HWND w) {
 }
 inline bool Verify() {
  const struct {const wchar_t* name;const wchar_t* sha;} pins[]={
-  {L"StartMenuExperienceHost.exe",L"4D151C6B5662F5F94ED115CA7F7446356E9208549B0F06E446F579BC20F5E577"},
-  {L"StartDocked.dll",L"8359E3BF5F3F58944F300B9A2D3E1B1FACD4CE8FC7813C799402DA7816874EB9"}
+  {L"StartMenuExperienceHost.exe",L"33CF4CDFA5B24F04D1F201681EDEEB3CB68B42CDBBCB00D172FB14CFB5BD1497"},
+  {L"StartDocked.dll",L"8788C05F840D81C0EDFC55D52B5EA41ABBCF35AE3F7F3B20FC125DB6FC0503F2"}
  };
  wchar_t base[32768];GetWindowsDirectoryW(base,std::size(base));
  for(auto const& pin:pins) {

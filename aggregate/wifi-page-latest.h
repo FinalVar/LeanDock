@@ -14,15 +14,40 @@ struct PageTarget {
 struct WifiView {
     enum class Focus { None, User, Password };
     std::wstring expanded,user,password; // credentials stay on this page and are wiped when done
-    Focus focus=Focus::None;bool reveal=false;float scroll=0;
+    Focus focus=Focus::None;bool reveal=false,selectAll=false;float scroll=0;
     // Room for the longest key up front: growing would leave copies behind.
     WifiView(){password.reserve(64);}
     void Wipe(){
         SecureZeroMemory(password.data(),password.size()*sizeof(wchar_t));password.clear();
-        user.clear();focus=Focus::None;reveal=false;
+        user.clear();focus=Focus::None;reveal=selectAll=false;
     }
     void Reset(){Wipe();expanded.clear();scroll=0;}
 };
+inline void WipeField(std::wstring& text){
+    if(!text.empty()){SecureZeroMemory(text.data(),text.size()*sizeof(wchar_t));text.clear();}
+}
+// Backspace clears the character it removes; Ctrl+Backspace (0x7F) or Ctrl+U
+// (0x15) wipes the whole buffer; Ctrl+A (0x01) selects all so the next edit,
+// Backspace, Delete or Paste securely replaces the whole field.
+template<typename PasteFn>
+inline void EditFieldWith(std::wstring& text,bool& selectAll,WPARAM key,size_t limit,bool ascii,PasteFn&& paste){
+    if(key==0x01){selectAll=!text.empty();return;}
+    if(key==0x7F||key==0x15){WipeField(text);selectAll=false;return;}
+    if(key==0x08){
+        if(selectAll){WipeField(text);selectAll=false;}
+        else if(!text.empty()){text.back()=0;text.pop_back();}
+        return;
+    }
+    if(key==0x16){
+        if(selectAll){WipeField(text);selectAll=false;}
+        paste(text,limit,ascii);
+        return;
+    }
+    if(key>=0x20&&text.size()<limit+size_t(selectAll?text.size():0)&&(!ascii||key<0x7F)){
+        if(selectAll){WipeField(text);selectAll=false;}
+        if(text.size()<limit)text.push_back(wchar_t(key));
+    }
+}
 inline constexpr float PageListTop=58,WifiRowHeight=48,PageFooter=26;
 // A scrolling list under the page header. A page with an error to show
 // keeps a footer line free for it below the list.
@@ -94,19 +119,13 @@ inline std::wstring WifiSubtitle(WifiNetwork const& n,WifiList const& list){
     if(n.connected)return n.secure?L"已连接，安全":L"已连接，开放";
     return std::wstring(n.saved?L"已保存，":L"")+(n.enterprise?L"企业网络":n.secure?L"安全":L"开放");
 }
-inline winrt::com_ptr<ID2D1SolidColorBrush> Solid(ID2D1DeviceContext* dc,D2D1_COLOR_F color){
-    winrt::com_ptr<ID2D1SolidColorBrush> brush;winrt::check_hresult(dc->CreateSolidColorBrush(color,brush.put()));return brush;
-}
 inline void CenterText(Drawing& draw,ID2D1DeviceContext* dc,std::wstring const& text,Rect r,float size,D2D1_COLOR_F color,bool semi=false){
     auto layout=draw.Layout(text,size,float(r.w),float(r.h),semi);
     layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
-    dc->DrawTextLayout({float(r.x),float(r.y)},layout.get(),Solid(dc,color).get(),D2D1_DRAW_TEXT_OPTIONS_CLIP);
+    dc->DrawTextLayout({float(r.x),float(r.y)},layout.get(),draw.Brush(dc,color),D2D1_DRAW_TEXT_OPTIONS_CLIP);
 }
 // Windows' Wi-Fi mark: a dot and three arcs, lit up to the signal strength.
 inline void PaintSignal(Drawing& draw,ID2D1DeviceContext* dc,float cx,float cy,int bars,D2D1_COLOR_F on,D2D1_COLOR_F off){
-    winrt::com_ptr<ID2D1StrokeStyle> round;
-    D2D1_STROKE_STYLE_PROPERTIES style{D2D1_CAP_STYLE_ROUND,D2D1_CAP_STYLE_ROUND,D2D1_CAP_STYLE_ROUND,D2D1_LINE_JOIN_ROUND};
-    winrt::check_hresult(draw.factory->CreateStrokeStyle(style,nullptr,0,round.put()));
     for(int i=0;i<3;++i){
         const float r=4.5f+4.5f*float(i),k=.7071f;
         winrt::com_ptr<ID2D1PathGeometry> arc;winrt::check_hresult(draw.factory->CreatePathGeometry(arc.put()));
@@ -114,43 +133,51 @@ inline void PaintSignal(Drawing& draw,ID2D1DeviceContext* dc,float cx,float cy,i
         sink->BeginFigure({cx-r*k,cy-r*k},D2D1_FIGURE_BEGIN_HOLLOW);
         sink->AddArc({{cx+r*k,cy-r*k},{r,r},0,D2D1_SWEEP_DIRECTION_CLOCKWISE,D2D1_ARC_SIZE_SMALL});
         sink->EndFigure(D2D1_FIGURE_END_OPEN);winrt::check_hresult(sink->Close());
-        dc->DrawGeometry(arc.get(),Solid(dc,bars>=i+2?on:off).get(),1.7f,round.get());
+        dc->DrawGeometry(arc.get(),draw.Brush(dc,bars>=i+2?on:off),1.7f,draw.roundStroke.get());
     }
-    dc->FillEllipse({{cx,cy},1.7f,1.7f},Solid(dc,bars>=1?on:off).get());
+    dc->FillEllipse({{cx,cy},1.7f,1.7f},draw.Brush(dc,bars>=1?on:off));
 }
 inline void PaintSwitch(Drawing& draw,ID2D1DeviceContext* dc,float x,float y,float on,bool enabled,float hover){
     auto& c=draw.colors;const auto ink=Alpha(c.text,enabled?.62f:.3f);
-    if(on<1)draw.Stroke(dc,{x+.5,y+.5,39,19},9.5f,Solid(dc,Alpha(ink,1-on)).get());
+    if(on<1)draw.Stroke(dc,{x+.5,y+.5,39,19},9.5f,draw.Brush(dc,Alpha(ink,1-on)));
     if(on>0)draw.Round(dc,{x,y,40,20},10,Alpha(enabled?c.accent:Alpha(c.accent,.45f),on));
     const float r=6+(enabled?hover:0),cx=x+10+20*on;
-    dc->FillEllipse({{cx,y+10},r,r},Solid(dc,Mix(ink,c.onAccent,on)).get());
+    dc->FillEllipse({{cx,y+10},r,r},draw.Brush(dc,Mix(ink,c.onAccent,on)));
+}
+inline void PaintControlCard(Drawing& draw,ID2D1DeviceContext* dc,Rect r,float radius){
+    auto& c=draw.colors;
+    draw.Round(dc,r,radius,c.control);
+    if(c.light)draw.Stroke(dc,{r.x+.5,r.y+.5,r.w-1,r.h-1},radius-.5f,draw.Brush(dc,c.controlEdge));
+    else{
+        auto edge=draw.Gradient(dc,{0,float(r.y)},{0,float(r.y+std::min(24.,r.h/2))},{{0,c.controlEdge},{1,Alpha(c.controlEdge,0)}});
+        draw.Stroke(dc,{r.x+.5,r.y+.5,r.w-1,r.h-1},radius-.5f,edge.get());
+    }
 }
 inline void PaintButton(Drawing& draw,ID2D1DeviceContext* dc,Rect r,std::wstring const& label,bool primary,bool enabled,float hover){
     auto& c=draw.colors;const float a=enabled?1:.45f;
     if(primary){
         auto fill=draw.Gradient(dc,{0,float(r.y)},{0,float(r.y+r.h)},{{0,Alpha(Lighter(c.accent,.12f),a)},{1,Alpha(c.accent,a)}});
         draw.Fill(dc,r,8,fill.get());
-    }else{
-        draw.Round(dc,r,8,c.control);
-        auto edge=draw.Gradient(dc,{0,float(r.y)},{0,float(r.y+r.h/2)},{{0,c.controlEdge},{1,Alpha(c.controlEdge,0)}});
-        draw.Stroke(dc,{r.x+.5,r.y+.5,r.w-1,r.h-1},7.5f,edge.get());
-    }
+    }else PaintControlCard(draw,dc,r,8);
     if(enabled&&hover>0)draw.Round(dc,r,8,Alpha(primary?Ink(0xFFFFFF,.14f):c.hover,hover));
     CenterText(draw,dc,label,{r.x,r.y,r.w,r.h},12.5f,Alpha(primary?c.onAccent:c.text,a),true);
 }
 inline void PaintField(Drawing& draw,ID2D1DeviceContext* dc,Rect r,std::wstring const& text,bool secret,bool reveal,
-    bool focused,const wchar_t* placeholder,float revealHover){
+    bool focused,const wchar_t* placeholder,float revealHover,bool selected=false){
     auto& c=draw.colors;
-    draw.Round(dc,r,6,c.control);
-    draw.Stroke(dc,{r.x+.5,r.y+.5,r.w-1,r.h-1},5.5f,Solid(dc,focused?Alpha(c.accent,.7f):c.hair).get());
+    draw.Round(dc,r,6,c.light?Ink(0xFFFFFF,.78f):c.control);
+    draw.Stroke(dc,{r.x+.5,r.y+.5,r.w-1,r.h-1},5.5f,draw.Brush(dc,focused?Alpha(c.accent,.7f):c.hair));
     if(focused)draw.Round(dc,{r.x+2,r.y+r.h-2,r.w-4,2},1,c.accent);
     const float left=float(r.x)+10,inner=float(r.w)-(secret?44:20);
     const std::wstring shown=secret&&!reveal?std::wstring(text.size(),L'\x25CF'):text;
     const float width=shown.empty()?0:draw.Measure(shown,13),shift=std::max(0.f,width-inner+2);
     dc->PushAxisAlignedClip({left,float(r.y),left+inner,float(r.y+r.h)},D2D1_ANTIALIAS_MODE_ALIASED);
     if(shown.empty())draw.Text(dc,placeholder,{left,r.y,inner,r.h},13,c.secondary);
-    else draw.Text(dc,shown,{left-shift,r.y,width+8,r.h},13,c.text);
-    if(focused){const float x=left-shift+width+.5f;draw.Line(dc,x,float(r.y)+9,x,float(r.y+r.h)-9,c.text);}
+    else{
+        if(focused&&selected)draw.Round(dc,{left-shift-1,r.y+7,width+2,r.h-14},3,Alpha(c.accent,.28f));
+        draw.Text(dc,shown,{left-shift,r.y,width+8,r.h},13,c.text);
+    }
+    if(focused&&!selected){const float x=left-shift+width+.5f;draw.Line(dc,x,float(r.y)+9,x,float(r.y+r.h)-9,c.text);}
     dc->PopAxisAlignedClip();
     if(secret){
         const Rect eye{r.x+r.w-32,r.y+3,28,28};
@@ -201,11 +228,7 @@ inline void PaintWifiPage(Drawing& draw,ID2D1DeviceContext* dc,Sample const& s,W
         const float y=r.y+shift;
         if(y+r.h<l.top||y>l.bottom)continue;
         const Rect box{8,y,284,r.h};
-        if(r.open){
-            draw.Round(dc,box,10,c.control);
-            auto edge=draw.Gradient(dc,{0,y},{0,y+24},{{0,c.controlEdge},{1,Alpha(c.controlEdge,0)}});
-            draw.Stroke(dc,{8.5,y+.5,283,r.h-1},9.5f,edge.get());
-        }
+        if(r.open)PaintControlCard(draw,dc,box,10);
         if(const float h=lit(PageHit::Row,r.net.ssid);h>0)
             draw.Round(dc,{8,y,284,WifiRowHeight},10,Alpha(c.hover,h));
         const bool connecting=list.connecting==r.net.ssid;
@@ -215,9 +238,9 @@ inline void PaintWifiPage(Drawing& draw,ID2D1DeviceContext* dc,Sample const& s,W
         draw.Text(dc,WifiSubtitle(r.net,list),{52,y+25,228,16},11,connecting?c.accent:c.secondary);
         if(!r.open)continue;
         if(r.status)draw.Text(dc,connecting?L"正在连接，请稍候":list.failure,{20,y+WifiRowHeight,260,18},11.5f,connecting?c.secondary:c.danger);
-        if(r.user)PaintField(draw,dc,at(r.userBox),v.user,false,false,v.focus==WifiView::Focus::User,L"用户名",0);
+        if(r.user)PaintField(draw,dc,at(r.userBox),v.user,false,false,v.focus==WifiView::Focus::User,L"用户名",0,v.focus==WifiView::Focus::User&&v.selectAll);
         if(r.form)PaintField(draw,dc,at(r.passwordBox),v.password,true,v.reveal,v.focus==WifiView::Focus::Password,
-            L"网络安全密钥",lit(PageHit::Reveal,r.net.ssid));
+            L"网络安全密钥",lit(PageHit::Reveal,r.net.ssid),v.focus==WifiView::Focus::Password&&v.selectAll);
         const bool busy=!list.connecting.empty();
         if(r.net.connected)PaintButton(draw,dc,at(r.button),L"断开连接",false,!busy,lit(PageHit::Primary,r.net.ssid));
         else PaintButton(draw,dc,at(r.button),connecting?L"正在连接":L"连接",true,!busy&&WifiFormReady(r,v),lit(PageHit::Primary,r.net.ssid));

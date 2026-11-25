@@ -15,12 +15,15 @@ int main(){
     Plan plan;
     auto old=plan.Begin(1000),current=plan.Begin(1008);
     Check(!plan.Ready(old,2000),"old queued callback cannot mutate newest scene");
-    Check(!plan.Advance(old,2000)&&plan.remaining==2,"old callback cannot consume new budget");
+    Check(!plan.Advance(old,2000)&&plan.remaining==3,"old callback cannot consume new budget");
     Check(!plan.Ready(current,1023),"early timer waits for latest transition");
-    Check(plan.Ready(current,1024),"current transition can refresh without input");
-    Check(plan.Advance(current,1024)&&plan.due==1184,"one finite settling pass remains");
-    Check(!plan.Ready(current,1183),"settling pass waits for due time");
-    Check(plan.Ready(current,1184)&&!plan.Advance(current,1184),"final pass terminates");
+    Check(plan.Ready(current,1024)&&!plan.IsFinal(current),"current transition first pass runs without input");
+    Check(plan.Advance(current,1024)&&plan.due==1134&&plan.NextDelay()==Plan::SettleDelay,"mid settling pass scheduled at +110ms");
+    Check(!plan.Ready(current,1133),"mid settling pass waits for due time");
+    Check(plan.Ready(current,1134)&&!plan.IsFinal(current),"mid settling pass is not final");
+    Check(plan.Advance(current,1134)&&plan.due==1374&&plan.NextDelay()==Plan::FinalDelay,"final pass scheduled at +240ms");
+    Check(!plan.Ready(current,1373),"final pass waits for post-animation due time");
+    Check(plan.Ready(current,1374)&&plan.IsFinal(current)&&!plan.Advance(current,1374),"final pass terminates");
     Check(!plan.Ready(current,999999)&&!plan.remaining,"idle never refreshes again");
     current=plan.Begin(2000);plan.Cancel();
     Check(!plan.Ready(current,999999),"disconnect cancels queued callback");
@@ -28,14 +31,16 @@ int main(){
     Check(reconnected!=current&&!plan.Advance(current,999999),"reconnect rejects old lifetime");
     Check(plan.Ready(reconnected,3016),"reconnected brush has live finite plan");
     // Adversarial burst: every old event runs after the final request, then a
-    // delayed UI thread services only the final two passes. No catch-up loop.
+    // delayed UI thread services only the final three passes. No catch-up loop.
     plan={};std::vector<std::uint64_t> oldTickets;
     for(unsigned i=0;i<64;++i)oldTickets.push_back(plan.Begin(10000+i*3));
     current=oldTickets.back();oldTickets.pop_back();
     for(auto ticket:oldTickets)Check(!plan.Advance(ticket,20000),"burst rejects superseded timer");
     Check(plan.Ready(current,20000)&&plan.Advance(current,20000),"delayed burst refreshes latest once");
     Check(!plan.Ready(current,20001),"late first pass does not immediately replay second");
-    Check(plan.Ready(current,20160)&&!plan.Advance(current,20160),"burst still ends after two passes");
+    Check(plan.Ready(current,20110)&&plan.Advance(current,20110),"burst advances to final post-animation pass");
+    Check(!plan.Ready(current,20111),"late second pass does not immediately replay final");
+    Check(plan.Ready(current,20350)&&plan.IsFinal(current)&&!plan.Advance(current,20350),"burst still ends after three finite passes");
     Check(!Fresh(0,1000)&&!Fresh(2000,1999)&&!Fresh(1,2000),"bad or expired queued message rejected");
     Check(Fresh(1000,1000)&&Fresh(1000,2000)&&!Fresh(1000,2001),"queued message age boundary");
     // Test-owned message-only window: verifies the before-Unhide entry really

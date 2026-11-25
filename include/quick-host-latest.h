@@ -32,8 +32,8 @@ inline bool Query() {
 }
 inline bool Verify() {
     const struct{const wchar_t* name;const wchar_t* sha;} pins[]={
-        {L"ShellHost.exe",L"371163BA43B42D1F1C13AB7EA200F15EF5E60EA8D3514D00D3FFC572E53A436D"},
-        {L"ControlCenter.dll",L"0A9A84B0B7ED6110A410BD76150CE0DA04DC29B901838155AB7CE2D8BF2FFB51"}
+        {L"ShellHost.exe",L"6E0E5B2274D659C37B2BCE8C84585C62FE2A6630D84861628A8DB73017FBA64D"},
+        {L"ControlCenter.dll",L"61FB606B734724B6172FC00E97CAF19735A3B1B93A9648E9C8B7C57336C8D4CB"}
     };
     wchar_t base[32768]{};GetWindowsDirectoryW(base,std::size(base));
     for(auto const& pin:pins){wchar_t path[32768]{},actual[65]{};

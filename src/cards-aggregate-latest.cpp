@@ -47,7 +47,7 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
     x::FrameworkElement::Unloaded_revoker unloaded;x::UIElement::ContextRequested_revoker context;
     CompactApps compact;std::wstring directory;HWND hwnd{};HANDLE child{};uintptr_t cookie{};
     uint64_t enteredAt=0,launchedAt=0;
-    bool stopped=false,busy=false,fits=false,shown=false,inside=false,ready=false,attached=false,layoutOwned=false;
+    bool stopped=false,busy=false,fits=false,shown=false,inside=false,ready=false,attached=false,layoutOwned=false,primed=false;
     unsigned errors=0,clockUpdates=0,powerUpdates=0;int percent=-2;std::atomic<bool> queued=false;
     ~Board(){Stop();}
     void Put(wchar_t const* name,intptr_t value){if(hwnd&&GetPropW(hwnd,name)!=HANDLE(value+1))SetPropW(hwnd,name,HANDLE(value+1));}
@@ -108,14 +108,19 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
     // A pass-over shorter than PrimeDelay starts nothing.
     static constexpr uint64_t PrimeDelay=120,RevealDelay=400;
     void Hover(){
-        enteredAt=GetTickCount64();hover.Stop();
-        hover.Interval(std::chrono::milliseconds(child&&WaitForSingleObject(child,0)==WAIT_TIMEOUT?RevealDelay:PrimeDelay));hover.Start();
+        enteredAt=GetTickCount64();primed=false;hover.Stop();
+        hover.Interval(std::chrono::milliseconds(PrimeDelay));hover.Start();
     }
     void HoverTick(){
         hover.Stop();if(stopped||!inside||!Visible())return;
         if(child&&WaitForSingleObject(child,0)!=WAIT_TIMEOUT){CloseHandle(child);child=nullptr;}
         if(!child&&!Launch())return;
         const auto now=GetTickCount64(),due=enteredAt+RevealDelay;
+        if(!primed&&now<due){
+            primed=true;PublishAnchor();
+            auto control=reinterpret_cast<HWND>(GetPropW(hwnd,a::ControlProp));
+            if(a::Owned(hwnd,control,a::ControlClass))PostMessageW(control,a::PrimeMessage,0,0);
+        }
         // A predecessor that already withdrew its control window is closing;
         // poll briefly until it exits, then start and reveal a fresh child.
         if(now>=due&&Reveal())return;
@@ -126,6 +131,7 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
         auto control=reinterpret_cast<HWND>(GetPropW(hwnd,a::ControlProp));
         const bool published=a::Owned(hwnd,control,a::ControlClass);
         if(!published&&launchedAt<enteredAt)return false;
+        PublishAnchor();
         // Property first: a child publishing its control window afterwards
         // checks it, so the reveal is never lost between the two processes.
         SetPropW(hwnd,a::RevealProp,HANDLE(cookie));
@@ -235,12 +241,12 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
     void Update(HWND taskbar,double available,double tray)override{
         if(stopped||busy)return;busy=true;
         try{
-            hwnd=taskbar;const double budget=available-tray-(a::SlotWidth-12)-57;
+            hwnd=taskbar;const double budget=available-tray-(a::SlotWidth-12)-54;
             fits=std::isfinite(budget)&&budget>=40;if(fits)compact.Apply(apps,budget);else compact.Restore();
             const double slot=fits?a::SlotWidth-12:0;
             layoutOwned=true;
-            const auto padding=root.Padding();if(padding.Left!=12||padding.Right!=12+slot||padding.Top||padding.Bottom)root.Padding({12,0,12+slot,0});
-            const auto margin=background.Margin();if(margin.Left!=-13||margin.Right!=-12-slot||margin.Top!=-1||margin.Bottom!=-1)background.Margin({-13,-1,-12-slot,-1});
+            const auto padding=root.Padding();if(padding.Left!=9||padding.Right!=12+slot||padding.Top||padding.Bottom)root.Padding({9,0,12+slot,0});
+            const auto margin=background.Margin();if(margin.Left!=-10||margin.Right!=-12-slot||margin.Top!=-1||margin.Bottom!=-1)background.Margin({-10,-1,-12-slot,-1});
             const auto visibility=fits?x::Visibility::Visible:x::Visibility::Collapsed;
             if(card.Visibility()!=visibility)card.Visibility(visibility);
             const bool changed=shown!=Visible();shown=Visible();if(changed){Clock();ReadPower();if(!shown){hover.Stop();ClosePanel();}}
@@ -266,7 +272,7 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
             if(layoutOwned){if(oldPadding==x::DependencyProperty::UnsetValue())root.ClearValue(c::Grid::PaddingProperty());else root.SetValue(c::Grid::PaddingProperty(),oldPadding);}}}
         catch(...){}
         try{if(layoutOwned&&background){if(oldMargin==x::DependencyProperty::UnsetValue())background.ClearValue(x::FrameworkElement::MarginProperty());else background.SetValue(x::FrameworkElement::MarginProperty(),oldMargin);}}catch(...){}
-        if(hwnd){for(auto prop:Properties)RemovePropW(hwnd,prop);for(auto prop:a::BoundsProps)RemovePropW(hwnd,prop);}
+        if(hwnd){RemovePropW(hwnd,a::SavedBrightnessProp);for(auto prop:Properties)RemovePropW(hwnd,prop);for(auto prop:a::BoundsProps)RemovePropW(hwnd,prop);}
     }
 };
 std::shared_ptr<Host> Create(c::Grid const& root){auto p=std::make_shared<Board>();p->Init(root);return p;}

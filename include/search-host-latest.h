@@ -46,7 +46,7 @@ inline bool Verify() {
     wchar_t path[32768]{},actual[65]{};GetWindowsDirectoryW(path,std::size(path));
     wcscat_s(path,L"\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\SearchHost.exe");
     return NativeHashFile(path,actual)&&!_wcsicmp(actual,
-        L"E5846EC8EA9494941AF388C83E3675580E8100D26D099F273AC3D549FCCCD0DF");
+        L"CC0B22AE1C839CFB0510A4B5D31558A593C763B6B633847CB383DFBB4E5FD0F2");
 }
 inline bool Attach(HWND w) {
     if(!supported||blocked||attaching||!procedure||!Host(w))return false;

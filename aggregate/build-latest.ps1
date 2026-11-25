@@ -10,7 +10,7 @@ $sdk='C:\Program Files (x86)\Windows Kits\10'
 $sdkVersion='10.0.26100.0'
 $sourceItems=@(Get-ChildItem -LiteralPath $PSScriptRoot -File|Where-Object Extension -in @('.cpp','.h','.rc','.manifest')|
  Sort-Object Name|ForEach-Object {[pscustomobject]@{Name=$_.Name;SHA256=(Get-FileHash -LiteralPath $_.FullName).Hash}})
-foreach($name in @('../include/dock-geometry-latest.h','../include/icon-optics-latest.h','../include/aggregate-bridge-latest.h')){
+foreach($name in @('../include/dock-geometry-latest.h','../include/icon-optics-latest.h','../include/aggregate-bridge-latest.h','../include/log-rotate-latest.h')){
  $sourceItems+= [pscustomobject]@{Name=$name;SHA256=(Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $name)).Hash}
 }
 Push-Location $PSScriptRoot
@@ -26,7 +26,7 @@ if($LASTEXITCODE){throw 'Aggregate compilation failed'}
 foreach($sourceItem in $sourceItems){
  if((Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $sourceItem.Name)).Hash -ne $sourceItem.SHA256){throw 'Source changed during build'}
 }
-$result=[pscustomobject]@{Stage='candidate';Version='0.8.112';Executable=$exe;SHA256=(Get-FileHash -LiteralPath $exe).Hash;BuiltAt=(Get-Date -Format o);Inputs=$sourceItems}
+$result=[pscustomobject]@{Stage='candidate';Version='0.8.129';Executable=$exe;SHA256=(Get-FileHash -LiteralPath $exe).Hash;BuiltAt=(Get-Date -Format o);Inputs=$sourceItems}
 $result|ConvertTo-Json -Depth 4|Set-Content -LiteralPath (Join-Path $out 'latest.json') -Encoding utf8NoBOM
 Copy-Item -LiteralPath $exe -Destination (Join-Path $PSScriptRoot 'latest.exe') -Force
 $pin='#pragma once'+[Environment]::NewLine+'inline constexpr wchar_t AggregatePanelHash[]=L"'+$result.SHA256+'";'+[Environment]::NewLine

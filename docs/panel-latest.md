@@ -196,3 +196,58 @@ PDH 的“GPU Engine”计数器和任务管理器读的是同一组内核节点
 - **菜单锚点的实际落点**：RootGrid 的 Padding 会把子元素右移 12 DIP，所以先量锚点静止时的位置再算偏移，不假设它从 RootGrid 左上角开始。
 
 面板离开键更远了（150% 缩放下从 15 px 到约 23 px），所以面板显示后，从键到面板之间那段路也算在键上，慢慢移上去不会收起。
+
+## 磁贴显示实际连接目标（0.8.113）
+
+主页四块快捷开关磁贴中，移动热点在开启时原本就会显示 `<N> 台已连接`，深色主题没有连接目标；现在 Wi-Fi 和蓝牙磁贴在无线开关开启后也改为显示实际连接的目标，不再只写“已开启”：
+
+- **Wi-Fi**：沿用原生 WLAN 服务接口，枚举接口并查询当前连接（`WlanQueryInterface(..., wlan_intf_opcode_current_connection)`）。已连接显示修剪首尾空白后的 SSID（空 SSID 回退“已连接”），连接中（associating / discovering / authenticating）显示“正在连接…”，确认断开时（`wifi == 1`）显示“未连接”，仅部分开启或读不到时保留状态标签（`RadioLabel`）。不触发扫描。
+- **蓝牙**：在 `Radio::GetRadiosAsync()` 完成后，仅在蓝牙开启（`1`/`2`）时异步查询带 `System.Devices.Aep.IsConnected:=True` 且保留 `IssueInquiry:=False` 的已配对/已连接关联端点，不发无线电探测。按非零 `ContainerId` 去重双模设备、跳过空白名称并修剪首尾空格（例如 BLE 广播自带的尾随空格）：1 台显示设备名，2 台及以上显示 `<N> 个已连接`，确认 0 台且 `bluetooth == 1` 时显示“未连接”；异步查询尚未完成期间先回退 `RadioLabel`。面板打开期间随详情读取、最多每 2 秒增量复查一次。
+- **二级页与生命周期**：Wi-Fi/蓝牙二级页打开且列表可读时直接从页面最新列表同步副标题，关闭二级页回到主页时立即触发一次刷新；隐藏/退出或 `Close()` 时取消异步查询、关闭 WLAN 句柄并清空查询状态，保证隐藏后后台零读取。
+- **排版与测试**：分裂磁贴副标题框宽从 64 收到 60 DIP（到 `x+97`，距 `x+100` 竖分隔线留 3 DIP），长名称走 DirectWrite 字符省略号截断。`--hidden-probe` 新增 `TrimSpaces`、`TileRadioLabel`、`WifiConnectionLabel`、`BluetoothConnectionLabel`、`SummarizeBluetoothTargets`、`SummarizeBluetoothDevices` 的单元断言及实机读写一致性检查。
+
+## 蓝牙电量随行矢量徽标与主磁贴附显（0.8.114）
+- **蓝牙二级页**：`BluetoothSubtitle` 收敛为纯状态文字（`已连接` / `未连接` / `正在连接…` / `正在断开…`）。当已连接设备带有 `0–100` 电量时，第一行按名称测量宽度保留 `badgeW + 8` DIP 截断空间，并在设备名后（`52 + min(nameW, nameMaxW) + 8`）绘制 `14×8` DIP 矢量电池轮廓 + 正极触点 + 比例填充条 + 百分比文本；低于 20% 时切换为 `c.danger`。
+- **主面板蓝牙磁贴**：保持磁贴结构与 `60 DIP` 副标题区（`{x+37, y+24, 60, 16}`）不变；仅在开关打开、非切换状态且唯一已连接设备返回有效电量时，将 `10×7` DIP 矢量电池与 `9 pt` 百分比固定右对齐到 `x+97-badgeW`，左侧设备名（`9.5 pt`）自适应截断省略，高于主题亮色/深色强调底切换高对比警示色。
+- **数据复用与防闪烁**：`BluetoothBatteryProperty`、`BluetoothBatteryAqs` 与 `ReadBluetoothBattery` 抽为共享 helper；`ControlBackend` 仅对聚合后的单台物理容器异步读取电量（30 秒节流、面板关闭或切换时取消，隐藏态零读取），进入蓝牙页时保留同设备既有电量以消除首轮 40 ms 空窗闪烁。
+
+## 两处去掉电池图标、仅保留百分比（0.8.115）
+- 去掉 `PaintBatteryBadge` / `BatteryBadgeWidth` 中的矢量电池图标，仅保留百分比数字并保留 `< 20%` 警示色策略（非强调面用 `c.danger`，强调磁贴按前景色亮度切高对比琥珀或深红）。
+- 主面板蓝牙磁贴右侧百分比采用 `9.5 pt` 与左侧设备名同号对齐（名称左侧可用宽度扩大约 13.5 DIP）；蓝牙二级页设备名后隔 `8 DIP` 绘制 `11 pt` 百分比，视觉层次清晰且节省横向空间。
+
+## 修复悬停读 Wi-Fi 名称触发系统“位置正在使用中”图标（0.8.116）
+- **成因**：0.8.113 新增的 `ReadConnectedWifi` 每次打开或 120 ms 预启动面板都会调用 `WlanQueryInterface(..., wlan_intf_opcode_current_connection)`。在 Windows 11 24H2/26H2（Build 26300.9711）上，该接口返回含 AP BSSID 的连接属性，被 `wlansvc.dll` 记为 `location` 能力使用，导致系统托盘频繁出现“位置正在使用中: LeanDock aggregate panel”（而系统自带快速设置 `ShellHost.exe` 在 `wlanLocationBypass` 白名单中，故不触发）。
+- **改动**：`ReadConnectedWifi`（`aggregate/wifi-latest.h`）保留 `WlanEnumInterfaces` 读取适配器状态（已连接 / 正在连接 / 未连接），取消 `WlanQueryInterface(..., wlan_intf_opcode_current_connection)` 调用；改为通过 `ReadConnectedWlanSsidForAdapter` 枚举 `NetworkInformation::GetConnectionProfiles()` 中匹配该适配器 GUID 的 WLAN 配置文件，优先调用 `WlanConnectionProfileDetails().GetConnectedSsid()` 读取 SSID，若为空再对连通配置文件回退 `ProfileName()`。
+- **隔离验证**：在普通用户（`LUA_TOKEN`、`normalUser: true`）隔离探针下同机对比，0.8.115 基线使 `location_usage` WNF（`0x418b0f2ea3bd3935`）`changestamp` 递增，0.8.116 保持不变且正常读出 `NWAFU`（`wifiTargetReady: true`）。Wi-Fi 二级页主动扫描周边网络仍按需调用 `WiFiAdapter` / `WlanGetAvailableNetworkList`。
+
+## 修复单击悬浮面板后点击外部或 Dock 之外无法收起（0.8.118）
+- **成因**：0.8.105 采用纯 `WS_EX_NOACTIVATE` + 50 ms `GetAsyncKeyState` 轮询来维持点击固定。当点击发生在原本就处于前台的高权限/管理员窗口（UIPI 屏蔽 `GetAsyncKeyState` 且 `GetForegroundWindow()` 不变）、触控板快击（`<50 ms` 且 `0x0001` 位被同会话调用清除）、点在空任务栏/间隙 `reach` 上，或 `TakeKeyboard()` 后切回原前台窗口时，两套检测均会漏掉点击。
+- **改动**：
+  - `aggregate/popup-latest.h` + `aggregate/latest.cpp`：`Show()` 前移除 `WS_EX_NOACTIVATE` 但继续用 `ShowWithoutActivation`（`SWP_NOACTIVATE`）揭示，`Leave()`/`Hide()` 恢复 `WS_EX_NOACTIVATE`；`WM_MOUSEACTIVATE` 仅在非主面板滑条左键点击时返回 `MA_ACTIVATE`（滑条拖动与右键保持 `MA_NOACTIVATE`），并监听 `WM_ACTIVATE(WA_INACTIVE)` 触发 `Quit(true)`（仅忽略面板自身及 `control` 隐藏窗口）；`Esc`（非文本输入态）退出且面板仍在前台时将焦点还回 `previousForeground`。
+  - 仅在 `Reveal()` 显示至 `Quit()`/`Close()` 期间挂接局部 `WH_MOUSE_LL`（静止与隐藏采样期间零钩子）：在非拖拽捕获下，点击坐标落于 `popup.Hit(...)` 之外即立刻投递 `DismissMessage` 收起，同时在 `Tick()` 中保留 `WindowSwitched()` 与扩展 `VK_MBUTTON` 的 `PressedElsewhere()` 兜底。
+
+## 修复鼠标移动与悬停重绘时面板文字像素级发抖（0.8.121–0.8.122）
+- **成因（`2560×1600 @ 150% DPI` 实机定位，两层叠加）**：
+  1. **合成层局部脏区（0.8.121）**：`Scene` 在 `root` 上施加 `Scale = {1.5, 1.5, 1}`，父容器 `motion` 原先常驻绑定 `Opacity = p.Alpha` 与 `Scale = p.Zoom` 表达式且与 `p.Light` 共用同一 `props`，导致 `dwmcore.dll` 维持组透明效果子树并在光晕脏矩形处产生半像素重采样；同时 `contentBrush` 未开启 `SnapToPixels(true)`、分带切线存在 `.5 px`（`82.5 px`、`235.5 px`）。0.8.121 修复后，分隔线（`ruleY = 252`）下方无交互区的各项指标已完全静止，但**分隔线上方交互区文字在滑过磁贴/箭头/滑条触发 60 Hz 悬停过渡重绘时仍跳动 1 px**。
+  2. **绘制层 DirectComposition 图集奇偶偏移跳变（0.8.122 真凶）**：`ICompositionDrawingSurfaceInterop::BeginDraw` 每次重绘会在共享纹理图集内双缓冲乒乓分配子槽位，返回的 `offset.x` / `offset.y` 在偶数像素（如 `0`）与奇数像素（如 `451`、`645`）之间交替。Direct2D / DirectWrite 字形像素吸附使用 IEEE-754 向最近偶数舍入（`rint`）：分隔线下方各行坐标全为偶数 DIP（`14, 56, 264, 286…` → `.0 px`），加奇偶 `offset` 后不变；而分隔线上方磁贴与时钟大量使用奇数 DIP（如磁贴文字 `x = 51 → 76.5 px`、`191 → 286.5 px`，`y = 65 → 97.5 px`、`115 → 172.5 px`，时钟 `y = 5 → 7.5 px`，日期 `y = 9 → 13.5 px`），在 `offset = 0` 时 `rint(76.5) - 0 = 76`，而在 `offset = 451` 时 `rint(76.5 + 451) - 451 = 528 - 451 = 77`，导致上半区所有文字与图标在每次重绘帧间来回跳动整整 1 个物理像素。
+- **改动**：
+  - `aggregate/composition-latest.h`（0.8.121）：`motion` 改为直接关键帧动画，入场结束后静止在静态 `{1,1,1}` 与 `1.0f`；`Light(x, y)` 脱离 `props` 并按物理像素对齐去重；开启 `SnapToPixels(true)` 并将分带尺寸与裁剪线对齐到整数物理像素。
+  - `aggregate/drawing-latest.h`（0.8.122）：`Drawing` 维护与 `device` 同域的持久 `scratchDc` 与 `ID2D1Bitmap1 canvas`，每次 `Redraw` 先在固定 `(0, 0)` 原点（`Matrix3x2F::Identity()`）完成全部矢量与 DirectWrite 字形绘制，再在 `BeginDraw` 内以 `D2D1_UNIT_MODE_PIXELS` + `D2D1_PRIMITIVE_BLEND_COPY` + `NEAREST_NEIGHBOR` 整像素 `1:1` 拷入 `(offset.x, offset.y)`，使字形栅格化彻底与图集槽位奇偶解耦。
+
+## 绘制缓存、媒体行快捷控制、密码框快删与保活同步（0.8.123）
+- **Direct2D / DirectWrite 对象缓存**：`Drawing` 预创建并复用可变色 `solidBrush`、圆头 `roundStroke` 与等宽数字 `tabular`（`IDWriteTypography`），并按 `(字体, 字号, 字重, 对齐)` 缓存已配置省略号裁剪的 `IDWriteTextFormat`，消除 60 Hz 悬停与滑条拖动时的逐帧 COM 对象分配。
+- **媒体行快捷点按控制**：仅在存在活跃媒体会话时（`layout.mediaY >= 0`，无播放时仍完全收起），在 `媒体` 行右侧（`210..286 DIP`）绘制紧凑的上一首（`\xE892`）、播放/暂停（`\xE768`/`\xE769`）、下一首（`\xE893`）按钮，点击经 `Metrics` 工作线程调用 `GlobalSystemMediaTransportControlsSession` 对应异步控制并立即刷新曲目元数据。
+- **输入框全选与安全快删**：`EditFieldWith` 新增 `Ctrl+Backspace`（`0x7F`）/ `Ctrl+U`（`0x15`）/ `Ctrl+Delete` 整框 `SecureZeroMemory` 清零，以及 `Ctrl+A`（`0x01`）全选高亮并在下一次输入、粘贴、退格或 `Delete` 时先清零原缓冲区再写入。
+- **保活边界完善**：进入 4 秒静默保活（`Finish()`）及 `Close()` 时清理声音二级页提取过的应用图标缓存 `icons`；保活期间收到 `WM_SETTINGCHANGE` / `WM_THEMECHANGED` 时同步标记 `metrics.RefreshControls()` 而不做隐藏态重绘。
+
+## 亮度图标最低/复原切换、连续点击修复、浅色关闭磁贴对比度与媒体右边缘对齐（0.8.124–0.8.128）
+- **交互与视觉对齐（0.8.124）**：亮度滑条左侧太阳图标（`x = 14..48 DIP`，`y = 206..242 DIP`）新增 `PanelPart::BrightnessToggle`，启用条件与亮度滑条一致（`s.brightness >= 0`），悬停时绘制与上方音量静音键完全相同的 `34×36 DIP`、`10 DIP` 圆角底色过渡。
+- **点一下最低、再点一次复原（0.8.126）**：左键点击 `PanelPart::BrightnessToggle` 调用 `ToggleBrightness(shown, savedBrightness)`：当前显示亮度 `> 0` 时记下该亮度值（同步存入任务栏窗口属性 `LeanDock.Aggregate.SavedBrightness`，跨面板收起与新进程重开均保留，卸载/停止时随宿主清理）并以 `240 ms` 缓动降到 `0`；当前处于 `0` 时一键恢复到先前记下的亮度（若此前未记录则回退 `50%`）。处于 `0%` 时左侧图标自动切换为低亮度字形（`\xEC8A`）。
+- **窗口双击归一与读回稳定（0.8.127）**：移除非菜单 `Popup` 的 `CS_DBLCLKS` 样式并将非菜单双击归一为普通按下，同时引入 `BrightnessSettle` 轮询尚未到达目标值的硬件读回。但用户实机加载 0.8.127 后验证确认：从 `100%` 出发仍严格按“第 1 次最暗 → 第 2 次恢复 100% → 第 3 次无物理变化 → 第 4 次 100% → 第 5 次又正常变暗”的 4 击周期循环。
+- **修复 Windows 11 显示增强服务下的亮度 4 击周期失效（0.8.128 真凶）**：
+  - **实机遥测定位**：本机内置屏（`LEN9152` + `AMD Radeon` `KMD_EnableBrightnessInterface2 = 1`）由 `DisplayEnhancementService` 托管背光（状态项位于 `HKLM\SYSTEM\CurrentControlSet\Services\DisplayEnhancementService\State\LEN91520_1D_07E5_41\ScreenBrightnessPercent`）。旧版直接调用遗留 `WmiMonitorBrightnessMethods::WmiSetBrightness` 只改写 `monitor.sys`（`WmiMonitorBrightness.CurrentBrightness` 与 `\\.\LCD` 均已变为 `0`），不更新当前电源方案的显示亮度索引，导致 `DisplayEnhancementService` 每隔一次 `100 → 0` 切换就丢弃背光过渡（第 3、7、11… 次 `CurrentBrightness = 0` 而实际 `ScreenBrightnessPercent` 仍停在 `100`）；第 4 次因软件读到 `0` 而发 `100` 重新对齐，第 5 次才恢复生效。
+  - **改动**：`ControlBackend` 保留 `WmiMonitorBrightness` 活动内置屏存在性校验（无内置可控屏仍报 `E_NOTIMPL` 并置 `brightness = -1`），主写路径改为与系统设置同源的公开电源配置接口：按当前供电状态（`GetSystemPowerStatus` 区分插电 `AC` 与电池 `DC`，互不覆盖另一套配置）调用 `PowerWriteACValueIndex` / `PowerWriteDCValueIndex` 写入活动电源方案的 `GUID_VIDEO_SUBGROUP` / `GUID_DEVICE_POWER_POLICY_VIDEO_BRIGHTNESS`，再调用 `powrprof.dll!PowerApplySettingChanges` 立即通知 `DisplayEnhancementService`（仅在该接口不可用或失败时回退 `WmiSetBrightness`）；当外部快捷键曾绕过电源方案造成电源索引已等于目标值而 WMI 实际值不同步时，先微调 `1%` 再在节拍后补齐精确目标值。同时引入 `BrightnessPacer`（`240 ms` 写节拍，匹配服务约 `200 ms` 背光过渡时长，收起时若仍有待发末态自动冲刷），使 `80 ms` 超快连击与 `75 ms` 滑条拖动既不抢占丢帧也不影响界面即时响应；`Panel::Input` 同步改为基于 `volumeRequest` / `brightnessRequest` 的有效显示值判定 `PanelEnabled`，并在瞬时 WMI 查询异常时保留上一次有效亮度值。普通令牌（`LUA_TOKEN`）下实测 `80 ms` 连击 1–8 次及 `260 ms` 连续切换 12 次，`WmiMonitorBrightness` 与 `ScreenBrightnessPercent` 全部 `20/20` 精确命中目标值。
+- **修复浅色模式下未开启磁贴发白隐形与悬停灰阶区分度（0.8.128）**：
+  - **成因**：`Palette::Set` 原先在浅色模式将关闭态控件底色设为半透明纯白 `Ink(0xFFFFFF, .48f)`、边线设为 `Ink(0xFFFFFF, .85f)` 顶半渐变；当面板悬停在白色窗口上方时，玻璃底本身接近纯白（`#FFFFFF`），白色填充与白色上沿完全融进背景（对比度约 `1.0:1`），导致“深色主题 / 已关闭”“移动热点 / 已关闭”及次要按钮几乎看不出轮廓。
+  - **改动**：深色模式保持原样不动；浅色模式下将 `control` 改为柔和冷灰 `Ink(0x141820, .062f)`（白底上呈 `#F0F1F2`）、`controlEdge` 改为完整一圈细微冷灰描边 `Ink(0x141820, .095f)`（磁贴开启后平滑过渡回顶部白色高光边），同时将浅色 `hover` 从 `.06f` 提至 `.09f`（叠加在关闭磁贴冷灰底上呈 `#DBDDDF`），使未开启按钮在纯白背景下清晰成块，鼠标移入时的灰阶加深以及分裂磁贴左右分区的悬停边界也一目了然；二级页展开卡片与次要按钮同步复用完整浅色描边，浅色输入框维持清透白底 `Ink(0xFFFFFF, .78f)`。
+- **下一首图标竖线右边缘对齐（0.8.125）**：`Segoe Fluent Icons` 的 `U+E893`（`10.5 DIP`）在 `24 DIP` 居中热区内的右侧竖线（`xMax = 1920/2048`）距框左缘 `+16.59375 DIP`（距框右缘内缩 `7.40625 DIP`）。将三颗媒体按钮同步右移至 `217.4 / 243.4 / 269.4 DIP`（悬停浅色底框向右侧留白自然外延至 `293.4 DIP`，曲目文本宽度同步扩至 `158 DIP`），使 `⏭` 右侧竖线精准对齐上方磁贴、分隔线与各指标行右边缘（`x = 286.0 DIP`）。

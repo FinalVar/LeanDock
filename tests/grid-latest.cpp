@@ -12,9 +12,9 @@ constexpr bool MixedNativeGroups() {
             const auto group=DockGrid::PlaceGroup(before,count);
             const int start=extent-group.overlapColumns;
             for(int i=0;i<count;++i){
-                const int x=start*28+28*DockGrid::Column(before,i)+2;
+                const int x=start*24+24*DockGrid::Column(before,i);
                 const int y=24+int(24*DockGrid::RowOffset(before,i,total));
-                if(x!=((before+i)/2)*28+2||x<0||x+24>DockGrid::TotalColumns(total)*28)return false;
+                if(x!=((before+i)/2)*24||x<0||x+24>DockGrid::TotalColumns(total)*24)return false;
                 if(y!=(total%2&&before+i==total-1?24:(before+i)%2?36:12))return false;
             }
             extent+=group.columns-group.overlapColumns;before+=count;
@@ -29,7 +29,7 @@ int main() {
     // Two separately owned native panels must occupy a continuous mixed grid.
     // A system group must share the last app column at odd parity; removing
     // a group must leave no reserved cell/column. Verify actual translated
-    // bounds (24 DIP hit targets on 28 DIP column pitch), including centering.
+    // bounds (24 DIP hit targets on 24 DIP column pitch), including centering.
     for(int apps=0;apps<=64;++apps)for(int system=0;system<=12;++system){
         const int total=apps+system;
         int before=0,extent=0;
@@ -38,12 +38,12 @@ int main() {
             const auto group=DockGrid::PlaceGroup(before,count);
             const int start=extent-group.overlapColumns;
             for(int i=0;i<count;++i){
-                const int x=start*28+i*24+28*DockGrid::Column(before,i)-24*i+2;
+                const int x=start*24+i*24+24*DockGrid::Column(before,i)-24*i;
                 const int y=24+int(24*DockGrid::RowOffset(before,i,total));
-                assert(x==((before+i)/2)*28+2);++checks;
+                assert(x==((before+i)/2)*24);++checks;
                 assert(y==(total%2&&before+i==total-1?24:(before+i)%2?36:12));++checks;
                 assert(centers.emplace(x,y).second);++checks;
-                assert(x>=0&&x+24<=DockGrid::TotalColumns(total)*28);++checks;
+                assert(x>=0&&x+24<=DockGrid::TotalColumns(total)*24);++checks;
             }
             extent+=group.columns-group.overlapColumns;before+=count;
         }

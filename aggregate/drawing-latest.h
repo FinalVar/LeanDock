@@ -46,6 +46,7 @@ struct Palette {
     D2D1_COLOR_F text{},secondary{},hair{},hover{},warn{},danger{},accent{};
     D2D1_COLOR_F onAccent{},control{},controlEdge{},track{},thumb{};
     Palette() {Refresh();}
+    Palette(bool lightMode,unsigned accentShade) {Set(lightMode,accentShade);}
     static unsigned AccentShade(bool light){
         try{
             using namespace winrt::Windows::UI::ViewManagement;
@@ -66,20 +67,34 @@ struct Palette {
     void Set(bool lightMode,unsigned accentShade) {
         light=lightMode;
         text=Ink(light?0x121418:0xF1F3F6);secondary=Ink(light?0x4D5460:0xAAB1BC);
-        hair=Ink(light?0x141820:0xFFFFFF,light?.11f:.12f);hover=Ink(light?0x141820:0xFFFFFF,light?.06f:.07f);
+        hair=Ink(light?0x141820:0xFFFFFF,light?.11f:.12f);hover=Ink(light?0x141820:0xFFFFFF,light?.09f:.07f);
         warn=Ink(light?0xA86A00:0xEDB04E);danger=Ink(light?0xC8322A:0xFF7A70);
         accent=Ink(accentShade);
         onAccent=Luminance(accent)>.28f?Ink(0x0B0C0E):Ink(0xFFFFFF);
-        // Glass controls: a lighter pane with a 1 DIP lit top edge.
-        control=Ink(0xFFFFFF,light?.48f:.075f);controlEdge=Ink(0xFFFFFF,light?.85f:.16f);
+        // Light mode uses a subtle cool-grey surface and full contour so inactive
+        // controls stay legible on white glass; dark mode keeps a lit glass pane.
+        control=light?Ink(0x141820,.062f):Ink(0xFFFFFF,.075f);
+        controlEdge=light?Ink(0x141820,.095f):Ink(0xFFFFFF,.16f);
         track=Ink(light?0x141820:0xFFFFFF,light?.14f:.18f);thumb=Ink(light?0xFFFFFF:0x3A3D44);
     }
 };
 struct Drawing {
+    struct FormatKey {
+        std::wstring face;int size100=0;bool semi=false,right=false;
+        auto operator<=>(FormatKey const&)const=default;
+    };
     winrt::com_ptr<ID3D11Device> d3d;
     winrt::com_ptr<ID2D1Factory1> factory;
     winrt::com_ptr<ID2D1Device> device;
+    winrt::com_ptr<ID2D1DeviceContext> scratchDc;
+    winrt::com_ptr<ID2D1Bitmap1> canvas;
+    winrt::com_ptr<ID2D1SolidColorBrush> solidBrush,fallbackBrush;
+    ID2D1DeviceContext* fallbackOwner=nullptr;
+    winrt::com_ptr<ID2D1StrokeStyle> roundStroke;
+    UINT32 canvasW=0,canvasH=0;
     winrt::com_ptr<IDWriteFactory> write;
+    winrt::com_ptr<IDWriteTypography> tabular;
+    std::map<FormatKey,winrt::com_ptr<IDWriteTextFormat>> formats;
     winrt::com_ptr<IWICImagingFactory> wic;
     comp::CompositionGraphicsDevice graphics{nullptr};
     std::wstring font=L"Segoe UI",figures=L"Segoe UI";
@@ -92,9 +107,15 @@ struct Drawing {
             &options,factory.put_void()));
         auto dxgi=d3d.as<IDXGIDevice>();
         winrt::check_hresult(factory->CreateDevice(dxgi.get(),device.put()));
+        winrt::check_hresult(device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,scratchDc.put()));
+        winrt::check_hresult(scratchDc->CreateSolidColorBrush({0,0,0,1},solidBrush.put()));
+        const D2D1_STROKE_STYLE_PROPERTIES strokeProps{D2D1_CAP_STYLE_ROUND,D2D1_CAP_STYLE_ROUND,D2D1_CAP_STYLE_ROUND,D2D1_LINE_JOIN_ROUND};
+        winrt::check_hresult(factory->CreateStrokeStyle(strokeProps,nullptr,0,roundStroke.put()));
         winrt::check_hresult(compositor.as<CapsuleCompositorInterop>()->CreateGraphicsDevice(
             device.get(),winrt::put_abi(graphics)));
         winrt::check_hresult(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,__uuidof(IDWriteFactory),reinterpret_cast<IUnknown**>(write.put())));
+        if(SUCCEEDED(write->CreateTypography(tabular.put())))
+            tabular->AddFontFeature({DWRITE_FONT_FEATURE_TAG_TABULAR_FIGURES,1});
         winrt::check_hresult(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,
             __uuidof(IWICImagingFactory),wic.put_void()));
         winrt::com_ptr<IDWriteFontCollection> collection;
@@ -109,10 +130,22 @@ struct Drawing {
             if(SUCCEEDED(collection->FindFamilyName(name,&index,&exists))&&exists){figures=name;break;}
         }
     }
-    winrt::com_ptr<IDWriteTextLayout> Layout(std::wstring const& s,float size,float width,float height,
-                                           bool semi=false,bool right=false,const wchar_t* face=nullptr) {
+    ID2D1SolidColorBrush* Brush(ID2D1DeviceContext* dc,D2D1_COLOR_F color) {
+        if(dc==scratchDc.get()&&solidBrush){solidBrush->SetColor(color);return solidBrush.get();}
+        if(dc!=fallbackOwner||!fallbackBrush){
+            fallbackBrush=nullptr;
+            winrt::check_hresult(dc->CreateSolidColorBrush(color,fallbackBrush.put()));
+            fallbackOwner=dc;
+            return fallbackBrush.get();
+        }
+        fallbackBrush->SetColor(color);
+        return fallbackBrush.get();
+    }
+    IDWriteTextFormat* Format(float size,bool semi=false,bool right=false,const wchar_t* face=nullptr) {
+        FormatKey key{face?face:font,int(std::lround(size*100.f)),semi,right};
+        if(auto it=formats.find(key);it!=formats.end())return it->second.get();
         winrt::com_ptr<IDWriteTextFormat> format;
-        winrt::check_hresult(write->CreateTextFormat(face?face:font.c_str(),nullptr,semi?DWRITE_FONT_WEIGHT_SEMI_BOLD:
+        winrt::check_hresult(write->CreateTextFormat(key.face.c_str(),nullptr,semi?DWRITE_FONT_WEIGHT_SEMI_BOLD:
             DWRITE_FONT_WEIGHT_NORMAL,DWRITE_FONT_STYLE_NORMAL,DWRITE_FONT_STRETCH_NORMAL,size,L"zh-CN",format.put()));
         format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
         format->SetTextAlignment(right?DWRITE_TEXT_ALIGNMENT_TRAILING:DWRITE_TEXT_ALIGNMENT_LEADING);
@@ -121,13 +154,17 @@ struct Drawing {
         write->CreateEllipsisTrimmingSign(format.get(),ellipsis.put());
         DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_CHARACTER,0,0};
         format->SetTrimming(&trimming,ellipsis.get());
+        auto* raw=format.get();
+        formats.emplace(std::move(key),std::move(format));
+        return raw;
+    }
+    winrt::com_ptr<IDWriteTextLayout> Layout(std::wstring const& s,float size,float width,float height,
+                                           bool semi=false,bool right=false,const wchar_t* face=nullptr) {
+        auto* format=Format(size,semi,right,face);
         winrt::com_ptr<IDWriteTextLayout> layout;
-        winrt::check_hresult(write->CreateTextLayout(s.c_str(),UINT32(s.size()),format.get(),width,height,layout.put()));
-        winrt::com_ptr<IDWriteTypography> type;
-        if(SUCCEEDED(write->CreateTypography(type.put()))){
-            type->AddFontFeature({DWRITE_FONT_FEATURE_TAG_TABULAR_FIGURES,1});
-            layout->SetTypography(type.get(),{0,UINT32(s.size())});
-        }return layout;
+        winrt::check_hresult(write->CreateTextLayout(s.c_str(),UINT32(s.size()),format,width,height,layout.put()));
+        if(tabular&&!s.empty())layout->SetTypography(tabular.get(),{0,UINT32(s.size())});
+        return layout;
     }
     float Measure(std::wstring const& s,float size,bool semi=false,const wchar_t* face=nullptr) {
         auto layout=Layout(s,size,4096,64,semi,false,face);DWRITE_TEXT_METRICS m{};layout->GetMetrics(&m);
@@ -142,39 +179,70 @@ struct Drawing {
         comp::CompositionDrawingSurface surface{nullptr};Redraw(surface,width,height,dpi,paint);return surface;
     }
     // Repaint in place: the brush and visuals that show this surface stay.
+    // Draw at a fixed (0, 0) origin on scratchDc first, then copy 1:1 in
+    // physical pixels into BeginDraw's atlas slot: DirectComposition ping-pongs
+    // atlas offsets between even and odd pixels across frames, which otherwise
+    // flips DirectWrite's round-to-even pixel snapping by 1 px on odd-DIP rows
+    // (such as x=51/191, y=65/115 in the upper tiles at 150% DPI).
     void Redraw(comp::CompositionDrawingSurface& surface,float width,float height,float dpi,
         std::function<void(ID2D1DeviceContext*)> paint) {
         using namespace winrt::Windows::Graphics::DirectX;
-        const winrt::Windows::Foundation::Size size{std::ceil(width*dpi),std::ceil(height*dpi)};
+        const UINT32 wPx=UINT32(std::max<LONG>(1,std::lround(width*dpi)));
+        const UINT32 hPx=UINT32(std::max<LONG>(1,std::lround(height*dpi)));
+        const winrt::Windows::Foundation::Size size{float(wPx),float(hPx)};
         if(!surface)surface=graphics.CreateDrawingSurface(size,
             DirectXPixelFormat::B8G8R8A8UIntNormalized,DirectXAlphaMode::Premultiplied);
         auto interop=surface.as<CapsuleDrawingInterop>();
-        if(surface.Size()!=size)winrt::check_hresult(interop->Resize({LONG(size.Width),LONG(size.Height)}));
+        if(surface.Size()!=size)winrt::check_hresult(interop->Resize({LONG(wPx),LONG(hPx)}));
+        if(!canvas||wPx>canvasW||hPx>canvasH){
+            canvas=nullptr;
+            const UINT32 allocW=std::max(canvasW,wPx),allocH=std::max(canvasH,hPx);
+            const D2D1_BITMAP_PROPERTIES1 bp=D2D1::BitmapProperties1(
+                D2D1_BITMAP_OPTIONS_TARGET,
+                D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,D2D1_ALPHA_MODE_PREMULTIPLIED),
+                96.f,96.f);
+            winrt::check_hresult(scratchDc->CreateBitmap({allocW,allocH},nullptr,0,&bp,canvas.put()));
+            canvasW=allocW;canvasH=allocH;
+        }
+        scratchDc->SetTarget(canvas.get());
+        scratchDc->BeginDraw();
+        try {
+            scratchDc->SetDpi(96*dpi,96*dpi);
+            scratchDc->SetTransform(D2D1::Matrix3x2F::Identity());
+            scratchDc->PushAxisAlignedClip({0,0,float(wPx)/dpi,float(hPx)/dpi},D2D1_ANTIALIAS_MODE_ALIASED);
+            scratchDc->Clear({0,0,0,0});
+            // Grayscale AA is correct for transparent composition surfaces.
+            scratchDc->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+            paint(scratchDc.get());
+            scratchDc->PopAxisAlignedClip();
+        }catch(...){scratchDc->EndDraw();scratchDc->SetTarget(nullptr);throw;}
+        winrt::check_hresult(scratchDc->EndDraw());
+        scratchDc->SetTarget(nullptr);
+
         winrt::com_ptr<ID2D1DeviceContext> dc;POINT offset{};
         winrt::check_hresult(interop->BeginDraw(nullptr,__uuidof(ID2D1DeviceContext),dc.put_void(),&offset));
         try {
-            dc->SetDpi(96*dpi,96*dpi);
-            dc->SetTransform(D2D1::Matrix3x2F::Translation(float(offset.x)/dpi,float(offset.y)/dpi));
-            dc->Clear({0,0,0,0});
-            // Grayscale AA is correct for transparent composition surfaces.
-            dc->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
-            paint(dc.get());
+            dc->SetUnitMode(D2D1_UNIT_MODE_PIXELS);
+            dc->SetTransform(D2D1::Matrix3x2F::Identity());
+            dc->SetPrimitiveBlend(D2D1_PRIMITIVE_BLEND_COPY);
+            const D2D1_RECT_F dst{float(offset.x),float(offset.y),float(offset.x)+float(wPx),float(offset.y)+float(hPx)};
+            const D2D1_RECT_F src{0,0,float(wPx),float(hPx)};
+            dc->DrawBitmap(canvas.get(),&dst,1.f,D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR,&src);
+            dc->SetPrimitiveBlend(D2D1_PRIMITIVE_BLEND_SOURCE_OVER);
+            dc->SetUnitMode(D2D1_UNIT_MODE_DIPS);
         }catch(...){interop->EndDraw();throw;}
         winrt::check_hresult(interop->EndDraw());
     }
     void Text(ID2D1DeviceContext* dc,std::wstring const& s,Rect r,float size,D2D1_COLOR_F color,
               bool semi=false,bool right=false) {
         auto layout=Layout(s,size,float(r.w),float(r.h),semi,right);
-        winrt::com_ptr<ID2D1SolidColorBrush> b;winrt::check_hresult(dc->CreateSolidColorBrush(color,b.put()));
-        dc->DrawTextLayout({float(r.x),float(r.y)},layout.get(),b.get(),D2D1_DRAW_TEXT_OPTIONS_CLIP);
+        dc->DrawTextLayout({float(r.x),float(r.y)},layout.get(),Brush(dc,color),D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }
     void Round(ID2D1DeviceContext* dc,Rect r,float radius,D2D1_COLOR_F color) {
-        winrt::com_ptr<ID2D1SolidColorBrush> b;winrt::check_hresult(dc->CreateSolidColorBrush(color,b.put()));
-        dc->FillRoundedRectangle({{float(r.x),float(r.y),float(r.x+r.w),float(r.y+r.h)},radius,radius},b.get());
+        dc->FillRoundedRectangle({{float(r.x),float(r.y),float(r.x+r.w),float(r.y+r.h)},radius,radius},Brush(dc,color));
     }
     void Line(ID2D1DeviceContext* dc,float x,float y,float xx,float yy,D2D1_COLOR_F color,float width=1) {
-        winrt::com_ptr<ID2D1SolidColorBrush> b;winrt::check_hresult(dc->CreateSolidColorBrush(color,b.put()));
-        dc->DrawLine({x,y},{xx,yy},b.get(),width);
+        dc->DrawLine({x,y},{xx,yy},Brush(dc,color),width);
     }
     winrt::com_ptr<ID2D1LinearGradientBrush> Gradient(ID2D1DeviceContext* dc,D2D1_POINT_2F from,D2D1_POINT_2F to,
         std::initializer_list<D2D1_GRADIENT_STOP> stops) {

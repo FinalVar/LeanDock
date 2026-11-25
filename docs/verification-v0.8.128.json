@@ -1,0 +1,33 @@
+{
+  "version": "0.8.128",
+  "date": "2026-11-19T00:52:00+08:00",
+  "state": "Built, DirectHiddenProbe (339 policyChecks), LUA_TOKEN hardware DisplayEnhancementService 20-step + E2E Panel brightness toggle verification, unit suites and Update -ValidateOnly passed; packaged at leandock-0.8.128-package\\latest (awaiting interactive desktop Update on WinSta0\\Default)",
+  "backendVersion": "0.5.108",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.128",
+  "userRequest": {
+    "At": "2026-11-19",
+    "Question": "一样的问题，然后第四次按下最亮，第五次又好，这样一直循环；还有就是等你修好了顺便看看图片，里面没有开启的两个按钮在浅色背景下很不明白，加点灰还是咋，然后鼠标置于其上的灰色效果可能也要相应变一下",
+    "Scope": "Fix the 4-click brightness toggle failure cycle (1:0% -> 2:100% -> 3:no physical change -> 4:100% -> 5:0%) caused by legacy WmiSetBrightness desynchronizing from Windows 11 DisplayEnhancementService, and improve light-mode contrast and hover feedback for inactive tiles and controls over bright/white backgrounds."
+  },
+  "change": {
+    "NativePowerBrightnessAndPacer": "aggregate/controls-latest.h + aggregate/latest.cpp + aggregate/control-tests-latest.h: keep WmiMonitorBrightness active-panel presence check (reporting brightness=-1 when no controllable panel exists), switch primary brightness writes to the active power scheme's AC or DC video brightness index (PowerGetActiveScheme + PowerRead[AC/DC]ValueIndex + PowerWrite[AC/DC]ValueIndex + powrprof!PowerApplySettingChanges based on GetSystemPowerStatus, falling back to WmiSetBrightness only when unsupported) with 1% nudge + follow-up when external legacy writes leave power-scheme index equal to target while WMI differs; add BrightnessPacer (240 ms write cadence matching DisplayEnhancementService's ~200 ms ramp, flushed on close) and evaluate PanelEnabled against effective requested values while preserving brightness across transient WMI query errors.",
+    "LightModeInactiveControlAndHoverContrast": "aggregate/drawing-latest.h + aggregate/control-panel-latest.h + aggregate/wifi-page-latest.h + aggregate/bluetooth-page-latest.h + aggregate/sound-page-latest.h: in light mode only, change inactive control fill from white Ink(0xFFFFFF, .48f) to subtle cool grey Ink(0x141820, .062f) with a full-perimeter contour Ink(0x141820, .095f) (blending smoothly to a lit white top rim when toggled on) and raise hover wash from .06f to .09f so both inactive tiles and hovered regions read clearly on white glass while keeping text inputs crisp white."
+  },
+  "checks": {
+    "DirectHiddenProbe": "aggregate/latest.exe --hidden-probe exit 0 (policyChecks: 339, metricChecks: 86, themePolicyChecks: 22, hiddenReadsUnchanged: true, readOnly: true, stopMs: 0)",
+    "HardwareDisplayEnhancementVerification": "Verified under ordinary LUA_TOKEN against both WmiMonitorBrightness.CurrentBrightness and HKLM\\SYSTEM\\CurrentControlSet\\Services\\DisplayEnhancementService\\State\\LEN91520_1D_07E5_41\\ScreenBrightnessPercent: 20/20 passed across 1..8 click bursts at 80 ms and 12 consecutive toggles at 260 ms, plus E2E Capsule::Panel 8 toggles at 300 ms and 5 rapid clicks at 85 ms + restore (0 failures)",
+    "UnitAndFixtureSuites": "aggregate-dismiss (28 checks, 0 failed), imports-latest.py exit 0",
+    "UpdatePreflight": "latest.ps1 -Action Update -PackagePath leandock-0.8.128-package\\latest -ValidateOnly passed (PreserveConfiguration: true)"
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "578DE31C3A0AF4B0526EE9C6563453CFC63FBF77CA0776EA75992E9EFF57F2AF",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "0F926EA120F03049E5A09477C4BC78EAB46E06840A2A6828BFE9B458F787C24D"
+  },
+  "notVerified": [
+    "Interactive desktop Update load and visual/click check on WinSta0\\Default"
+  ]
+}

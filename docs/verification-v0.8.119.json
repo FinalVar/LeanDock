@@ -1,0 +1,30 @@
+{
+  "version": "0.8.119",
+  "date": "2026-11-17T15:06:00+08:00",
+  "state": "Built, C++ system pin gate passed, 23 offline/unit/fixture stages passed, direct hidden-probe & lifecycle passed under ordinary user token, packaged and ready for desktop admin Update",
+  "backendVersion": "0.5.99",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.119",
+  "userRequest": {
+    "At": "2026-11-17",
+    "Question": "系统更新重启了不自动加载leandock了",
+    "Scope": "Adapt LeanDock to Windows 11 26H2 build 26300.9974 (upgraded from 26300.9711) without relaxing any PE/SHA-256/symbol/callsite integrity checks, preserving accepted 0.3.43 controller hotcorners/fullscreen/desktop-sweep behavior and 0.8.78 start/panels companion DLLs."
+  },
+  "change": {
+    "PinAndSymbolAdaptation": "Verified Microsoft PDBs and Authenticode signatures across all 15 changed Windows 26300.9974 binaries (ShellComponents.Switcher.pri unchanged). Updated baseline/modules-latest.json, baseline/symbols-latest.json, baseline/icon-resolution-latest.json (TaskbarHost::IconSizeInViewPixels RVA 482476, s_ForceImagePresent RVA 486396, 6+2 unique E8 callsites), baseline/cards-input-latest.json, baseline/switcher-preshow-latest.json, src/switcher-preshow-latest.inc (DisplayAltTab RVA 1118596), src/switcher-style-latest.inc, src/hide-appbar-latest.inc (CTray::_OnAppBarMessage RVA 0x72a8), include/theme-latest.h, include/quick-host-latest.h, include/start-host-latest.h, include/search-host-latest.h, and aggregate/theme-control-latest.h.",
+    "ConsumeGeneralSupport": "Taskbar.View.dll (2609.12001.100.0) and SystemTray.dll (2609.11000.100.0) lower SystemTrayFrame::Height(double) (RVA 238376), ProgressBar::Width(double) (RVA 6636248), and IFlyoutBase5::ShowAt(...) (RVA 6505140) via winrt::impl::consume_general. Added optional consume_general hooks in build/generate-latest.py (SystemTrayFrame_Height_General_Hook checking put_Height offset 144 + non-NaN + SystemTrayFrame runtime class; ProgressBar_Width_General_Hook checking put_Width offset 128 + ProgressBar runtime class) and src/surface-latest.inc (ArmLeanDockFlyout shared helper + ShowLeanDockFlyoutGeneral gated by IsLeanDockMenuCaller).",
+    "ControllerAndPanelRebuild": "Built controller 0.3.44 from clean artifacts/controller-0.3.43-exitlog/latest inputs with updated 26300.9974 pin headers; updated ControllerHash in aggregate/theme-control-latest.h and rebuilt aggregate/latest.exe and latest.dll (0.5.99). Preserved 0.8.78 start/latest.dll and panels/latest.dll."
+  },
+  "checks": {
+    "UnitAndFixtureStages": "23 stages passed after final edit: tray-styles (36), aggregate-dismiss (22), latest (91), icon-optics (76), icon-view (60), grid (235910 invariants), geometry (343), cards-aggregate (549), cards-aggregate-host (36), attention, clip-ownership (57), theme-notify (22), maintenance (61), quick-position (77), desktop-sweep (19 compile-time), cards (115), cards-preferences (492), cards-input (146), cards-manipulation (47), shell-actions (195), hotcorners (37), start-lifecycle (14 compile-time), imports (0 failures).",
+    "ClientEdge": "105/108 passed; 3 failures (FAIL real public COM and event initialization succeeds when shell ready; FAIL hand-back swaps NonRudeHWND for the held mark; FAIL held window stays owned but not revealed) due to no Shell_TrayWnd on isolated exebox desktop.",
+    "LivePinVerification": "verify_all_pins.exe on 26300.9974 binaries passed: NativeVerifySystem=1, InputHost=1, QuickHost=1, StartHost=1, SearchHost=1, ThemeControl=1, ExtraPins=1.",
+    "DirectHiddenProbe": "aggregate/latest.exe --hidden-probe (normalUser: true): policyChecks 283, metricChecks 86, themePolicyChecks 22, wifiTargetReady true, bluetoothTargetReady true, bluetoothBatteryReady true, pagesCleared true, hiddenReadsUnchanged true, hiddenSamplingUnchanged true, 16 offscreen PNGs generated.",
+    "DirectLifecycleFixture": "lifecycle/latest.exe --hidden-probe (normalUser: true): passed true, checks 332, closeCases 20, workerCycles 22, maximumStopMs 94, ownedPanelWindows 0."
+  },
+  "notVerified": [
+    "aggregate-probe-latest.ps1 LUA_TOKEN child launcher under explorer.exe failed with ERROR_INVALID_PARAMETER in OpenProcess because GetShellWindow() == 0 on isolated exebox desktop",
+    "Live deployment via latest.ps1 -Action Update on WinSta0\\Default desktop (blocked from isolated exebox desktop)",
+    "Live Explorer injection, tray/system-height visual check, ProgressBar indicator width, pointer right-click menu focus, Start/Search/QuickSettings placement, and 0.8.117/0.8.118 desktop interaction after user runs Update"
+  ]
+}

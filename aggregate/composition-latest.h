@@ -53,7 +53,7 @@ struct Scene {
     comp::CompositionRadialGradientBrush sheen{nullptr},glint{nullptr};
     comp::CompositionSurfaceBrush contentBrush{nullptr};
     std::vector<comp::SpriteVisual> bands;
-    float full=400,base=120,scale=1,height=Height,radius=Radius;
+    float full=400,base=120,scale=1,height=Height,radius=Radius,lightX=-1e9f,lightY=-1e9f;
     bool closed=false,floating=false,ownsCompositor=true,host=true;
     void Expression(comp::CompositionObject const& object,wchar_t const* property,
                     wchar_t const* expression) {
@@ -154,19 +154,22 @@ struct Scene {
         scale=dpiScale;root.Scale({scale,scale,1});
         motion=compositor.CreateContainerVisual();root.Children().InsertAtTop(motion);
         props=compositor.CreatePropertySet();
-        props.InsertScalar(L"Full",full);props.InsertScalar(L"Height",height);
+        props.InsertScalar(L"Full",full);props.InsertScalar(L"Height",height);props.InsertScalar(L"TargetHeight",height);
         props.InsertScalar(L"X",32);
         props.InsertScalar(L"Width",base);props.InsertScalar(L"Y",HiddenOffset);
-        props.InsertScalar(L"Zoom",.96f);props.InsertScalar(L"Alpha",0);
-        // Specular light in panel DIPs; starts at the time key below.
-        props.InsertVector2(L"Light",{full-36,height+18});
-        Expression(motion,L"Offset",L"Vector3(p.X,32+p.Y,0)");
+        // TargetHeight - Height keeps the bottom edge anchored above the Dock
+        // while Height eases to its new target.
+        Expression(motion,L"Offset",L"Vector3(p.X,32+p.TargetHeight-p.Height+p.Y,0)");
         // A floating panel grows out of the time key under its right end.
+        // Animate Scale and Opacity directly on motion rather than through a
+        // permanent ExpressionAnimation: once settled at 1.0, DWM drops the
+        // group-opacity offscreen intermediate target whose fractional DIP
+        // dirty-rect alignment otherwise makes text near sheen jitter.
         Expression(motion,L"CenterPoint",floating?L"Vector3(p.Full-36,p.Height,0)":L"Vector3(p.Full,p.Height/2,0)");
-        Expression(motion,L"Scale",L"Vector3(p.Zoom,p.Zoom,1)");
-        Expression(motion,L"Opacity",L"p.Alpha");
+        motion.Scale({.96f,.96f,1});
+        motion.Opacity(0);
         body=compositor.CreateContainerVisual();motion.Children().InsertAtTop(body);
-        Expression(body,L"Offset",L"Vector3(p.Full-p.Width,0,0)");
+        if(!floating)Expression(body,L"Offset",L"Vector3(p.Full-p.Width,0,0)");
 
         // Separate vector mask, sampled at the monitor's actual resolution.
         // No region clipping of the desktop window, so the external shadows
@@ -200,10 +203,14 @@ struct Scene {
         }
         if(floating){
             // Pointer-following specular light: a broad sheen on the body and
-            // a tight glint confined to the 1.5 DIP rim.
+            // a tight glint confined to the 1.5 DIP rim. Set EllipseCenter
+            // directly instead of touching props so pointer motion never
+            // invalidates panel geometry expressions.
+            const num::float2 startLight{full-36,height+18};
+            lightX=startLight.x;lightY=startLight.y;
             sheen=compositor.CreateRadialGradientBrush();sheen.MappingMode(comp::CompositionMappingMode::Absolute);
             sheen.EllipseRadius({170,170});
-            Expression(sheen,L"EllipseCenter",L"p.Light");
+            sheen.EllipseCenter(startLight);
             Layer(sheen,mask);
             auto rim=compositor.CreateShapeVisual();SizeExpression(rim);
             rimLight=compositor.CreateLinearGradientBrush();rimLight.StartPoint({0,0});rimLight.EndPoint({1,1});
@@ -217,7 +224,7 @@ struct Scene {
             ring=ShapeMask(edge);
             glint=compositor.CreateRadialGradientBrush();glint.MappingMode(comp::CompositionMappingMode::Absolute);
             glint.EllipseRadius({120,120});
-            Expression(glint,L"EllipseCenter",L"p.Light");
+            glint.EllipseCenter(startLight);
             Layer(glint,ring);
         }else{
             auto outline=compositor.CreateShapeVisual();SizeExpression(outline);
@@ -226,9 +233,11 @@ struct Scene {
         }
         content=compositor.CreateContainerVisual();body.Children().InsertAtTop(content);
         mainLayer=compositor.CreateContainerVisual();content.Children().InsertAtTop(mainLayer);
-        Expression(content,L"Offset",L"Vector3(p.Width-p.Full,0,0)");
-        auto clip=compositor.CreateInsetClip();content.Clip(clip);
-        Expression(clip,L"LeftInset",L"Max(0,p.Full-p.Width)");
+        if(!floating){
+            Expression(content,L"Offset",L"Vector3(p.Width-p.Full,0,0)");
+            auto clip=compositor.CreateInsetClip();content.Clip(clip);
+            Expression(clip,L"LeftInset",L"Max(0,p.Full-p.Width)");
+        }
         Expression(content,L"Size",L"Vector2(p.Full,p.Height)");
         Theme();
     }
@@ -280,31 +289,70 @@ struct Scene {
         a.DelayBehavior(comp::AnimationDelayBehavior::SetInitialValueBeforeDelay);
         props.StartAnimation(name,a);
     }
+    void MotionScale(float end,int ms,int delay,Curve curve,float start=-1.f) {
+        auto a=compositor.CreateVector3KeyFrameAnimation();
+        if(start>=0.f)a.InsertKeyFrame(0,{start,start,1});
+        else a.InsertExpressionKeyFrame(0,L"this.StartingValue");
+        auto ease=compositor.CreateCubicBezierEasingFunction(
+            {float(curve.x1),float(curve.y1)},{float(curve.x2),float(curve.y2)});
+        a.InsertKeyFrame(1,{end,end,1},ease);a.Duration(std::chrono::milliseconds(ms));
+        a.DelayTime(std::chrono::milliseconds(delay));
+        a.DelayBehavior(comp::AnimationDelayBehavior::SetInitialValueBeforeDelay);
+        motion.StartAnimation(L"Scale",a);
+    }
+    void MotionOpacity(float end,int ms,int delay,Curve curve,bool linear=false,float start=-1.f) {
+        auto a=compositor.CreateScalarKeyFrameAnimation();
+        if(start>=0.f)a.InsertKeyFrame(0,start);
+        else a.InsertExpressionKeyFrame(0,L"this.StartingValue");
+        comp::CompositionEasingFunction ease=linear?
+            compositor.CreateLinearEasingFunction().as<comp::CompositionEasingFunction>():
+            compositor.CreateCubicBezierEasingFunction(
+                {float(curve.x1),float(curve.y1)},{float(curve.x2),float(curve.y2)}).as<comp::CompositionEasingFunction>();
+        a.InsertKeyFrame(1,end,ease);a.Duration(std::chrono::milliseconds(ms));
+        a.DelayTime(std::chrono::milliseconds(delay));
+        a.DelayBehavior(comp::AnimationDelayBehavior::SetInitialValueBeforeDelay);
+        motion.StartAnimation(L"Opacity",a);
+    }
     void Animate(bool show,bool enabled,Motion::Frame const* frame=nullptr) {
         if(frame){
-            for(auto name:{L"Y",L"Zoom",L"Alpha",L"Width"})props.StopAnimation(name);
-            props.InsertScalar(L"Y",float(frame->y));props.InsertScalar(L"Zoom",float(frame->scale));
-            props.InsertScalar(L"Alpha",float(frame->alpha));props.InsertScalar(L"Width",float(frame->width));
+            for(auto name:{L"Y",L"Width"})props.StopAnimation(name);
+            motion.StopAnimation(L"Scale");motion.StopAnimation(L"Opacity");
+            props.InsertScalar(L"Y",float(frame->y));props.InsertScalar(L"Width",float(frame->width));
+            const float z=float(frame->scale);motion.Scale({z,z,1});motion.Opacity(float(frame->alpha));
         }
         if(!enabled){
             props.InsertScalar(L"Width",show?full:base);props.InsertScalar(L"Y",show?0:HiddenOffset);
-            props.InsertScalar(L"Zoom",show?1:.96f);props.InsertScalar(L"Alpha",show?1:0);
+            const float z=show?1.f:.96f;
+            motion.StopAnimation(L"Scale");motion.Scale({z,z,1});
+            motion.StopAnimation(L"Opacity");motion.Opacity(show?1.f:0.f);
             return;
         }
         const auto c=show?Spring:Sink;
         Scalar(L"Y",show?0:HiddenOffset,show?420:260,0,c);
-        Scalar(L"Zoom",show?1:.96f,show?420:260,0,c);
-        Scalar(L"Alpha",show?1:0,show?140:180,show?0:80,c,true);
+        MotionScale(show?1.f:.96f,show?420:260,0,c);
+        MotionOpacity(show?1.f:0.f,show?140:180,show?0:80,c,true);
         Scalar(L"Width",show?full:base,show?460:260,show?40:0,c);
     }
-    void Dimensions(float width,float baseWidth,float h=Height) {
-        full=width;base=baseWidth;height=h;
-        props.InsertScalar(L"Full",full);props.InsertScalar(L"Height",height);
+    void Dimensions(float width,float baseWidth,float h=Height,bool animate=false) {
+        full=width;base=baseWidth;
+        props.InsertScalar(L"Full",full);
+        if(h==height&&animate)return;
+        height=h;
+        props.InsertScalar(L"TargetHeight",height);
+        if(animate&&floating&&!closed)Scalar(L"Height",height,180,0,Settle);
+        else{props.StopAnimation(L"Height");props.InsertScalar(L"Height",height);}
     }
     // Content is one painted surface shown through horizontal bands, so a
-    // reveal can cascade section by section without extra drawing.
+    // reveal can cascade section by section without extra drawing. Snap brush
+    // texels, visual bounds and band cuts to physical device pixels so DWM's
+    // dirty-rect recomposition around the pointer light never shifts glyphs.
+    float SnapDip(float v)const{return scale>0?std::round(v*scale)/scale:v;}
     void Content(comp::ICompositionSurface const& surface,std::vector<float> const& cuts) {
-        if(!contentBrush){contentBrush=compositor.CreateSurfaceBrush();contentBrush.Stretch(comp::CompositionStretch::Fill);}
+        if(!contentBrush){
+            contentBrush=compositor.CreateSurfaceBrush();
+            contentBrush.Stretch(comp::CompositionStretch::Fill);
+            contentBrush.SnapToPixels(true);
+        }
         if(contentBrush.Surface()!=surface)contentBrush.Surface(surface);
         const size_t count=std::max<size_t>(1,cuts.size()>1?cuts.size()-1:1);
         while(bands.size()<count){
@@ -312,22 +360,30 @@ struct Scene {
             mainLayer.Children().InsertAtTop(v);bands.push_back(v);
         }
         while(bands.size()>count){mainLayer.Children().Remove(bands.back());bands.pop_back();}
+        const float w=SnapDip(full),h=SnapDip(height);
         for(size_t i=0;i<count;++i){
-            const float top=cuts.size()>1?cuts[i]:0,bottom=cuts.size()>1?cuts[i+1]:height;
-            bands[i].Size({full,height});auto clip=bands[i].Clip().as<comp::InsetClip>();
-            clip.TopInset(i?top:0);clip.BottomInset(i+1<count?std::max(0.f,height-bottom):0);
+            const float top=cuts.size()>1?SnapDip(cuts[i]):0,bottom=cuts.size()>1?SnapDip(cuts[i+1]):h;
+            bands[i].Size({w,h});auto clip=bands[i].Clip().as<comp::InsetClip>();
+            clip.TopInset(i?top:0);clip.BottomInset(i+1<count?std::max(0.f,h-bottom):0);
         }
     }
-    void Light(float x,float y){props.InsertVector2(L"Light",{x,y});}
+    void Light(float x,float y){
+        x=SnapDip(x);y=SnapDip(y);
+        if(x==lightX&&y==lightY)return;
+        lightX=x;lightY=y;
+        if(sheen)sheen.EllipseCenter({x,y});
+        if(glint)glint.EllipseCenter({x,y});
+    }
     // A second-level page: its own surface over the main bands.
     void PageContent(comp::ICompositionSurface const& surface) {
         if(!pageLayer){
             pageBrush=compositor.CreateSurfaceBrush();pageBrush.Stretch(comp::CompositionStretch::Fill);
+            pageBrush.SnapToPixels(true);
             pageLayer=compositor.CreateSpriteVisual();pageLayer.Brush(pageBrush);pageLayer.Opacity(0);pageLayer.Offset({PageShift,0,0});
             content.Children().InsertAtTop(pageLayer);
         }
         if(pageBrush.Surface()!=surface)pageBrush.Surface(surface);
-        pageLayer.Size({full,height});
+        pageLayer.Size({SnapDip(full),SnapDip(height)});
     }
     // The page slides in from the right while the main page drifts left
     // and fades, as in Windows quick settings; back reverses both. Each run
@@ -359,15 +415,18 @@ struct Scene {
     };
     void FloatShow(bool enabled,bool detail=false) {
         using T=Timing;
+        props.StopAnimation(L"Height");
+        props.InsertScalar(L"TargetHeight",height);props.InsertScalar(L"Height",height);
         props.InsertScalar(L"Width",full);
         props.InsertScalar(L"Y",enabled?(detail?T::Rise:6):0);
-        props.InsertScalar(L"Zoom",enabled?(detail?T::Zoom:.98f):1);
-        props.InsertScalar(L"Alpha",enabled?0:1);
+        const float z=enabled?(detail?T::Zoom:.98f):1.f;
+        motion.StopAnimation(L"Scale");motion.Scale({z,z,1});
+        motion.StopAnimation(L"Opacity");motion.Opacity(enabled?0.f:1.f);
         for(auto const& v:bands){v.StopAnimation(L"Offset");v.StopAnimation(L"Opacity");v.Offset({0,0,0});v.Opacity(1);}
         if(!enabled)return;
         Scalar(L"Y",0,detail?T::RiseMs:260,0,detail?Lift:Spring);
-        Scalar(L"Zoom",1,detail?T::ZoomMs:260,0,detail?Lift:Spring);
-        Scalar(L"Alpha",1,detail?T::FadeMs:150,0,Spring,true);
+        MotionScale(1.f,detail?T::ZoomMs:260,0,detail?Lift:Spring,z);
+        MotionOpacity(1.f,detail?T::FadeMs:150,0,Spring,true,0.f);
         if(!detail)return;
         // Sections follow the glass in, top to bottom, each settling upward.
         const auto settle=compositor.CreateCubicBezierEasingFunction({float(Settle.x1),float(Settle.y1)},{float(Settle.x2),float(Settle.y2)});
@@ -388,8 +447,9 @@ struct Scene {
         using T=Timing;
         props.InsertScalar(L"Width",full);
         props.InsertScalar(L"Y",float(Mix(T::Rise,0,Progress(ms,T::RiseMs,Lift))));
-        props.InsertScalar(L"Zoom",float(Mix(T::Zoom,1,Progress(ms,T::ZoomMs,Lift))));
-        props.InsertScalar(L"Alpha",float(std::clamp(ms/T::FadeMs,0.,1.)));
+        const float z=float(Mix(T::Zoom,1,Progress(ms,T::ZoomMs,Lift)));
+        motion.StopAnimation(L"Scale");motion.Scale({z,z,1});
+        motion.StopAnimation(L"Opacity");motion.Opacity(float(std::clamp(ms/T::FadeMs,0.,1.)));
         for(size_t i=0;i<bands.size();++i){
             const double local=ms-T::BandAt(i);
             bands[i].Offset({0,local<=0?T::BandRise:float(Mix(T::BandRise,0,Progress(local,T::BandMs,Settle))),0});
@@ -401,15 +461,16 @@ struct Scene {
     int FloatHide(bool enabled) {
         using T=Timing;
         if(!enabled)return 0;
-        Scalar(L"Alpha",0,T::LeaveFadeMs,0,Sink,true);
-        Scalar(L"Zoom",T::LeaveZoom,T::LeaveMs,0,Sink);
+        MotionOpacity(0.f,T::LeaveFadeMs,0,Sink,true);
+        MotionScale(T::LeaveZoom,T::LeaveMs,0,Sink);
         Scalar(L"Y",T::LeaveSink,T::LeaveMs,0,Sink);
         return T::LeaveMs;
     }
     void LeaveFrame(double ms) {
         using T=Timing;
-        props.InsertScalar(L"Alpha",float(1-std::clamp(ms/T::LeaveFadeMs,0.,1.)));
-        props.InsertScalar(L"Zoom",float(Mix(1,T::LeaveZoom,Progress(ms,T::LeaveMs,Sink))));
+        motion.StopAnimation(L"Opacity");motion.Opacity(float(1-std::clamp(ms/T::LeaveFadeMs,0.,1.)));
+        const float z=float(Mix(1,T::LeaveZoom,Progress(ms,T::LeaveMs,Sink)));
+        motion.StopAnimation(L"Scale");motion.Scale({z,z,1});
         props.InsertScalar(L"Y",float(Mix(0,T::LeaveSink,Progress(ms,T::LeaveMs,Sink))));
     }
     void Scale(float dpiScale){scale=dpiScale;root.Scale({scale,scale,1});}

@@ -1,0 +1,46 @@
+{
+  "version": "0.8.112",
+  "date": "2026-11-12T09:55:18+08:00",
+  "state": "Deployed; the user looked at the Dock (screenshot 10:00); not committed yet",
+  "backendVersion": "0.5.97",
+  "controllerVersion": "0.3.43",
+  "panelVersion": "0.8.112",
+  "userRequest": {
+    "At": "2026-11-12",
+    "Answer": [
+      "托盘tailsacle大小和其他不一样有点别扭",
+      "看起来好一点但确实偏大，反正以后你能保证所有的都自适应看着整齐舒服吗，还是有一个调一个？",
+      "行，整好"
+    ],
+    "Scope": "0.8.111 counted Tailscale's unlit dots; 0.8.112 classifies tray icons by fill so glyphs are not enlarged"
+  },
+  "change": {
+    "FaintParts (0.8.111)": "Measure(..., faintParts) for tray icons: bounds are also taken at max alpha / 8 (at least 16); a side moves out to that faint content only when it reaches more than canvas / 16 (at least 1 px) past the half-coverage bounds. Dock app icons call Measure unchanged.",
+    "PlateOrGlyph (0.8.112)": "Measure(..., tray) records fill: alpha-weighted percent of the bounds. Fill >= PlateFill (75) is a plate and is fitted as before; below it the tray icon keeps scale 1 and is only centred. Readback property Fill."
+  },
+  "checks": {
+    "IconOptics": "76 checks, 0 failures; adds a padded plate (fill 100, fitted), an outline (not enlarged, centred), an off-centre striped glyph (scale 1, still centred), and Dock measurement unchanged"
+  },
+  "preDeployValidation": {
+    "ValidateOnly": "passed",
+    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.112-outputs\\pre-deploy-20261112-095102)"
+  },
+  "deployment": {
+    "Version": "0.8.112",
+    "Live": true,
+    "Explorer": "pid 22000, restarted by the update",
+    "Backend": "0.5.97, hooks 70, menuHook 1, failed false",
+    "ComponentHealth": "Ready, nothing unavailable",
+    "Configs": "latest.ini, hotcorners\\latest.ini, cards\\latest.ini unchanged",
+    "Rollback": "backups\\before-0.8.112-20261112-095518037; 0.8.111 at backups\\before-0.8.111-20261112-093929126 holds 0.8.110"
+  },
+  "readback": {
+    "Plates": "24 px full fill 96, 36 px full fill 95, 512 px fill 93 scale 1.219: as before",
+    "Glyphs": "QQ 24 px 2-24 fill 71 scale 1; Tailscale 1-22 fill 27 scale 1 (was 1.143), offset 0.33 DIP; USB 5-24 fill 19 scale 1; ChatGPT 24 px full fill 36 scale 1",
+    "Screen": "User screenshot 10:00: Tailscale grid about 21 px, vertically centred with its row; the other icons unchanged"
+  },
+  "notVerified": [
+    "Tailscale's connecting animation frames",
+    "An icon whose fill is near 75: QQ at 71 is not enlarged either way because it already fills the box"
+  ]
+}

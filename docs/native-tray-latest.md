@@ -77,3 +77,10 @@ hashes, host changes and separate input acceptance remain in verification-latest
 The stopped four-finger transparency investigation remains unresolved. This
 package includes the already-built 0.8.16 removal of ineffective gesture hooks;
 it does not resume that investigation or claim a gesture fix.
+
+## 0.8.117 (backend 0.5.98): Unified hover outline and icon-content normalization
+
+- Expanded `controlStyles[15]` in `baseline/styles-latest.json` (and synced `baseline/settings-latest.json`) from `SystemTray.Stack#NonActivatableStack` to all `SystemTray.Stack > * > SystemTray.IconView` containers (`MainStack`, `NonActivatableStack`, `NotifyIconStack`) plus `SystemTray.ChevronIconView`, keeping `SystemTray.NotifyIconView` and `SystemTray.OmniButton#ControlCenterButton`.
+- Added `BorderBrush@*=Transparent` across `Normal`, `PointerOver`, `Pressed`, `Checked`, `CheckedNormal`, `CheckedPointerOver`, and `CheckedPressed` plus `Background@CheckedNormal`, overriding native visual-state setters on `Border#BackgroundBorder` (`24×24`, `CornerRadius=5`, `Margin=0`, `BorderThickness=0`).
+- Patched `build/generate-latest.py` (`name == "tray"`) so `ApplyNotifyIconViewStyle` clears inner `ContainerGrid` padding for `SystemTray.BadgeIconContent`, `SystemTray.BatteryIconContent`, and `SystemTray.LanguageImageIconContent`, and `DockNormalizeIcon` normalizes all 7 `SystemTray.*IconContent` classes (`ImageIconContent`, `TextIconContent`, `LanguageTextIconContent`, `BatteryIconContent`, `BadgeIconContent`, `LanguageImageIconContent`, `DateTimeIconContent`).
+- Boundary: interactive desktop hover visual appearance on an active `MainStack`/`ChevronIconView` icon awaits live `Update` on `WinSta0\Default` (blocked from the isolated `exebox` build desktop where `FindWindow('Shell_TrayWnd')` returns 0).

@@ -118,7 +118,7 @@ inline void PaintSoundPage(Drawing& draw,ID2D1DeviceContext* dc,Sample const& s,
                 draw.Image(dc,image,mark);
                 if(a.mute)dc->PopLayer();
             }else PanelGlyph(draw,dc,a.system?L"\xE7F5":L"\xECAA",mark,a.mute?Alpha(c.text,.4f):c.text,15);
-            if(a.mute){draw.Round(dc,{28,y+18,13,13},6.5f,c.control);PanelGlyph(draw,dc,L"\xE74F",{28,y+18,13,13},c.text,8);}
+            if(a.mute){draw.Round(dc,{28,y+18,13,13},6.5f,c.light?Ink(0xEBEEF2,.92f):c.control);PanelGlyph(draw,dc,L"\xE74F",{28,y+18,13,13},c.text,8);}
             draw.Text(dc,a.name,{AppSliderLeft,y+5,200,20},12.5f,a.mute?c.secondary:c.text);
             const int value=drag.active&&drag.key==a.key?drag.preview:a.volume;
             const float sy=y+37;

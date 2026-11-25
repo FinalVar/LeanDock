@@ -14,6 +14,7 @@
 #include <chrono>
 #include <bcrypt.h>
 #include "policy-latest.h"
+#include "../include/log-rotate-latest.h"
 namespace Capsule {
 inline std::wstring Sha256(std::wstring const& path) {
     HANDLE file=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
@@ -49,11 +50,11 @@ inline std::wstring Executable() {
 }
 inline void Log(wchar_t const* event,long code=0) {
     auto path=Directory()+L"\\latest.log";
-    FILE* f=_wfopen(path.c_str(),L"a");if(!f)return;
     SYSTEMTIME t{};GetLocalTime(&t);
-    fwprintf(f,L"%04u-%02u-%02u %02u:%02u:%02u pid=%lu %ls code=%ld\n",
-        t.wYear,t.wMonth,t.wDay,t.wHour,t.wMinute,t.wSecond,GetCurrentProcessId(),event,code);
-    fclose(f);
+    wchar_t line[1024]{};
+    _snwprintf_s(line,_TRUNCATE,L"%04u-%02u-%02u %02u:%02u:%02u pid=%lu %ls code=%ld\r\n",
+        t.wYear,t.wMonth,t.wDay,t.wHour,t.wMinute,t.wSecond,GetCurrentProcessId(),event?event:L"",code);
+    LeanDockLog::AppendWideLine(path.c_str(),line);
 }
 inline bool Elevated() {
     HANDLE t=nullptr;if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&t))return true;
@@ -77,5 +78,11 @@ inline void ShowWithoutActivation(HWND window) {
 }
 inline bool Animations() {
     BOOL enabled=TRUE;SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION,0,&enabled,0);return enabled;
+}
+inline std::wstring TrimSpaces(std::wstring text) {
+    auto blank=[](wchar_t c){return c==L'\0'||c==L' '||c==L'\t'||c==L'\r'||c==L'\n';};
+    size_t first=0;while(first<text.size()&&blank(text[first]))++first;
+    size_t last=text.size();while(last>first&&blank(text[last-1]))--last;
+    return text.substr(first,last-first);
 }
 }

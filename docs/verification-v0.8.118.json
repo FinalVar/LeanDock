@@ -1,0 +1,31 @@
+{
+  "version": "0.8.118",
+  "date": "2026-11-17T13:47:00+08:00",
+  "state": "Built, packaged, ValidateOnly passed, 22 offline/unit stages passed, and LUA_TOKEN isolated probe + lifecycle passed; live deployment pending desktop session Update",
+  "backendVersion": "0.5.98",
+  "controllerVersion": "0.3.43",
+  "panelVersion": "0.8.118",
+  "userRequest": {
+    "At": "2026-11-17",
+    "Question": "还有个问题，悬浮面板点击后不会自动消失，之前的设想是点击其他地方，dock之外应该能收起悬浮面板，现在也收不起（含 0.8.117 托盘全区轮廓统一合并交付）",
+    "Scope": "Ensure pinned hover panel reliably dismisses on clicks outside the panel/Dock (normal apps, elevated/same-foreground apps, desktop, Dock glass, and fast touchpad taps) while preserving hover-only and slider non-activating behavior"
+  },
+  "change": {
+    "TrayStylesAndNormalization (0.8.117 carried in 0.8.118)": "baseline/styles-latest.json & baseline/settings-latest.json controlStyles[15] covers NotifyIconView, ChevronIconView, SystemTray.Stack > * > SystemTray.IconView, and ControlCenterButton Border#BackgroundBorder across all 7 visual states; build/generate-latest.py adapts ApplyNotifyIconViewStyle and DockNormalizeIcon across all 7 SystemTray.*IconContent classes.",
+    "PanelClickDismiss (0.8.118)": "aggregate/popup-latest.h + aggregate/latest.cpp: Show() clears WS_EX_NOACTIVATE right before ShowWithoutActivation(SWP_NOACTIVATE) and Leave()/Hide() restore it; WM_MOUSEACTIVATE returns MA_ACTIVATE only on non-slider left-clicks (sliders and right-clicks stay MA_NOACTIVATE), recording previousForeground; WM_ACTIVATE(WA_INACTIVE) dismisses whenever deactivated to any window other than popup.window/control; Reveal()/Pin() install a scoped WH_MOUSE_LL hook active only while the popup is shown (removed in Quit()/Close()) that posts DismissMessage when any button-down falls outside popup.Hit without active capture; WindowSwitched() checks activated && now != popup.window, PressedElsewhere() adds VK_MBUTTON, Tick() dismisses on outside press even over the reach corridor, and non-typing Escape restores previousForeground."
+  },
+  "checks": {
+    "UnitAndFixtureSuites": "22 stages passed (tray-styles [36 checks], aggregate-dismiss [22 checks], latest, icon-optics, icon-view, grid, geometry, cards-aggregate, cards-aggregate-host, attention, clip-ownership, theme-notify, maintenance, quick-position, desktop-sweep, cards, cards-preferences, cards-input, cards-manipulation, shell-actions, hotcorners, imports); client-edge had 3/108 failures requiring Shell_TrayWnd on WinSta0\\Default (blocked by exebox desktop sandbox)",
+    "PackagedHiddenProbe": "LUA_TOKEN (normalUser: true): policyChecks 283, metricChecks 86, wifiTargetReady true, bluetoothTargetReady true, bluetoothBatteryReady true, bluetoothBattery 90, readOnly true, hiddenReadsUnchanged true, hiddenSamplingUnchanged true, pagesCleared true, 16 offscreen PNGs generated",
+    "LifecycleFixture": "LUA_TOKEN (normalUser: true): passed true, checks 332, closeCases 20, workerCycles 22, maximumStopMs 109, ownedPanelWindows 0"
+  },
+  "preDeployValidation": {
+    "Package": "C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.118-package\\latest",
+    "ValidateOnly": "passed (ChangedFiles: 14, RuntimeChanged: [aggregate/latest.exe, latest.dll], PreserveConfiguration: true)"
+  },
+  "notVerified": [
+    "Live deployment via latest.ps1 -Action Update on WinSta0\\Default desktop (blocked from agent exebox desktop where FindWindow('Shell_TrayWnd') returns 0)",
+    "Interactive desktop mouse hover on active MainStack/ChevronIconView/NonActivatableStack tray icons after live Update",
+    "Interactive desktop click-to-pin followed by clicking outside Dock (including elevated Administrator windows, desktop, and touchpad taps) after live Update"
+  ]
+}

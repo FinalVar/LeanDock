@@ -1,0 +1,35 @@
+{
+  "version": "0.8.120",
+  "date": "2026-11-18T13:39:00+08:00",
+  "state": "Accepted by user on live Win11 26300.9974 desktop (explorerPid=896, explorerExits=0, menuHook=1, failed=false); packaged at leandock-0.8.120-package",
+  "backendVersion": "0.5.100",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.120",
+  "userRequest": {
+    "At": "2026-11-18",
+    "Question": "一右键整个桌面都黑了然后重载，是不是和Windowskb更新有关；继续修（并保留媒体预热、悬浮面板高度过渡动画、进程保活复用与 Stack 布局计算）",
+    "Scope": "Fix 0xC0000005 Explorer crash on right-clicking the aggregate pill button under Windows 11 26300.9974 while retaining the hover panel media pre-fetch, bottom-anchored height transition animation, 4s keepalive process reuse, and consteval Stack layout calculator."
+  },
+  "change": {
+    "FlyoutShowGeneralAbiFix": "Disassembly of Taskbar.View.dll 2609.12001.100.0 at RVA 0x6342B4 (6505140) and its Win+X call sites (0x7B1077, 0x7B13E1, 0x7B5A9E) proved that winrt::impl::consume_general<IFlyoutBase5, FlyoutBase, ..., void*&, void*&> receives single-level handle slot pointers (const DependencyObject* in R8, const FlyoutShowOptions* in R9) and that MSVC LTCG constant-propagated the IFlyoutBase5::ShowAt ABI thunk (0x2F6390) without initializing RDX (method) at call sites. Updated LeanDockFlyoutShowGeneral and ShowLeanDockFlyoutGeneral in src/surface-latest.inc to accept single-level const DependencyObject* / const FlyoutShowOptions*, pass target directly to ArmLeanDockFlyout(value, target), and remove the uninitialized method check. Kept include/shell-actions-latest.h atomic 4-event SendInput unchanged.",
+    "PanelMediaAndKeepaliveImprovements": "aggregate/metrics-latest.h adds bounded 150ms first-fetch wait_for on GSMTC manager/metadata so active media appears on initial reveal; aggregate/composition-latest.h animates height transitions (180ms Settle) with bottom-anchored TargetHeight-Height offset; aggregate/latest.cpp + include/aggregate-bridge-latest.h + src/cards-aggregate-latest.cpp add 4000ms quiet keepalive reuse with PrimeMessage warm-up; aggregate/control-panel-latest.h + aggregate/control-tests-latest.h replace hardcoded Y coordinates with consteval Stack/PanelZones verified by static_assert."
+  },
+  "checks": {
+    "ControllerAndPinVerify": "latest.exe --verify exit 0; latest.exe --verify-corners exit 0; imports-latest.py exit 0",
+    "DirectHiddenProbe": "aggregate/latest.exe --hidden-probe exit 0",
+    "UnitAndFixtureSuites": "shell-actions (195 checks, 0 failures), cards-aggregate (549 checks passed), aggregate-dismiss (22 checks, 0 failed)"
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "CC55437F5AE7FD44A86A396DDCF9FC91AC08A80560411B4E829B5EA5CCF94B93",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "EB16D1820390D3F3A5844B1D036FEA9B120EE99171B1A7D49BE110D9AD0EB2C8"
+  },
+  "userAcceptance": {
+    "At": "2026-11-18T13:45:23+08:00",
+    "Quote": "好啦，真不粗",
+    "ExplorerExitsDuringTest": 0
+  },
+  "notVerified": []
+}

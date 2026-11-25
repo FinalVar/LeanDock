@@ -28,6 +28,89 @@ inline void SortNetworks(std::vector<WifiNetwork>& list){
         return a.ssid<b.ssid;
     });
 }
+inline std::wstring DecodeSsid(DOT11_SSID const& s){
+    const int length=int(std::min<ULONG>(s.uSSIDLength,DOT11_SSID_MAX_LENGTH));
+    const int n=MultiByteToWideChar(CP_UTF8,0,reinterpret_cast<const char*>(s.ucSSID),length,nullptr,0);
+    std::wstring text(size_t(std::max(0,n)),L'\0');
+    if(n>0)MultiByteToWideChar(CP_UTF8,0,reinterpret_cast<const char*>(s.ucSSID),length,text.data(),n);
+    return text;
+}
+struct WifiConnection {
+    bool known=false,connected=false,connecting=false;
+    std::wstring ssid;
+};
+// Reads the connected SSID for one WLAN adapter without calling
+// WlanQueryInterface(wlan_intf_opcode_current_connection), whose BSSID payload
+// triggers Windows 11 24H2+ taskbar location indicators on unsigned apps.
+inline std::wstring ReadConnectedWlanSsidForAdapter(GUID const& adapterId){
+    using namespace winrt::Windows::Networking::Connectivity;
+    try{
+        std::wstring fallback;
+        for(auto const& profile:NetworkInformation::GetConnectionProfiles()){
+            if(!profile.IsWlanConnectionProfile())continue;
+            bool sameAdapter=false;
+            try{
+                if(auto adapter=profile.NetworkAdapter()){
+                    const winrt::guid id=adapter.NetworkAdapterId();
+                    sameAdapter=!memcmp(&id,&adapterId,sizeof(adapterId));
+                }
+            }catch(...){}
+            if(!sameAdapter)continue;
+            try{
+                if(auto details=profile.WlanConnectionProfileDetails()){
+                    auto ssid=TrimSpaces(std::wstring(details.GetConnectedSsid()));
+                    if(!ssid.empty())return ssid;
+                }
+            }catch(...){}
+            if(fallback.empty()&&profile.GetNetworkConnectivityLevel()!=NetworkConnectivityLevel::None)
+                fallback=TrimSpaces(std::wstring(profile.ProfileName()));
+        }
+        return fallback;
+    }catch(...){return {};}
+}
+// Reads the current WLAN connection state without triggering a scan or BSSID
+// location-consent telemetry. Reopens the handle once if the WLAN service restarted.
+inline WifiConnection ReadConnectedWifi(HANDLE& client){
+    auto open=[&](){
+        if(client){WlanCloseHandle(client,nullptr);client=nullptr;}
+        DWORD version=0;
+        if(WlanOpenHandle(2,nullptr,&version,&client)!=ERROR_SUCCESS){client=nullptr;return false;}
+        return true;
+    };
+    if(!client&&!open())return {};
+    PWLAN_INTERFACE_INFO_LIST interfaces=nullptr;
+    if(WlanEnumInterfaces(client,nullptr,&interfaces)!=ERROR_SUCCESS||!interfaces){
+        if(interfaces){WlanFreeMemory(interfaces);interfaces=nullptr;}
+        if(!open()||WlanEnumInterfaces(client,nullptr,&interfaces)!=ERROR_SUCCESS||!interfaces){
+            if(interfaces)WlanFreeMemory(interfaces);
+            if(client){WlanCloseHandle(client,nullptr);client=nullptr;}
+            return {};
+        }
+    }
+    bool connecting=false;
+    for(DWORD i=0;i<interfaces->dwNumberOfItems;++i){
+        auto const& info=interfaces->InterfaceInfo[i];
+        if(info.isState==wlan_interface_state_connected){
+            auto ssid=ReadConnectedWlanSsidForAdapter(info.InterfaceGuid);
+            WlanFreeMemory(interfaces);
+            return {true,true,false,std::move(ssid)};
+        }else if(info.isState==wlan_interface_state_associating||
+                 info.isState==wlan_interface_state_discovering||
+                 info.isState==wlan_interface_state_authenticating){
+            connecting=true;
+        }
+    }
+    WlanFreeMemory(interfaces);
+    if(connecting)return {true,false,true,{}};
+    return {true,false,false,{}};
+}
+inline std::wstring WifiConnectionLabel(int state,WifiConnection const& conn,std::wstring const& fallback){
+    if(state!=1&&state!=2)return fallback;
+    if(conn.connected)return conn.ssid.empty()?std::wstring(L"已连接"):conn.ssid;
+    if(conn.connecting)return std::wstring(L"正在连接…");
+    if(conn.known)return state==1?std::wstring(L"未连接"):fallback;
+    return fallback;
+}
 inline std::wstring WifiFailure(int status){
     switch(status){ // WiFiConnectionStatus
     case 2:return L"系统不允许连接这个网络";
@@ -109,13 +192,7 @@ class WifiBackend {
         FILE* f=_wfopen(LastPath().c_str(),L"wb");if(!f)return;
         fwrite(data.data(),1,data.size(),f);fclose(f);savedList=std::move(data);
     }
-    static std::wstring Ssid(DOT11_SSID const& s){
-        const int length=int(std::min<ULONG>(s.uSSIDLength,DOT11_SSID_MAX_LENGTH));
-        const int n=MultiByteToWideChar(CP_UTF8,0,reinterpret_cast<const char*>(s.ucSSID),length,nullptr,0);
-        std::wstring text(size_t(std::max(0,n)),L'\0');
-        if(n>0)MultiByteToWideChar(CP_UTF8,0,reinterpret_cast<const char*>(s.ucSSID),length,text.data(),n);
-        return text;
-    }
+    static std::wstring Ssid(DOT11_SSID const& s){return DecodeSsid(s);}
     void Scan(uint64_t now){scanAt=now;try{scan=adapter.ScanAsync();}catch(...){scan=nullptr;scannedAt=now;}}
     // A fresh handle on the first interface. False, and no handle, without one.
     bool OpenClient(){

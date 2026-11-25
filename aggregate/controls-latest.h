@@ -6,6 +6,7 @@
 #include "sound-latest.h"
 #include <mmdeviceapi.h>
 #include <endpointvolume.h>
+#include <powrprof.h>
 #include <wbemidl.h>
 #include <winrt/Windows.Devices.Radios.h>
 #include <winrt/Windows.Foundation.Collections.h>
@@ -20,7 +21,7 @@ namespace Capsule {
 // Panel pages. Second-level pages slide over the main page inside the panel.
 enum class PanelPage : int { Main, Wifi, Bluetooth, Hotspot, Sound };
 enum class Control : unsigned { Volume, Brightness, Mute, Wifi, Bluetooth, DarkTheme, Hotspot, WifiConnect, WifiDisconnect,
-    BluetoothConnect, OutputDevice, AppVolume, AppMute, HotspotConfigure, Count };
+    BluetoothConnect, OutputDevice, AppVolume, AppMute, HotspotConfigure, MediaPrev, MediaToggle, MediaNext, Count };
 using RadioAccess=winrt::Windows::Devices::Radios::RadioAccessStatus;
 using AccessRequest=winrt::Windows::Foundation::IAsyncOperation<RadioAccess>;
 // Page commands name their network, device, endpoint or app in key; only
@@ -50,13 +51,14 @@ struct HotspotInfo {
     bool ready=false,saving=false;
 };
 struct Controls {
-    int volume=-1,brightness=-1,wifi=-1,bluetooth=-1,darkTheme=-1,hotspot=-1;
+    int volume=-1,brightness=-1,wifi=-1,bluetooth=-1,darkTheme=-1,hotspot=-1,bluetoothBattery=-1;
     bool themeBusy=false,themeAvailable=false;
     DWORD themeLastExit=0;
     int hotspotCapability=-1;unsigned hotspotClients=0;
     std::wstring hotspotLabel=L"不可用";
+    std::wstring wifiLabel,bluetoothLabel;
     bool hotspotBusy=false;
-    bool mute=false,radioAllowed=false,wifiBusy=false,bluetoothBusy=false;
+    bool mute=false,radioAllowed=false,wifiBusy=false,bluetoothBusy=false,mediaActive=false,mediaPlaying=false;
     std::wstring error;
     WifiList wifiList;BluetoothList bluetoothList;SoundList sound;HotspotInfo hotspotInfo;
     uint64_t errorAt=0,reads=0,writes=0;
@@ -65,6 +67,85 @@ struct Controls {
 inline bool RadioControllable(int state){return state==0||state==1||state==2;}
 inline std::wstring RadioLabel(int state){return state==1?L"已开启":state==0?L"已关闭":
     state==2?L"部分开启":state==3?L"硬件已禁用":L"不可用";}
+inline std::wstring TileRadioLabel(int state,std::wstring const& label){
+    return (state==1||state==2)&&!label.empty()?label:RadioLabel(state);
+}
+inline std::wstring BluetoothConnectionLabel(int state,bool known,std::wstring const& summary){
+    if(state!=1&&state!=2)return RadioLabel(state);
+    if(!known||summary.empty())return RadioLabel(state);
+    if(summary==L"未连接")return state==1?std::wstring(L"未连接"):RadioLabel(state);
+    return summary;
+}
+inline int TileBluetoothBattery(int state,bool busy,int battery){
+    return !busy&&(state==1||state==2)&&battery>=0&&battery<=100?battery:-1;
+}
+inline constexpr GUID VideoPowerSubgroup{0x7516b95f,0xf776,0x4464,{0x8c,0x53,0x06,0x16,0x7f,0x40,0xcc,0x99}};
+inline constexpr GUID VideoBrightnessSetting{0xaded5e82,0xb909,0x4619,{0x99,0x49,0xf5,0xd7,0x1d,0xac,0x0b,0xcb}};
+// On Windows 11 with DisplayEnhancementService, legacy WmiSetBrightness writes
+// monitor.sys without updating the active power scheme and drops every second
+// 100 -> 0 transition, while bursts faster than the ~200 ms transition ramp
+// preempt in-flight changes. Pace writes to PaceMs while keeping the latest
+// command serial pending so UI toggles and slider drags remain immediate.
+struct BrightnessPacer {
+    static constexpr uint64_t PaceMs=240;
+    uint64_t lastWriteAt=0,deferredSerial=0;
+    int deferredTarget=-1;
+    bool Active()const{return deferredSerial!=0;}
+    bool Ready(uint64_t now)const{
+        return !lastWriteAt||now<lastWriteAt||now-lastWriteAt>=PaceMs;
+    }
+    uint64_t Remaining(uint64_t now)const{
+        return Ready(now)?0:PaceMs-(now-lastWriteAt);
+    }
+    bool Request(uint64_t serial,int target,uint64_t now){
+        target=std::clamp(target,0,100);
+        if(!Ready(now)){deferredSerial=serial;deferredTarget=target;return false;}
+        deferredSerial=0;deferredTarget=-1;return true;
+    }
+    void RecordWrite(uint64_t now,uint64_t followSerial=0,int followTarget=-1){
+        lastWriteAt=now?now:1;
+        if(followSerial){deferredSerial=followSerial;deferredTarget=std::clamp(followTarget,0,100);}
+    }
+    bool TakeDue(uint64_t now,uint64_t& serialOut,int& targetOut){
+        if(!deferredSerial||!Ready(now))return false;
+        serialOut=deferredSerial;targetOut=deferredTarget;
+        deferredSerial=0;deferredTarget=-1;return true;
+    }
+    void Clear(uint64_t& completed){
+        if(deferredSerial)completed=std::max(completed,deferredSerial);
+        lastWriteAt=deferredSerial=0;deferredTarget=-1;
+    }
+};
+// WMI CurrentBrightness can lag right after a brightness write while the driver
+// ramps the backlight. Keep the command pending and poll briefly until the
+// hardware readback reaches the requested level (or settles on timeout), so
+// rapid or subsequent toggles never read a stale 0 or mid-ramp value.
+struct BrightnessSettle {
+    static constexpr uint64_t Limit=2500,Step=100;
+    uint64_t serial=0,at=0,polledAt=0;
+    int target=-1;
+    bool Active()const{return serial!=0;}
+    void Clear(uint64_t& completed){
+        if(serial)completed=std::max(completed,serial);
+        serial=at=polledAt=0;target=-1;
+    }
+    void Begin(uint64_t cmdSerial,int desired,int readback,bool wrote,uint64_t now,uint64_t& completed){
+        if(!wrote||readback==desired){
+            Clear(completed);
+            completed=std::max(completed,cmdSerial);
+            return;
+        }
+        serial=cmdSerial;target=desired;at=polledAt=now;
+    }
+    bool Due(uint64_t now)const{
+        return serial!=0&&(now<polledAt||now-polledAt>=Step);
+    }
+    void Observe(int readback,uint64_t now,uint64_t& completed){
+        if(!serial)return;
+        polledAt=now;
+        if(readback==target||now<at||now-at>=Limit)Clear(completed);
+    }
+};
 
 // All devices and COM proxies below belong to the existing Metrics MTA worker.
 // No callbacks capture Dashboard/Popup; asynchronous results are polled only
@@ -82,7 +163,10 @@ class ControlBackend {
     using RadioKind=winrt::Windows::Devices::Radios::RadioKind;
     using Radios=winrt::Windows::Foundation::Collections::IVectorView<Radio>;
     using Enumeration=winrt::Windows::Foundation::IAsyncOperation<Radios>;
+    using BtCollection=winrt::Windows::Devices::Enumeration::DeviceInformationCollection;
+    using BtQuery=winrt::Windows::Foundation::IAsyncOperation<BtCollection>;
     using AsyncStatus=winrt::Windows::Foundation::AsyncStatus;
+    static constexpr uint64_t BtQueryLimit=5000,BtReadEvery=2000,BtBatteryEvery=30000;
     struct Bstr {BSTR p;explicit Bstr(const wchar_t* s):p(SysAllocString(s)){}~Bstr(){SysFreeString(p);}
         operator BSTR()const{return p;}};
     struct Value {VARIANT v;Value(){VariantInit(&v);}~Value(){VariantClear(&v);}};
@@ -91,6 +175,14 @@ class ControlBackend {
     Enumeration enumeration{nullptr};
     std::vector<Radio> radios;
     uint64_t enumAt=0;
+    HANDLE wlanClient=nullptr;
+    WifiConnection wifiState;
+    BtQuery btQuery{nullptr},btBattery{nullptr};
+    uint64_t btQueryAt=0,btReadAt=0,btBatteryAt=0,btBatteryReadAt=0;
+    bool btKnown=false;
+    std::wstring btTarget;
+    winrt::guid btBatteryFor{},btSingleContainer{};
+    int btBatteryLevel=-1;
     struct RadioChange {ControlCommand command;uint64_t at=0;
         std::vector<AccessRequest> changes;bool started=false;};
     std::optional<RadioChange> change;
@@ -264,15 +356,18 @@ class ControlBackend {
         }return nullptr;
     }
     void BrightnessRead(Controls& s){
+        const int prev=s.brightness;
         s.brightness=-1;brightnessInstance.clear();
         try{auto item=Active(L"SELECT Active,CurrentBrightness,InstanceName FROM WmiMonitorBrightness");if(!item)return;
             Value level,name;winrt::check_hresult(item->Get(L"CurrentBrightness",0,&level.v,nullptr,nullptr));
             winrt::check_hresult(item->Get(L"InstanceName",0,&name.v,nullptr,nullptr));
             winrt::check_hresult(VariantChangeType(&level.v,&level.v,0,VT_I4));
             if(level.v.lVal>=0&&level.v.lVal<=100&&name.v.vt==VT_BSTR){s.brightness=level.v.lVal;brightnessInstance=name.v.bstrVal;}
-        }catch(...){wmi=nullptr;}
+        }catch(...){wmi=nullptr;if(prev>=0)s.brightness=prev;}
     }
     uint64_t brightnessAt=0;
+    BrightnessPacer brightnessPacer;
+    BrightnessSettle brightnessSettle;
     // WMI brightness is a cross-process query. Every three seconds suffices
     // for a hover panel; a change made in the panel is read back at once.
     void BrightnessPoll(Controls& s,bool force){
@@ -280,8 +375,45 @@ class ControlBackend {
         if(!force&&brightnessAt&&now-brightnessAt<3000)return;
         brightnessAt=now;BrightnessRead(s);
     }
-    void BrightnessSet(int value){
+    void EnsureBrightnessInstance(){
+        if(!brightnessInstance.empty())return;
+        if(auto cur=Active(L"SELECT Active,InstanceName FROM WmiMonitorBrightness")){
+            Value name;
+            if(SUCCEEDED(cur->Get(L"InstanceName",0,&name.v,nullptr,nullptr))&&name.v.vt==VT_BSTR)
+                brightnessInstance=name.v.bstrVal;
+        }
         if(brightnessInstance.empty())winrt::throw_hresult(E_NOTIMPL);
+    }
+    static bool PowerBrightnessSet(int value,int wmiCurrent,bool& nudged){
+        nudged=false;
+        static HMODULE library=LoadLibraryExW(L"powrprof.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);
+        using ApplyFn=DWORD(WINAPI*)(const GUID*,const GUID*);
+        static auto apply=library?reinterpret_cast<ApplyFn>(GetProcAddress(library,"PowerApplySettingChanges")):nullptr;
+        if(!apply)return false;
+        GUID* scheme=nullptr;
+        if(PowerGetActiveScheme(nullptr,&scheme)!=ERROR_SUCCESS||!scheme)return false;
+        SYSTEM_POWER_STATUS sps{};
+        const bool dc=GetSystemPowerStatus(&sps)&&sps.ACLineStatus==0;
+        const DWORD desired=DWORD(std::clamp(value,0,100));
+        DWORD current=MAXDWORD;
+        const DWORD readRc=dc
+            ?PowerReadDCValueIndex(nullptr,scheme,&VideoPowerSubgroup,&VideoBrightnessSetting,&current)
+            :PowerReadACValueIndex(nullptr,scheme,&VideoPowerSubgroup,&VideoBrightnessSetting,&current);
+        DWORD toWrite=desired;
+        if(readRc==ERROR_SUCCESS&&current==desired){
+            if(wmiCurrent==int(desired)){LocalFree(scheme);return true;}
+            toWrite=desired>0?desired-1:1;
+            nudged=true;
+        }
+        const DWORD writeRc=dc
+            ?PowerWriteDCValueIndex(nullptr,scheme,&VideoPowerSubgroup,&VideoBrightnessSetting,toWrite)
+            :PowerWriteACValueIndex(nullptr,scheme,&VideoPowerSubgroup,&VideoBrightnessSetting,toWrite);
+        const bool ok=writeRc==ERROR_SUCCESS&&apply(&VideoPowerSubgroup,&VideoBrightnessSetting)==ERROR_SUCCESS;
+        LocalFree(scheme);
+        return ok;
+    }
+    void WmiBrightnessSet(int value){
+        EnsureBrightnessInstance();
         auto item=Active(L"SELECT Active,InstanceName,__PATH FROM WmiMonitorBrightnessMethods",brightnessInstance);
         if(!item)winrt::throw_hresult(E_NOTIMPL);
         Value path;winrt::check_hresult(item->Get(L"__PATH",0,&path.v,nullptr,nullptr));
@@ -308,15 +440,86 @@ class ControlBackend {
         winrt::check_hresult(VariantChangeType(&returned.v,&returned.v,0,VT_I4));
         if(returned.v.lVal)winrt::throw_hresult(E_FAIL);
     }
+    void BrightnessDispatch(uint64_t cmdSerial,int target,Controls& s){
+        target=std::clamp(target,0,100);
+        const int prev=s.brightness;
+        bool wrote=false,nudged=false;
+        const auto now=std::max<uint64_t>(GetTickCount64(),1);
+        try{
+            EnsureBrightnessInstance();
+            if(!PowerBrightnessSet(target,prev,nudged))WmiBrightnessSet(target);
+            ++s.writes;s.error.clear();wrote=true;
+        }catch(...){Error(s,L"亮度调整失败，设备可能已断开");}
+        brightnessAt=now;BrightnessRead(s);
+        if(wrote){
+            brightnessPacer.RecordWrite(now,nudged?cmdSerial:0,target);
+            if(nudged){
+                brightnessSettle.Clear(s.completed[unsigned(Control::Brightness)]);
+                if(s.brightness<0&&prev>=0)s.brightness=prev;
+                return;
+            }
+        }
+        brightnessSettle.Begin(cmdSerial,target,s.brightness,wrote,now,s.completed[unsigned(Control::Brightness)]);
+        if(brightnessSettle.Active()&&s.brightness<0&&prev>=0)s.brightness=prev;
+    }
+    void BrightnessPump(Controls& s){
+        const auto now=std::max<uint64_t>(GetTickCount64(),1);
+        uint64_t dueSerial=0;int dueTarget=-1;
+        if(brightnessPacer.TakeDue(now,dueSerial,dueTarget)){
+            BrightnessDispatch(dueSerial,dueTarget,s);
+            return;
+        }
+        if(brightnessPacer.Active())return;
+        if(!brightnessSettle.Due(now))return;
+        const int prev=s.brightness;
+        brightnessAt=now;BrightnessRead(s);
+        brightnessSettle.Observe(s.brightness,now,s.completed[unsigned(Control::Brightness)]);
+        if(brightnessSettle.Active()&&s.brightness<0&&prev>=0)s.brightness=prev;
+    }
     void RadioRead(Controls& s){
         auto state=[&](RadioKind kind){int on=0,off=0,locked=0;
             for(auto const& radio:radios)try{if(radio.Kind()==kind){auto v=radio.State();
                 if(v==RadioState::On)++on;else if(v==RadioState::Off)++off;else ++locked;}}catch(...){}
             if(on&&off)return 2;if(on)return locked?2:1;if(off)return 0;return locked?3:-1;};
         s.wifi=state(RadioKind::WiFi);s.bluetooth=state(RadioKind::Bluetooth);
+        s.wifiLabel=WifiConnectionLabel(s.wifi,wifiState,RadioLabel(s.wifi));
+        s.bluetoothLabel=BluetoothConnectionLabel(s.bluetooth,btKnown,btTarget);
+        s.bluetoothBattery=(s.bluetooth==1||s.bluetooth==2)&&btKnown&&btSingleContainer!=winrt::guid{}?btBatteryLevel:-1;
         s.radioAllowed=accessAllowed;
         s.wifiBusy=change&&change->command.target==Control::Wifi;
         s.bluetoothBusy=change&&change->command.target==Control::Bluetooth;
+    }
+    void WifiRead(Controls& s){
+        wifiState=(s.wifi==1||s.wifi==2)?ReadConnectedWifi(wlanClient):WifiConnection{};
+        s.wifiLabel=WifiConnectionLabel(s.wifi,wifiState,RadioLabel(s.wifi));
+    }
+    void BtResetBattery(){
+        if(btBattery){try{btBattery.Cancel();}catch(...){}btBattery=nullptr;}
+        btBatteryAt=0;btBatteryReadAt=0;btBatteryFor={};btBatteryLevel=-1;
+    }
+    void BtReset(){
+        if(btQuery){try{btQuery.Cancel();}catch(...){}btQuery=nullptr;}
+        btQueryAt=0;btReadAt=0;btKnown=false;btTarget.clear();btSingleContainer={};
+        BtResetBattery();
+    }
+    void StartBtQuery(uint64_t now){
+        if(btQuery)return;
+        try{
+            btQuery=winrt::Windows::Devices::Enumeration::DeviceInformation::FindAllAsync(
+                ConnectedBluetoothAqs,winrt::single_threaded_vector<winrt::hstring>({AepConnected,AepContainer}),
+                winrt::Windows::Devices::Enumeration::DeviceInformationKind::AssociationEndpoint);
+            btQueryAt=now;
+        }catch(...){btQuery=nullptr;}
+    }
+    void StartBtBatteryQuery(uint64_t now){
+        if(btBattery||btSingleContainer==winrt::guid{})return;
+        try{
+            btBattery=winrt::Windows::Devices::Enumeration::DeviceInformation::FindAllAsync(
+                BluetoothBatteryAqs(btSingleContainer),
+                winrt::single_threaded_vector<winrt::hstring>({BluetoothBatteryProperty}),
+                winrt::Windows::Devices::Enumeration::DeviceInformationKind::Device);
+            btBatteryAt=now;btBatteryFor=btSingleContainer;
+        }catch(...){btBattery=nullptr;}
     }
     void EndChange(Controls& s,const wchar_t* error=nullptr){
         if(!change)return;auto& p=*change;
@@ -370,21 +573,37 @@ public:
             h.saving=false;h.failure=L"现在不能修改热点设置";s.completed[unsigned(c.target)]=c.serial;
         }
     }
+    void RefreshTargets(Controls& s){
+        RadioRead(s);
+        if(s.wifi==1||s.wifi==2)WifiRead(s);
+        if(s.bluetooth==1||s.bluetooth==2){
+            if(btQuery){try{btQuery.Cancel();}catch(...){}btQuery=nullptr;}
+            btReadAt=0;btBatteryReadAt=0;StartBtQuery(GetTickCount64());
+        }
+    }
     void Open(){
         theme.Refresh();
         if(enumeration)try{enumeration.Cancel();}catch(...){}enumeration=nullptr;radios.clear();
+        wifiState={};BtReset();
         // Fresh snapshot per panel opening, not once per second.
         try{enumeration=Radio::GetRadiosAsync();enumAt=GetTickCount64();}catch(...){}
         HotspotOpen();
     }
-    bool Pending()const{return bool(enumeration)||bool(change)||bool(tetherCommand)||bool(configure)||theme.Pending();}
+    bool Pending()const{return bool(enumeration)||bool(change)||bool(tetherCommand)||bool(configure)||bool(btQuery)||bool(btBattery)||theme.Pending()||brightnessPacer.Active()||brightnessSettle.Active();}
     void Pump(Controls& s){
+        BrightnessPump(s);
         if(theme.Pending())ThemePump(s);
         HotspotPump(s);ConfigurePump(s);
+        bool enumFinished=false;
         if(enumeration)try{auto status=enumeration.Status();
-            if(status==AsyncStatus::Completed){auto list=enumeration.GetResults();radios.assign(list.begin(),list.end());enumeration=nullptr;}
-            else if(status!=AsyncStatus::Started||GetTickCount64()-enumAt>3000){enumeration.Cancel();enumeration=nullptr;}
-        }catch(...){enumeration=nullptr;radios.clear();}
+            if(status==AsyncStatus::Completed){
+                auto list=enumeration.GetResults();radios.assign(list.begin(),list.end());
+                enumeration=nullptr;enumFinished=true;
+            }else if(status!=AsyncStatus::Started||GetTickCount64()-enumAt>3000){
+                enumeration.Cancel();enumeration=nullptr;enumFinished=true;
+            }
+        }catch(...){enumeration=nullptr;radios.clear();enumFinished=true;}
+        const int prevWifi=s.wifi,prevBt=s.bluetooth;
         if(change)try{
             auto& p=*change;
             if(GetTickCount64()-p.at>15000){EndChange(s,L"无线控制超时，请重试");return;}
@@ -412,10 +631,68 @@ public:
                 else if(GetTickCount64()-p.at>3000)EndChange(s,L"设备状态未改变，请重试");}
         }catch(...){EndChange(s,L"无线设备操作失败");}
         RadioRead(s);
+        if((enumFinished||s.wifi!=prevWifi)&&(s.wifi==1||s.wifi==2))WifiRead(s);
+        else if(s.wifi!=1&&s.wifi!=2)wifiState={};
+        const auto btNow=std::max<uint64_t>(GetTickCount64(),1);
+        if(btQuery){
+            AsyncStatus status=AsyncStatus::Error;
+            try{status=btQuery.Status();}catch(...){}
+            if(status==AsyncStatus::Completed){
+                try{
+                    std::vector<BluetoothTarget> items;
+                    for(auto const& d:btQuery.GetResults()){
+                        auto p=d.Properties();
+                        if(!AepValue<bool>(p,AepConnected).value_or(false))continue;
+                        items.push_back({AepValue<winrt::guid>(p,AepContainer).value_or(winrt::guid{}),
+                            std::wstring(d.Id()),std::wstring(d.Name())});
+                    }
+                    const auto summary=SummarizeBluetoothTargetState(items);
+                    btTarget=summary.label;btKnown=true;
+                    if(summary.container!=btSingleContainer){
+                        btSingleContainer=summary.container;
+                        BtResetBattery();
+                    }
+                }catch(...){}
+                btQuery=nullptr;btReadAt=btNow;
+            }else if(status!=AsyncStatus::Started||btNow-btQueryAt>BtQueryLimit){
+                if(status==AsyncStatus::Started)try{btQuery.Cancel();}catch(...){}
+                btQuery=nullptr;btReadAt=btNow;
+            }
+        }
+        if(btBattery){
+            AsyncStatus status=AsyncStatus::Error;
+            try{status=btBattery.Status();}catch(...){}
+            if(status==AsyncStatus::Completed){
+                try{
+                    const int level=ReadBluetoothBattery(btBattery.GetResults());
+                    if(btBatteryFor==btSingleContainer)btBatteryLevel=level;
+                }catch(...){}
+                btBattery=nullptr;btBatteryReadAt=btNow;
+            }else if(status!=AsyncStatus::Started||btNow-btBatteryAt>BtQueryLimit){
+                if(status==AsyncStatus::Started)try{btBattery.Cancel();}catch(...){}
+                btBattery=nullptr;btBatteryReadAt=btNow;
+            }
+        }
+        if(!enumeration){
+            if(s.bluetooth!=1&&s.bluetooth!=2){
+                BtReset();
+            }else{
+                if(!btQuery&&(enumFinished||s.bluetooth!=prevBt||btReadAt==0))StartBtQuery(btNow);
+                if(btSingleContainer!=winrt::guid{}&&!btBattery&&btBatteryReadAt==0)StartBtBatteryQuery(btNow);
+            }
+        }
+        RadioRead(s);
     }
     // full=false is the first round after opening: WMI is left for ReadBrightness.
     void Read(Controls& s,bool full=true){
-        ++s.reads;AudioRead(s);if(full)BrightnessPoll(s,false);ThemeRead(s);HotspotRead(s,true);Pump(s);
+        ++s.reads;AudioRead(s);if(full&&!brightnessPacer.Active()&&!brightnessSettle.Active())BrightnessPoll(s,false);ThemeRead(s);HotspotRead(s,true);Pump(s);
+        if(s.wifi==1||s.wifi==2)WifiRead(s);
+        if(!enumeration&&(s.bluetooth==1||s.bluetooth==2)){
+            const auto now=std::max<uint64_t>(GetTickCount64(),1);
+            if(!btQuery&&now-btReadAt>=BtReadEvery)StartBtQuery(now);
+            if(btSingleContainer!=winrt::guid{}&&!btBattery&&(btBatteryReadAt==0||now-btBatteryReadAt>=BtBatteryEvery))
+                StartBtBatteryQuery(now);
+        }
         if(!s.error.empty()&&GetTickCount64()-s.errorAt>5000)s.error.clear();
     }
     void ReadBrightness(Controls& s){BrightnessPoll(s,true);}
@@ -426,21 +703,38 @@ public:
             if(change||tetherCommand||configure){s.completed[unsigned(command.target)]=command.serial;return;}
             s.error.clear();change=RadioChange{std::move(command),GetTickCount64()};Pump(s);return;
         }
+        if(command.target==Control::Brightness){
+            const int target=std::clamp(command.value,0,100);
+            brightnessSettle.Clear(s.completed[unsigned(Control::Brightness)]);
+            const auto now=std::max<uint64_t>(GetTickCount64(),1);
+            if(brightnessPacer.Request(command.serial,target,now))
+                BrightnessDispatch(command.serial,target,s);
+            return;
+        }
         try{
-            if(command.target==Control::Brightness)BrightnessSet(command.value);
-            else{auto audio=Audio();
-                if(command.target==Control::Mute)winrt::check_hresult(audio->SetMute(command.value!=0,nullptr));
-                else{winrt::check_hresult(audio->SetMasterVolumeLevelScalar(std::clamp(command.value,0,100)/100.f,nullptr));
-                    if(command.value>0)winrt::check_hresult(audio->SetMute(FALSE,nullptr));}}
+            auto audio=Audio();
+            if(command.target==Control::Mute)winrt::check_hresult(audio->SetMute(command.value!=0,nullptr));
+            else{winrt::check_hresult(audio->SetMasterVolumeLevelScalar(std::clamp(command.value,0,100)/100.f,nullptr));
+                if(command.value>0)winrt::check_hresult(audio->SetMute(FALSE,nullptr));}
             ++s.writes;s.error.clear();
-        }catch(...){if(command.target!=Control::Brightness)AudioReset();
-            Error(s,command.target==Control::Brightness?L"亮度调整失败，设备可能已断开":L"音频设备未能应用更改");}
+        }catch(...){AudioReset();Error(s,L"音频设备未能应用更改");}
         s.completed[unsigned(command.target)]=command.serial;
-        // Actual device readback, never invent a successful value.
-        if(command.target==Control::Brightness)BrightnessRead(s);else AudioRead(s);
+        AudioRead(s);
     }
-    void Close(Controls& s){
+    void Close(Controls& s,bool flush=true){
         if(enumeration)try{enumeration.Cancel();}catch(...){}enumeration=nullptr;
+        BtReset();s.bluetoothBattery=-1;
+        if(wlanClient){WlanCloseHandle(wlanClient,nullptr);wlanClient=nullptr;}
+        wifiState={};
+        if(flush&&brightnessPacer.Active()){
+            const auto waitMs=std::min<uint64_t>(brightnessPacer.Remaining(std::max<uint64_t>(GetTickCount64(),1)),BrightnessPacer::PaceMs);
+            if(waitMs>0)Sleep(DWORD(waitMs));
+            uint64_t dueSerial=0;int dueTarget=-1;
+            if(brightnessPacer.TakeDue(std::max<uint64_t>(GetTickCount64(),1),dueSerial,dueTarget))
+                BrightnessDispatch(dueSerial,dueTarget,s);
+        }
+        brightnessPacer.Clear(s.completed[unsigned(Control::Brightness)]);
+        brightnessSettle.Clear(s.completed[unsigned(Control::Brightness)]);
         EndChange(s);radios.clear();wmi=nullptr;brightnessInstance.clear();brightnessAt=0;AudioReset();
         // Cancel our wait only. Never stop the user's active hotspot on hide/unload;
         // a settings change already sent finishes in the system without us.
@@ -448,6 +742,6 @@ public:
         if(configure){s.completed[unsigned(Control::HotspotConfigure)]=configureSerial;configure=nullptr;}
         s.hotspotInfo.saving=false;
     }
-    ~ControlBackend(){Controls ignored;Close(ignored);}
+    ~ControlBackend(){Controls ignored;Close(ignored,false);}
 };
 }

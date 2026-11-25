@@ -1,24 +1,53 @@
 {
   "Module": "taskbar.dll",
-  "Sha256": "CA1E335AC1FAE5FF57519035302A2F365C4620D3A230F31F1231AF7331760741",
+  "Sha256": "49D9F43E7BDBF3B1EE27F09C03317E6057DDCD8787749F945FD2D63816988A27",
   "Symbol": "public: struct tagSIZE __cdecl TaskbarHost::IconSizeInViewPixels(void)const",
-  "Rva": 167740,
+  "Rva": 482476,
   "SourceCalls": [
-    { "Kind": "Cache", "Function": "IconContainer::RecreateStorage", "ReturnRva": 166092 },
-    { "Kind": "Win32", "Function": "ShellIconLoaderV2::UpdateMembers", "ReturnRva": 330957 },
-    { "Kind": "Packaged", "Function": "CWinRTAppIconLoader::RuntimeClassInitialize", "ReturnRva": 245369 },
-    { "Kind": "Placeholder", "Function": "PlaceholderTileIconLoader::LoadPlaceholderTileIconAsync", "ReturnRva": 1426326 },
-    { "Kind": "Website", "Function": "PinnedWebsiteIconLoader::RuntimeClassInitialize", "ReturnRva": 1429984 }
+    {
+      "Kind": "Cache",
+      "Function": "IconContainer::RecreateStorage",
+      "ReturnRva": 481183
+    },
+    {
+      "Kind": "Win32",
+      "Function": "ShellIconLoaderV2::UpdateMembers",
+      "ReturnRva": 350113
+    },
+    {
+      "Kind": "Packaged",
+      "Function": "CWinRTAppIconLoader::RuntimeClassInitialize",
+      "ReturnRva": 319731
+    },
+    {
+      "Kind": "Placeholder",
+      "Function": "PlaceholderTileIconLoader::LoadPlaceholderTileIconAsync",
+      "ReturnRva": 1503675
+    },
+    {
+      "Kind": "Website",
+      "Function": "PinnedWebsiteIconLoader::RuntimeClassInitialize",
+      "ReturnRva": 1506768
+    }
   ],
   "ForceImage": {
     "Symbol": "private: static long __cdecl ShellIconLoaderV2::s_ForceImagePresent(int,int,struct HICON__ * *)",
-    "Rva": 151208,
+    "Rva": 486396,
     "Calls": [
-      { "Function": "ShellIconLoaderV2::ForceImagePresentAsync", "ReturnRva": 660652 },
-      { "Function": "ShellIconLoaderV2::s_SetIconCallback", "ReturnRva": 663205 }
+      {
+        "Function": "ShellIconLoaderV2::ForceImagePresentAsync",
+        "ReturnRva": 754894
+      },
+      {
+        "Function": "ShellIconLoaderV2::s_SetIconCallback",
+        "ReturnRva": 757318
+      }
     ]
   },
   "DisplayCalls": [
-    { "Function": "CTaskListWnd::GetIconSizeInViewPixels", "ReturnRva": 1386168 }
+    {
+      "Function": "CTaskListWnd::GetIconSizeInViewPixels",
+      "ReturnRva": 1468184
+    }
   ]
 }

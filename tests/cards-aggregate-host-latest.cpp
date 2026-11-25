@@ -31,11 +31,12 @@ int main(){HWND host{};
     const auto expected=background.TransformToVisual(root).TransformPoint({0,float(background.ActualHeight()/2)});
     const auto actual=card.TransformToVisual(root).TransformPoint({0,float(card.ActualHeight()/2)});
     if(std::abs(actual.Y-expected.Y)>.01)throw std::runtime_error("key not centered on visible surface");
+    if(root.Padding().Left!=9||background.Margin().Left!=-10)throw std::runtime_error("unexpected left edge padding or background margin");
     if(root.Padding().Right!=78)throw std::runtime_error("legacy dashboard gutter remains");
-    std::cout<<"surfaceCenter="<<expected.Y<<", keyCenter="<<actual.Y<<", reservedWidth="<<root.Padding().Right<<'\n';
+    std::cout<<"surfaceCenter="<<expected.Y<<", keyCenter="<<actual.Y<<", leftPadding="<<root.Padding().Left<<", reservedWidth="<<root.Padding().Right<<'\n';
     std::cout<<"layoutUpdates="<<updates<<", nativeCard="<<card.ActualWidth()<<"x"<<card.ActualHeight()<<'\n';
     root.LayoutUpdated(token);board->Stop();board.reset();
-    if(root.Padding().Left!=3||background.Margin().Right!=3||GetPropW(host,L"LeanDock.Card.Ready"))throw std::runtime_error("original properties not restored");
+    if(root.Padding().Left!=3||background.Margin().Left!=1||background.Margin().Right!=3||GetPropW(host,L"LeanDock.Card.Ready"))throw std::runtime_error("original properties not restored");
     island.Content(nullptr);island.Close();manager.Close();DestroyWindow(host);host=nullptr;
     std::cout<<"production native host init/layout/power subscriptions/stop restored; hidden fixture\n";return 0;
  }catch(winrt::hresult_error const& e){std::cerr<<std::hex<<unsigned(e.code())<<" "<<winrt::to_string(e.message())<<'\n';}

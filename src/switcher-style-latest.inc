@@ -21,7 +21,7 @@ bool Supported() noexcept {
         try {
             auto base = std::wstring(windows);
             return NativeHashFile((base + L"\\ShellComponents\\WindowsInternal.ComposableShell.Experiences.Switcher.dll").c_str(), hash) &&
-                !_wcsicmp(hash, L"A9A33AE9735F191895B39A2C62E2510993C3CA6E66D6723A5E16C770C70265F8") &&
+                !_wcsicmp(hash, L"629A138D1A96FDD817A07B45478329AFBF644826E256E89CF4CD373A7D8DDFB0") &&
                 NativeHashFile((base + L"\\SystemResources\\ShellComponents.Switcher\\ShellComponents.Switcher.pri").c_str(), hash) &&
                 !_wcsicmp(hash, L"928753406E1636E897847D07AC5203ACF12C12C6BBC1B17E9BB56BBC037E2141");
         } catch (...) { return false; }

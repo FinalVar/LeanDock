@@ -104,12 +104,27 @@ class Metrics {
     Manager manager{nullptr};
     std::wstring mediaIdentity;
     uint64_t requestAt=0,metadataAt=0;
+    // Collect the media title and playback status from the result of a
+    // completed TryGetMediaPropertiesAsync into the sample.
+    void MediaCollect(Sample& s,winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus status) {
+        auto m=metadata.GetResults();metadata=nullptr;
+        s.mediaPlaying=status==winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;
+        s.mediaActive=true;
+        s.media=s.mediaPlaying?L"▶ ":L"⏸ ";
+        s.media+=m.Title();
+        if(!m.Artist().empty())s.media+=L" — "+std::wstring(m.Artist());
+    }
     void MediaRead(Sample& s) {
         using namespace winrt::Windows::Media::Control;
         using winrt::Windows::Foundation::AsyncStatus;
         const auto now=GetTickCount64();
         try {
-            if(!manager&&!request){request=Manager::RequestAsync();requestAt=now;}
+            if(!manager&&!request){request=Manager::RequestAsync();requestAt=now;
+                // First call: wait briefly so the manager is ready within this tick.
+                if(request.wait_for(std::chrono::milliseconds(150))==AsyncStatus::Completed){
+                    manager=request.GetResults();request=nullptr;
+                }
+            }
             if(request){
                 auto status=request.Status();
                 if(status==AsyncStatus::Completed){manager=request.GetResults();request=nullptr;}
@@ -117,27 +132,49 @@ class Metrics {
             }
             if(!manager)return;
             auto current=manager.GetCurrentSession();
-            if(!current){if(metadata)metadata.Cancel();metadata=nullptr;s.media=L"没有在播放";return;}
+            if(!current){if(metadata)metadata.Cancel();metadata=nullptr;s.media=L"没有在播放";s.mediaActive=s.mediaPlaying=false;return;}
             const std::wstring identity(current.SourceAppUserModelId());
             if(identity!=mediaIdentity){
                 if(metadata)metadata.Cancel();metadata=nullptr;mediaIdentity=identity;
-                s.media=L"没有在播放";
+                s.media=L"没有在播放";s.mediaActive=s.mediaPlaying=false;
             }
             auto status=current.GetPlaybackInfo().PlaybackStatus();
             if(status==GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed||
                status==GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped){
-                if(metadata)metadata.Cancel();metadata=nullptr;s.media=L"没有在播放";return;
+                if(metadata)metadata.Cancel();metadata=nullptr;s.media=L"没有在播放";s.mediaActive=s.mediaPlaying=false;return;
+            }
+            s.mediaPlaying=status==GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;
+            if(!s.media.empty()&&s.media!=L"没有在播放"){
+                s.mediaActive=true;
+                if(s.media.size()>=2&&(s.media[0]==L'▶'||s.media[0]==L'⏸'))s.media[0]=s.mediaPlaying?L'▶':L'⏸';
             }
             if(metadata){
                 auto st=metadata.Status();
                 if(st==AsyncStatus::Completed){
-                    auto m=metadata.GetResults();metadata=nullptr;
-                    s.media=status==GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing?L"▶ ":L"⏸ ";
-                    s.media+=m.Title();
-                    if(!m.Artist().empty())s.media+=L" — "+std::wstring(m.Artist());
+                    MediaCollect(s,status);
                 }else if(st!=AsyncStatus::Started||now-metadataAt>3000){metadata.Cancel();metadata=nullptr;}
             }
-            if(!metadata){metadata=current.TryGetMediaPropertiesAsync();metadataAt=now;}
+            if(!metadata){metadata=current.TryGetMediaPropertiesAsync();metadataAt=now;
+                // First fetch: wait briefly so the title is ready before the panel
+                // appears, instead of arriving one or two ticks late.
+                if(metadata.wait_for(std::chrono::milliseconds(150))==AsyncStatus::Completed){
+                    MediaCollect(s,status);
+                }
+            }
+        }catch(...){if(metadata)try{metadata.Cancel();}catch(...){}metadata=nullptr;}
+    }
+    void MediaCommand(Control target,Sample& s) {
+        try {
+            if(!manager)return;
+            auto current=manager.GetCurrentSession();
+            if(!current)return;
+            winrt::Windows::Foundation::IAsyncOperation<bool> op{nullptr};
+            if(target==Control::MediaPrev)op=current.TrySkipPreviousAsync();
+            else if(target==Control::MediaNext)op=current.TrySkipNextAsync();
+            else op=current.TryTogglePlayPauseAsync();
+            if(op)(void)op.wait_for(std::chrono::milliseconds(250));
+            if(metadata){metadata.Cancel();metadata=nullptr;}
+            MediaRead(s);
         }catch(...){if(metadata)try{metadata.Cancel();}catch(...){}metadata=nullptr;}
     }
     void Gpu(Sample& s) {
@@ -274,9 +311,10 @@ class Metrics {
                 try{Details(s);controls->Read(s,!slow);if(hotspot)readHotspot(s);}catch(...){Log(L"detail-sample-error");}publish=true;}
             // Each page reads its devices only while it is open.
             const auto current=show?page.load():PanelPage::Main;
-            if(const bool on=current==PanelPage::Wifi;on!=wifi->Active()){if(on)wifi->Open();else wifi->Close(s.wifiList);publish=true;}
+            if(const bool on=current==PanelPage::Wifi;on!=wifi->Active()){
+                if(on)wifi->Open();else{wifi->Close(s.wifiList);if(show)controls->RefreshTargets(s);}publish=true;}
             if(const bool on=current==PanelPage::Bluetooth;on!=bluetooth->Active()){
-                if(on)bluetooth->Open();else bluetooth->Close(s.bluetoothList);publish=true;}
+                if(on)bluetooth->Open();else{bluetooth->Close(s.bluetoothList);if(show)controls->RefreshTargets(s);}publish=true;}
             if(const bool on=current==PanelPage::Sound;on!=sound->Active()){if(on)sound->Open();else sound->Close(s.sound);publish=true;}
             if(const bool on=current==PanelPage::Hotspot;on!=hotspot){
                 hotspot=on;publish=true;
@@ -298,6 +336,8 @@ class Metrics {
                 // Completes when the system has stored the settings.
                 case Control::HotspotConfigure:controls->HotspotConfigure(command,s);
                     SecureZeroMemory(command.secret.data(),command.secret.size()*sizeof(wchar_t));break;
+                case Control::MediaPrev:case Control::MediaToggle:case Control::MediaNext:
+                    MediaCommand(command.target,s);++s.writes;done();break;
                 default:controls->Apply(std::move(command),s);break;
                 }
                 publish=true;}
@@ -307,7 +347,27 @@ class Metrics {
                 if(hotspot&&s.completed[unsigned(Control::HotspotConfigure)]!=saved)try{readHotspot(s);}catch(...){}
             }
             if(!stop.stop_requested()&&wifi->Active()&&wifi->Pump(s.wifiList,s.writes))publish=true;
+            if(wifi->Active()&&s.wifiList.ready&&!s.wifiList.unreadable){
+                WifiConnection conn;conn.known=true;conn.connecting=!s.wifiList.connecting.empty();
+                if(!conn.connecting)for(auto const& n:s.wifiList.networks)if(n.connected){
+                    conn.connected=true;conn.ssid=TrimSpaces(n.ssid);break;
+                }
+                const auto label=WifiConnectionLabel(s.wifi,conn,RadioLabel(s.wifi));
+                if(s.wifiLabel!=label){s.wifiLabel=label;publish=true;}
+            }
             if(!stop.stop_requested()&&bluetooth->Active()&&bluetooth->Pump(s.bluetoothList,s.writes))publish=true;
+            if(bluetooth->Active()&&s.bluetoothList.ready&&!s.bluetoothList.unreadable){
+                const auto summary=SummarizeBluetoothDeviceState(s.bluetoothList.devices);
+                const auto label=BluetoothConnectionLabel(s.bluetooth,true,summary.label);
+                const bool labelChanged=s.bluetoothLabel!=label;
+                if(labelChanged){s.bluetoothLabel=label;publish=true;}
+                int btBattery=-1;
+                if(s.bluetooth==1||s.bluetooth==2){
+                    if(summary.battery>=0)btBattery=summary.battery;
+                    else if(!labelChanged&&summary.container!=winrt::guid{})btBattery=s.bluetoothBattery;
+                }
+                if(s.bluetoothBattery!=btBattery){s.bluetoothBattery=btBattery;publish=true;}
+            }
             if(!stop.stop_requested()&&sound->Active()&&sound->Pump(s.sound))publish=true;
             if(!show&&opened){
                 controls->Close(s);opened=false;publish=true;slow=false;

@@ -1,0 +1,32 @@
+{
+  "version": "0.8.130",
+  "date": "2026-11-22T18:07:00+08:00",
+  "state": "Built (BackendOnly), grid-latest (235910 invariants), tray-styles-latest (40 checks), geometry-latest (343 checks), cards-aggregate-latest (549 checks), cards-aggregate-host-latest (hidden WinRT XAML host: leftPadding=9, marginLeft=-10, reservedWidth=78, stop restore), PE imports check, and Update -ValidateOnly passed; packaged at leandock-0.8.130-package\\latest (awaiting elevated interactive desktop Update on WinSta0\\Default)",
+  "backendVersion": "0.5.110",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.129",
+  "userRequest": {
+    "At": "2026-11-22",
+    "Question": "你觉得两边空白合适吗，leandock -> 行，改好，项目在用户目录下",
+    "Scope": "Tighten horizontal Dock end padding with right-side optical balance (left 16 DIP / 24 px at 150% DPI via RootGrid.Padding.Left=9 & BackgroundControl.Margin.Left=-10; right 15 DIP / 22.5 px via SystemTrayFrameGrid.Padding=8,0,10,0) and tighten tray column pitch from 28 DIP (cell+4) to 24 DIP (cell, matching 24 DIP row pitch)."
+  },
+  "change": {
+    "DockEndPaddingAndOpticalBalance": "src/cards-aggregate-latest.cpp + baseline/styles-latest.json + baseline/settings-latest.json: tighten RootGrid left padding from 12 to 9 DIP (and matching BackgroundControl.Margin.Left from -13 to -10 DIP, budget adjustment -57 -> -54), bringing visible left icon-to-capsule edge from 19 DIP (28.5 px @150%) to 16 DIP (24 px @150%); tighten SystemTrayFrameGrid right padding from 12 to 10 DIP so combined with 24 DIP pitch the visible right tray-icon-to-capsule edge moves from 19 DIP (28.5-30 px @150%) to 15 DIP (22.5 px @150%), keeping hover-box corner clearance inside the 29 DIP inner arc for both odd and even tray counts.",
+    "TrayColumnPitch": "src/tray-cards-latest.inc + build/generate-latest.py: change tray column pitch from cell+4 (28 DIP) to cell (24 DIP, matching 24 DIP vertical row pitch) in both active UpdateUnifiedDockGrid and legacy UpdateLegacyUnifiedDockGrid, aligning horizontal tray icon gap (~12 px @150%) with vertical gap (~12-13 px) and clock-to-tray gap (~19 px).",
+    "TestsAndDocs": "tests/grid-latest.cpp + tests/cards-aggregate-host-latest.cpp + tests/tray-styles-latest.py + README.md + docs/verification-v0.8.129.json + docs/verification-latest.json: update grid invariants to 24 DIP pitch, assert leftPadding=9 / marginLeft=-10 and Padding=8,0,10,0 / pitch=cell in generated C++, archive 0.8.129 verification, and update README changelog."
+  },
+  "checks": {
+    "UnitAndFixtureSuites": "grid-latest (235910 invariants, 0 failed), tray-styles-latest (40 checks, 0 failed), geometry-latest (343 checks, 0 failed), cards-aggregate-latest (549 checks, 0 failed), cards-aggregate-host-latest (hidden WinRT XAML island: surfaceCenter=29, keyCenter=29, leftPadding=9, marginLeft=-10, reservedWidth=78, stop restore verified), imports-latest.py exit 0 (system DLLs only)",
+    "UpdatePreflight": "latest.ps1 -Action Update -PackagePath leandock-0.8.130-package\\latest -ValidateOnly passed (ChangedFiles: 17, RuntimeChanged: [latest.dll], PreserveConfiguration: true); Rollback -ValidateOnly on before-0.8.129-20261121-131630959 passed (15 files intact)"
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "8E3215E0182636BBCD35652B7E2E819719B0B2A7E05F307C76E7F1BD8C69FC80",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "83347F5B4901F909E0CB622BFC4BC48186262A99634E629ACD192AC8D6201E05"
+  },
+  "notVerified": [
+    "Elevated interactive desktop Update load and live visual inspection on WinSta0\\Default"
+  ]
+}

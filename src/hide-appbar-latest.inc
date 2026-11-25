@@ -108,20 +108,20 @@ void InstallAppBarCompatibility() {
     const HMODULE module=GetModuleHandleW(nullptr),shell=GetModuleHandleW(L"shell32.dll");
     wchar_t path[32768]{},hash[65]{};
     const NativeModulePin pins[]={
-        {L"explorer.exe",L"",L"EEE089FE6F927C7F0D51B0ABD9D70C094157E33673AD760713EC7B1CEA18EE11",3202867519u,3424256u},
-        {L"shell32.dll",L"",L"C55A5F3B6EF059871FE2A0C8D82F086E0998D1154023E3ECF49698B97F9341F6",292758140u,7979008u}};
+        {L"explorer.exe",L"",L"EEE840F2BCE235DCE1DA0A5F4EACDB94A2BFB11ACF13822D7DBCD243273219C3",3256690699u,3309568u},
+        {L"shell32.dll",L"",L"10560EFF83911E165674ADAFD31E05450CA827F2B5800E91130823B1E854F5D0",1005834574u,8060928u}};
     const HMODULE modules[]={module,shell};
     for(unsigned i=0;i<2;++i)if(!GetModuleFileNameW(modules[i],path,std::size(path)) ||
         !NativeHashFile(path,hash) || _wcsicmp(hash,pins[i].sha256) || !NativeValidModule(modules[i],pins[i])) {
         Wh_Log(L"AppBar gap compatibility unavailable: module identity differs; native behavior retained");return;
     }
-    // RVA 0x603f0, function extent [0x603f0,0x605b0), public symbol:
+    // RVA 0x72a8, function extent [0x72a8,0x7464), public symbol:
     // CTray::_OnAppBarMessage(tagCOPYDATASTRUCT*). Original is called first;
     // no borrowed request, shared memory or object field is ever modified.
     const bool cache=WindhawkUtils::SetFunctionHook(SetPropW,AppBarSetProp_Hook,&AppBarSetProp_Original);
     const bool internal=WindhawkUtils::SetFunctionHook(SHAppBarMessage,AppBarPublic_Hook,&AppBarPublic_Original);
     const bool messages=WindhawkUtils::SetFunctionHook(
-        reinterpret_cast<AppBarMessage_t>(reinterpret_cast<BYTE*>(module)+0x603f0),
+        reinterpret_cast<AppBarMessage_t>(reinterpret_cast<BYTE*>(module)+0x72a8),
         AppBarMessage_Hook,&AppBarMessage_Original);
     g_appBarHookInstalled=cache && internal && messages;
 }

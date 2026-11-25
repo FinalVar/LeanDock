@@ -86,7 +86,7 @@ inline unsigned VerifyControlModel(){
         check(hit(170,80)==PanelPart::Bluetooth);check(hit(245,80)==PanelPart::Bluetooth);check(hit(275,80)==PanelPart::BluetoothMore);
         check(hit(24,182)==PanelPart::Mute);check(hit(140,182)==PanelPart::Volume);
         check(hit(270,182)==PanelPart::VolumeMore);check(hit(240,182)==PanelPart::None);check(hit(270,224)==PanelPart::None);
-        check(hit(140,224)==PanelPart::Brightness);check(hit(150,80)==PanelPart::None);
+        check(hit(24,224)==PanelPart::BrightnessToggle);check(hit(140,224)==PanelPart::Brightness);check(hit(150,80)==PanelPart::None);
         check(hit(14,286)==PanelPart::None);check(hit(140,252)==PanelPart::None);
         check(hit(20,130)==PanelPart::DarkTheme);check(hit(135,130)==PanelPart::DarkTheme);
         check(hit(170,130)==PanelPart::Hotspot);check(hit(245,130)==PanelPart::Hotspot);check(hit(275,130)==PanelPart::HotspotMore);
@@ -95,6 +95,101 @@ inline unsigned VerifyControlModel(){
     check(SliderValue(-100)==0);check(SliderValue(500)==100);
     check(SliderValue(SliderLeft)==0);check(SliderValue(SliderRight)==100);
     check(SliderValue((SliderLeft+SliderRight)/2)==50);
+    {   int saved=0;
+        check(ToggleBrightness(0,saved)==50&&saved==0);
+        check(ToggleBrightness(82,saved)==0&&saved==82);
+        check(ToggleBrightness(0,saved)==82&&saved==82);
+        check(ToggleBrightness(35,saved)==0&&saved==35);
+        check(ToggleBrightness(0,saved)==35);
+    }
+    {   // Repeated min/restore clicks across lagging WMI readback (0 -> saved -> 0 -> saved).
+        int saved=0,actual=82;uint64_t completed=0;PanelValueRequest req;BrightnessSettle settle;
+        // 1st click: 82 -> 0, immediate hardware readback 0 settles at once.
+        int shown=req.Display(actual,completed,1000);
+        int next=ToggleBrightness(shown,saved);
+        check(next==0&&saved==82);
+        req={1,1000,next};actual=0;
+        settle.Begin(1,next,actual,true,1010,completed);
+        check(!settle.Active()&&completed==1);
+        // 2nd click: 0 -> 82, but immediate WMI readback lags at 0 and then mid-ramp 35.
+        shown=req.Display(actual,completed,1600);
+        next=ToggleBrightness(shown,saved);
+        check(next==82&&saved==82);
+        req={2,1600,next};actual=0;
+        settle.Begin(2,next,actual,true,1610,completed);
+        check(settle.Active()&&completed==1&&!settle.Due(1650)&&settle.Due(1710));
+        // 3rd click while WMI still lags at 0 (before settle finishes): must still dim to 0.
+        shown=req.Display(actual,completed,1680);
+        check(shown==82);
+        int savedCheck=saved;
+        check(ToggleBrightness(shown,savedCheck)==0&&savedCheck==82);
+        // Mid-ramp readback 35 keeps settle pending and never pollutes savedBrightness.
+        actual=35;settle.Observe(actual,1710,completed);
+        check(settle.Active()&&completed==1&&req.Display(actual,completed,1750)==82);
+        // Settled readback 82 completes serial 2; 3rd click at 2400 ms (within old 3s poll gap) dims to 0.
+        actual=82;settle.Observe(actual,1810,completed);
+        check(!settle.Active()&&completed==2);
+        shown=req.Display(actual,completed,2400);
+        next=ToggleBrightness(shown,saved);
+        check(shown==82&&next==0&&saved==82);
+        req={3,2400,next};actual=82; // Even if 100->0 lags at 82 initially:
+        settle.Begin(3,next,actual,true,2410,completed);
+        check(settle.Active()&&completed==2&&req.Display(actual,completed,2500)==0);
+        // 4th click restores 82 cleanly; failed write completes immediately without fake settle.
+        shown=req.Display(actual,completed,2500);
+        next=ToggleBrightness(shown,saved);
+        check(next==82&&saved==82);
+        settle.Begin(4,82,0,false,2520,completed);
+        check(!settle.Active()&&completed==4);
+        // Timeout fallback settles cleanly if hardware quantizes to a nearby step.
+        settle.Begin(5,82,80,true,3000,completed);
+        check(settle.Active()&&completed==4);
+        settle.Observe(80,3000+BrightnessSettle::Limit-1,completed);
+        check(settle.Active()&&completed==4);
+        settle.Observe(80,3000+BrightnessSettle::Limit,completed);
+        check(!settle.Active()&&completed==5);
+    }
+    {   // Paced brightness writes across rapid 80 ms click bursts and desync nudges.
+        BrightnessPacer pacer;uint64_t completed=0,dueSer=0;int dueTgt=-1,saved=0,actual=100;
+        PanelValueRequest req;
+        check(pacer.Ready(1000)&&pacer.Remaining(1000)==0&&!pacer.Active());
+        // Click 1 at 1000 ms (100 -> 0): dispatches immediately.
+        int shown=req.Display(actual,completed,1000);
+        int next=ToggleBrightness(shown,saved);
+        check(next==0&&saved==100&&pacer.Request(1,next,1000));
+        req={1,1000,next};pacer.RecordWrite(1000);actual=0;completed=1;
+        // Clicks 2..5 at 80 ms intervals (1080, 1160, 1240, 1320):
+        // Click 2 (1080 -> 100) and Click 3 (1160 -> 0) coalesce inside the 240 ms window
+        // while req.Display immediately reflects every toggle without dropping Click 3.
+        shown=req.Display(actual,completed,1080);next=ToggleBrightness(shown,saved);
+        check(shown==0&&next==100&&!pacer.Request(2,next,1080)&&pacer.Active());
+        req={2,1080,next};
+        check(pacer.Remaining(1080)==160&&!pacer.TakeDue(1160,dueSer,dueTgt));
+        shown=req.Display(actual,completed,1160);next=ToggleBrightness(shown,saved);
+        check(shown==100&&next==0&&!pacer.Request(3,next,1160)&&pacer.Active());
+        req={3,1160,next};
+        // At 1240 ms, PaceMs elapsed: TakeDue yields serial 3 target 0.
+        check(pacer.TakeDue(1240,dueSer,dueTgt)&&dueSer==3&&dueTgt==0&&!pacer.Active());
+        // Desync nudge schedules follow-up for the same serial after PaceMs.
+        pacer.RecordWrite(1240,3,0);
+        check(pacer.Active()&&!pacer.TakeDue(1400,dueSer,dueTgt));
+        check(pacer.TakeDue(1480,dueSer,dueTgt)&&dueSer==3&&dueTgt==0&&!pacer.Active());
+        pacer.RecordWrite(1480);completed=3;
+        // Clear completes any deferred serial on teardown.
+        check(!pacer.Request(4,100,1550)&&pacer.Active());
+        pacer.Clear(completed);check(!pacer.Active()&&completed==4);
+    }
+    {   // Light-mode inactive control and hover contrast over pure white (#FFFFFF).
+        Palette pal(true,0x005FB8);
+        auto overWhite=[](D2D1_COLOR_F fg){return D2D1_COLOR_F{1*(1-fg.a)+fg.r*fg.a,1*(1-fg.a)+fg.g*fg.a,1*(1-fg.a)+fg.b*fg.a,1};};
+        const auto rest=overWhite(pal.control);
+        const D2D1_COLOR_F hovered{rest.r*(1-pal.hover.a)+pal.hover.r*pal.hover.a,
+            rest.g*(1-pal.hover.a)+pal.hover.g*pal.hover.a,rest.b*(1-pal.hover.a)+pal.hover.b*pal.hover.a,1};
+        check(rest.r<.96f&&pal.controlEdge.r<.2f&&pal.controlEdge.a>=.08f);
+        check(hovered.r<rest.r-.06f);
+        Palette dark(false,0x60CDFF);
+        check(dark.control.r>.99f&&dark.control.a==.075f&&dark.hover.a==.07f);
+    }
     PanelGesture g;g.Begin(PanelPart::Brightness,60);
     check(g.Dragging());check(g.Send(60,100));check(!g.Send(180,120));
     check(g.preview==76);check(g.Send(180,180));check(!g.Send(180,280));
@@ -102,9 +197,11 @@ inline unsigned VerifyControlModel(){
     g.Cancel();check(!g.Dragging()&&g.pressed==PanelPart::None);check(!g.Send(244,500,true));
     g.Begin(PanelPart::Wifi,20);check(!g.Dragging());g.Cancel();
     Controls state;check(!PanelEnabled(PanelPart::Volume,state));check(!PanelEnabled(PanelPart::Brightness,state));
+    check(!PanelEnabled(PanelPart::BrightnessToggle,state));
     check(!PanelEnabled(PanelPart::Wifi,state));check(PanelEnabled(PanelPart::WifiMore,state));
     state.volume=20;state.brightness=100;state.wifi=1;state.bluetooth=0;
     check(PanelEnabled(PanelPart::Mute,state));check(PanelEnabled(PanelPart::Brightness,state));
+    check(PanelEnabled(PanelPart::BrightnessToggle,state));state.brightness=0;check(PanelEnabled(PanelPart::BrightnessToggle,state));
     check(PanelEnabled(PanelPart::Wifi,state));state.bluetoothBusy=true;check(!PanelEnabled(PanelPart::Wifi,state));
     state.bluetoothBusy=false;state.wifi=3;check(!PanelEnabled(PanelPart::Wifi,state));
     check(!PanelEnabled(PanelPart::DarkTheme,state));check(!PanelEnabled(PanelPart::Hotspot,state));
@@ -131,11 +228,58 @@ inline unsigned VerifyControlModel(){
     check(motion.volume.At(3000)==0&&!motion.volume.Active(3000)); // A drag is never eased.
     live.volume=-1;motion.Update(live,PanelPart::None,idle,4000,true);check(motion.volume.At(4000)==0);
     live.volume=50;motion.Update(live,PanelPart::None,idle,5000,false);check(motion.volume.At(5000)==50&&!motion.Active(5000));
+    {   Stack st(10);
+        check(st.Next(20,5)==10&&st.y==35);
+        check(st.Cut(3,7)==38&&st.y==45);
+        check(PanelStatic.batteryY+PanelStatic.infoRowH==PanelStatic.gpuBaseY);
+    }
     Sample s;PanelLayout empty(s,0);check(empty.mediaY<0&&empty.temperatureY<0&&empty.trayY<0);
+    check(PanelHit(220,400,empty.mediaY)==PanelPart::None);
     auto cuts=empty.Cuts();check(cuts.front()==0&&cuts.back()==empty.height&&std::is_sorted(cuts.begin(),cuts.end()));
-    s.media=L"▶ 测试标题";s.error=L"设备已断开";PanelLayout content(s,7);
+    s.media=L"▶ 测试标题";s.mediaActive=true;s.mediaPlaying=true;s.error=L"设备已断开";PanelLayout content(s,7);
     check(content.mediaY>=0&&content.errorY>content.mediaY&&content.trayY>content.errorY);
+    check(PanelHit(220,content.mediaY+10,content.mediaY)==PanelPart::MediaPrev);
+    check(PanelHit(248,content.mediaY+10,content.mediaY)==PanelPart::MediaToggle);
+    check(PanelHit(274,content.mediaY+10,content.mediaY)==PanelPart::MediaNext);
+    check(PanelHit(286,content.mediaY+10,content.mediaY)==PanelPart::MediaNext);
+    check(PanelHit(120,content.mediaY+10,content.mediaY)==PanelPart::None);
+    check(PanelEnabled(PanelPart::MediaToggle,s));
+    s.mediaActive=false;check(!PanelEnabled(PanelPart::MediaToggle,s));
+    {   std::wstring buf;buf.reserve(64);buf=L"secret123";bool sel=false;
+        auto fakePaste=[](std::wstring& t,size_t lim,bool){for(wchar_t c:std::wstring_view(L"newkey"))if(t.size()<lim)t.push_back(c);};
+        EditFieldWith(buf,sel,0x01,63,true,fakePaste);check(sel&&buf==L"secret123");
+        EditFieldWith(buf,sel,0x16,63,true,fakePaste);check(!sel&&buf==L"newkey"&&buf.data()[6]==0);
+        EditFieldWith(buf,sel,0x7F,63,true,fakePaste);check(!sel&&buf.empty()&&buf.data()[0]==0);
+        buf=L"abcd";EditFieldWith(buf,sel,0x01,63,true,fakePaste);
+        EditFieldWith(buf,sel,L'X',63,true,fakePaste);check(!sel&&buf==L"X"&&buf.data()[1]==0);
+    }
     check(content.height>empty.height&&content.trayY+52<content.height);
+    check(TrimSpaces(L"").empty()&&TrimSpaces(L" \t\r\n").empty()&&TrimSpaces(L"  Inphic IN9 \t")==L"Inphic IN9");
+    check(TileRadioLabel(0,L"NWAFU")==L"已关闭"&&TileRadioLabel(3,L"NWAFU")==L"硬件已禁用"&&TileRadioLabel(-1,L"NWAFU")==L"不可用");
+    check(TileRadioLabel(1,L"")==L"已开启"&&TileRadioLabel(2,L"")==L"部分开启"&&TileRadioLabel(1,L"NWAFU")==L"NWAFU");
+    check(WifiConnectionLabel(1,{},RadioLabel(1))==L"已开启"&&WifiConnectionLabel(2,{},RadioLabel(2))==L"部分开启");
+    check(WifiConnectionLabel(1,{true,true,false,L"NWAFU"},RadioLabel(1))==L"NWAFU");
+    check(WifiConnectionLabel(1,{true,true,false,{}},RadioLabel(1))==L"已连接");
+    check(WifiConnectionLabel(1,{true,false,true,{}},RadioLabel(1))==L"正在连接…");
+    check(WifiConnectionLabel(1,{true,false,false,{}},RadioLabel(1))==L"未连接");
+    check(WifiConnectionLabel(2,{true,false,false,{}},RadioLabel(2))==L"部分开启");
+    check(WifiConnectionLabel(0,{true,true,false,L"NWAFU"},RadioLabel(0))==L"已关闭");
+    check(BluetoothConnectionLabel(1,false,{})==L"已开启"&&BluetoothConnectionLabel(2,false,{})==L"部分开启");
+    check(BluetoothConnectionLabel(1,true,L"未连接")==L"未连接"&&BluetoothConnectionLabel(2,true,L"未连接")==L"部分开启");
+    check(BluetoothConnectionLabel(0,true,L"2 个已连接")==L"已关闭");
+    check(SummarizeBluetoothTargets({})==L"未连接");
+    check(SummarizeBluetoothTargets({{winrt::guid{},L"a",L"Inphic IN9 "}})==L"Inphic IN9");
+    check(SummarizeBluetoothTargets({{winrt::guid{},L"a",L"  "},{winrt::guid{},L"b",L"WH-1000XM4"}})==L"WH-1000XM4");
+    const winrt::guid c1{0x11111111,0x2222,0x3333,{1,2,3,4,5,6,7,8}};
+    const winrt::guid c2{0xaaaaaaaa,0xbbbb,0xcccc,{1,2,3,4,5,6,7,8}};
+    check(SummarizeBluetoothTargets({{c1,L"le",L"Mouse "},{c1,L"br",L"Mouse LE"}})==L"Mouse");
+    check(SummarizeBluetoothTargets({{c1,L"a",L"Inphic IN9"},{c2,L"b",L"WH-1000XM4"}})==L"2 个已连接");
+    check(SummarizeBluetoothTargets({{winrt::guid{},L"a",L"A"},{winrt::guid{},L"b",L"B"}})==L"2 个已连接");
+    {
+        BluetoothDevice off{L"x",L"PairedOnly",c1,BluetoothKind::Mouse,-1,false,false};
+        BluetoothDevice on{L"y",L"Inphic IN9 ",c2,BluetoothKind::Mouse,-1,true,false};
+        check(SummarizeBluetoothDevices({off,on})==L"Inphic IN9");
+    }
     return count;
 }
 inline WifiList FixtureNetworks(){
@@ -206,7 +350,7 @@ inline BluetoothList FixtureDevices(){
     auto add=[&](std::wstring name,BluetoothKind kind,bool connected,bool audio,int battery){
         BluetoothDevice d;d.id=L"aep:"+name;d.name=std::move(name);d.kind=kind;d.connected=connected;d.audio=audio;d.battery=battery;
         b.devices.push_back(std::move(d));};
-    add(L"WH-1000XM4",BluetoothKind::Headphones,true,true,80);add(L"MX Master 3",BluetoothKind::Mouse,true,false,-1);
+    add(L"WH-1000XM4",BluetoothKind::Headphones,true,true,80);add(L"MX Master 3",BluetoothKind::Mouse,true,false,15);
     add(L"Xiaomi 13",BluetoothKind::Phone,false,false,-1);add(L"小爱音箱 Play",BluetoothKind::Speaker,false,true,-1);
     SortDevices(b.devices);return b;
 }
@@ -234,7 +378,25 @@ inline unsigned VerifyPageModels(){
     check(devices.devices[0].connected&&devices.devices[1].connected&&!devices.devices[2].connected);
     auto named=[&](std::wstring const& name)->BluetoothDevice const&{
         return *std::find_if(devices.devices.begin(),devices.devices.end(),[&](auto const& d){return d.name==name;});};
-    check(BluetoothSubtitle(named(L"WH-1000XM4"),devices)==L"已连接 · 电量 80%"&&BluetoothSubtitle(named(L"MX Master 3"),devices)==L"已连接");
+    check(BluetoothSubtitle(named(L"WH-1000XM4"),devices)==L"已连接"&&BluetoothSubtitle(named(L"MX Master 3"),devices)==L"已连接");
+    {
+        const winrt::guid c1{0x11111111,0x2222,0x3333,{0x44,0x55,0x66,0x77,0x88,0x99,0xaa,0xbb}};
+        const winrt::guid c2{0xaaaaaaaa,0xbbbb,0xcccc,{0xdd,0xee,0xff,0x00,0x11,0x22,0x33,0x44}};
+        const auto s0=SummarizeBluetoothTargetState({});
+        check(s0.label==L"未连接"&&s0.container==winrt::guid{}&&s0.battery==-1);
+        const auto s1=SummarizeBluetoothTargetState({{c1,L"a",L"Inphic IN9",-1},{c1,L"b",L"Inphic IN9",75}});
+        check(s1.label==L"Inphic IN9"&&s1.container==c1&&s1.battery==75);
+        const auto s2=SummarizeBluetoothTargetState({{c1,L"a",L"Inphic IN9",75},{c2,L"c",L"WH-1000XM4",80}});
+        check(s2.label==L"2 个已连接"&&s2.container==winrt::guid{}&&s2.battery==-1);
+        const auto dsum=SummarizeBluetoothDeviceState(devices.devices);
+        check(dsum.label==L"2 个已连接"&&dsum.battery==-1);
+        std::vector<BluetoothDevice> one{named(L"WH-1000XM4")};
+        check(SummarizeBluetoothDeviceState(one).label==L"WH-1000XM4"&&SummarizeBluetoothDeviceState(one).battery==80);
+        check(TileBluetoothBattery(1,false,75)==75&&TileBluetoothBattery(2,false,15)==15&&
+            TileBluetoothBattery(1,true,75)==-1&&TileBluetoothBattery(0,false,75)==-1&&
+            TileBluetoothBattery(1,false,-1)==-1&&TileBluetoothBattery(1,false,101)==-1);
+        check(BluetoothBatteryAqs(c1).find(L"System.Devices.ContainerId:=\"")==0);
+    }
     check(BluetoothSubtitle(devices.devices[2],devices)==L"未连接");
     BluetoothView bt;BluetoothLayout closed(devices,bt,406);
     check(closed.rows.size()==4&&closed.content==4*(DeviceRowHeight+2));
@@ -288,7 +450,8 @@ inline int ControlsProbe(){
     Metrics metrics;metrics.Start(nullptr);metrics.Visible(true);
     const auto deadline=GetTickCount64()+6000;
     Sample data;
-    do{Sleep(100);data=metrics.Read();}while(GetTickCount64()<deadline&&(data.reads<2||data.wifi<0||data.bluetooth<0));
+    do{Sleep(100);data=metrics.Read();}while(GetTickCount64()<deadline&&
+        (data.reads<2||data.wifi<0||data.bluetooth<0||(data.bluetooth==1&&data.bluetoothLabel==L"已开启")));
     // Each page's own reads on this machine, still read-only.
     auto page=[&](PanelPage p,auto ready){
         metrics.Page(p);const auto end=GetTickCount64()+3000;Sample d;
@@ -298,6 +461,15 @@ inline int ControlsProbe(){
     const auto sound=page(PanelPage::Sound,[](Sample const& d){return d.sound.ready;});
     const auto hotspot=page(PanelPage::Hotspot,[](Sample const& d){return d.hotspotInfo.ready;});
     metrics.Page(PanelPage::Main);Sleep(200);const bool pagesCleared=!metrics.Read().hotspotInfo.ready&&!metrics.Read().sound.ready;
+    const bool wifiTargetOk=data.wifi!=1||(!data.wifiLabel.empty()&&data.wifiLabel!=L"已开启");
+    const auto btExpectedSummary=(bt.bluetoothList.ready&&!bt.bluetoothList.unreadable)
+        ?SummarizeBluetoothDeviceState(bt.bluetoothList.devices):BluetoothTargetSummary{};
+    const auto btExpected=btExpectedSummary.label.empty()
+        ?std::wstring{}:BluetoothConnectionLabel(bt.bluetooth,true,btExpectedSummary.label);
+    const bool btTargetOk=data.bluetooth!=1||(!data.bluetoothLabel.empty()&&data.bluetoothLabel!=L"已开启"&&
+        (btExpected.empty()||data.bluetoothLabel==btExpected));
+    const bool btBatteryOk=data.bluetooth!=1||btExpectedSummary.battery<0||data.bluetoothBattery<0||
+        data.bluetoothBattery==btExpectedSummary.battery;
     metrics.Visible(false);Sleep(300);auto hidden=metrics.Read();Sleep(1200);auto idle=metrics.Read();
     const auto beforeStop=GetTickCount64();metrics.Stop();const auto stopMs=GetTickCount64()-beforeStop;metrics.Stop();
     const bool readonly=data.writes==0&&idle.writes==0&&themeBefore==ThemeControl::Read();
@@ -314,12 +486,13 @@ inline int ControlsProbe(){
         fprintf(detail,"],\"hiddenSamplingUnchanged\":%s}\n",noHiddenReads?"true":"false");fclose(detail);}
     FILE* f=_wfopen((Directory()+L"\\controls-probe-latest.json").c_str(),L"w");
     if(f){fprintf(f,"{\"policyChecks\":%u,\"normalUser\":%s,\"volume\":%d,\"mute\":%s,\"brightness\":%d,"
-        "\"wifi\":%d,\"bluetooth\":%d,\"reads\":%llu,\"writes\":%llu,\"hiddenReadsUnchanged\":%s,"
+        "\"wifi\":%d,\"bluetooth\":%d,\"wifiTargetReady\":%s,\"bluetoothTargetReady\":%s,\"bluetoothBattery\":%d,\"bluetoothBatteryReady\":%s,\"reads\":%llu,\"writes\":%llu,\"hiddenReadsUnchanged\":%s,"
         "\"readOnly\":%s,\"stopMs\":%llu,\"visibleWindows\":false,\"actualControlWritesTested\":false,"
         "\"darkTheme\":%d,\"hotspot\":%d,\"hotspotCapability\":%d,\"hotspotClients\":%u,\"themePolicyChecks\":%u,"
         "\"bluetoothPage\":{\"ready\":%s,\"devices\":%zu},\"soundPage\":{\"ready\":%s,\"outputs\":%zu,\"apps\":%zu},"
         "\"hotspotPage\":{\"ready\":%s,\"named\":%s,\"keyRead\":%s,\"band\":%d},\"pagesCleared\":%s}\n",
         checks,Elevated()?"false":"true",data.volume,data.mute?"true":"false",data.brightness,data.wifi,data.bluetooth,
+        wifiTargetOk?"true":"false",btTargetOk?"true":"false",data.bluetoothBattery,btBatteryOk?"true":"false",
         data.reads,idle.writes,noHiddenReads?"true":"false",readonly?"true":"false",stopMs,
         data.darkTheme,data.hotspot,data.hotspotCapability,data.hotspotClients,themeChecks,
         bt.bluetoothList.ready?"true":"false",bt.bluetoothList.devices.size(),sound.sound.ready?"true":"false",
@@ -327,11 +500,12 @@ inline int ControlsProbe(){
         hotspot.hotspotInfo.ssid.empty()?"false":"true",hotspot.hotspotInfo.keyLength?"true":"false",hotspot.hotspotInfo.band,
         pagesCleared?"true":"false");fclose(f);}
     winrt::uninit_apartment();
-    return readonly&&noHiddenReads&&data.reads>=2&&stopMs<2000&&pagesCleared&&bt.bluetoothList.ready&&sound.sound.ready?0:1;
+    return readonly&&noHiddenReads&&data.reads>=2&&stopMs<2000&&pagesCleared&&bt.bluetoothList.ready&&sound.sound.ready&&wifiTargetOk&&btTargetOk?0:1;
 }
 inline Sample FixtureSample(int column){
-    Sample s;s.volume=column?-1:42;s.brightness=column?-1:78;s.wifi=column?3:1;s.bluetooth=column?-1:0;
-    s.darkTheme=column?-1:1;s.themeAvailable=!column;s.hotspot=column?-1:1;s.hotspotLabel=column?L"未连接网络":L"2 台已连接";
+    Sample s;s.volume=column?-1:42;s.brightness=column?-1:78;s.wifi=column?3:1;s.wifiLabel=column?std::wstring{}:L"NWAFU";
+    s.bluetooth=column?-1:1;s.bluetoothLabel=column?std::wstring{}:L"Inphic IN9";s.bluetoothBattery=column?-1:75;
+    s.darkTheme=column?-1:0;s.themeAvailable=!column;s.hotspot=column?-1:1;s.hotspotLabel=column?L"未连接网络":L"2 台已连接";
     s.cpu=24;s.memory=67;s.capacity=L"10.4 / 15.4 GB";
     s.gpus={{1,L"AMD Radeon(TM) Graphics",15},{2,L"NVIDIA GeForce GTX 1650",column?-1:0}};
     for(unsigned i=0;i<60;++i)AppendCpu(s.history,1000+i*1000,10+35*std::abs(std::sin(i/6.)));

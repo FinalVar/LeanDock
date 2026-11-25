@@ -38,3 +38,21 @@
 新增 LeanDock.Backdrop.Prepares / LastPrepareAt 记录真实准备次数与时间。tests/backdrop-latest.ps1 使用自有隐藏消息窗口检查准备在调用返回前完成，以及跨线程调用不会发送或阻塞；它仍不能代替真实 Dock 的首帧验收。需要继续观察快速左下触发角切换是否还有残留帧。
 
 这个接入点位于 LeanDock 隐藏策略调用的原生 Unhide 之前；Windows 内部其他展开路径可能更早，不能仅凭准备入口执行就声称已覆盖全部首帧路径。若新版仍有残留，应先区分实际展开是否早于该调用，再决定后续接入位置，避免反复调整延时。
+
+## 0.8.131：修复自动隐藏展开后上半区残白
+
+用户反馈在“最大化白底应用下短暂唤出 Dock 移开再左下热角回桌面”和“点击最小化任务恢复最大化窗口再点最小化回桌面”两条路径下，Dock 玻璃上半区仍会残留旧白底、下半区正常显露壁纸，按系统截屏后立即恢复；窗口不最大化、Dock 不发生隐藏/展开时从不复现。
+
+排查定位到四处叠加缺口：
+1. `ScheduleBackdropResume` 在首轮（16 ms）若遇到 `XamlRoot.IsHostVisible()` 暂为假，会直接 `StopBackdropResume()` 提前取消后续恢复轮次；
+2. 原计划仅两轮（16 ms 与 176 ms），早于 Windows 11 最小化与任务栏滑入动画（约 250–300 ms）结束，DWM 合成缓存的上半区脏块未被动画落位后的刷新覆盖；
+3. 仅调用 `SetSourceParameter(L"backdrop", CreateBackdropBrush())` 复用同一 `CompositionEffectBrush` 实例时，无法保证 DWM 丢弃半帧模糊缓存；
+4. 原生 `WM_WINDOWPOSCHANGED` 滑入落位（`ShownShift` 由负归零）与 `TrayUI_Unhide_Original` 后（若 `IsExpanded` 尚未同步为 1）缺少展开恢复入口。
+
+本版将恢复计划扩展为三轮有界提交（16 ms / +160 ms / +220 ms，共约 396 ms，无空闲轮询）：宿主暂未可见时跳过当轮但不取消后续轮次；终轮在非回退模式下原子替换新建的 `CompositionEffectBrush` 并关闭旧画刷以促使 DWM 丢弃残余模糊块；同时在 `TrayUI_Unhide_Original` / `CSecondaryTray__Unhide_Original` 之后与 `WM_WINDOWPOSCHANGED` 滑入落位时触发同一有界恢复。新增 `LeanDock.Backdrop.Rebuilds` 只读计数。
+
+## 0.8.132：前置原子重建消除 0.4 秒可见残白
+
+用户实测 0.8.131 反馈“出现后 0.几秒不干预自动恢复”，证实仅 `SetSourceParameter` 不足以清除半帧残白，真正起效的是终轮的原子 `CompositionEffectBrush` 重建，而该重建此前被推迟到了展开/滑入落位后的第三轮（约 396 ms）。
+
+本版将原子画刷重建提前到展开前准备（`PrepareBackdrop`）以及恢复计划的全部可见轮次（节奏收紧为 `16 ms / +110 ms / +240 ms`，总覆盖仍达 `366 ms`），使展开首帧及滑入落位后 `16 ms` 内即可完成清除，同时保留终轮兜底且维持零空闲轮询。

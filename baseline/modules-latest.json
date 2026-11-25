@@ -3,28 +3,28 @@
     "Name": "taskbar.dll",
     "Path": "C:\\Windows\\SYSTEM32\\taskbar.dll",
     "Version": "10.0.10011.16384 (WinBuild.160101.0800)",
-    "Sha256": "CA1E335AC1FAE5FF57519035302A2F365C4620D3A230F31F1231AF7331760741",
-    "ImageBytes": 3178496
+    "Sha256": "49D9F43E7BDBF3B1EE27F09C03317E6057DDCD8787749F945FD2D63816988A27",
+    "ImageBytes": 3252224
   },
   {
     "Name": "Windows.UI.Xaml.dll",
     "Path": "C:\\Windows\\System32\\Windows.UI.Xaml.dll",
-    "Version": "10.0.26100.8972 (WinBuild.160101.0800)",
-    "Sha256": "67D90AD2F75BBD50607BFD7C3D73694E948EB993C135B6BB23D4965287CA4BAD",
-    "ImageBytes": 17960960
+    "Version": "10.0.26100.9949 (WinBuild.160101.0800)",
+    "Sha256": "DA3AE828C807B56EAB79981E68DD605DAEC066B088FF8836AFBB8BD04DE18C01",
+    "ImageBytes": 17952768
   },
   {
     "Name": "Taskbar.View.dll",
     "Path": "C:\\Windows\\SystemApps\\MicrosoftWindows.Client.Core_cw5n1h2txyewy\\Taskbar.View.dll",
-    "Version": "2608.26001.200.0",
-    "Sha256": "CF7E002533DEF6628BA121481A703A06FC30ACCAA5E5CADD1A412F65F2D8BA77",
-    "ImageBytes": 10055680
+    "Version": "2609.12001.100.0",
+    "Sha256": "7340A3A3532A9DAFF47F824E4C5F08A3631DFCA5EF98100238A6F6610ABB7FD9",
+    "ImageBytes": 9973760
   },
   {
     "Name": "SystemTray.dll",
     "Path": "C:\\Windows\\SystemApps\\MicrosoftWindows.Client.Core_cw5n1h2txyewy\\SystemTray.dll",
-    "Version": "2608.26001.100.0",
-    "Sha256": "C5F5260A2A56C4D7B0EE25978AA06C387B5DDFFC57C5FE412BE429D1289913CE",
-    "ImageBytes": 2138112
+    "Version": "2609.11000.100.0",
+    "Sha256": "9772D19EC44F22AB2FCB976941D6BA6D1E66AABFB9D66367723BB9154CE7769F",
+    "ImageBytes": 2105344
   }
 ]

@@ -173,7 +173,7 @@ def main():
     winrt::event_token m_backdropTick{};
     LeanDockBackdrop::Plan m_backdropPlan;
     HWND m_backdropTaskbar{};
-    bool RefreshBackdropSource(XamlRoot const& root,HWND taskbar,bool requireVisible);
+    bool RefreshBackdropSource(XamlRoot const& root,HWND taskbar,bool requireVisible,bool rebuild=false);
     wuc::Compositor m_compositor;""")
             source = replace_once(source, "    auto fe = element.try_as<FrameworkElement>();\n\n    auto createProxy", "    auto fe = element.try_as<FrameworkElement>();\n    if(fe)m_backdropOwner=winrt::make_weak(fe);\n\n    auto createProxy")
             source = replace_once(source, "XamlBlurBrush::~XamlBlurBrush()\n{", "XamlBlurBrush::~XamlBlurBrush()\n{\n    StopBackdropResume();")
@@ -201,6 +201,7 @@ def main():
     winrt::weak_ref<Shapes::Rectangle> materialSource;
     winrt::weak_ref<Controls::Grid> materialParent;
     bool materialFailed=false;
+    bool backdropWasShifted=false;
     std::shared_ptr<LeanDockCards::Host> cards;
     bool cardsClosing=false;""")
             source = replace_once(source, "void UpdateClickThroughRegion(ClickThroughTaskbarState& state) {",
@@ -248,6 +249,8 @@ def main():
             start = source.index(signature)
             body = source.index("    switch (uMsg) {", start)
             source = source[:body] + "    if(uMsg==LeanDockMaterialProbeMessage())return SampleLeanDockMaterial(hWnd,wParam,lParam);\n    if(uMsg==LeanDockBackdrop::Message()){ResumeLeanDockBackdrop(hWnd,wParam,lParam);return 0;}\n    if(uMsg==WM_CONTEXTMENU && HandleLeanDockContext(hWnd,lParam))return 0;\n    if(uMsg==WM_TIMECHANGE)LeanDockTimeChanged(hWnd);\n    if(uMsg==LeanDockCards::PreferencesMessage())LeanDockPreferencesChanged(hWnd);\n" + source[body:]
+            source = replace_once(source, "            if (!g_applyingClickThroughRegion) {\n                ReapplyClickThroughForTopLevel(hWnd);\n            }",
+                "            if (!g_applyingClickThroughRegion) {\n                ReapplyClickThroughForTopLevel(hWnd);\n                ObserveLeanDockTaskbarPosition(hWnd);\n            }")
             source = replace_once(source, "    // LayoutUpdated is frequent; only re-apply when the result actually",
                 """    // Share only the projected, fully shown geometry. Both popup placement
     // and edge reveal track application/tray count and DPI changes automatically.
@@ -316,7 +319,8 @@ def main():
                 "CSecondaryTray__Unhide_Original(pThis, 0, 0);",
             ):
                 source = replace_once(source, unhide_call,
-                    "LeanDockBackdrop::Prepare(hWnd);\n                " + unhide_call)
+                    "LeanDockBackdrop::Prepare(hWnd);\n                " + unhide_call +
+                    "\n                LeanDockBackdrop::Notify(hWnd,LeanDockBackdrop::Reason::Expansion);")
             source = replace_once(source, "    GetTaskbarRectForMonitor(monitor, &taskbarRect);", """    GetTaskbarRectForMonitor(monitor, &taskbarRect);
     const bool precise=LeanDockGeometry::OcclusionRect(hTaskbarWnd,monitor,taskbarRect);
     SetPropW(hTaskbarWnd,L"LeanDock.Hide.Precise",reinterpret_cast<HANDLE>(uintptr_t(precise+1)));
@@ -434,8 +438,72 @@ void StopEventThread() {
     }
     if (Msg == WM_NCCREATE) {""")
         if name == "size":
-            source = '#include "icon-resolution-latest.h"\n' + source
+            source = '#include <cmath>\n#include <cstdint>\n#include "icon-resolution-latest.h"\n' + source
             source = replace_once(source, "using IconUtils_GetIconSize_t =", read(ROOT / "src" / "icon-resolution-latest.inc") + "\nusing IconUtils_GetIconSize_t =")
+            source = replace_once(source, "void WINAPI SystemTrayFrame_Height_Hook(void* pThis, double value) {", """inline bool IsAbiVtableCallOffset(const void* method, uint32_t offset) {
+    const auto* p = static_cast<const BYTE*>(method);
+    return p && p[0] == 0x48 && p[1] == 0x8B && p[2] == 0x01 &&
+           p[3] == 0x48 && p[4] == 0x8B && p[5] == 0x80 &&
+           *reinterpret_cast<const uint32_t*>(p + 6) == offset;
+}
+using SystemTrayFrame_Height_General_t = void(WINAPI*)(void* pThis, void* method, double* value);
+SystemTrayFrame_Height_General_t SystemTrayFrame_Height_General_Original;
+void WINAPI SystemTrayFrame_Height_General_Hook(void* pThis, void* method, double* value) {
+    if (!IsVerticalTaskbar() && g_inSystemTrayController_UpdateFrameSize && g_taskbarHeight &&
+        IsAbiVtableCallOffset(method, 144) && value && !std::isnan(*value) &&
+        IsRuntimeClass(pThis, L"SystemTray.SystemTrayFrame")) {
+        double overridden = g_taskbarHeight;
+        SystemTrayFrame_Height_General_Original(pThis, method, &overridden);
+        return;
+    }
+    SystemTrayFrame_Height_General_Original(pThis, method, value);
+}
+void WINAPI SystemTrayFrame_Height_Hook(void* pThis, double value) {""")
+            source = replace_once(source, "void WINAPI ProgressBar_Width_Hook(void* pThis, double width) {", """using ProgressBar_Width_General_t = void(WINAPI*)(void* pThis, void* method, double* value);
+ProgressBar_Width_General_t ProgressBar_Width_General_Original;
+void WINAPI ProgressBar_Width_General_Hook(void* pThis, void* method, double* value) {
+    if (g_taskListButtonPostureIconHeight && value && *value == g_taskListButtonPostureIconHeight &&
+        IsAbiVtableCallOffset(method, 128) &&
+        IsRuntimeClass(pThis, L"Microsoft.UI.Xaml.Controls.ProgressBar")) {
+        double overridden = g_taskListButtonCustomIconHeight;
+        ProgressBar_Width_General_Original(pThis, method, &overridden);
+        return;
+    }
+    ProgressBar_Width_General_Original(pThis, method, value);
+}
+void WINAPI ProgressBar_Width_Hook(void* pThis, double width) {""")
+            source = replace_once(source, """            &FrameworkElementOverrides_MeasureOverride_Original,
+            FrameworkElementOverrides_MeasureOverride_Hook,
+            true,  // Missing in older Windows 11 versions.
+        },
+    };
+
+    if (!HookSymbols(module, symbolHooks, ARRAYSIZE(symbolHooks))) {""", """            &FrameworkElementOverrides_MeasureOverride_Original,
+            FrameworkElementOverrides_MeasureOverride_Hook,
+            true,  // Missing in older Windows 11 versions.
+        },
+        {
+            {LR"(void __cdecl winrt::impl::consume_general<struct winrt::Windows::UI::Xaml::IFrameworkElement,struct winrt::SystemTray::SystemTrayFrame,int (__cdecl winrt::impl::abi<struct winrt::Windows::UI::Xaml::IFrameworkElement,void>::type::*)(double) noexcept,double &>(struct winrt::SystemTray::SystemTrayFrame const *,int (__cdecl winrt::impl::abi<struct winrt::Windows::UI::Xaml::IFrameworkElement,void>::type::*)(double) noexcept,double &))"},
+            &SystemTrayFrame_Height_General_Original,
+            SystemTrayFrame_Height_General_Hook,
+            true,  // C++/WinRT consume_general folding in newer 26H2 builds.
+        },
+    };
+
+    if (!HookSymbols(module, symbolHooks, ARRAYSIZE(symbolHooks))) {""")
+            source = replace_once(source, """                &ProgressBar_Width_Original,
+                ProgressBar_Width_Hook,
+                true,  // From Windows 11 version 22H2.
+            },""", """                &ProgressBar_Width_Original,
+                ProgressBar_Width_Hook,
+                true,  // From Windows 11 version 22H2.
+            },
+            {
+                {LR"(void __cdecl winrt::impl::consume_general<struct winrt::Windows::UI::Xaml::IFrameworkElement,struct winrt::Microsoft::UI::Xaml::Controls::ProgressBar,int (__cdecl winrt::impl::abi<struct winrt::Windows::UI::Xaml::IFrameworkElement,void>::type::*)(double) noexcept,double &>(struct winrt::Microsoft::UI::Xaml::Controls::ProgressBar const *,int (__cdecl winrt::impl::abi<struct winrt::Windows::UI::Xaml::IFrameworkElement,void>::type::*)(double) noexcept,double &))"},
+                &ProgressBar_Width_General_Original,
+                ProgressBar_Width_General_Hook,
+                true,  // C++/WinRT consume_general folding in newer 26H2 builds.
+            },""")
             source = replace_once(source, "    WindhawkUtils::SYMBOL_HOOK taskbarDllHooks[] = {", """    IconResolution::moduleBase=reinterpret_cast<std::uintptr_t>(module);
     WindhawkUtils::SYMBOL_HOOK taskbarDllHooks[] = {
         {
@@ -453,9 +521,26 @@ void StopEventThread() {
             source = replace_function(source, "HMODULE GetSearchUxUiModuleHandle()",
                                       "    return nullptr; // Search is disabled in the dedicated Dock profile.")
         if name == "tray":
+            source = replace_once(
+                source,
+                """            if (className == L"SystemTray.TextIconContent" ||
+                className == L"SystemTray.ImageIconContent") {""",
+                """            if (className == L"SystemTray.TextIconContent" ||
+                className == L"SystemTray.ImageIconContent" ||
+                className == L"SystemTray.BadgeIconContent" ||
+                className == L"SystemTray.BatteryIconContent" ||
+                className == L"SystemTray.LanguageImageIconContent") {""")
             start = source.index("// Column-first ordering, shared by application icons")
             end = source.index("// Local extension to the upstream tray grid.", start)
             source = source[:start] + '#include "tray-grid-latest.h"\n\n' + source[end:]
+            source = replace_once(
+                source,
+                """        if (type==L"SystemTray.ImageIconContent" || type==L"SystemTray.TextIconContent" ||
+            type==L"SystemTray.LanguageTextIconContent" || type==L"SystemTray.BatteryIconContent") {""",
+                """        if (type==L"SystemTray.ImageIconContent" || type==L"SystemTray.TextIconContent" ||
+            type==L"SystemTray.LanguageTextIconContent" || type==L"SystemTray.BatteryIconContent" ||
+            type==L"SystemTray.BadgeIconContent" || type==L"SystemTray.LanguageImageIconContent" ||
+            type==L"SystemTray.DateTimeIconContent") {""")
             source = replace_once(
                 source,
                 "    if (!result.panel) return result;\n    EnumChildElements(result.panel,[&](FrameworkElement child) {",
@@ -484,6 +569,7 @@ void StopEventThread() {
                 "        auto input=DockCollect(root,false);\n        auto system=DockCollectSystem(root);")
             source = replace_once(source, "        const int appCount=int(apps.icons.size());",
                 "        const int appCount=int(apps.icons.size())+int(system.icons.size());")
+            source = replace_once(source, "        const double pitch=cell+4;", "        const double pitch=cell;")
             source = replace_once(source, "        DockArrangeGroup(apps,0,1,cell,pitch,row);",
                 "        DockArrangeGroup(apps,0,1,cell,pitch,row);\n        DockArrangeGroup(system,int(apps.icons.size()),2,cell,pitch,row);")
             source = replace_once(source, "DockSet(battery,Controls::Grid::ColumnProperty(),2);",

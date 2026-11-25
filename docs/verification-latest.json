@@ -1,46 +1,31 @@
 {
-  "version": "0.8.112",
-  "date": "2026-11-12T09:55:18+08:00",
-  "state": "Deployed; the user looked at the Dock (screenshot 10:00); not committed yet",
-  "backendVersion": "0.5.97",
-  "controllerVersion": "0.3.43",
-  "panelVersion": "0.8.112",
+  "version": "0.8.132",
+  "date": "2026-11-22T22:37:00+08:00",
+  "state": "Applied live on WinSta0\\Default at 2026-11-22T22:42:07+08:00 (backend 0.5.112 active, explorerPid=21700, ownerPid=6904, hooks=68, menuHook=1, styledElements=30, failed=false); backdrop-latest (91 checks), tray-styles-latest (40 checks), PE imports check, Update -ValidateOnly, and post-apply Rollback -ValidateOnly (before-0.8.132-20261122-224159262, 12 files) passed",
+  "backendVersion": "0.5.112",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.129",
   "userRequest": {
-    "At": "2026-11-12",
-    "Answer": [
-      "托盘tailsacle大小和其他不一样有点别扭",
-      "看起来好一点但确实偏大，反正以后你能保证所有的都自适应看着整齐舒服吗，还是有一个调一个？",
-      "行，整好"
-    ],
-    "Scope": "0.8.111 counted Tailscale's unlit dots; 0.8.112 classifies tray icons by fill so glyphs are not enlarged"
+    "At": "2026-11-22",
+    "Question": "0.8.131 实测反馈：一样，只是出现后 0.几秒不干预自动恢复了",
+    "Scope": "Move atomic CompositionEffectBrush rebuild forward from the final ~396 ms pass to PrepareBackdrop (pre-Unhide) and every visible recovery pass (16 ms / +110 ms / +240 ms) so the stale white upper blur band clears immediately on reveal/landing instead of remaining visible for ~0.4 s."
   },
   "change": {
-    "FaintParts (0.8.111)": "Measure(..., faintParts) for tray icons: bounds are also taken at max alpha / 8 (at least 16); a side moves out to that faint content only when it reaches more than canvas / 16 (at least 1 px) past the half-coverage bounds. Dock app icons call Measure unchanged.",
-    "PlateOrGlyph (0.8.112)": "Measure(..., tray) records fill: alpha-weighted percent of the bounds. Fill >= PlateFill (75) is a plate and is fitted as before; below it the tray icon keeps scale 1 and is only centred. Readback property Fill."
+    "FrontLoadedAtomicBrushRebuild": "include/backdrop-resume-latest.h + src/backdrop-brush-latest.inc: pass rebuild=true in PrepareBackdrop (before TrayUI_Unhide_Original) and on all visible passes of ScheduleBackdropResume, and tighten Plan cadence to 16 ms / +110 ms / +240 ms (~366 ms total coverage, zero idle polling).",
+    "TestsAndDocs": "tests/backdrop-latest.cpp + docs/backdrop-resume-latest.md + README.md + docs/verification-v0.8.131.json + docs/verification-latest.json: update Plan cadence assertions, record 0.8.131 live observation and 0.8.132 front-loaded rebuild fix."
   },
   "checks": {
-    "IconOptics": "76 checks, 0 failures; adds a padded plate (fill 100, fitted), an outline (not enlarged, centred), an off-centre striped glyph (scale 1, still centred), and Dock measurement unchanged"
+    "UnitAndFixtureSuites": "backdrop-latest (91 checks, 0 failed), tray-styles-latest (40 checks, 0 failed), imports-latest.py exit 0 (system DLLs only)",
+    "UpdatePreflight": "Update -ValidateOnly (ChangedFiles: 11, RuntimeChanged: [latest.dll], PreserveConfiguration: true) and post-apply Rollback -ValidateOnly (before-0.8.132-20261122-224159262, 12 files intact) passed; live backend 0.5.112 active with 0 unavailable components"
   },
-  "preDeployValidation": {
-    "ValidateOnly": "passed",
-    "Suite": "26 stages passed, 0 failed (C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.112-outputs\\pre-deploy-20261112-095102)"
-  },
-  "deployment": {
-    "Version": "0.8.112",
-    "Live": true,
-    "Explorer": "pid 22000, restarted by the update",
-    "Backend": "0.5.97, hooks 70, menuHook 1, failed false",
-    "ComponentHealth": "Ready, nothing unavailable",
-    "Configs": "latest.ini, hotcorners\\latest.ini, cards\\latest.ini unchanged",
-    "Rollback": "backups\\before-0.8.112-20261112-095518037; 0.8.111 at backups\\before-0.8.111-20261112-093929126 holds 0.8.110"
-  },
-  "readback": {
-    "Plates": "24 px full fill 96, 36 px full fill 95, 512 px fill 93 scale 1.219: as before",
-    "Glyphs": "QQ 24 px 2-24 fill 71 scale 1; Tailscale 1-22 fill 27 scale 1 (was 1.143), offset 0.33 DIP; USB 5-24 fill 19 scale 1; ChatGPT 24 px full fill 36 scale 1",
-    "Screen": "User screenshot 10:00: Tailscale grid about 21 px, vertically centred with its row; the other icons unchanged"
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "62F0973D139F1FF989E6831F1F2073E0CA79C9FDF205FBBD3E6E72013E3DF5D6",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "83347F5B4901F909E0CB622BFC4BC48186262A99634E629ACD192AC8D6201E05"
   },
   "notVerified": [
-    "Tailscale's connecting animation frames",
-    "An icon whose fill is near 75: QQ at 71 is not enlarged either way because it already fills the box"
+    "Elevated interactive desktop Update load and real maximize->desktop auto-hide visual verification on WinSta0\\Default"
   ]
 }

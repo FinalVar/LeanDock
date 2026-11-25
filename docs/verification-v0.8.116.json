@@ -1,0 +1,32 @@
+{
+  "version": "0.8.116",
+  "date": "2026-11-16T23:50:00+08:00",
+  "state": "Built, packaged, ValidateOnly passed, and isolated normal-user probed; live deployment pending desktop session Update",
+  "backendVersion": "0.5.97",
+  "controllerVersion": "0.3.43",
+  "panelVersion": "0.8.116",
+  "userRequest": {
+    "At": "2026-11-16",
+    "Question": "看leandock，这算什么？？ / 为啥位置调用老是出现，而且是以leandock的名义，换成Windows默认任务栏好像就不会？",
+    "Answer": "行，帮我搞好反正",
+    "Scope": "Replace WlanQueryInterface(..., wlan_intf_opcode_current_connection) in ReadConnectedWifi with WlanEnumInterfaces state plus NetworkInformation/WlanConnectionProfileDetails.GetConnectedSsid() so opening or priming the panel stops triggering Windows 11 location usage indicators"
+  },
+  "change": {
+    "WifiRead (0.8.116)": "aggregate/wifi-latest.h: ReadConnectedWifi keeps WlanEnumInterfaces for connected/connecting/disconnected adapter state and delegates connected SSID lookup to ReadConnectedWlanSsidForAdapter, which matches the adapter GUID in NetworkInformation::GetConnectionProfiles() and calls WlanConnectionProfileDetails().GetConnectedSsid() with ProfileName() fallback when ConnectivityLevel != None."
+  },
+  "checks": {
+    "LocationWnfAB": "Under LUA_TOKEN (normalUser: true) in isolated exebox desktop: 0.8.115 baseline incremented location_usage WNF (0x418b0f2ea3bd3935) 264 -> 265; 0.8.116 packaged aggregate/latest.exe kept WNF unchanged (266 -> 266) while reading wifiTargetReady: true",
+    "PackagedHiddenProbe": "LUA_TOKEN (normalUser: true): policyChecks 283, metricChecks 86, wifiTargetReady true, bluetoothTargetReady true, bluetoothBatteryReady true, readOnly true, hiddenReadsUnchanged true, hiddenSamplingUnchanged true, pagesCleared true, 16 offscreen PNGs generated",
+    "LifecycleFixture": "LUA_TOKEN (normalUser: true): passed true, checks 332, closeCases 20, workerCycles 22, maximumStopMs 109, ownedPanelWindows 0",
+    "UnitAndFixtureSuites": "20 stages passed (latest, icon-optics, icon-view, grid, geometry, cards-aggregate, cards-aggregate-host, attention, clip-ownership, theme-notify, maintenance, quick-position, desktop-sweep, cards, cards-preferences, cards-input, cards-manipulation, shell-actions, hotcorners, imports); client-edge had 3/108 failures requiring Shell_TrayWnd on WinSta0\\Default (blocked by exebox desktop sandbox)"
+  },
+  "preDeployValidation": {
+    "Package": "C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.116-package\\latest",
+    "ValidateOnly": "passed (ChangedFiles: 11, RuntimeChanged: [aggregate/latest.exe, latest.dll], PreserveConfiguration: true)"
+  },
+  "notVerified": [
+    "Live deployment via latest.ps1 -Action Update on WinSta0\\Default desktop (blocked from agent exebox desktop where FindWindow('Shell_TrayWnd') returns 0)",
+    "Interactive desktop hover and visual observation of tray location icon absence after live Update",
+    "Connecting/disconnected transition fallback when WlanConnectionProfileDetails.GetConnectedSsid() is empty on a restricted location setting"
+  ]
+}

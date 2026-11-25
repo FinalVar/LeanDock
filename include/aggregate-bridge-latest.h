@@ -13,8 +13,17 @@ inline constexpr wchar_t PendingProp[]=L"LeanDock.Aggregate.PendingUntil";
 // The child starts warming up while the pointer rests on the key and stays
 // hidden until the owner publishes this cookie at the real hover delay.
 inline constexpr wchar_t RevealProp[]=L"LeanDock.Aggregate.Reveal";
+inline constexpr wchar_t SavedBrightnessProp[]=L"LeanDock.Aggregate.SavedBrightness";
 inline constexpr UINT RevealMessage=WM_APP+29;
+inline constexpr UINT PrimeMessage=WM_APP+31;
 inline constexpr wchar_t BoundsProps[][36]={L"LeanDock.Aggregate.Left",L"LeanDock.Aggregate.Top",L"LeanDock.Aggregate.Right",L"LeanDock.Aggregate.Bottom"};
+inline int SavedBrightness(HWND bar){
+    const auto v=reinterpret_cast<intptr_t>(bar?GetPropW(bar,SavedBrightnessProp):nullptr);
+    return v>=1&&v<=100?int(v):0;
+}
+inline void SetSavedBrightness(HWND bar,int value){
+    if(bar&&value>=1&&value<=100)SetPropW(bar,SavedBrightnessProp,HANDLE(intptr_t(value)));
+}
 inline UINT RefreshMessage(){return RegisterWindowMessageW(L"Windhawk_UpdateTaskbarState_NativeTaskbarDock");}
 inline void Refresh(HWND bar){if(bar)PostMessageW(bar,RefreshMessage(),0,0);}
 inline bool Owned(HWND bar,HWND window,const wchar_t* expected){

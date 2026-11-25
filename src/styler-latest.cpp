@@ -1504,6 +1504,7 @@ struct ClickThroughTaskbarState {
     winrt::weak_ref<Shapes::Rectangle> materialSource;
     winrt::weak_ref<Controls::Grid> materialParent;
     bool materialFailed=false;
+    bool backdropWasShifted=false;
     std::shared_ptr<LeanDockCards::Host> cards;
     bool cardsClosing=false;
     winrt::weak_ref<XamlRoot> xamlRoot;
@@ -1765,7 +1766,7 @@ private:
     winrt::event_token m_backdropTick{};
     LeanDockBackdrop::Plan m_backdropPlan;
     HWND m_backdropTaskbar{};
-    bool RefreshBackdropSource(XamlRoot const& root,HWND taskbar,bool requireVisible);
+    bool RefreshBackdropSource(XamlRoot const& root,HWND taskbar,bool requireVisible,bool rebuild=false);
     wuc::Compositor m_compositor;
     float m_blurAmount;
     winrt::Windows::UI::Color m_tint;
@@ -7275,6 +7276,7 @@ LRESULT CALLBACK ClickThroughTaskbarSubclassProc(HWND hWnd,
             LRESULT result = DefSubclassProc(hWnd, uMsg, wParam, lParam);
             if (!g_applyingClickThroughRegion) {
                 ReapplyClickThroughForTopLevel(hWnd);
+                ObserveLeanDockTaskbarPosition(hWnd);
             }
             return result;
         }
@@ -8933,7 +8935,7 @@ void ProcessAllStylesFromSettings() {
     AddElementCustomizationRules(L"Taskbar.TaskbarFrame", {L"Grid.Column=1", L"Width=Auto", L"HorizontalAlignment=Right", L"MaxWidth={{containerGridWidth>0?max(0,containerGridWidth-trayFrameWidth-24):1000}}"});
     AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid", {L"Margin=0,0,0,4", L"CornerRadius=0", L"Background=Transparent", L"BorderBrush=Transparent", L"BorderThickness=1,1,0,1"});
     AddElementCustomizationRules(L"SystemTray.SystemTrayFrame", {L"Grid.Column=2", L"Width=Auto", L"HorizontalAlignment=Left", L"Margin=0", L"ActualWidth=>trayFrameWidth"});
-    AddElementCustomizationRules(L"StackPanel#SystemTrayFrameGrid, Grid#SystemTrayFrameGrid", {L"Margin=0,0,0,4", L"Padding=8,0,12,0", L"CornerRadius=0", L"Background=Transparent", L"BorderBrush=Transparent", L"BorderThickness=0,1,1,1"});
+    AddElementCustomizationRules(L"StackPanel#SystemTrayFrameGrid, Grid#SystemTrayFrameGrid", {L"Margin=0,0,0,4", L"Padding=8,0,10,0", L"CornerRadius=0", L"Background=Transparent", L"BorderBrush=Transparent", L"BorderThickness=0,1,1,1"});
     AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground > Grid > Rectangle#BackgroundStroke", {L"Visibility=Visible", L"Height=Auto", L"Width=Auto", L"MinHeight=0", L"VerticalAlignment=Stretch", L"HorizontalAlignment=Stretch", L"Margin=1", L"StrokeThickness=0", L"IsHitTestVisible=False", L"Fill:=<LinearGradientBrush StartPoint=\"0.5,0\" EndPoint=\"0.5,1\"><GradientStop Offset=\"0\" Color=\"#38FFFFFF\"/><GradientStop Offset=\"0.18\" Color=\"#19E0F0FF\"/><GradientStop Offset=\"0.50\" Color=\"#04FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#10000000\"/></LinearGradientBrush>", L"RadiusX={{dockAppSurfaceWidth>0?29*dockAppSurfaceWidth/(dockAppSurfaceWidth+trayFrameWidth):29}}", L"RadiusY=29"});
     AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Microsoft.UI.Xaml.Controls.ItemsRepeater#TaskbarFrameRepeater", {L"Width=Auto", L"HorizontalAlignment=Left"});
     AddElementCustomizationRules(L"SystemTray.OmniButton#NotificationCenterButton, SystemTray.Stack#SecondaryClockStack, SystemTray.Stack#ShowDesktopStack", {L"Width=0", L"MinWidth=0", L"MaxWidth=0", L"Opacity=0", L"IsHitTestVisible=False"});
@@ -8943,7 +8945,7 @@ void ProcessAllStylesFromSettings() {
     AddElementCustomizationRules(L"Grid#IconPanel@RunningIndicatorStates > Rectangle#RunningIndicator, Taskbar.TaskListLabeledButtonPanel@RunningIndicatorStates > Rectangle#RunningIndicator", {L"Width=4", L"Height=4", L"RadiusX=2", L"RadiusY=2", L"Width@ActiveRunningIndicator=4", L"Width@InactiveRunningIndicator=4", L"Width@InactiveRunningIndicatorPointerOver=4", L"Width@RequestingAttentionRunningIndicator=4", L"RenderTransform:=<TranslateTransform Y=\"3\" />"});
     AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground#BackgroundControl", {L"Height=60", L"VerticalAlignment=Top", L"HorizontalAlignment=Stretch", L"ActualWidth=>dockAppSurfaceWidth", L"RenderTransformOrigin=0,0", L"RenderTransform:=<ScaleTransform ScaleX=\"{{dockAppSurfaceWidth>0?(dockAppSurfaceWidth+trayFrameWidth)/dockAppSurfaceWidth:1}}\" />", L"IsHitTestVisible=False"});
     AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground > Grid > Rectangle#BackgroundFill", {L"Visibility=Visible", L"Fill:=<WindhawkBlur BlurAmount=\"12\" TintColor=\"{ThemeResource SystemChromeAltHighColor}\" TintOpacity=\"0\" TintLuminosityOpacity=\"0\" TintSaturation=\"0.85\" />", L"Stroke:=<LinearGradientBrush StartPoint=\"0.25,0\" EndPoint=\"0.75,1\"><GradientStop Offset=\"0\" Color=\"#40FFFFFF\"/><GradientStop Offset=\"0.5\" Color=\"#10FFFFFF\"/><GradientStop Offset=\"1\" Color=\"#24E0EDFF\"/></LinearGradientBrush>", L"StrokeThickness=1", L"RadiusX={{dockAppSurfaceWidth>0?30*dockAppSurfaceWidth/(dockAppSurfaceWidth+trayFrameWidth):30}}", L"RadiusY=30"});
-    AddElementCustomizationRules(L"SystemTray.NotifyIconView > Grid#ContainerGrid@ > Border#BackgroundBorder, SystemTray.Stack#NonActivatableStack > * > SystemTray.IconView > Grid#ContainerGrid@ > Border#BackgroundBorder, SystemTray.OmniButton#ControlCenterButton > Grid@CommonStates > Border#BackgroundBorder", {L"Width=24", L"Height=24", L"HorizontalAlignment=Center", L"VerticalAlignment=Center", L"Margin=0", L"CornerRadius=5", L"BorderThickness=0", L"BorderBrush=Transparent", L"Background=Transparent", L"Background@Normal=Transparent", L"Background@PointerOver:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.08\" />", L"Background@Pressed:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.12\" />", L"Background@Checked:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.06\" />", L"Background@CheckedPointerOver:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.10\" />", L"Background@CheckedPressed:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.12\" />"});
+    AddElementCustomizationRules(L"SystemTray.NotifyIconView > Grid#ContainerGrid@ > Border#BackgroundBorder, SystemTray.ChevronIconView > Grid#ContainerGrid@ > Border#BackgroundBorder, SystemTray.Stack > * > SystemTray.IconView > Grid#ContainerGrid@ > Border#BackgroundBorder, SystemTray.OmniButton#ControlCenterButton > Grid@CommonStates > Border#BackgroundBorder", {L"Width=24", L"Height=24", L"HorizontalAlignment=Center", L"VerticalAlignment=Center", L"Margin=0", L"CornerRadius=5", L"BorderThickness=0", L"BorderBrush=Transparent", L"BorderBrush@Normal=Transparent", L"BorderBrush@PointerOver=Transparent", L"BorderBrush@Pressed=Transparent", L"BorderBrush@Checked=Transparent", L"BorderBrush@CheckedNormal=Transparent", L"BorderBrush@CheckedPointerOver=Transparent", L"BorderBrush@CheckedPressed=Transparent", L"Background=Transparent", L"Background@Normal=Transparent", L"Background@PointerOver:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.08\" />", L"Background@Pressed:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.12\" />", L"Background@Checked:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.06\" />", L"Background@CheckedNormal:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.06\" />", L"Background@CheckedPointerOver:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.10\" />", L"Background@CheckedPressed:=<SolidColorBrush Color=\"{ThemeResource SystemBaseHighColor}\" Opacity=\"0.12\" />"});
     AddElementCustomizationRules(L"SystemTray.OmniButton#ControlCenterButton > * > SystemTray.IconView > Grid#ContainerGrid > Border#BackgroundBorder", {L"Opacity=0"});
     AddElementCustomizationRules(L"Grid#IconPanel > Border#MultiWindowElement, Taskbar.TaskListLabeledButtonPanel > Border#MultiWindowElement", {L"Opacity=0", L"IsHitTestVisible=False"});
     AddElementCustomizationRules(L"Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.Gripper#GripperControl", {L"Visibility=Collapsed"});

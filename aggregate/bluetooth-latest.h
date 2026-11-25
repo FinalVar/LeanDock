@@ -52,6 +52,77 @@ inline void SortDevices(std::vector<BluetoothDevice>& list){
     });
 }
 
+inline constexpr wchar_t AepConnected[]=L"System.Devices.Aep.IsConnected",AepContainer[]=L"System.Devices.Aep.ContainerId";
+// Paired devices of both kinds: classic (BR/EDR) and LE. The form of
+// BluetoothDevice::GetDeviceSelectorFromPairingState: without the
+// IssueInquiry term the query scans the radio and takes about 30 s
+// (measured) instead of 30 ms.
+inline constexpr wchar_t PairedBluetoothAqs[]=
+    L"System.Devices.DevObjectType:=5 AND "
+    L"(System.Devices.Aep.ProtocolId:=\"{e0cbf06c-cd8b-4647-bb8a-263b43f0f974}\" OR "
+    L"System.Devices.Aep.ProtocolId:=\"{bb7bb05e-5972-42b5-94fc-76eaa7084d49}\") AND "
+    L"(System.Devices.Aep.IsPaired:=System.StructuredQueryType.Boolean#True OR "
+    L"System.Devices.Aep.Bluetooth.IssueInquiry:=System.StructuredQueryType.Boolean#False)";
+inline constexpr wchar_t ConnectedBluetoothAqs[]=
+    L"System.Devices.DevObjectType:=5 AND "
+    L"(System.Devices.Aep.ProtocolId:=\"{e0cbf06c-cd8b-4647-bb8a-263b43f0f974}\" OR "
+    L"System.Devices.Aep.ProtocolId:=\"{bb7bb05e-5972-42b5-94fc-76eaa7084d49}\") AND "
+    L"System.Devices.Aep.IsConnected:=System.StructuredQueryType.Boolean#True AND "
+    L"(System.Devices.Aep.IsPaired:=System.StructuredQueryType.Boolean#True OR "
+    L"System.Devices.Aep.Bluetooth.IssueInquiry:=System.StructuredQueryType.Boolean#False)";
+using AepProperties=winrt::Windows::Foundation::Collections::IMapView<winrt::hstring,winrt::Windows::Foundation::IInspectable>;
+template<class T> inline std::optional<T> AepValue(AepProperties const& p,const wchar_t* key){
+    auto v=p.TryLookup(key);if(!v)return std::nullopt;
+    if(auto r=v.try_as<winrt::Windows::Foundation::IReference<T>>())return r.Value();return std::nullopt;
+}
+inline constexpr wchar_t BluetoothBatteryProperty[]=L"{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2";
+inline std::wstring BluetoothBatteryAqs(winrt::guid const& container){
+    return L"System.Devices.ContainerId:=\""+std::wstring(winrt::to_hstring(container))+L"\"";
+}
+inline int ReadBluetoothBattery(winrt::Windows::Devices::Enumeration::DeviceInformationCollection const& nodes){
+    int level=-1;
+    for(auto const& node:nodes)
+        if(auto v=AepValue<uint8_t>(node.Properties(),BluetoothBatteryProperty);v&&*v<=100)level=std::max(level,int(*v));
+    return level;
+}
+struct BluetoothTarget {winrt::guid container{};std::wstring id,name;int battery=-1;};
+struct BluetoothTargetSummary {std::wstring label;winrt::guid container{};int battery=-1;};
+// Summarizes connected Bluetooth endpoints for the main tile, deduplicating
+// dual-mode endpoints that share the same physical ContainerId.
+inline BluetoothTargetSummary SummarizeBluetoothTargetState(std::vector<BluetoothTarget> const& items){
+    std::vector<BluetoothTarget> unique;
+    for(auto const& item:items){
+        auto name=TrimSpaces(item.name);
+        if(name.empty())continue;
+        const int battery=(item.battery>=0&&item.battery<=100)?item.battery:-1;
+        if(item.container!=winrt::guid{}){
+            auto at=std::find_if(unique.begin(),unique.end(),[&](auto const& u){return u.container==item.container;});
+            if(at!=unique.end()){at->battery=std::max(at->battery,battery);continue;}
+        }else{
+            auto const& key=item.id.empty()?name:item.id;
+            auto at=std::find_if(unique.begin(),unique.end(),[&](auto const& u){
+                return u.container==winrt::guid{}&&(u.id.empty()?u.name:u.id)==key;
+            });
+            if(at!=unique.end()){at->battery=std::max(at->battery,battery);continue;}
+        }
+        unique.push_back({item.container,item.id,std::move(name),battery});
+    }
+    if(unique.empty())return {L"未连接",{},-1};
+    if(unique.size()==1)return {unique[0].name,unique[0].container,unique[0].battery};
+    return {std::to_wstring(unique.size())+L" 个已连接",{},-1};
+}
+inline std::wstring SummarizeBluetoothTargets(std::vector<BluetoothTarget> const& items){
+    return SummarizeBluetoothTargetState(items).label;
+}
+inline BluetoothTargetSummary SummarizeBluetoothDeviceState(std::vector<BluetoothDevice> const& devices){
+    std::vector<BluetoothTarget> connected;
+    for(auto const& d:devices)if(d.connected)connected.push_back({d.container,d.id,d.name,d.battery});
+    return SummarizeBluetoothTargetState(connected);
+}
+inline std::wstring SummarizeBluetoothDevices(std::vector<BluetoothDevice> const& devices){
+    return SummarizeBluetoothDeviceState(devices).label;
+}
+
 // Paired devices come from the association endpoints Windows keeps for
 // them: no inquiry and no radio traffic. Belongs to the Metrics MTA worker
 // like WifiBackend; queries are polled and cancelled when the page closes.
@@ -60,11 +131,8 @@ class BluetoothBackend {
     using Query=winrt::Windows::Foundation::IAsyncOperation<Collection>;
     using AsyncStatus=winrt::Windows::Foundation::AsyncStatus;
     static constexpr uint64_t ReadEvery=2000,QueryLimit=5000,ChangeLimit=20000,BatteryEvery=30000;
-    static constexpr wchar_t Connected[]=L"System.Devices.Aep.IsConnected",Container[]=L"System.Devices.Aep.ContainerId",
-        Major[]=L"System.Devices.Aep.Bluetooth.Cod.Major",Minor[]=L"System.Devices.Aep.Bluetooth.Cod.Minor",
-        Category[]=L"System.Devices.Aep.Bluetooth.Le.Appearance.Category",Subcategory[]=L"System.Devices.Aep.Bluetooth.Le.Appearance.Subcategory",
-        // Battery level some drivers publish on the device nodes (shown by Settings).
-        Battery[]=L"{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2";
+    static constexpr wchar_t Major[]=L"System.Devices.Aep.Bluetooth.Cod.Major",Minor[]=L"System.Devices.Aep.Bluetooth.Cod.Minor",
+        Category[]=L"System.Devices.Aep.Bluetooth.Le.Appearance.Category",Subcategory[]=L"System.Devices.Aep.Bluetooth.Le.Appearance.Subcategory";
     // Endpoints and KS filters behind them, from the audio service.
     static constexpr PROPERTYKEY FormFactor{{0x1da5d803,0xd492,0x4edd,{0x8c,0x23,0xe0,0xc0,0xff,0xee,0x7f,0x0e}},0};
     static constexpr GUID BtAudio{0x7fa06c40,0xb8f6,0x4c7e,{0x85,0x56,0xe8,0xc3,0x3a,0x12,0xe5,0x4d}}; // KSPROPSETID_BtAudio
@@ -74,11 +142,8 @@ class BluetoothBackend {
     struct Change {std::wstring id;bool connect=false;uint64_t at=0;};
     std::optional<Change> change;
     bool active=false;
-    using Properties=winrt::Windows::Foundation::Collections::IMapView<winrt::hstring,winrt::Windows::Foundation::IInspectable>;
-    template<class T> static std::optional<T> Value(Properties const& p,const wchar_t* key){
-        auto v=p.TryLookup(key);if(!v)return std::nullopt;
-        if(auto r=v.try_as<winrt::Windows::Foundation::IReference<T>>())return r.Value();return std::nullopt;
-    }
+    using Properties=AepProperties;
+    template<class T> static std::optional<T> Value(Properties const& p,const wchar_t* key){return AepValue<T>(p,key);}
     // Class-of-device and appearance fields arrive as 8-, 16- or 32-bit values.
     static int Number(Properties const& p,const wchar_t* key){
         if(auto v=Value<uint8_t>(p,key))return *v;
@@ -152,8 +217,8 @@ class BluetoothBackend {
         for(auto const& info:found){
             auto const p=info.Properties();
             BluetoothDevice d;d.id=info.Id();d.name=info.Name();if(d.name.empty())continue;
-            d.connected=Value<bool>(p,Connected).value_or(false);
-            if(auto c=Value<winrt::guid>(p,Container))d.container=*c;
+            d.connected=Value<bool>(p,AepConnected).value_or(false);
+            if(auto c=Value<winrt::guid>(p,AepContainer))d.container=*c;
             const int major=Number(p,Major),minor=Number(p,Minor),category=Number(p,Category),sub=Number(p,Subcategory);
             d.kind=major>=0?ClassicKind(unsigned(major),unsigned(std::max(0,minor))):
                 category>=0?LeKind(unsigned(category),unsigned(std::max(0,sub))):BluetoothKind::Other;
@@ -184,10 +249,8 @@ class BluetoothBackend {
             const auto status=battery.Status();
             if(status==AsyncStatus::Started&&now-batteryAt<QueryLimit)return false;
             int level=-1;
-            if(status==AsyncStatus::Completed){
-                for(auto const& node:battery.GetResults())
-                    if(auto v=Value<uint8_t>(node.Properties(),Battery);v&&*v<=100)level=std::max(level,int(*v));
-            }else if(status==AsyncStatus::Started)battery.Cancel();
+            if(status==AsyncStatus::Completed)level=ReadBluetoothBattery(battery.GetResults());
+            else if(status==AsyncStatus::Started)battery.Cancel();
             battery=nullptr;
             auto at=std::find_if(levels.begin(),levels.end(),[&](auto const& l){return l.first==batteryFor;});
             if(at==levels.end())levels.push_back({batteryFor,{level,now}});else at->second={level,now};
@@ -197,8 +260,8 @@ class BluetoothBackend {
             if(!d.connected||d.container==winrt::guid{})continue;
             auto at=std::find_if(levels.begin(),levels.end(),[&](auto const& l){return l.first==d.container;});
             if(at!=levels.end()&&now-at->second.second<BatteryEvery)continue;
-            const auto aqs=L"System.Devices.ContainerId:=\""+std::wstring(winrt::to_hstring(d.container))+L"\"";
-            battery=DeviceInformation::FindAllAsync(aqs,winrt::single_threaded_vector<winrt::hstring>({Battery}),DeviceInformationKind::Device);
+            battery=DeviceInformation::FindAllAsync(BluetoothBatteryAqs(d.container),
+                winrt::single_threaded_vector<winrt::hstring>({BluetoothBatteryProperty}),DeviceInformationKind::Device);
             batteryAt=now;batteryFor=d.container;return changed;
         }
         return changed;
@@ -228,17 +291,8 @@ public:
             }
             if(change&&now-change->at>ChangeLimit){Fail(b,change->id,change->connect?L"没有连上，请确认设备已开机且在附近":L"设备没有断开，请重试");changed=true;}
             if(!query&&(!readAt||now-readAt>=(change?500:ReadEvery))){
-                // Paired devices of both kinds: classic (BR/EDR) and LE. The
-                // form of BluetoothDevice::GetDeviceSelectorFromPairingState:
-                // without the IssueInquiry term the query scans the radio and
-                // takes about 30 s (measured) instead of 30 ms.
-                const wchar_t* aqs=L"System.Devices.DevObjectType:=5 AND "
-                    L"(System.Devices.Aep.ProtocolId:=\"{e0cbf06c-cd8b-4647-bb8a-263b43f0f974}\" OR "
-                    L"System.Devices.Aep.ProtocolId:=\"{bb7bb05e-5972-42b5-94fc-76eaa7084d49}\") AND "
-                    L"(System.Devices.Aep.IsPaired:=System.StructuredQueryType.Boolean#True OR "
-                    L"System.Devices.Aep.Bluetooth.IssueInquiry:=System.StructuredQueryType.Boolean#False)";
-                query=DeviceInformation::FindAllAsync(aqs,winrt::single_threaded_vector<winrt::hstring>(
-                    {Connected,Container,Major,Minor,Category,Subcategory}),DeviceInformationKind::AssociationEndpoint);
+                query=DeviceInformation::FindAllAsync(PairedBluetoothAqs,winrt::single_threaded_vector<winrt::hstring>(
+                    {AepConnected,AepContainer,Major,Minor,Category,Subcategory}),DeviceInformationKind::AssociationEndpoint);
                 queryAt=now;
             }
             if(b.ready&&BatteryPump(b,now))changed=true;

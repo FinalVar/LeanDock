@@ -14,45 +14,109 @@
 // app list, tray receiver, taskbar hiding, guard or startup mechanism.
 namespace Capsule {
 namespace Bridge=LeanDockAggregate;
+struct Panel;
+inline Panel* g_activeHookPanel=nullptr;
 struct Panel {
     HWND bar{},control{};HANDLE owner{};uintptr_t cookie{};
     Drawing draw;Popup popup;Metrics metrics;Power power;
     PanelGesture gesture;PanelPart hover=PanelPart::None;PanelMotion motion;
-    PanelValueRequest volumeRequest,brightnessRequest;
+    PanelValueRequest volumeRequest,brightnessRequest;int savedBrightness=0;
     // Second-level page state; page credentials are wiped on every exit.
     PanelPage page=PanelPage::Main;WifiView wifi;BluetoothView bluetooth;HotspotView hotspot;SoundView sound;
     PageTarget pageHover,pagePressed;Tween pageFade;bool escapeHeld=false;
     SoundDrag drag;PanelValueRequest appRequest;std::wstring appRequestKey;
     std::vector<std::pair<std::wstring,winrt::com_ptr<IWICBitmap>>> icons; // app icons by program path, this panel only
     uint64_t startedAt=0;bool closing=false,started=false,revealed=false,animating=false;float dpi=1;
-    PanelStay stay;HWND foreground{};bool buttonDown[2]{},panelPress=false;
+    PanelStay stay;HWND foreground{},previousForeground{};bool buttonDown[3]{},panelPress=false,activated=false;
+    HHOOK mouseHook{};
     int paintedSecond=-1,calendarDay=-1;
     std::wstring calendarDate,calendarLunar;
     // Control-window timers: the visible-only 50 ms tick, frames while a
-    // painted transition runs, and the end of the leave animation.
-    enum Timer:UINT_PTR{TickTimer=1,FrameTimer=2,LeaveTimer=3};
+    // painted transition runs, leave fade-out, and quiet keepalive expiry.
+    enum Timer:UINT_PTR{TickTimer=1,FrameTimer=2,LeaveTimer=3,KeepaliveTimer=4,PrimeTimer=5};
+    static constexpr UINT DismissMessage=WM_APP+30;
     // A hidden standby that is never revealed (owner gone quiet) gives up.
     static constexpr uint64_t StandbyLimit=4000;
+    static constexpr UINT KeepaliveMs=4000,PrimeHoldMs=600;
+    bool keepalive=false,allowKeepalive=false;
     ~Panel(){Close();if(owner)CloseHandle(owner);}
     bool Valid()const{return bar&&IsWindow(bar)&&GetPropW(bar,Bridge::CookieProp)==HANDLE(cookie)&&
         GetPropW(bar,Bridge::PidProp)==HANDLE(uintptr_t(GetCurrentProcessId()))&&
         owner&&WaitForSingleObject(owner,0)==WAIT_TIMEOUT;}
     void Cancel(){gesture.Cancel();hover=PanelPart::None;drag.Cancel();}
     void Forget(){wifi.Reset();bluetooth.Reset();hotspot.Reset();sound.Reset();}
+    static LRESULT CALLBACK MouseHookProc(int code,WPARAM wParam,LPARAM lParam);
+    void InstallMouseHook(){
+        if(mouseHook||!control)return;
+        g_activeHookPanel=this;
+        mouseHook=SetWindowsHookExW(WH_MOUSE_LL,MouseHookProc,nullptr,0);
+        if(!mouseHook&&g_activeHookPanel==this)g_activeHookPanel=nullptr;
+    }
+    void UninstallMouseHook(){
+        if(g_activeHookPanel==this)g_activeHookPanel=nullptr;
+        if(mouseHook){UnhookWindowsHookEx(mouseHook);mouseHook=nullptr;}
+    }
     // animate: a dismissal the user caused, faded out unless motion is off.
     // Lock, suspend, owner loss and WM_CLOSE end at once.
-    void Quit(bool animate=false){
+    void Quit(bool animate=false,bool restoreFocus=false){
         if(closing)return;closing=true;
-        // Withdraw the control window first: the owner reveals only a child
-        // whose control window is still published, never a leaving one.
-        if(Valid()&&GetPropW(bar,Bridge::ControlProp)==control)RemovePropW(bar,Bridge::ControlProp);
+        allowKeepalive=animate&&revealed;
+        UninstallMouseHook();
+        if(restoreFocus&&GetForegroundWindow()==popup.window&&previousForeground&&
+           IsWindow(previousForeground)&&previousForeground!=popup.window){
+            SetForegroundWindow(previousForeground);
+        }
+        // Withdraw the control window and clear the consumed reveal token first:
+        // the owner reveals only a child whose control window is still published.
+        if(Valid()){
+            if(GetPropW(bar,Bridge::ControlProp)==control)RemovePropW(bar,Bridge::ControlProp);
+            if(GetPropW(bar,Bridge::RevealProp)==HANDLE(cookie))RemovePropW(bar,Bridge::RevealProp);
+        }
         const int delay=animate&&revealed&&popup.visible&&control?popup.Leave():0;
         if(delay>0&&SetTimer(control,LeaveTimer,UINT(delay),nullptr))return;
         Finish();
     }
-    void Finish(){if(control)KillTimer(control,LeaveTimer);if(popup.window)popup.Hide();PostQuitMessage(0);}
+    void Finish(){
+        if(control)KillTimer(control,LeaveTimer);
+        const bool park=allowKeepalive;allowKeepalive=false;
+        if(park&&Valid()&&control){
+            // Park warm for KeepaliveMs with all timers and background sampling stopped.
+            keepalive=true;closing=false;revealed=false;animating=false;
+            for(auto timer:{TickTimer,FrameTimer,PrimeTimer})KillTimer(control,timer);
+            Unfocus();if(popup.window)ImmAssociateContext(popup.window,nullptr);
+            popup.Hide();popup.scene.Navigate(false,false);
+            metrics.Page(PanelPage::Main);metrics.Visible(false);
+            Cancel();Forget();icons.clear();page=PanelPage::Main;pageHover=pagePressed={};pageFade.Snap(0);escapeHeld=false;
+            volumeRequest={};brightnessRequest={};appRequest={};appRequestKey.clear();
+            stay={};foreground={};previousForeground={};activated=false;
+            for(bool& down:buttonDown)down=false;panelPress=false;
+            paintedSecond=-1;motion={};
+            if(Valid()){
+                SetPropW(bar,Bridge::ControlProp,control);
+                Bridge::Refresh(bar);
+                if(SetTimer(control,KeepaliveTimer,KeepaliveMs,nullptr))return;
+                RemovePropW(bar,Bridge::ControlProp);
+            }
+            keepalive=false;closing=true;
+        }
+        if(popup.window)popup.Hide();PostQuitMessage(0);
+    }
+    void Prime(){
+        if(!keepalive||closing||!control||!Valid())return;
+        SetTimer(control,KeepaliveTimer,KeepaliveMs,nullptr);
+        SetTimer(control,PrimeTimer,PrimeHoldMs,nullptr);
+        metrics.Visible(true);metrics.Urgent();
+    }
+    void ExpireKeepalive(){
+        keepalive=false;closing=true;
+        if(control)for(auto timer:{KeepaliveTimer,PrimeTimer})KillTimer(control,timer);
+        metrics.Visible(false);
+        if(Valid()&&GetPropW(bar,Bridge::ControlProp)==control)RemovePropW(bar,Bridge::ControlProp);
+        if(popup.window)popup.Hide();PostQuitMessage(0);
+    }
     void Close(){
-        closing=true;Forget();if(control)for(auto timer:{TickTimer,FrameTimer,LeaveTimer})KillTimer(control,timer);
+        closing=true;keepalive=false;allowKeepalive=false;UninstallMouseHook();Forget();icons.clear();
+        if(control)for(auto timer:{TickTimer,FrameTimer,LeaveTimer,KeepaliveTimer,PrimeTimer})KillTimer(control,timer);
         popup.Hide();metrics.Visible(false);metrics.Stop();
         if(Valid()){
             for(auto name:{Bridge::WindowProp,Bridge::ControlProp,Bridge::PendingProp})RemovePropW(bar,name);
@@ -73,7 +137,7 @@ struct Panel {
         if(popup.rect.x!=at.x||popup.rect.y!=at.y||popup.rect.h!=popup.height*dpi)popup.Position(at.x,at.y);
     }
     void Paint(){
-        if(closing||!popup.window)return;
+        if(closing||keepalive||!popup.window)return;
         power.Read();auto data=metrics.Read();SYSTEMTIME time{};GetLocalTime(&time);
         paintedSecond=time.wHour*3600+time.wMinute*60+time.wSecond;
         const auto day=time.wYear*10000+time.wMonth*100+time.wDay;
@@ -84,7 +148,7 @@ struct Panel {
         const auto clock=PanelClock(time.wHour,time.wMinute,time.wSecond);
         PanelLayout layout(data,0); // The tray remains in native Explorer, always.
         const float height=gesture.Dragging()||drag.active?popup.height:layout.height;
-        if(height!=popup.height){popup.height=height;popup.scene.Dimensions(PanelWidth,PanelWidth,height);}
+        if(height!=popup.height){popup.height=height;popup.scene.Dimensions(PanelWidth,PanelWidth,height,popup.visible&&Animations());}
         Position();if(closing)return;
         auto display=data;const auto now=GetTickCount64();
         display.volume=volumeRequest.Display(data.volume,data.completed[unsigned(Control::Volume)],now);
@@ -139,9 +203,24 @@ struct Panel {
     // hover delay has passed on the key. Values sampled hidden are ready.
     void Reveal(){
         if(revealed||closing||!popup.window||!Valid()||!Bridge::Revealed(bar,cookie))return;
+        // Waking from keepalive: cancel expiry, restart the visible tick and drain stale button bits.
+        if(keepalive){
+            if(!IsWindowVisible(bar)||std::abs(GetDpiForWindow(bar)/96.f-dpi)>.01f){ExpireKeepalive();return;}
+            keepalive=false;
+            if(control){
+                KillTimer(control,KeepaliveTimer);KillTimer(control,PrimeTimer);
+                if(!SetTimer(control,TickTimer,50,nullptr)){ExpireKeepalive();return;}
+            }
+            draw.colors.Refresh();popup.scene.Theme();
+            if(const int saved=Bridge::SavedBrightness(bar);saved>0)savedBrightness=saved;
+            metrics.Visible(true);
+            (void)PressedElsewhere();
+            escapeHeld=(GetAsyncKeyState(VK_ESCAPE)&0x8000)!=0;
+        }
         revealed=true;metrics.Urgent();Paint();if(closing)return;
+        if(HWND fg=GetForegroundWindow();fg&&fg!=popup.window){foreground=fg;previousForeground=fg;}
         POINT cursor{};if(GetCursorPos(&cursor))Light(cursor);
-        popup.Show(true);RemovePropW(bar,Bridge::PendingProp);Bridge::Refresh(bar);
+        popup.Show(true);InstallMouseHook();RemovePropW(bar,Bridge::PendingProp);Bridge::Refresh(bar);
         Log(L"panel-open");
     }
     void Set(Control target,int value){
@@ -160,7 +239,9 @@ struct Panel {
     // Keys and user names are typed without an IME; a hotspot name may be
     // Chinese, so that field gets the default one, composing under the box.
     void TakeKeyboard(Rect const* ime=nullptr){
+        if(HWND fg=GetForegroundWindow();fg&&fg!=popup.window&&!previousForeground)previousForeground=fg;
         SetForegroundWindow(popup.window);SetFocus(popup.window);
+        if(GetForegroundWindow()==popup.window)activated=true;
         if(!ime){ImmAssociateContext(popup.window,nullptr);return;}
         ImmAssociateContextEx(popup.window,nullptr,IACE_DEFAULT);
         if(HIMC context=ImmGetContext(popup.window)){
@@ -169,21 +250,22 @@ struct Panel {
             ImmSetCompositionWindow(context,&at);ImmReleaseContext(popup.window,context);
         }
     }
-    void Focus(WifiView::Focus field){wifi.focus=field;TakeKeyboard();}
+    void Focus(WifiView::Focus field){if(wifi.focus!=field)wifi.selectAll=false;wifi.focus=field;TakeKeyboard();}
     void Focus(HotspotView::Focus field){
+        if(hotspot.focus!=field)hotspot.selectAll=false;
         hotspot.focus=field;TakeKeyboard(field==HotspotView::Focus::Name?&HotspotNameBox:nullptr);
     }
     bool Typing()const{
         return (page==PanelPage::Wifi&&wifi.focus!=WifiView::Focus::None)||
             (page==PanelPage::Hotspot&&hotspot.focus!=HotspotView::Focus::None);
     }
-    void Unfocus(){wifi.focus=WifiView::Focus::None;hotspot.focus=HotspotView::Focus::None;}
+    void Unfocus(){wifi.focus=WifiView::Focus::None;wifi.selectAll=false;hotspot.focus=HotspotView::Focus::None;hotspot.selectAll=false;}
     void Submit(Sample const& data,WifiRow const* row){
         if(!row||!data.wifiList.connecting.empty())return;
         if(row->net.connected){metrics.Send(Control::WifiDisconnect,0);return;}
         if(!WifiFormReady(*row,wifi))return;
         metrics.WifiConnect(row->net.ssid,row->user?wifi.user:std::wstring(),wifi.password);
-        wifi.focus=WifiView::Focus::None;wifi.reveal=false;
+        wifi.focus=WifiView::Focus::None;wifi.reveal=wifi.selectAll=false;
     }
     void EditHotspot(Sample const& data){
         if(!HotspotEditable(data))return;
@@ -195,7 +277,7 @@ struct Panel {
         if(hotspot.saving||HotspotProblem(hotspot.name,hotspot.password)||!HotspotEditable(data))return;
         const int band=hotspot.band>=0&&hotspot.band<3&&data.hotspotInfo.bands[size_t(hotspot.band)]?hotspot.band:-1;
         hotspot.serial=metrics.HotspotConfigure(hotspot.name,band,hotspot.password); // wipes the key
-        hotspot.saving=hotspot.serial!=0;hotspot.focus=HotspotView::Focus::None;hotspot.reveal=false;
+        hotspot.saving=hotspot.serial!=0;hotspot.focus=HotspotView::Focus::None;hotspot.reveal=hotspot.selectAll=false;
     }
     static void Paste(std::wstring& text,size_t limit,bool ascii){
         if(!OpenClipboard(nullptr))return;
@@ -204,34 +286,39 @@ struct Panel {
             GlobalUnlock(data);}
         CloseClipboard();
     }
-    // Backspace clears the character it removes, so a wiped field leaves
-    // nothing behind past its end.
-    static void Edit(std::wstring& text,WPARAM key,size_t limit,bool ascii){
-        if(key==0x08){if(!text.empty()){text.back()=0;text.pop_back();}}
-        else if(key==0x16)Paste(text,limit,ascii);
-        else if(key>=0x20&&key!=0x7F&&text.size()<limit&&(!ascii||key<0x7F))text.push_back(wchar_t(key));
+    // Backspace clears the character it removes; Ctrl+Backspace / Ctrl+U /
+    // Ctrl+A+Delete securely wipe the whole reserved buffer.
+    static void Edit(std::wstring& text,bool& selectAll,WPARAM key,size_t limit,bool ascii){
+        EditFieldWith(text,selectAll,key,limit,ascii,Paste);
     }
     // Characters arrive as WM_CHAR; Escape leaves the field, not the panel.
     bool Key(UINT message,WPARAM key){
         if(!Typing())return false;
         if(message==WM_KEYDOWN){
-            if(key!=VK_ESCAPE)return false;
-            Unfocus();escapeHeld=true;Paint();return true;
+            if(key==VK_ESCAPE){Unfocus();escapeHeld=true;Paint();return true;}
+            if(key==VK_DELETE){
+                auto& text=page==PanelPage::Wifi?(wifi.focus==WifiView::Focus::User?wifi.user:wifi.password):
+                    (hotspot.focus==HotspotView::Focus::Name?hotspot.name:hotspot.password);
+                auto& sel=page==PanelPage::Wifi?wifi.selectAll:hotspot.selectAll;
+                if(sel||(GetKeyState(VK_CONTROL)&0x8000)!=0){WipeField(text);sel=false;Paint();}
+                return true;
+            }
+            return false;
         }
         if(page==PanelPage::Wifi){
             const bool user=wifi.focus==WifiView::Focus::User;
             if(key==0x0D||key==0x09){
                 const auto data=metrics.Read();WifiLayout rows(data.wifiList,wifi,popup.height);auto row=rows.Find(wifi.expanded);
                 if(key==0x0D)Submit(data,row);
-                else if(row&&row->user)wifi.focus=user?WifiView::Focus::Password:WifiView::Focus::User;
+                else if(row&&row->user){wifi.selectAll=false;wifi.focus=user?WifiView::Focus::Password:WifiView::Focus::User;}
             }
-            else Edit(user?wifi.user:wifi.password,key,user?128:63,false);
+            else Edit(user?wifi.user:wifi.password,wifi.selectAll,key,user?128:63,false);
         }else{
             const bool name=hotspot.focus==HotspotView::Focus::Name;
             if(key==0x0D)SaveHotspot(metrics.Read());
             else if(key==0x09)Focus(name?HotspotView::Focus::Password:HotspotView::Focus::Name);
             // The SSID limit is 32 bytes; HotspotProblem checks the encoded length.
-            else Edit(name?hotspot.name:hotspot.password,key,name?32:63,!name);
+            else Edit(name?hotspot.name:hotspot.password,hotspot.selectAll,key,name?32:63,!name);
         }
         Paint();return true;
     }
@@ -337,7 +424,7 @@ struct Panel {
                 drag.Begin(target.key,master?SliderLeft:AppSliderLeft,SoundRight,x);SetCapture(popup.window);
                 if(drag.Send(x,now))SendDrag();Paint();return;
             }
-            stay.clicked=true;pagePressed=target;SetCapture(popup.window);return;
+            Pin();pagePressed=target;SetCapture(popup.window);return;
         }
         if(message!=WM_LBUTTONUP)return;
         const auto pressed=pagePressed;pagePressed={};
@@ -355,27 +442,36 @@ struct Panel {
     }
     void Input(UINT message,float x,float y){
         if(page!=PanelPage::Main){PageInput(message,x,y);return;}
-        const auto hit=PanelHit(x,y);const auto data=metrics.Read();
+        const auto data=metrics.Read();const auto now=GetTickCount64();
+        auto effective=data;
+        effective.volume=volumeRequest.Display(data.volume,data.completed[unsigned(Control::Volume)],now);
+        effective.brightness=brightnessRequest.Display(data.brightness,data.completed[unsigned(Control::Brightness)],now);
+        const auto hit=PanelHit(x,y,PanelLayout(data,0).mediaY);
         if(message==WM_MOUSEMOVE){
             popup.scene.Light(x,y);
             if(gesture.Dragging()){
-                if(gesture.Send(x,GetTickCount64()))Set(gesture.pressed==PanelPart::Volume?Control::Volume:Control::Brightness,gesture.preview);
+                if(gesture.Send(x,now))Set(gesture.pressed==PanelPart::Volume?Control::Volume:Control::Brightness,gesture.preview);
                 Paint();
             }else if(hover!=hit){hover=hit;Paint();}return;
         }
         // Dragging a slider is not a click: adjust and move away still closes.
-        if(message==WM_LBUTTONDOWN&&!PanelSlider(hit))stay.clicked=true;
-        if(message==WM_LBUTTONDOWN&&PanelEnabled(hit,data)){
+        if(message==WM_LBUTTONDOWN&&!PanelSlider(hit))Pin();
+        if(message==WM_LBUTTONDOWN&&PanelEnabled(hit,effective)){
             gesture.Begin(hit,x);SetCapture(popup.window);
-            if(gesture.Send(x,GetTickCount64()))Set(hit==PanelPart::Volume?Control::Volume:Control::Brightness,gesture.preview);
+            if(gesture.Send(x,now))Set(hit==PanelPart::Volume?Control::Volume:Control::Brightness,gesture.preview);
             Paint();return;
         }
         if(message!=WM_LBUTTONUP||gesture.pressed==PanelPart::None)return;
         const auto pressed=gesture.pressed;
         if(gesture.Dragging()){
-            if(gesture.Send(x,GetTickCount64(),true))Set(pressed==PanelPart::Volume?Control::Volume:Control::Brightness,gesture.preview);
-        }else if(hit==pressed&&PanelEnabled(hit,data))switch(hit){
+            if(gesture.Send(x,now,true))Set(pressed==PanelPart::Volume?Control::Volume:Control::Brightness,gesture.preview);
+        }else if(hit==pressed&&PanelEnabled(hit,effective))switch(hit){
             case PanelPart::Mute:metrics.Set(Control::Mute,!data.mute);break;
+            case PanelPart::BrightnessToggle:{
+                const int next=ToggleBrightness(effective.brightness,savedBrightness);
+                Bridge::SetSavedBrightness(bar,savedBrightness);
+                Set(Control::Brightness,next);break;
+            }
             case PanelPart::Wifi:metrics.Set(Control::Wifi,data.wifi==1?0:1);break;
             case PanelPart::Bluetooth:metrics.Set(Control::Bluetooth,data.bluetooth==1?0:1);break;
             case PanelPart::DarkTheme:metrics.Set(Control::DarkTheme,data.darkTheme==1?0:1);break;
@@ -384,18 +480,49 @@ struct Panel {
             case PanelPart::BluetoothMore:Navigate(PanelPage::Bluetooth);break;
             case PanelPart::HotspotMore:Navigate(PanelPage::Hotspot);break;
             case PanelPart::VolumeMore:Navigate(PanelPage::Sound);break;
+            case PanelPart::MediaPrev:metrics.Send(Control::MediaPrev,0);break;
+            case PanelPart::MediaToggle:metrics.Send(Control::MediaToggle,0);break;
+            case PanelPart::MediaNext:metrics.Send(Control::MediaNext,0);break;
             default:break;
         }
         Cancel();if(GetCapture()==popup.window)ReleaseCapture();Paint();
+    }
+    bool ShouldActivate(UINT triggerMsg,float x,float y){
+        if(closing||!revealed)return false;
+        if(triggerMsg!=WM_LBUTTONDOWN&&triggerMsg!=WM_LBUTTONDBLCLK)return stay.clicked;
+        if(!stay.clicked&&page==PanelPage::Main&&PanelSlider(PanelHit(x,y)))return false;
+        if(HWND fg=GetForegroundWindow();fg&&fg!=popup.window){
+            previousForeground=fg;
+            if(!foreground)foreground=fg;
+        }
+        return true;
+    }
+    void Pin(){
+        stay.clicked=true;
+        InstallMouseHook();
+        if(GetForegroundWindow()!=popup.window){
+            if(HWND fg=GetForegroundWindow();fg&&fg!=popup.window){
+                previousForeground=fg;
+                if(!foreground)foreground=fg;
+            }
+            SetForegroundWindow(popup.window);
+        }
+        if(GetForegroundWindow()==popup.window)activated=true;
+    }
+    void Deactivate(HWND next){
+        if(!stay.clicked||closing)return;
+        if(next==popup.window||(control&&next==control))return;
+        Quit(true);
     }
     // A press since the last tick that the panel did not receive. The low bit
     // catches a tap between ticks, so this runs every tick: otherwise a press
     // made on the panel would still be set when the pointer has left it.
     bool PressedElsewhere(){
         bool pressed=false;
-        for(int i=0;i<2;++i){
-            const auto state=GetAsyncKeyState(i?VK_RBUTTON:VK_LBUTTON);
-            const bool down=state&0x8000;
+        for(int i=0;i<3;++i){
+            const int vk=i==0?VK_LBUTTON:(i==1?VK_RBUTTON:VK_MBUTTON);
+            const auto state=GetAsyncKeyState(vk);
+            const bool down=(state&0x8000)!=0;
             if((state&1)||(down&&!buttonDown[i]))pressed=true;
             buttonDown[i]=down;
         }
@@ -407,16 +534,17 @@ struct Panel {
     bool WindowSwitched(){
         const HWND now=GetForegroundWindow();
         if(!stay.clicked||!now||now==popup.window)return false;
+        if(activated)return true;
         if(!foreground)foreground=now;
         return now!=foreground;
     }
     void Tick(){
-        if(closing)return;
+        if(closing||keepalive)return;
         if(!Valid()||!IsWindowVisible(bar)||std::abs(GetDpiForWindow(bar)/96.f-dpi)>.01f){Quit();return;}
         // Escape closes the panel unless it was spent leaving a text field.
         const bool typing=Typing();
         if(!(GetAsyncKeyState(VK_ESCAPE)&0x8000))escapeHeld=false;
-        else if(!escapeHeld&&!typing){Quit(true);return;}
+        else if(!escapeHeld&&!typing){Quit(true,true);return;}
         if(!revealed){
             if(Bridge::Revealed(bar,cookie))Reveal();
             else if(GetTickCount64()-startedAt>=StandbyLimit){Quit();return;}
@@ -432,7 +560,8 @@ struct Panel {
         const bool inside=PtInRect(&reach,cursor)||popup.Hit(cursor.x,cursor.y)||GetCapture()==popup.window;
         if(typing&&GetForegroundWindow()!=popup.window){Unfocus();Paint();}
         const bool pressed=PressedElsewhere();
-        if(WindowSwitched()||stay.Close(inside,pressed,typing,GetTickCount64())){Quit(true);return;}
+        const bool pressOutside=pressed&&!popup.Hit(cursor.x,cursor.y)&&GetCapture()!=popup.window;
+        if(WindowSwitched()||pressOutside||stay.Close(inside,pressed,typing,GetTickCount64())){Quit(true);return;}
         // Clock remains live even when a device query is slow. Reuse this
         // existing visible-only timer; never add a resident background clock.
         SYSTEMTIME time{};GetLocalTime(&time);
@@ -444,12 +573,21 @@ struct Panel {
         if(self)try{
             if(message==WM_CLOSE){self->Quit();return 0;}
             if(message==WM_TIMER){
-                if(a==LeaveTimer)self->Finish();else if(a==FrameTimer)self->Paint();else self->Tick();
+                if(a==KeepaliveTimer)self->ExpireKeepalive();
+                else if(a==PrimeTimer){KillTimer(window,PrimeTimer);if(self->keepalive)self->metrics.Visible(false);}
+                else if(a==LeaveTimer)self->Finish();else if(a==FrameTimer)self->Paint();else self->Tick();
                 return 0;
             }
             if(message==WM_APP+28){self->Paint();return 0;}
+            if(message==Bridge::PrimeMessage){self->Prime();return 0;}
             if(message==Bridge::RevealMessage){self->Reveal();return 0;}
-            if(message==WM_SETTINGCHANGE||message==WM_THEMECHANGED){self->draw.colors.Refresh();self->popup.scene.Theme();self->Paint();return 0;}
+            if(message==DismissMessage){if(self->revealed&&!self->closing&&GetCapture()!=self->popup.window)self->Quit(true);return 0;}
+            if(message==WM_SETTINGCHANGE||message==WM_THEMECHANGED){
+                self->draw.colors.Refresh();self->popup.scene.Theme();
+                if(self->keepalive)self->metrics.RefreshControls();
+                else self->Paint();
+                return 0;
+            }
             if(message==WM_WTSSESSION_CHANGE&&a==WTS_SESSION_LOCK){self->Quit();return 0;}
             if(message==WM_POWERBROADCAST&&a==PBT_APMSUSPEND){self->Quit();return TRUE;}
         }catch(...){Log(L"panel-event-failed",winrt::to_hresult());self->Quit();return 0;}
@@ -461,6 +599,7 @@ struct Panel {
         GetClassNameW(bar,cls,64);
         if(!cookie||Elevated()||(wcscmp(cls,L"Shell_TrayWnd")&&wcscmp(cls,L"Shell_SecondaryTrayWnd"))||!ExactProcess(bar,explorer))return 20;
         owner=OpenProcess(SYNCHRONIZE,FALSE,pid);if(!Valid())return 21;
+        savedBrightness=Bridge::SavedBrightness(bar);
         dpi=GetDpiForWindow(bar)/96.f;
         WNDCLASSW c{};c.lpfnWndProc=Proc;c.lpszClassName=Bridge::ControlClass;c.hInstance=GetModuleHandleW(nullptr);RegisterClassW(&c);
         // Hidden top-level control receives theme/session broadcasts; no input hook.
@@ -473,6 +612,9 @@ struct Panel {
         popup.Init(draw,dpi,PanelWidth,408,14,false);
         popup.click=[this](UINT m,float x,float y){if(m==WM_LBUTTONDOWN||m==WM_RBUTTONDOWN)panelPress=true;Input(m,x,y);};
         popup.pointerCancel=[this]{Cancel();pagePressed={};};popup.cancel=[this]{Quit();};
+        popup.escape=[this]{Quit(true,true);};
+        popup.shouldActivate=[this](UINT m,float x,float y){return ShouldActivate(m,x,y);};
+        popup.deactivate=[this](HWND next){Deactivate(next);};
         popup.key=[this](UINT m,WPARAM k){return Key(m,k);};
         popup.wheel=[this](int delta){
             const float step=float(delta)/WHEEL_DELTA*48;
@@ -494,6 +636,18 @@ struct Panel {
         WTSUnRegisterSessionNotification(control);Close();Log(L"panel-closed");return 0;
     }
 };
+inline LRESULT CALLBACK Panel::MouseHookProc(int code,WPARAM wParam,LPARAM lParam){
+    if(code==HC_ACTION&&g_activeHookPanel&&
+       (wParam==WM_LBUTTONDOWN||wParam==WM_RBUTTONDOWN||wParam==WM_MBUTTONDOWN||wParam==WM_XBUTTONDOWN)){
+        auto const* info=reinterpret_cast<MSLLHOOKSTRUCT const*>(lParam);
+        auto* self=g_activeHookPanel;
+        if(self->revealed&&!self->closing&&!self->popup.Hit(info->pt.x,info->pt.y)&&
+           GetCapture()!=self->popup.window){
+            PostMessageW(self->control,Panel::DismissMessage,0,0);
+        }
+    }
+    return CallNextHookEx(nullptr,code,wParam,lParam);
+}
 }
 int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);

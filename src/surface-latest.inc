@@ -7,6 +7,12 @@ using LeanDockNativeMenu=unsigned char(WINAPI*)(FrameworkElement*,void*,void*,vo
 LeanDockNativeMenu g_nativeDockMenu;
 using LeanDockFlyoutShow=void(WINAPI*)(Controls::Primitives::FlyoutBase*,const DependencyObject*,const Controls::Primitives::FlyoutShowOptions*);
 LeanDockFlyoutShow g_nativeFlyoutShow;
+// C++/WinRT consume_general passes void*& for each projected object argument,
+// i.e. the address of the caller's ABI pointer slot (layout-identical to
+// const T*, not const T* const*). In Taskbar.View.dll LTCG also inlines the
+// constant ShowAt ABI thunk and leaves RDX (method) unset at call sites.
+using LeanDockFlyoutShowGeneral=void(WINAPI*)(Controls::Primitives::FlyoutBase*,void*,const DependencyObject*,const Controls::Primitives::FlyoutShowOptions*);
+LeanDockFlyoutShowGeneral g_nativeFlyoutShowGeneral;
 void (*g_nativeMenuResume)();
 void (*g_nativeMenuShowLeft)();
 void (*g_nativeMenuShowRight)();
@@ -104,8 +110,8 @@ bool SetLeanDockPointerFocus(Controls::Control const& item,HWND taskbar,ULONGLON
     }catch(...){LeanDockMenu::Put(taskbar,L"LeanDock.Menu.FocusError",static_cast<ULONG_PTR>(winrt::to_hresult()));}
     return false;
 }
-void WINAPI ShowLeanDockFlyout(Controls::Primitives::FlyoutBase* value,const DependencyObject* target,const Controls::Primitives::FlyoutShowOptions* options) {
-    if(value&&target&&IsLeanDockMenuCaller(__builtin_return_address(0)))try {
+void ArmLeanDockFlyout(Controls::Primitives::FlyoutBase* value,const DependencyObject* target) noexcept {
+    try {
         auto menu=value->try_as<Controls::MenuFlyout>();
         auto element=target->try_as<FrameworkElement>();
         if(menu&&element)for(auto& state:g_clickThroughTaskbarState){
@@ -166,7 +172,14 @@ void WINAPI ShowLeanDockFlyout(Controls::Primitives::FlyoutBase* value,const Dep
             break;
         }
     }catch(...){Wh_Log(L"LeanDock pointer menu focus unavailable: %08X",winrt::to_hresult());}
+}
+void WINAPI ShowLeanDockFlyout(Controls::Primitives::FlyoutBase* value,const DependencyObject* target,const Controls::Primitives::FlyoutShowOptions* options) {
+    if(value&&target&&IsLeanDockMenuCaller(__builtin_return_address(0)))ArmLeanDockFlyout(value,target);
     g_nativeFlyoutShow(value,target,options);
+}
+void WINAPI ShowLeanDockFlyoutGeneral(Controls::Primitives::FlyoutBase* value,void* method,const DependencyObject* target,const Controls::Primitives::FlyoutShowOptions* options) {
+    if(value&&target&&IsLeanDockMenuCaller(__builtin_return_address(0)))ArmLeanDockFlyout(value,target);
+    g_nativeFlyoutShowGeneral(value,method,target,options);
 }
 unsigned char WINAPI ShowLeanDockNativeMenu(FrameworkElement* source,void* model,void* frameArg,void* coordinator) {
     for(auto& state:g_clickThroughTaskbarState){
@@ -273,7 +286,8 @@ bool InstallLeanDockMenuHook() {
         {{LR"(winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync$_ResumeCoro$1)"},&g_nativeMenuResume,nullptr,true},
         {{LR"(`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`63'::<lambda_7>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>)"},&g_nativeMenuShowLeft,nullptr,true},
         {{LR"(`winrt::Taskbar::implementation::ContextMenus::ShowStartButtonContextMenuAsync'::`68'::<lambda_8>::operator()<winrt::Windows::Foundation::IInspectable const &,winrt::Windows::Foundation::IInspectable const &>)"},&g_nativeMenuShowRight,nullptr,true},
-        {{LR"(public: __cdecl winrt::impl::consume_Windows_UI_Xaml_Controls_Primitives_IFlyoutBase5<struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutBase>::ShowAt(struct winrt::Windows::UI::Xaml::DependencyObject const &,struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutShowOptions const &)const)"},&g_nativeFlyoutShow,ShowLeanDockFlyout,true}
+        {{LR"(public: __cdecl winrt::impl::consume_Windows_UI_Xaml_Controls_Primitives_IFlyoutBase5<struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutBase>::ShowAt(struct winrt::Windows::UI::Xaml::DependencyObject const &,struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutShowOptions const &)const)"},&g_nativeFlyoutShow,ShowLeanDockFlyout,true},
+        {{LR"(void __cdecl winrt::impl::consume_general<struct winrt::Windows::UI::Xaml::Controls::Primitives::IFlyoutBase5,struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutBase,int (__cdecl winrt::impl::abi<struct winrt::Windows::UI::Xaml::Controls::Primitives::IFlyoutBase5,void>::type::*)(void *,void *) noexcept,void * &,void * &>(struct winrt::Windows::UI::Xaml::Controls::Primitives::FlyoutBase const *,int (__cdecl winrt::impl::abi<struct winrt::Windows::UI::Xaml::Controls::Primitives::IFlyoutBase5,void>::type::*)(void *,void *) noexcept,void * &,void * &))"},&g_nativeFlyoutShowGeneral,ShowLeanDockFlyoutGeneral,true}
     };
     const bool focus=WindhawkUtils::HookSymbols(module,focusHooks,ARRAYSIZE(focusHooks));
     g_leanDockMenuHook=placement&&focus?1:2;

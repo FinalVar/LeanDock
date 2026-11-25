@@ -27,21 +27,25 @@ inline void Prepare(HWND taskbar) {
 inline bool Fresh(std::uint64_t at,std::uint64_t now) {
     return at&&now>=at&&now-at<=1000;
 }
-// Two finite commits per latest transition. A late timer from an earlier
-// transition cannot refresh the new scene or stop its timer. No idle polling.
+// Three finite commits per latest transition covering initial reveal, mid-slide,
+// and post-animation settle (~396 ms total, past ~250-300 ms Windows minimize
+// and taskbar slide-up animations). A late timer from an earlier transition
+// cannot refresh the new scene or stop its timer. No idle polling.
 struct Plan {
-    static constexpr std::uint64_t FirstDelay=16,SettleDelay=160;
+    static constexpr std::uint64_t FirstDelay=16,SettleDelay=110,FinalDelay=240;
     std::uint64_t generation{},due{};
     unsigned remaining{};
     std::uint64_t Begin(std::uint64_t now) {
-        ++generation;remaining=2;due=now+FirstDelay;return generation;
+        ++generation;remaining=3;due=now+FirstDelay;return generation;
     }
     void Cancel(){++generation;remaining=0;due=0;}
     bool Current(std::uint64_t token)const{return remaining&&token==generation;}
     bool Ready(std::uint64_t token,std::uint64_t now)const{return Current(token)&&now>=due;}
+    bool IsFinal(std::uint64_t token)const{return Current(token)&&remaining==1;}
+    std::uint64_t NextDelay()const{return remaining==2?SettleDelay:FinalDelay;}
     bool Advance(std::uint64_t token,std::uint64_t now) {
         if(!Ready(token,now))return false;
-        if(--remaining){due=now+SettleDelay;return true;}
+        if(--remaining){due=now+NextDelay();return true;}
         due=0;return false;
     }
 };

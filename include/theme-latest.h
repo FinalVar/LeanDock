@@ -96,7 +96,7 @@ inline int Apply(bool dark) {
     wchar_t theme[MAX_PATH]{},wallpaper[MAX_PATH]{},library[MAX_PATH]{},hash[65]{};
     if(!Paths(dark,theme,wallpaper))return 71;
     GetSystemDirectoryW(library,std::size(library));wcscat_s(library,L"\\themeui.dll");
-    if(!NativeHashFile(library,hash)||_wcsicmp(hash,L"2AA99876194E8EE59D806A92DD740348279B6F1B704B4AE5A4E6BDB89552CD51"))return 72;
+    if(!NativeHashFile(library,hash)||_wcsicmp(hash,L"12060CBA6DD00C51E1D0E6C2E0539F51E5BF0AD2C0F5483F88102E7D634C935E"))return 72;
     if(FAILED(CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED)))return 73;
     struct Apartment {~Apartment(){CoUninitialize();}} apartment;
     constexpr CLSID clsid={0xC04B329E,0x5823,0x4415,{0x9C,0x93,0xBA,0x44,0x68,0x89,0x47,0xB0}};

@@ -5,9 +5,9 @@
 
 namespace NativeSwitcherPreshow {
 constexpr NativeModulePin kPin{L"twinui.pcshell.dll", L"C:\\Windows\\System32\\twinui.pcshell.dll",
-    L"8BA440EDED430A2417692A98B34695A12AD0EE000333DFED07E0C2723E17111C",3162946381u,10113024u};
-// Microsoft public PDB 9507F3DA-D47F-5F02-6569-FC50273C40D7, DBI age 1.
-constexpr unsigned kDisplayRva=104492;
+    L"0D44E428FE81F68522678F0958DB8B039E1E7DC3175B0D6A641918C3B125A2AE",1495861785u,10301440u};
+// Microsoft public PDB 0C0264B1-DC91-4A0A-CF98-DA9BD6F20229, DBI age 1.
+constexpr unsigned kDisplayRva=1118596;
 constexpr PCWSTR kProperty=L"LeanDock.SwitcherPreshow.0.8.70";
 constexpr ULONGLONG kMaximumDelay=200;
 static std::mutex mutex;

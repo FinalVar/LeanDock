@@ -1,0 +1,30 @@
+{
+  "version": "0.8.126",
+  "date": "2026-11-18T15:46:00+08:00",
+  "state": "Built, DirectHiddenProbe (311 policyChecks) and unit suites passed, live-loaded into Explorer, packaged at leandock-0.8.126-package",
+  "backendVersion": "0.5.106",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.126",
+  "userRequest": {
+    "At": "2026-11-18",
+    "Question": "亮度点一下最低再点一次复原",
+    "Scope": "Toggle brightness between minimum (0%) and the previous non-zero brightness on repeated clicks of the brightness icon button, persisting the saved brightness across panel closes and reopens."
+  },
+  "change": {
+    "BrightnessMinRestoreToggle": "include/aggregate-bridge-latest.h + src/cards-aggregate-latest.cpp + aggregate/control-panel-latest.h + aggregate/latest.cpp + aggregate/control-tests-latest.h: clicking PanelPart::BrightnessToggle calls ToggleBrightness(shown, savedBrightness) — when brightness > 0, records the current level in savedBrightness (and taskbar prop LeanDock.Aggregate.SavedBrightness, surviving panel close/reopen and Dock auto-hide, removed cleanly on Board::Stop) and sets brightness to 0; when brightness == 0, restores savedBrightness (or 50% fallback if none recorded)."
+  },
+  "checks": {
+    "DirectHiddenProbe": "aggregate/latest.exe --hidden-probe exit 0 (policyChecks: 311, metricChecks: 86, themePolicyChecks: 22)",
+    "UnitAndFixtureSuites": "aggregate-dismiss (22 checks, 0 failed), imports-latest.py exit 0"
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "E2A6D6948E32177B595A5A583D3243AC42B0CD17426F817277330C92066A554C",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "9470389658C9FB0A6397448D868DF2516FBF1D348D2ED0BA76191CDEFD74E093"
+  },
+  "notVerified": [
+    "Interactive desktop click-to-min and click-to-restore on WinSta0\\Default"
+  ]
+}

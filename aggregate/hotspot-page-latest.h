@@ -8,11 +8,11 @@
 namespace Capsule {
 struct HotspotView {
     enum class Focus { None, Name, Password };
-    bool editing=false,reveal=false,saving=false;Focus focus=Focus::None;int band=-1;uint64_t serial=0;
+    bool editing=false,reveal=false,saving=false,selectAll=false;Focus focus=Focus::None;int band=-1;uint64_t serial=0;
     std::wstring name,password,shown; // password: the key being edited; shown: the current key while revealed
     HotspotView(){password.reserve(64);shown.reserve(64);}
     void Hide(){SecureZeroMemory(shown.data(),shown.size()*sizeof(wchar_t));shown.clear();reveal=false;}
-    void Wipe(){SecureZeroMemory(password.data(),password.size()*sizeof(wchar_t));password.clear();Hide();focus=Focus::None;}
+    void Wipe(){SecureZeroMemory(password.data(),password.size()*sizeof(wchar_t));password.clear();Hide();focus=Focus::None;selectAll=false;}
     void Reset(){Wipe();editing=saving=false;name.clear();band=-1;serial=0;}
 };
 inline const wchar_t* BandLabel(int band){
@@ -66,15 +66,15 @@ inline void PaintHotspotPage(Drawing& draw,ID2D1DeviceContext* dc,Sample const& 
     if(v.editing){
         auto label=[&](float y,const wchar_t* text){draw.Text(dc,text,{16,y,200,18},11.5f,c.secondary);};
         label(60,L"网络名称");
-        PaintField(draw,dc,HotspotNameBox,v.name,false,false,v.focus==HotspotView::Focus::Name,L"网络名称",0);
+        PaintField(draw,dc,HotspotNameBox,v.name,false,false,v.focus==HotspotView::Focus::Name,L"网络名称",0,v.focus==HotspotView::Focus::Name&&v.selectAll);
         label(118,L"密码");
         PaintField(draw,dc,HotspotKeyBox,v.password,true,v.reveal,v.focus==HotspotView::Focus::Password,
-            L"8–63 个字符",lit(PageHit::Reveal));
+            L"8–63 个字符",lit(PageHit::Reveal),v.focus==HotspotView::Focus::Password&&v.selectAll);
         label(176,L"频段");
         for(int band=0;band<3;++band){
             const auto r=HotspotBand(band);const bool chosen=v.band==band,allowed=h.bands[size_t(band)];
             if(chosen){auto fill=draw.Gradient(dc,{0,float(r.y)},{0,float(r.y+r.h)},{{0,Lighter(c.accent,.12f)},{1,c.accent}});draw.Fill(dc,r,8,fill.get());}
-            else{draw.Round(dc,r,8,c.control);draw.Stroke(dc,{r.x+.5,r.y+.5,r.w-1,r.h-1},7.5f,Solid(dc,c.hair).get());}
+            else{draw.Round(dc,r,8,c.control);draw.Stroke(dc,{r.x+.5,r.y+.5,r.w-1,r.h-1},7.5f,draw.Brush(dc,c.hair));}
             if(const float a=allowed&&!chosen?lit(PageHit::Option,std::to_wstring(band)):0;a>0)draw.Round(dc,r,8,Alpha(c.hover,a));
             const auto ink=chosen?c.onAccent:allowed?c.text:Alpha(c.text,.35f);
             CenterText(draw,dc,band?BandLabel(band):L"任何可用",r,12,ink,chosen);

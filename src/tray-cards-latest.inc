@@ -76,7 +76,7 @@ void UpdateUnifiedDockGrid() {
         auto system=DockCollectSystem(root);
         PrepareDormantNativePower(battery);
         DockSet(input,UIElement::VisibilityProperty(),Visibility::Collapsed);
-        const double cell=g_settings.notificationIconWidth,pitch=cell+4,row=24;
+        const double cell=g_settings.notificationIconWidth,pitch=cell,row=24;
         const int appCount=int(apps.icons.size()),systemCount=int(system.icons.size());
         const int count=appCount+systemCount;
         DockArrangeGroup(apps,0,1,cell,pitch,row);

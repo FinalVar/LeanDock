@@ -2,6 +2,8 @@
 #define ND_COMPONENT 3
 #define WindhawkUtils NDSizeUtils
 #include "native-api-latest.h"
+#include <cmath>
+#include <cstdint>
 #include "icon-resolution-latest.h"
 #include <windhawk_utils.h>
 #include <winrt/Windows.Foundation.h>
@@ -1243,6 +1245,24 @@ void WINAPI SystemTraySecondaryController_UpdateFrameSize_Hook(void* pThis) {
 
 using SystemTrayFrame_Height_t = void(WINAPI*)(void* pThis, double value);
 SystemTrayFrame_Height_t SystemTrayFrame_Height_Original;
+inline bool IsAbiVtableCallOffset(const void* method, uint32_t offset) {
+    const auto* p = static_cast<const BYTE*>(method);
+    return p && p[0] == 0x48 && p[1] == 0x8B && p[2] == 0x01 &&
+           p[3] == 0x48 && p[4] == 0x8B && p[5] == 0x80 &&
+           *reinterpret_cast<const uint32_t*>(p + 6) == offset;
+}
+using SystemTrayFrame_Height_General_t = void(WINAPI*)(void* pThis, void* method, double* value);
+SystemTrayFrame_Height_General_t SystemTrayFrame_Height_General_Original;
+void WINAPI SystemTrayFrame_Height_General_Hook(void* pThis, void* method, double* value) {
+    if (!IsVerticalTaskbar() && g_inSystemTrayController_UpdateFrameSize && g_taskbarHeight &&
+        IsAbiVtableCallOffset(method, 144) && value && !std::isnan(*value) &&
+        IsRuntimeClass(pThis, L"SystemTray.SystemTrayFrame")) {
+        double overridden = g_taskbarHeight;
+        SystemTrayFrame_Height_General_Original(pThis, method, &overridden);
+        return;
+    }
+    SystemTrayFrame_Height_General_Original(pThis, method, value);
+}
 void WINAPI SystemTrayFrame_Height_Hook(void* pThis, double value) {
     // Wh_Log(L">");
 
@@ -2305,6 +2325,18 @@ void WINAPI SearchButtonBase_UpdateButtonPadding_Hook(void* pThis) {
 
 using ProgressBar_Width_t = void(WINAPI*)(void* pThis, double width);
 ProgressBar_Width_t ProgressBar_Width_Original;
+using ProgressBar_Width_General_t = void(WINAPI*)(void* pThis, void* method, double* value);
+ProgressBar_Width_General_t ProgressBar_Width_General_Original;
+void WINAPI ProgressBar_Width_General_Hook(void* pThis, void* method, double* value) {
+    if (g_taskListButtonPostureIconHeight && value && *value == g_taskListButtonPostureIconHeight &&
+        IsAbiVtableCallOffset(method, 128) &&
+        IsRuntimeClass(pThis, L"Microsoft.UI.Xaml.Controls.ProgressBar")) {
+        double overridden = g_taskListButtonCustomIconHeight;
+        ProgressBar_Width_General_Original(pThis, method, &overridden);
+        return;
+    }
+    ProgressBar_Width_General_Original(pThis, method, value);
+}
 void WINAPI ProgressBar_Width_Hook(void* pThis, double width) {
     Wh_Log(L"> width=%f", width);
 
@@ -2584,6 +2616,12 @@ bool HookSystemTraySymbols(HMODULE module) {
             FrameworkElementOverrides_MeasureOverride_Hook,
             true,  // Missing in older Windows 11 versions.
         },
+        {
+            {LR"(void __cdecl winrt::impl::consume_general<struct winrt::Windows::UI::Xaml::IFrameworkElement,struct winrt::SystemTray::SystemTrayFrame,int (__cdecl winrt::impl::abi<struct winrt::Windows::UI::Xaml::IFrameworkElement,void>::type::*)(double) noexcept,double &>(struct winrt::SystemTray::SystemTrayFrame const *,int (__cdecl winrt::impl::abi<struct winrt::Windows::UI::Xaml::IFrameworkElement,void>::type::*)(double) noexcept,double &))"},
+            &SystemTrayFrame_Height_General_Original,
+            SystemTrayFrame_Height_General_Hook,
+            true,  // C++/WinRT consume_general folding in newer 26H2 builds.
+        },
     };
 
     if (!HookSymbols(module, symbolHooks, ARRAYSIZE(symbolHooks))) {
@@ -2804,6 +2842,12 @@ bool HookTaskbarViewDllSymbols(HMODULE module,
                 &ProgressBar_Width_Original,
                 ProgressBar_Width_Hook,
                 true,  // From Windows 11 version 22H2.
+            },
+            {
+                {LR"(void __cdecl winrt::impl::consume_general<struct winrt::Windows::UI::Xaml::IFrameworkElement,struct winrt::Microsoft::UI::Xaml::Controls::ProgressBar,int (__cdecl winrt::impl::abi<struct winrt::Windows::UI::Xaml::IFrameworkElement,void>::type::*)(double) noexcept,double &>(struct winrt::Microsoft::UI::Xaml::Controls::ProgressBar const *,int (__cdecl winrt::impl::abi<struct winrt::Windows::UI::Xaml::IFrameworkElement,void>::type::*)(double) noexcept,double &))"},
+                &ProgressBar_Width_General_Original,
+                ProgressBar_Width_General_Hook,
+                true,  // C++/WinRT consume_general folding in newer 26H2 builds.
             },
         };
 

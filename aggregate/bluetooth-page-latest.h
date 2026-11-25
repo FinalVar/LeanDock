@@ -60,8 +60,7 @@ inline const wchar_t* BluetoothGlyph(BluetoothKind kind){
 }
 inline std::wstring BluetoothSubtitle(BluetoothDevice const& d,BluetoothList const& list){
     if(list.busy==d.id)return list.connecting?L"正在连接…":L"正在断开…";
-    if(!d.connected)return L"未连接";
-    return d.battery>=0?L"已连接 · 电量 "+std::to_wstring(d.battery)+L"%":std::wstring(L"已连接");
+    return d.connected?L"已连接":L"未连接";
 }
 inline void PaintBluetoothPage(Drawing& draw,ID2D1DeviceContext* dc,Sample const& s,BluetoothLayout const& l,BluetoothView const& v,
     PageTarget const& hover,float hoverAmount,float on){
@@ -86,15 +85,21 @@ inline void PaintBluetoothPage(Drawing& draw,ID2D1DeviceContext* dc,Sample const
     for(auto const& r:l.rows){
         const float y=r.y+shift;auto const& d=r.device;
         if(y+r.h<l.top||y>l.bottom)continue;
-        if(r.open){
-            draw.Round(dc,{8,y,284,r.h},10,c.control);
-            auto edge=draw.Gradient(dc,{0,y},{0,y+24},{{0,c.controlEdge},{1,Alpha(c.controlEdge,0)}});
-            draw.Stroke(dc,{8.5,y+.5,283,r.h-1},9.5f,edge.get());
-        }
+        if(r.open)PaintControlCard(draw,dc,{8,y,284,r.h},10);
         if(const float h=lit(PageHit::Row,d.id);h>0)draw.Round(dc,{8,y,284,DeviceRowHeight},10,Alpha(c.hover,h));
-        const bool busy=list.busy==d.id;
+        const bool busy=list.busy==d.id,showBattery=d.connected&&d.battery>=0&&d.battery<=100;
         PanelGlyph(draw,dc,BluetoothGlyph(d.kind),{14,y+10,30,28},d.connected?c.text:c.secondary,17);
-        draw.Text(dc,d.name,{52,y+6,228,20},13,c.text,d.connected);
+        float nameMaxW=228.f,badgeW=0;
+        if(showBattery){
+            badgeW=BatteryBadgeWidth(draw,d.battery,11.f);
+            nameMaxW=std::max(0.f,228.f-badgeW-8.f);
+        }
+        draw.Text(dc,d.name,{52,y+6,nameMaxW,20},13,c.text,d.connected);
+        if(showBattery){
+            const float nameW=std::min(nameMaxW,std::ceil(MeasurePanelText(draw,d.name,13,d.connected)));
+            const D2D1_COLOR_F badgeColor=BatteryBadgeColor(c.danger,c.secondary,d.battery,false);
+            PaintBatteryBadge(draw,dc,{52.f+nameW+8.f,y+6,badgeW,20},d.battery,badgeColor,11.f);
+        }
         draw.Text(dc,BluetoothSubtitle(d,list),{52,y+25,228,16},11,busy?c.accent:c.secondary);
         if(!r.open)continue;
         if(r.status)draw.Text(dc,list.failure,{20,y+DeviceRowHeight,260,18},11.5f,c.danger);

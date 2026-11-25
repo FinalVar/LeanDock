@@ -1,0 +1,30 @@
+{
+  "version": "0.8.117",
+  "date": "2026-11-17T13:13:00+08:00",
+  "state": "Built, packaged, ValidateOnly passed, 21 offline/unit stages passed, and LUA_TOKEN isolated probe + lifecycle passed; live deployment pending desktop session Update",
+  "backendVersion": "0.5.98",
+  "controllerVersion": "0.3.43",
+  "panelVersion": "0.8.117",
+  "userRequest": {
+    "At": "2026-11-17",
+    "Question": "鼠标移动上定位图标时选中轮廓和托盘图标不一样 / 此类问题全部一起解决，只要是在托盘区域出现的",
+    "Scope": "Unify Border#BackgroundBorder visual-state outline styling (size, alignment, margin, corner radius, borderless across all states, subtle tint fills) and *IconContent padding/normalization across all tray stacks and icon types"
+  },
+  "change": {
+    "TrayStyles (0.8.117)": "baseline/styles-latest.json & baseline/settings-latest.json controlStyles[15] expanded to SystemTray.NotifyIconView, SystemTray.ChevronIconView, SystemTray.Stack > * > SystemTray.IconView (covering MainStack, NonActivatableStack, NotifyIconStack), and SystemTray.OmniButton#ControlCenterButton > Grid@CommonStates > Border#BackgroundBorder, adding Background@CheckedNormal and BorderBrush@*=Transparent across Normal, PointerOver, Pressed, Checked, CheckedNormal, CheckedPointerOver, CheckedPressed while keeping controlStyles[16] Opacity=0 on ControlCenterButton inner IconView.",
+    "TrayNormalization (0.8.117)": "build/generate-latest.py adapts upstream/tray.cpp into src/tray-latest.cpp so ApplyNotifyIconViewStyle clears inner ContainerGrid padding for BadgeIconContent, BatteryIconContent, and LanguageImageIconContent alongside TextIconContent/ImageIconContent, and DockNormalizeIcon normalizes all 7 SystemTray.*IconContent classes (ImageIconContent, TextIconContent, LanguageTextIconContent, BatteryIconContent, BadgeIconContent, LanguageImageIconContent, DateTimeIconContent). src/runtime-latest.cpp and build/latest.ps1 bump BackendVersion to 0.5.98."
+  },
+  "checks": {
+    "PackagedHiddenProbe": "LUA_TOKEN (normalUser: true): policyChecks 283, metricChecks 86, wifiTargetReady true, bluetoothTargetReady true, bluetoothBatteryReady true, bluetoothBattery 91, readOnly true, hiddenReadsUnchanged true, hiddenSamplingUnchanged true, pagesCleared true, 16 offscreen PNGs generated",
+    "LifecycleFixture": "LUA_TOKEN (normalUser: true): passed true, checks 332, closeCases 20, workerCycles 22, maximumStopMs 110, ownedPanelWindows 0",
+    "UnitAndFixtureSuites": "21 stages passed (tray-styles [36 checks], latest, icon-optics, icon-view, grid, geometry, cards-aggregate, cards-aggregate-host, attention, clip-ownership, theme-notify, maintenance, quick-position, desktop-sweep, cards, cards-preferences, cards-input, cards-manipulation, shell-actions, hotcorners, imports); client-edge had 3/108 failures requiring Shell_TrayWnd on WinSta0\\Default (blocked by exebox desktop sandbox)"
+  },
+  "preDeployValidation": {
+    "Package": "C:\\Users\\x\\Documents\\Codex\\Tools\\_build\\leandock-0.8.117-package\\latest",
+    "ValidateOnly": "passed (ChangedFiles: 19, RuntimeChanged: [aggregate/latest.exe, latest.dll], PreserveConfiguration: true)"
+  },
+  "notVerified": [
+    "Live deployment via latest.ps1 -Action Update on WinSta0\\Default desktop (blocked from agent exebox desktop where FindWindow('Shell_TrayWnd') returns 0)",
+    "Interactive desktop mouse hover and toggle visual inspection on active MainStack (e.g. Location/Microphone), ChevronIconView, and NonActivatableStack icons after live Update"
+  ]
+}
