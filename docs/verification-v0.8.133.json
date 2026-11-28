@@ -1,0 +1,33 @@
+{
+  "version": "0.8.133",
+  "date": "2026-11-26T23:49:00+08:00",
+  "state": "Built, verified, packaged, and Update -ValidateOnly passed; awaiting elevated interactive Update apply and live post-idle / post-wake hover verification on WinSta0\\Default",
+  "backendVersion": "0.5.113",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.133",
+  "userRequest": {
+    "At": "2026-11-26",
+    "Question": "应用最大化后很久之后或者唤醒电脑之后，鼠标下移呼出dock，直接移到腰圆键上毫无反应，需要移开再移入才出现悬浮面板",
+    "Scope": "Fixed two interacting cold-start / slide-up bugs causing the first hover on the capsule key after long maximized idle or PC wake to fail silently until moving off and re-entering: 1) aggregate/latest.cpp (0.8.133): drain sticky GetAsyncKeyState low bits via PressedElsewhere() and refresh escapeHeld on cold launch in Run() and unconditionally in Reveal() (previously only drained on warm keepalive wake), gate pressOutside dismissal on revealed so hidden standby cannot self-abort from a stale click bit while inside==true, and add 16 DIP bottom slide-edge grace to reach during !revealed standby; 2) src/cards-aggregate-latest.cpp (0.5.113): when HoverTick() fires while !Visible() during Dock slide-up after idle/wake, keep polling for up to 1500 ms instead of permanently stopping the hover timer; add CursorOnKey() re-arm when Update() transitions shown false->true (handling stationary cursor reveal); add PointerMoved fallback with click/context hoverSuppressed guard."
+  },
+  "change": {
+    "ColdLaunchStandbyProtection": "aggregate/latest.cpp (0.8.133): drain PressedElsewhere() + escapeHeld on cold Run() and unconditionally in Reveal(), gate pressOutside on revealed, and extend standby reach.bottom by 16 DIP during !revealed slide-up.",
+    "SlideUpHoverRecovery": "src/cards-aggregate-latest.cpp (0.5.113): bounded 1500 ms Visible() wait in HoverTick(), CursorOnKey() re-arm on shown false->true in Update(), and PointerMoved fallback with hoverSuppressed guard on Click/ContextRequested.",
+    "RegressionTest": "tests/aggregate-dismiss-latest.cpp: added cold-launch standby (!revealed) Tick survival over bottom slide grace and RevealProp reveal assertions (28/28 passed)."
+  },
+  "checks": {
+    "UnitAndFixtureSuites": "latest.exe --verify (exit 0), latest.exe --verify-corners (exit 0), aggregate --hidden-probe (exit 0), imports-latest.py (exit 0, system DLLs only), aggregate-dismiss-latest (28 checks, 0 failed), cards-aggregate-host-latest (passed), maintenance-latest (61 checks, 0 failed), backdrop-latest (91 checks, 0 failed), geometry-latest (343 checks, 0 failed), log-rotate-latest (45 checks, 0 failed).",
+    "UpdatePreflight": "Update -ValidateOnly verified against C:\\Users\\x\\dev\\tools\\LeanDock"
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "DFE1B2ADB54C56C818998BB26EBB48E9113BB3D19510A7EF2196E09425698681",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "FDFB6C6CCF525944095BC2C72BD169A42EEB4778E4D0AC6E50AF9E75747DDC64"
+  },
+  "notVerified": [
+    "Elevated interactive desktop Update apply on WinSta0\\Default",
+    "Live first-hover capsule reveal verification after long maximized-app idle and after PC sleep/wake on WinSta0\\Default"
+  ]
+}

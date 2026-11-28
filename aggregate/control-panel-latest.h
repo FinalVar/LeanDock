@@ -351,7 +351,7 @@ inline void PaintControlPanel(Drawing& draw,ID2D1DeviceContext* dc,Sample const&
         const float y=layout.mediaY;
         draw.Text(dc,L"媒体",{14,y,40,20},12,c.secondary);
         draw.Text(dc,s.media,{56,y,158,20},12.5f,c.text);
-        const bool playing=s.mediaPlaying||(!s.mediaActive&&s.media.starts_with(L"▶"));
+        const bool playing=s.mediaPlaying;
         auto mediaBtn=[&](float bx,PanelPart part,const wchar_t* glyph,bool primary=false){
             const Rect box{bx,y-1,MediaBtnW,22};
             if(const float h=motion.hover[unsigned(part)].At(now);h>0)draw.Round(dc,box,6,Alpha(c.hover,h));

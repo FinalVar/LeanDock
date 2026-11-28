@@ -236,7 +236,7 @@ inline unsigned VerifyControlModel(){
     Sample s;PanelLayout empty(s,0);check(empty.mediaY<0&&empty.temperatureY<0&&empty.trayY<0);
     check(PanelHit(220,400,empty.mediaY)==PanelPart::None);
     auto cuts=empty.Cuts();check(cuts.front()==0&&cuts.back()==empty.height&&std::is_sorted(cuts.begin(),cuts.end()));
-    s.media=L"▶ 测试标题";s.mediaActive=true;s.mediaPlaying=true;s.error=L"设备已断开";PanelLayout content(s,7);
+    s.media=L"测试标题";s.mediaActive=true;s.mediaPlaying=true;s.error=L"设备已断开";PanelLayout content(s,7);
     check(content.mediaY>=0&&content.errorY>content.mediaY&&content.trayY>content.errorY);
     check(PanelHit(220,content.mediaY+10,content.mediaY)==PanelPart::MediaPrev);
     check(PanelHit(248,content.mediaY+10,content.mediaY)==PanelPart::MediaToggle);
@@ -511,7 +511,7 @@ inline Sample FixtureSample(int column){
     for(unsigned i=0;i<60;++i)AppendCpu(s.history,1000+i*1000,10+35*std::abs(std::sin(i/6.)));
     s.network=L"↓ 12.3 MB/s　↑ 84 KB/s";s.disks=L"C 123 GB　D 429 GB";
     s.battery=L"插电中，约 20 分钟充满";
-    if(column){s.media=L"▶ 一首正在播放的音乐";s.error=L"无线控制未获系统授权";}
+    if(column){s.media=L"一首正在播放的音乐";s.mediaActive=true;s.mediaPlaying=true;s.error=L"无线控制未获系统授权";}
     return s;
 }
 inline Power FixturePower(){Power p;p.valid=true;p.value.BatteryFlag=0;p.value.BatteryLifePercent=97;p.value.ACLineStatus=1;return p;}

@@ -110,9 +110,11 @@ class Metrics {
         auto m=metadata.GetResults();metadata=nullptr;
         s.mediaPlaying=status==winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;
         s.mediaActive=true;
-        s.media=s.mediaPlaying?L"▶ ":L"⏸ ";
-        s.media+=m.Title();
-        if(!m.Artist().empty())s.media+=L" — "+std::wstring(m.Artist());
+        s.media=m.Title();
+        if(!m.Artist().empty()){
+            if(!s.media.empty())s.media+=L" — ";
+            s.media+=std::wstring(m.Artist());
+        }
     }
     void MediaRead(Sample& s) {
         using namespace winrt::Windows::Media::Control;
@@ -146,7 +148,6 @@ class Metrics {
             s.mediaPlaying=status==GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;
             if(!s.media.empty()&&s.media!=L"没有在播放"){
                 s.mediaActive=true;
-                if(s.media.size()>=2&&(s.media[0]==L'▶'||s.media[0]==L'⏸'))s.media[0]=s.mediaPlaying?L'▶':L'⏸';
             }
             if(metadata){
                 auto st=metadata.Status();

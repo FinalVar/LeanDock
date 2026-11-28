@@ -1,31 +1,29 @@
 {
-  "version": "0.8.132",
-  "date": "2026-11-22T22:37:00+08:00",
-  "state": "Applied live on WinSta0\\Default at 2026-11-22T22:42:07+08:00 (backend 0.5.112 active, explorerPid=21700, ownerPid=6904, hooks=68, menuHook=1, styledElements=30, failed=false); backdrop-latest (91 checks), tray-styles-latest (40 checks), PE imports check, Update -ValidateOnly, and post-apply Rollback -ValidateOnly (before-0.8.132-20261122-224159262, 12 files) passed",
-  "backendVersion": "0.5.112",
+  "version": "0.8.134",
+  "date": "2026-11-28T20:09:00+08:00",
+  "state": "Built, verified, packaged, deployed on WinSta0\\Default, and visually confirmed by user",
+  "backendVersion": "0.5.113",
   "controllerVersion": "0.3.44",
-  "panelVersion": "0.8.129",
+  "panelVersion": "0.8.134",
   "userRequest": {
-    "At": "2026-11-22",
-    "Question": "0.8.131 实测反馈：一样，只是出现后 0.几秒不干预自动恢复了",
-    "Scope": "Move atomic CompositionEffectBrush rebuild forward from the final ~396 ms pass to PrepareBackdrop (pre-Unhide) and every visible recovery pass (16 ms / +110 ms / +240 ms) so the stale white upper blur band clears immediately on reveal/landing instead of remaining visible for ~0.4 s."
+    "At": "2026-11-28",
+    "Question": "媒体右边那个图标完全是多余的",
+    "Scope": "Remove the redundant leading play/pause glyph prefix (▶ / ⏸) from the media title in aggregate/metrics-latest.h (MediaCollect/MediaRead) and simplify control-panel-latest.h to use s.mediaPlaying directly, aligning the media title cleanly with the GPU/metrics column above it and freeing ~20 DIP for title text while keeping the interactive Prev/Play-Pause/Next controls on the right."
   },
   "change": {
-    "FrontLoadedAtomicBrushRebuild": "include/backdrop-resume-latest.h + src/backdrop-brush-latest.inc: pass rebuild=true in PrepareBackdrop (before TrayUI_Unhide_Original) and on all visible passes of ScheduleBackdropResume, and tighten Plan cadence to 16 ms / +110 ms / +240 ms (~366 ms total coverage, zero idle polling).",
-    "TestsAndDocs": "tests/backdrop-latest.cpp + docs/backdrop-resume-latest.md + README.md + docs/verification-v0.8.131.json + docs/verification-latest.json: update Plan cadence assertions, record 0.8.131 live observation and 0.8.132 front-loaded rebuild fix."
+    "RemoveRedundantMediaPrefix": "aggregate/metrics-latest.h (0.8.134) + aggregate/control-panel-latest.h + aggregate/control-tests-latest.h: drop the redundant ▶/⏸ prefix on s.media and handle empty-title/artist formatting cleanly; rebuild aggregate/latest.exe and re-pin latest.dll."
   },
   "checks": {
-    "UnitAndFixtureSuites": "backdrop-latest (91 checks, 0 failed), tray-styles-latest (40 checks, 0 failed), imports-latest.py exit 0 (system DLLs only)",
-    "UpdatePreflight": "Update -ValidateOnly (ChangedFiles: 11, RuntimeChanged: [latest.dll], PreserveConfiguration: true) and post-apply Rollback -ValidateOnly (before-0.8.132-20261122-224159262, 12 files intact) passed; live backend 0.5.112 active with 0 unavailable components"
+    "UnitAndFixtureSuites": "latest.exe --verify (exit 0), latest.exe --verify-corners (exit 0), aggregate --hidden-probe (exit 0, includes VerifyControlModel & RenderControlPanel), imports-latest.py (exit 0, system DLLs only), aggregate-dismiss-latest (28 checks, 0 failed), maintenance-latest (61 checks, 0 failed).",
+    "UpdatePreflight": "Update -ValidateOnly verified against C:\\Users\\x\\dev\\tools\\LeanDock"
   },
   "runtimeBinaries": {
     "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
-    "latest.dll": "62F0973D139F1FF989E6831F1F2073E0CA79C9FDF205FBBD3E6E72013E3DF5D6",
+    "latest.dll": "795C4EAD90704408D1549122B912C5ABAACD56E017C815628E89BF0416850D4C",
     "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
     "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
-    "aggregate/latest.exe": "83347F5B4901F909E0CB622BFC4BC48186262A99634E629ACD192AC8D6201E05"
+    "aggregate/latest.exe": "EF6CA7B61B9569D8DF5247561642B7223314C05C5D70BDCE6738166EEEF43582"
   },
-  "notVerified": [
-    "Elevated interactive desktop Update load and real maximize->desktop auto-hide visual verification on WinSta0\\Default"
-  ]
+  "liveDesktop": "Deployed to C:\\Users\\x\\dev\\tools\\LeanDock (version 0.8.134) and visually confirmed by user on WinSta0\\Default (2026-11-28).",
+  "notVerified": []
 }

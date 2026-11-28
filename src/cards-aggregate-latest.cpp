@@ -46,9 +46,9 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
     Power::PowerSupplyStatusChanged_revoker supplyChanged;
     x::FrameworkElement::Unloaded_revoker unloaded;x::UIElement::ContextRequested_revoker context;
     CompactApps compact;std::wstring directory;HWND hwnd{};HANDLE child{};uintptr_t cookie{};
-    uint64_t enteredAt=0,launchedAt=0;
-    bool stopped=false,busy=false,fits=false,shown=false,inside=false,ready=false,attached=false,layoutOwned=false,primed=false;
-    unsigned errors=0,clockUpdates=0,powerUpdates=0;int percent=-2;std::atomic<bool> queued=false;
+    uint64_t enteredAt=0,launchedAt=0,waitVisibleSince=0;
+    bool stopped=false,busy=false,fits=false,shown=false,inside=false,ready=false,attached=false,layoutOwned=false,primed=false,hoverSuppressed=false;
+    unsigned errors=0,clockUpdates=0,powerUpdates=0,hoverLaunches=0;int percent=-2;std::atomic<bool> queued=false;
     ~Board(){Stop();}
     void Put(wchar_t const* name,intptr_t value){if(hwnd&&GetPropW(hwnd,name)!=HANDLE(value+1))SetPropW(hwnd,name,HANDLE(value+1));}
     void Fail()noexcept{Put(L"LeanDock.Card.Errors",++errors);}
@@ -103,19 +103,48 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
             origin.x+LONG(std::lround((pos.X+card.ActualWidth())*scale)),top+LONG(std::lround((pos.Y+card.ActualHeight())*scale))};
         for(unsigned i=0;i<4;++i)SetPropW(hwnd,a::BoundsProps[i],HANDLE(intptr_t(values[i])));
     }
+    bool CursorOnKey()const{
+        if(!hwnd||!fits)return false;
+        POINT cursor{};if(!GetCursorPos(&cursor))return false;
+        RECT anchor{int(reinterpret_cast<intptr_t>(GetPropW(hwnd,a::BoundsProps[0]))),
+                    int(reinterpret_cast<intptr_t>(GetPropW(hwnd,a::BoundsProps[1]))),
+                    int(reinterpret_cast<intptr_t>(GetPropW(hwnd,a::BoundsProps[2]))),
+                    int(reinterpret_cast<intptr_t>(GetPropW(hwnd,a::BoundsProps[3])))};
+        if(anchor.right<=anchor.left||anchor.bottom<=anchor.top)return false;
+        anchor.bottom+=LONG(std::lround(16*GetDpiForWindow(hwnd)/96.0));
+        return PtInRect(&anchor,cursor)!=FALSE;
+    }
     // Hover is two-staged: after a short rest the child starts hidden and
     // samples, then the real hover delay reveals it with values already read.
     // A pass-over shorter than PrimeDelay starts nothing.
-    static constexpr uint64_t PrimeDelay=120,RevealDelay=400;
+    static constexpr uint64_t PrimeDelay=120,RevealDelay=400,SlideWaitLimit=1500;
     void Hover(){
-        enteredAt=GetTickCount64();primed=false;hover.Stop();
+        if(stopped||hoverSuppressed)return;
+        enteredAt=GetTickCount64();waitVisibleSince=enteredAt;primed=false;hoverLaunches=0;hover.Stop();
         hover.Interval(std::chrono::milliseconds(PrimeDelay));hover.Start();
     }
     void HoverTick(){
-        hover.Stop();if(stopped||!inside||!Visible())return;
+        hover.Stop();if(stopped||!inside)return;
+        const auto now=GetTickCount64();
+        if(!Visible()){
+            // After long maximized-app idle or PC wake, the auto-hidden Dock can still be
+            // sliding up when PointerEntered arrives. Keep waiting briefly instead of dropping
+            // hover permanently (which previously required moving off the key and back on).
+            if(IsWindowVisible(hwnd)&&now-waitVisibleSince<SlideWaitLimit){
+                enteredAt=now;
+                hover.Interval(std::chrono::milliseconds(50));hover.Start();
+            }else{
+                inside=false;
+            }
+            return;
+        }
         if(child&&WaitForSingleObject(child,0)!=WAIT_TIMEOUT){CloseHandle(child);child=nullptr;}
-        if(!child&&!Launch())return;
-        const auto now=GetTickCount64(),due=enteredAt+RevealDelay;
+        if(!child){
+            if(hoverLaunches>=2)return;
+            ++hoverLaunches;
+            if(!Launch())return;
+        }
+        const auto due=enteredAt+RevealDelay;
         if(!primed&&now<due){
             primed=true;PublishAnchor();
             auto control=reinterpret_cast<HWND>(GetPropW(hwnd,a::ControlProp));
@@ -216,14 +245,17 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
         auto weak=weak_from_this();clock=x::DispatcherTimer();hover=x::DispatcherTimer();
         clock.Tick([weak](auto&&,auto&&){if(auto p=weak.lock())try{p->Clock();}catch(...){p->Fail();}});
         hover.Tick([weak](auto&&,auto&&){if(auto p=weak.lock())try{p->HoverTick();}catch(...){p->hover.Stop();p->ClosePanel();p->Fail();}});
-        key.PointerEntered([weak](auto&&,auto&&){if(auto p=weak.lock();p&&!p->stopped){p->inside=true;p->Hover();}});
-        key.PointerExited([weak](auto&&,auto&&){if(auto p=weak.lock()){p->inside=false;p->hover.Stop();}});
+        key.PointerEntered([weak](auto&&,auto&&){if(auto p=weak.lock();p&&!p->stopped){p->inside=true;p->hoverSuppressed=false;p->Hover();}});
+        key.PointerMoved([weak](auto&&,auto&&){if(auto p=weak.lock();p&&!p->stopped&&!p->hoverSuppressed){
+            if(!p->inside||(!p->hover.IsEnabled()&&!a::Holding(p->hwnd))){p->inside=true;p->Hover();}
+        }});
+        key.PointerExited([weak](auto&&,auto&&){if(auto p=weak.lock()){p->inside=false;p->hoverSuppressed=false;p->hover.Stop();}});
         key.Click([weak](auto&&,auto&&){if(auto p=weak.lock();p&&!p->stopped&&LeanDockShell::IsTaskbar(p->hwnd,GetCurrentProcessId())){
-            p->hover.Stop();p->ClosePanel();PostMessageW(p->hwnd,WM_SYSCOMMAND,SC_TASKLIST,0);
+            p->hoverSuppressed=true;p->hover.Stop();p->ClosePanel();PostMessageW(p->hwnd,WM_SYSCOMMAND,SC_TASKLIST,0);
         }});
         context=card.ContextRequested(winrt::auto_revoke,[weak](auto&&,x::Input::ContextRequestedEventArgs const& e)noexcept{
             if(auto p=weak.lock();p&&!p->stopped&&p->fits&&p->Visible()&&!e.Handled())try{
-                e.Handled(true);p->hover.Stop();p->ClosePanel();
+                e.Handled(true);p->hoverSuppressed=true;p->hover.Stop();p->ClosePanel();
                 LeanDockMenu::HandleContext(p->hwnd,LeanDockContext::Target::Card,LeanDockMenu::ContextSource::DirectCard);
             }catch(...){p->Fail();}
         });
@@ -249,7 +281,8 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
             const auto margin=background.Margin();if(margin.Left!=-10||margin.Right!=-12-slot||margin.Top!=-1||margin.Bottom!=-1)background.Margin({-10,-1,-12-slot,-1});
             const auto visibility=fits?x::Visibility::Visible:x::Visibility::Collapsed;
             if(card.Visibility()!=visibility)card.Visibility(visibility);
-            const bool changed=shown!=Visible();shown=Visible();if(changed){Clock();ReadPower();if(!shown){hover.Stop();ClosePanel();}}
+            const bool changed=shown!=Visible();shown=Visible();
+            if(changed){Clock();ReadPower();if(!shown){inside=false;hoverSuppressed=false;hover.Stop();ClosePanel();}}
             const bool nextReady=fits&&card.IsLoaded()&&card.ActualWidth()>0;
             Put(L"LeanDock.Card.Ready",1);Put(L"LeanDock.Card.Fits",fits);Put(L"LeanDock.Card.Visible",shown);
             Put(L"LeanDock.Card.Errors",errors);
@@ -257,6 +290,9 @@ struct Board final:Host,std::enable_shared_from_this<Board>{
             Put(L"LeanDock.Card.Dashboard",1);Put(L"LeanDock.Card.Dashboard.Width100",7200);Put(L"LeanDock.Card.AggregateVersion",1);
             Put(L"LeanDock.Card.Sampling",0);Put(L"LeanDock.Card.NetworkActive",0);Put(L"LeanDock.Card.ClockActive",shown);
             Put(L"LeanDock.Card.AppExtent100",std::lround(compact.Width()*100));AlignToSurface();PublishAnchor();
+            if(changed&&shown&&!hoverSuppressed&&!a::Holding(hwnd)&&(inside||CursorOnKey())&&!hover.IsEnabled()){
+                inside=true;Hover();
+            }
             if(ready!=nextReady){ready=nextReady;Native_tray_refresh_cards();}
         }catch(...){Fail();}busy=false;
     }

@@ -173,6 +173,31 @@ int wmain(){
         CleanupPanel(panel,bar,control);
     }
 
+    // 5. Cold-launch standby (!revealed) survives Tick while cursor rests on the
+    //    capsule (including 16 DIP bottom slide-edge grace) and reveals once ready.
+    {
+        Panel panel;HWND bar=HiddenHost();HWND control=CreateControlWindow(&panel);
+        SetupPanel(panel,bar,control,505);
+        RemovePropW(bar,Bridge::RevealProp);
+        panel.startedAt=GetTickCount64();
+        ShowWindow(bar,SW_SHOWNA);
+        POINT cursor{};
+        if(GetCursorPos(&cursor)){
+            // Anchor sits right above the current cursor within the 16 DIP slide grace.
+            SetPropW(bar,Bridge::BoundsProps[0],HANDLE(intptr_t(cursor.x-36)));
+            SetPropW(bar,Bridge::BoundsProps[1],HANDLE(intptr_t(cursor.y-52)));
+            SetPropW(bar,Bridge::BoundsProps[2],HANDLE(intptr_t(cursor.x+36)));
+            SetPropW(bar,Bridge::BoundsProps[3],HANDLE(intptr_t(cursor.y-6)));
+            (void)panel.PressedElsewhere();
+            panel.Tick();
+            Check(!panel.closing&&!panel.revealed,"standby Tick keeps hidden child alive over bottom slide grace");
+            SetPropW(bar,Bridge::RevealProp,HANDLE(uintptr_t(505)));
+            panel.Tick();
+            Check(!panel.closing&&panel.revealed,"standby Tick reveals once RevealProp is published");
+        }
+        CleanupPanel(panel,bar,control);
+    }
+
     if(ext&&IsWindow(ext))DestroyWindow(ext);
     winrt::uninit_apartment();
     std::printf("%u dismiss checks passed, %u failed\n",passed,failed);

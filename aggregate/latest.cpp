@@ -214,9 +214,12 @@ struct Panel {
             draw.colors.Refresh();popup.scene.Theme();
             if(const int saved=Bridge::SavedBrightness(bar);saved>0)savedBrightness=saved;
             metrics.Visible(true);
-            (void)PressedElsewhere();
-            escapeHeld=(GetAsyncKeyState(VK_ESCAPE)&0x8000)!=0;
         }
+        // Drain sticky GetAsyncKeyState bits on both cold launch and keepalive wake so
+        // an older click (e.g. inside a maximized app or on the lock screen) never triggers
+        // an immediate outside-press dismissal on the first visible tick.
+        (void)PressedElsewhere();
+        escapeHeld=(GetAsyncKeyState(VK_ESCAPE)&0x8000)!=0;
         revealed=true;metrics.Urgent();Paint();if(closing)return;
         if(HWND fg=GetForegroundWindow();fg&&fg!=popup.window){foreground=fg;previousForeground=fg;}
         POINT cursor{};if(GetCursorPos(&cursor))Light(cursor);
@@ -554,13 +557,16 @@ struct Panel {
         Position();popup.Hover(cursor);
         // Inside the panel WM_MOUSEMOVE moves the light more finely.
         if(!popup.Hit(cursor.x,cursor.y))Light(cursor);
-        // Before the reveal only the key counts: a pass-over ends the standby.
+        // Before the reveal only the key counts: a pass-over ends the standby, with
+        // bottom-edge slack while an auto-hidden Dock finishes sliding up.
         // Once shown, the way up from the key to the panel counts as the key.
-        RECT reach=anchor;if(revealed)reach.top=std::min(reach.top,LONG(popup.rect.y+popup.rect.h));
+        RECT reach=anchor;
+        if(revealed)reach.top=std::min(reach.top,LONG(popup.rect.y+popup.rect.h));
+        else reach.bottom+=LONG(std::lround(16*dpi));
         const bool inside=PtInRect(&reach,cursor)||popup.Hit(cursor.x,cursor.y)||GetCapture()==popup.window;
         if(typing&&GetForegroundWindow()!=popup.window){Unfocus();Paint();}
         const bool pressed=PressedElsewhere();
-        const bool pressOutside=pressed&&!popup.Hit(cursor.x,cursor.y)&&GetCapture()!=popup.window;
+        const bool pressOutside=revealed&&pressed&&!popup.Hit(cursor.x,cursor.y)&&GetCapture()!=popup.window;
         if(WindowSwitched()||pressOutside||stay.Close(inside,pressed,typing,GetTickCount64())){Quit(true);return;}
         // Clock remains live even when a device query is slow. Reuse this
         // existing visible-only timer; never add a resident background clock.
@@ -627,6 +633,11 @@ struct Panel {
             Paint();};
         if(!Valid())return 22;
         SetPropW(bar,Bridge::ControlProp,control);SetPropW(bar,Bridge::WindowProp,popup.window);
+        // Drain sticky GetAsyncKeyState low bits before the first standby Tick runs:
+        // after long maximized-app idle or PC wake, cold launch would otherwise read
+        // a stale click bit from minutes ago and quit before RevealDelay elapses.
+        (void)PressedElsewhere();
+        escapeHeld=(GetAsyncKeyState(VK_ESCAPE)&0x8000)!=0;
         Paint();if(closing)return 23;
         if(!SetTimer(control,TickTimer,50,nullptr))winrt::throw_last_error();
         // The owner sets the reveal property before looking for this control

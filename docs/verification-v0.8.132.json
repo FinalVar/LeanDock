@@ -1,0 +1,31 @@
+{
+  "version": "0.8.132",
+  "date": "2026-11-22T22:37:00+08:00",
+  "state": "Applied live on WinSta0\\Default at 2026-11-22T22:42:07+08:00 (backend 0.5.112 active, explorerPid=21700, ownerPid=6904, hooks=68, menuHook=1, styledElements=30, failed=false); backdrop-latest (91 checks), tray-styles-latest (40 checks), PE imports check, Update -ValidateOnly, and post-apply Rollback -ValidateOnly (before-0.8.132-20261122-224159262, 12 files) passed",
+  "backendVersion": "0.5.112",
+  "controllerVersion": "0.3.44",
+  "panelVersion": "0.8.129",
+  "userRequest": {
+    "At": "2026-11-22",
+    "Question": "0.8.131 实测反馈：一样，只是出现后 0.几秒不干预自动恢复了",
+    "Scope": "Move atomic CompositionEffectBrush rebuild forward from the final ~396 ms pass to PrepareBackdrop (pre-Unhide) and every visible recovery pass (16 ms / +110 ms / +240 ms) so the stale white upper blur band clears immediately on reveal/landing instead of remaining visible for ~0.4 s."
+  },
+  "change": {
+    "FrontLoadedAtomicBrushRebuild": "include/backdrop-resume-latest.h + src/backdrop-brush-latest.inc: pass rebuild=true in PrepareBackdrop (before TrayUI_Unhide_Original) and on all visible passes of ScheduleBackdropResume, and tighten Plan cadence to 16 ms / +110 ms / +240 ms (~366 ms total coverage, zero idle polling).",
+    "TestsAndDocs": "tests/backdrop-latest.cpp + docs/backdrop-resume-latest.md + README.md + docs/verification-v0.8.131.json + docs/verification-latest.json: update Plan cadence assertions, record 0.8.131 live observation and 0.8.132 front-loaded rebuild fix."
+  },
+  "checks": {
+    "UnitAndFixtureSuites": "backdrop-latest (91 checks, 0 failed), tray-styles-latest (40 checks, 0 failed), imports-latest.py exit 0 (system DLLs only)",
+    "UpdatePreflight": "Update -ValidateOnly (ChangedFiles: 11, RuntimeChanged: [latest.dll], PreserveConfiguration: true) and post-apply Rollback -ValidateOnly (before-0.8.132-20261122-224159262, 12 files intact) passed; live backend 0.5.112 active with 0 unavailable components"
+  },
+  "runtimeBinaries": {
+    "latest.exe": "81CBDB50E15551B090FB5E5BCE37C2A84B26954F0EC9675069F7BFA4B45883F1",
+    "latest.dll": "62F0973D139F1FF989E6831F1F2073E0CA79C9FDF205FBBD3E6E72013E3DF5D6",
+    "start/latest.dll": "070939A5E5F6AC90717C4DFBCBD32F5F074798C3AF501FB5F494BB6827C12627",
+    "panels/latest.dll": "9F5976F79B7C5825D85C1E70EC171A8D7FAF0A24D36D44825923B7D40C9ACA87",
+    "aggregate/latest.exe": "83347F5B4901F909E0CB622BFC4BC48186262A99634E629ACD192AC8D6201E05"
+  },
+  "notVerified": [
+    "Elevated interactive desktop Update load and real maximize->desktop auto-hide visual verification on WinSta0\\Default"
+  ]
+}

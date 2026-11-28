@@ -9,7 +9,7 @@
 
 <img src="docs/assets/badge-platform.svg" alt="platform: Windows 11">
 <img src="docs/assets/badge-cpp.svg" alt="C++23">
-<img src="docs/assets/badge-version.svg" alt="version 0.8.132">
+<img src="docs/assets/badge-version.svg" alt="version 0.8.134">
 <img src="docs/assets/badge-license.svg" alt="license: GPL-3.0">
 
 <br><br>
@@ -283,6 +283,8 @@ D:\LeanDock\app\latest.ps1 -Action Update -PackagePath <新的包>
 | 11 月 21 日 | 0.8.129 | 为 `latest.log` 与 `aggregate/latest.log` 增加 64 KiB 单代轮转（`.old`）与锁定回退截断，防止日志无限增长；同步 README 至当前实机版本并清理陈旧构建产物与历史备份 |
 | 11 月 22 日 | 0.8.130 | 收紧 Dock 左右端留白（左 9 DIP / 右 10 DIP，含右侧轻视觉重量光学补偿）并将托盘列间距由 28 DIP 调整为 24 DIP（与行距等宽的 24×24 方格），使胶囊两端及托盘排布更紧凑均衡 |
 | 11 月 22 日 | 0.8.131 – 0.8.132 | 修复最大化窗口隐藏 Dock 后回到桌面时玻璃上半区残留白底的问题：展开前与滑入落位后均采用原子重建模糊画刷（`16 / 126 / 366 ms` 三轮有界恢复），消除原本约 0.4 秒的可见残白过渡 |
+| 11 月 26 日 | 0.8.133 | 修复应用长期最大化或睡眠唤醒后首次呼出 Dock 并直接悬停腰圆键无反应的问题：冷启动与展开前统一清空 `GetAsyncKeyState` 历史粘滞位且待机态不触发 `pressOutside` 并增加 16 DIP 滑出底边容差，同时在任务栏滑出阶段续等可见态并补齐落位/移动悬停触发 |
+| 11 月 28 日 | 0.8.134 | 移除详情面板媒体行标题开头与右侧播放/暂停按钮重复的 `▶` / `⏸` 前缀图标，让曲目标题与上方指标列直接左对齐并腾出更多显示宽度 |
 
 ## 🙏 致谢
 
